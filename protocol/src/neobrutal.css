@@ -9,30 +9,44 @@
 /* Neobrutal presentation. Scene geometry, typography, animation and semantic
    packet colors remain owned by the original drawing and playback modules. */
 :root {
-  --neo-bg: #eeeee9;
-  --neo-surface: #fffffc;
-  --neo-soft: #f3f3ed;
-  --neo-text: #22251f;
-  --neo-muted: #666b60;
-  --neo-border: #20231d;
-  --neo-rule: #d3d6cb;
-  --neo-shadow: #20231d;
-  --neo-accent: #d4e990;
-  --neo-on-accent: #20231d;
+  /* Base colors from andongmin94/neobrutal-ui's default Mono theme. */
+  --neo-bg: #f4f5f7;
+  --neo-surface: #ffffff;
+  --neo-soft: #edeef1;
+  --neo-text: #27282b;
+  --neo-muted: #6d6f75;
+  --neo-border: #3b3c40;
+  --neo-rule: #d6d7db;
+  --neo-shadow: #3b3c40;
+  --neo-accent: #27282b;
+  --neo-on-accent: #f4f5f7;
   --neo-sans: Pretendard, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
 :root[data-theme="dark"] {
-  --neo-bg: #1d201c;
-  --neo-surface: #292d27;
-  --neo-soft: #343a30;
-  --neo-text: #f1f2e9;
-  --neo-muted: #b7bdad;
-  --neo-border: #929b86;
-  --neo-rule: #495140;
-  --neo-shadow: #070a05;
-  --neo-accent: #d4e990;
-  --neo-on-accent: #20231d;
+  --neo-bg: #18191c;
+  --neo-surface: #242528;
+  --neo-soft: #2e2f33;
+  --neo-text: #e4e7ec;
+  --neo-muted: #a5a7ae;
+  --neo-border: #8b8d94;
+  --neo-rule: #45464d;
+  --neo-shadow: #121316;
+  --neo-accent: #e4e7ec;
+  --neo-on-accent: #27282b;
+}
+
+:root {
+  --ink: var(--neo-text);
+  --ink-strong: var(--neo-text);
+  --ink-soft: var(--neo-muted);
+  --ink-muted: var(--neo-muted);
+  --line: var(--neo-border);
+  --line-soft: var(--neo-rule);
+  --line-mid: var(--neo-rule);
+  --bg: var(--neo-bg);
+  --panel: var(--neo-surface);
+  --active: var(--neo-accent);
 }
 
 body {
@@ -130,7 +144,7 @@ body {
   background: linear-gradient(
       90deg,
       var(--neo-text) 0 35%,
-      var(--neo-accent) 50%,
+      var(--neo-muted) 50%,
       var(--neo-text) 65%
     )
     0 0 / 300% 100%;
@@ -141,7 +155,11 @@ body {
 }
 
 .learning-seg.partial i {
-  background: var(--neo-accent);
+  background: var(--neo-muted);
+}
+
+.now-dots i.is-done:after {
+  background: var(--neo-text);
 }
 
 /* Flat, outlined badges retain the original six protocol color families. */
@@ -164,7 +182,7 @@ body {
 
 .step-badge.amber {
   background: var(--k-fill-f4b305);
-  color: var(--neo-on-accent);
+  color: #27282b;
 }
 
 .step-badge.violet {
@@ -242,7 +260,7 @@ body {
 }
 
 .logo-frame {
-  color: var(--neo-text);
+  color: var(--neo-on-accent);
   background: var(--neo-accent);
   border-radius: 5px;
   box-shadow: inset 0 0 0 2px var(--neo-border), 3px 3px 0 var(--neo-shadow);
@@ -250,6 +268,10 @@ body {
 
 .logo-frame .corner {
   opacity: 0;
+}
+
+.logo-cube g {
+  stroke: var(--neo-accent);
 }
 
 .brand-text p,
@@ -387,8 +409,8 @@ body {
 }
 
 .step.is-done .step-num {
-  background: var(--k-fill-0aa86b);
-  color: var(--k-text-ffffff);
+  background: var(--neo-soft);
+  color: var(--neo-text);
 }
 
 .step:not(:last-child):before {
@@ -397,6 +419,7 @@ body {
 
 .step:not(:last-child):after {
   border-inline-start-width: 2px;
+  border-inline-start-color: var(--neo-muted);
 }
 
 .step-btn:hover .step-num {
@@ -491,29 +514,29 @@ body {
 /* Device-only palette: never let these aliases reach packets or arrow markers.
    The existing polygons, cloud clipping, and screen animation stay intact. */
 .network {
-  --scene-outline: #20251b;
-  --scene-grid: #eceee7;
-  --scene-idle: #abb69d;
+  --scene-outline: #3b3c40;
+  --scene-grid: #eceef1;
+  --scene-idle: #a3a5ad;
   background: var(--neo-surface);
 }
 
 :root[data-theme="dark"] .network {
-  --scene-outline: #d2dac6;
-  --scene-grid: #353c31;
-  --scene-idle: #69795b;
+  --scene-outline: #d4d6dc;
+  --scene-grid: #33353a;
+  --scene-idle: #71747d;
 }
 
 .network .device {
   /* Neutral faces keep the saturated protocol colors in the foreground. */
-  --scene-top: #fafaf5;
-  --scene-front: #e7e9e2;
-  --scene-side: #c3c8bd;
-  --scene-well: #d7dcd0;
-  --scene-screen: #fffffb;
-  --scene-outline: #252a23;
-  --scene-detail: #737d6b;
-  --scene-bezel: #424a3c;
-  --scene-shadow: #c8cdc1;
+  --scene-top: #fafafa;
+  --scene-front: #e6e7ea;
+  --scene-side: #c4c6cc;
+  --scene-well: #d6d8dd;
+  --scene-screen: #ffffff;
+  --scene-outline: #303136;
+  --scene-detail: #7b7d85;
+  --scene-bezel: #45474e;
+  --scene-shadow: #d2d4d9;
   --k-line-1b3fae: var(--scene-outline);
   --k-line-8ea9e2: var(--scene-detail);
   --k-line-7d9be0: var(--scene-detail);
@@ -554,15 +577,15 @@ body {
 }
 
 :root[data-theme="dark"] .network .device {
-  --scene-top: #5e6658;
-  --scene-front: #495241;
-  --scene-side: #343d2e;
-  --scene-well: #252e20;
-  --scene-screen: #303a2a;
-  --scene-outline: #d5dbcf;
-  --scene-detail: #94a18b;
-  --scene-bezel: #222a1e;
-  --scene-shadow: #151b11;
+  --scene-top: #62656c;
+  --scene-front: #4b4d54;
+  --scene-side: #35373d;
+  --scene-well: #2c2e34;
+  --scene-screen: #303238;
+  --scene-outline: #d4d6dc;
+  --scene-detail: #979aa3;
+  --scene-bezel: #25272d;
+  --scene-shadow: #1c1d21;
 }
 
 .network .device [fill="url(#face-top)"] {
@@ -702,6 +725,145 @@ body {
 .network .note-box,
 .network .packet-body {
   fill: var(--neo-surface);
+}
+
+/* Mono UI states. Packet badges, arrows, layer colors and linked highlights
+   remain in their original semantic colors. */
+.status-dot {
+  border-radius: 3px;
+}
+
+.status-dot.new {
+  background: var(--neo-surface);
+  box-shadow: inset 0 0 0 2px var(--neo-muted);
+}
+
+.status-dot.progress {
+  background: linear-gradient(90deg, var(--neo-text) 50%, var(--neo-surface) 50%);
+  box-shadow: inset 0 0 0 2px var(--neo-text);
+}
+
+.status-dot.done,
+.overview-name .badge i {
+  background: var(--neo-text);
+}
+
+.overview-name .badge {
+  color: var(--neo-text);
+  background: var(--neo-soft);
+}
+
+.overview-name .badge i {
+  border-radius: 2px;
+}
+
+.explain-label,
+.explain.is-done .explain-label,
+.explain-packet-head span,
+.explain-payload,
+.ins-name,
+.ins-value,
+.ins-foot b,
+.hx-head,
+.hx-text {
+  color: var(--neo-text);
+}
+
+.explain-meta,
+.ins-title span,
+.ins-where,
+.ins-seg i,
+.ins-foot,
+.ins-layer h4 em,
+.ins-note,
+.hx-head span,
+.hx-at,
+.hx.is-unknown,
+.as.is-unknown,
+.seq-who i {
+  color: var(--neo-muted);
+}
+
+.explain-packet-card {
+  background: var(--neo-soft);
+  border-color: var(--neo-rule);
+  border-inline-start-color: var(--packet);
+}
+
+.ins-head,
+.ins-body,
+.ins-hex,
+.ins-foot,
+.is-single .ins-hex,
+.seq-head {
+  border-color: var(--neo-rule);
+}
+
+.ins-hex {
+  background: var(--neo-soft);
+}
+
+.eg {
+  color: var(--neo-text);
+  background: var(--neo-soft);
+}
+
+.proto-list,
+.overview-body,
+.seq-scroll,
+.ins-tree,
+.ins-hex {
+  scrollbar-color: var(--neo-rule) transparent;
+}
+
+.seq-life,
+.seq-wave,
+.seq-step-line,
+.seq-step.is-active .seq-step-line {
+  stroke: var(--neo-rule);
+}
+
+.seq-step-text,
+.seq-time,
+.seq-break-text {
+  fill: var(--neo-muted);
+}
+
+.seq-step.is-active .seq-step-text,
+.seq-arrow.is-current .seq-time {
+  fill: var(--neo-text);
+}
+
+.seq-break-bg {
+  fill: var(--neo-soft);
+  stroke: var(--neo-rule);
+}
+
+.network .url-check,
+.network .url-lock,
+.network .url-bar .url-lock rect {
+  stroke: var(--neo-text);
+}
+
+.network .url-bar .url-lock rect {
+  fill: var(--neo-surface);
+}
+
+.proto-row:focus-visible {
+  outline-color: var(--neo-text);
+}
+
+.is-stacked .drawer-btn,
+.is-stacked .drawer-close {
+  color: var(--neo-text);
+  background: var(--neo-surface);
+  border-color: var(--neo-border);
+}
+
+.is-stacked .drawer-btn:hover,
+.is-stacked .drawer-close:hover {
+  color: var(--neo-text);
+  background: var(--neo-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
