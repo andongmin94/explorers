@@ -792,15 +792,21 @@ body {
 }
 
 .explain-packet-card {
-  background: var(--neo-soft);
-  border-color: var(--neo-rule);
-  border-inline-start-color: var(--packet);
+  margin-block: 10px 4px;
+  padding: 0;
+  border: 2px solid var(--neo-border);
+  border-radius: 4px;
+  background: var(--neo-surface);
+  box-shadow: 3px 3px 0 var(--neo-shadow);
 }
 
 .explain-packet-head {
   flex-direction: column;
   align-items: flex-start;
   gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--neo-border);
+  background: var(--neo-soft);
   font-family: var(--neo-sans);
 }
 
@@ -818,6 +824,22 @@ body {
   line-height: 18px;
   letter-spacing: 0;
   word-break: keep-all;
+}
+
+.explain-payload {
+  margin: 0;
+  padding: 10px;
+  font-size: 13px;
+  line-height: 19px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.explain-meta {
+  margin: 0;
+  padding: 6px 10px;
+  border-top: 1px solid var(--neo-border);
+  background: var(--neo-soft);
 }
 
 .ins-head,
