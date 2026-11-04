@@ -3,20 +3,10 @@ import "./styles.css";
 import "./neobrutal.css";
 import { lessonsById, protocolCatalog } from "./lessons/index.js";
 import { recordLessonProgress } from "./progress.js";
-import { prefersReducedMotion } from "./ui/motion.js";
 import {
-  isRtl,
-  onLanguageChange,
-  restoreLanguage,
-  setLanguage,
-  translateDom,
-} from "./i18n.js";
-import {
-  bindLanguageMenu,
   bindThemeToggle,
   fitTopbarText,
   renderTopbar,
-  translateTopbar,
   updateLearningProgress,
   updateTopbar,
 } from "./ui/header.js";
@@ -29,14 +19,12 @@ import {
 import { playbackClock } from "./simulation/clock.js";
 import {
   bindSequenceScrolling,
-  refreshSequenceDiagram,
   updateSequenceDiagram,
 } from "./ui/sequence.js";
 import { createPacketInspector } from "./ui/inspector.js";
 import { createViewSwitcher, renderSimulationPanel } from "./ui/stage.js";
 import {
   bindOverviewBackButton,
-  invalidateOverview,
   renderOverviewPanel,
   updateOverviewPanel,
 } from "./ui/overview.js";
@@ -44,14 +32,11 @@ import {
   bindPacketTable,
   fitPlaybackButton,
   renderPacketTable,
-  translatePacketTable,
   updatePacketTable,
   updatePlaybackSpeedLabel,
 } from "./ui/packet-table.js";
 import { createNetworkAnimation } from "./simulation/network-animation.js";
 import { createLessonPlayer } from "./simulation/player.js";
-// Load the saved language before building any translated markup.
-await restoreLanguage();
 const appElement = document.querySelector("#app");
 appElement.innerHTML = `
   <div class="shell">
@@ -288,35 +273,6 @@ function selectLesson(lessonId) {
   lessonPlayer.reset();
 }
 
-function refreshAppTranslations() {
-  translateDom(appElement);
-  translateTopbar(topbarElement);
-  fitTopbarText(topbarElement);
-  updateLearningProgress(topbarElement, lessonsById);
-  if (currentLesson) {
-    invalidateOverview(overviewElement);
-    translatePacketTable(packetsElement, currentLesson);
-    networkAnimation.retext();
-    refreshSequenceDiagram(sequenceElement);
-    if (packetInspector.isOpen()) {
-      packetInspector.open(currentLesson, packetInspector.index());
-    }
-    if (currentPlaybackState) {
-      updateAppPlaybackState(currentPlaybackState);
-    }
-  }
-}
-onLanguageChange(() => {
-  if (!document.startViewTransition || prefersReducedMotion()) {
-    return refreshAppTranslations();
-  }
-  documentRoot.classList.add("is-retexting");
-  document
-    .startViewTransition(refreshAppTranslations)
-    .finished.finally(() => documentRoot.classList.remove("is-retexting"));
-});
-bindLanguageMenu(topbarElement, (language) => setLanguage(language));
-
 const closeDrawerAfterSelection = () =>
   isDrawerOpen() && setTimeout(() => setDrawerOpen(false), 220);
 bindSidebar(sidebarElement, {
@@ -398,8 +354,8 @@ const navigateBackward = () =>
   packetInspector.isOpen() ? packetInspector.step(-1) : jumpToPreviousStep();
 const keyboardActions = {
   " ": () => lessonPlayer.toggle(),
-  ArrowRight: () => (isRtl() ? navigateBackward() : navigateForward()),
-  ArrowLeft: () => (isRtl() ? navigateForward() : navigateBackward()),
+  ArrowRight: navigateForward,
+  ArrowLeft: navigateBackward,
   Escape: () =>
     isDrawerOpen()
       ? setDrawerOpen(false)
@@ -412,7 +368,7 @@ const keyboardActions = {
 const isTextInputTarget = (target) =>
   target instanceof Element &&
   target.closest(
-    'input, textarea, select, [contenteditable="true"], .lang-menu',
+    'input, textarea, select, [contenteditable="true"]',
   );
 for (const eventType of ["keydown", "keyup"]) {
   window.addEventListener(eventType, (event) => {

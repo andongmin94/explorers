@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>Protocol Explorer · Learn how the internet works</title>
+    <title>Protocol Explorer · 인터넷 작동 원리 배우기</title>
     <meta
       name="description"
-      content="Watch the internet work, packet by packet. Interactive lessons on HTTP, HTTPS, TCP, UDP, IP, DNS, DHCP, ICMP, SMTP, POP3, IMAP, FTP, SSH and TLS, with every packet decoded byte by byte. In English, Spanish, Portuguese, French, German, Turkish, Indonesian, Japanese, Chinese (Simplified and Traditional), Korean, Hindi, Arabic and Hebrew."
+      content="패킷의 이동을 보며 인터넷 작동 원리를 배웁니다. HTTP, HTTPS, TCP, UDP, DNS 등 14개 프로토콜의 동작과 패킷 구조를 단계별로 살펴보세요."
     />
     <meta name="author" content="Dilum Sanjaya" />
     <meta name="color-scheme" content="light dark" />
     <meta
       name="theme-color"
-      content="#fdfdfe"
+      content="#f4f5f7"
       media="(prefers-color-scheme: light)"
     />
     <meta
       name="theme-color"
-      content="#0b1020"
+      content="#18191c"
       media="(prefers-color-scheme: dark)"
     />
     <link rel="canonical" href="https://protocol-explorer-alpha.vercel.app/" />
@@ -34,11 +34,11 @@
     <meta property="og:site_name" content="Protocol Explorer" />
     <meta
       property="og:title"
-      content="Protocol Explorer · Learn how the internet works"
+      content="Protocol Explorer · 인터넷 작동 원리 배우기"
     />
     <meta
       property="og:description"
-      content="Watch the internet work, packet by packet: interactive lessons from DNS and TCP to TLS, with every packet decoded byte by byte."
+      content="DNS와 TCP부터 TLS까지, 네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜."
     />
     <meta
       property="og:url"
@@ -53,31 +53,18 @@
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="Protocol Explorer: a network diagram with a TLS Server Hello packet travelling from the internet to a laptop's router."
+      content="Protocol Explorer: 인터넷에서 라우터와 노트북으로 패킷이 이동하는 네트워크 그림."
     />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:locale:alternate" content="es_ES" />
-    <meta property="og:locale:alternate" content="pt_BR" />
-    <meta property="og:locale:alternate" content="fr_FR" />
-    <meta property="og:locale:alternate" content="de_DE" />
-    <meta property="og:locale:alternate" content="tr_TR" />
-    <meta property="og:locale:alternate" content="id_ID" />
-    <meta property="og:locale:alternate" content="ja_JP" />
-    <meta property="og:locale:alternate" content="zh_CN" />
-    <meta property="og:locale:alternate" content="zh_TW" />
-    <meta property="og:locale:alternate" content="ko_KR" />
-    <meta property="og:locale:alternate" content="hi_IN" />
-    <meta property="og:locale:alternate" content="ar_AR" />
-    <meta property="og:locale:alternate" content="he_IL" />
+    <meta property="og:locale" content="ko_KR" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:creator" content="@DilumSanjaya" />
     <meta
       name="twitter:title"
-      content="Protocol Explorer · Learn how the internet works"
+      content="Protocol Explorer · 인터넷 작동 원리 배우기"
     />
     <meta
       name="twitter:description"
-      content="Watch the internet work, packet by packet: interactive lessons from DNS and TCP to TLS, with every packet decoded byte by byte."
+      content="DNS와 TCP부터 TLS까지, 네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜."
     />
     <meta
       name="twitter:image"
@@ -85,7 +72,7 @@
     />
     <meta
       name="twitter:image:alt"
-      content="Protocol Explorer: a network diagram with a TLS Server Hello packet travelling from the internet to a laptop's router."
+      content="Protocol Explorer: 인터넷에서 라우터와 노트북으로 패킷이 이동하는 네트워크 그림."
     />
     <script type="application/ld+json">
       {
@@ -93,25 +80,10 @@
         "@type": "WebApplication",
         "name": "Protocol Explorer",
         "url": "https://protocol-explorer-alpha.vercel.app/",
-        "description": "Interactive lessons on how internet protocols work, with every packet decoded byte by byte.",
+        "description": "네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜.",
         "applicationCategory": "EducationalApplication",
         "operatingSystem": "Any",
-        "inLanguage": [
-          "en",
-          "es",
-          "pt-BR",
-          "fr",
-          "de",
-          "tr",
-          "id",
-          "ja",
-          "zh-CN",
-          "zh-TW",
-          "ko",
-          "hi",
-          "ar",
-          "he"
-        ],
+        "inLanguage": "ko",
         "isAccessibleForFree": true,
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
         "author": {
@@ -134,7 +106,7 @@
           for (const meta of document.querySelectorAll(
             'meta[name="theme-color"]',
           ))
-            meta.content = dark ? "#0b1020" : "#fdfdfe";
+            meta.content = dark ? "#18191c" : "#f4f5f7";
       } catch {
         document.documentElement.dataset.theme = "light";
       }
@@ -150,11 +122,11 @@
           font:
             16px/1.5 ui-monospace,
             monospace;
-          color: #00238a;
+          color: #27282b;
         "
       >
-        Protocol Explorer animates packets as they travel the network, so it
-        needs JavaScript. Please turn it on to start the lessons.
+        네트워크 애니메이션과 학습 기능을 사용하려면 브라우저에서 JavaScript를
+        활성화해 주세요.
       </p>
     </noscript>
   </body>

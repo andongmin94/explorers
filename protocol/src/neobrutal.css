@@ -94,22 +94,18 @@ body {
 .step.is-active .step-title,
 .step.is-done .step-title,
 .step-btn:hover .step-title,
-.facts dt,
-.credit-name {
+.facts dt {
   color: var(--neo-text);
   letter-spacing: 0;
 }
 
 .now-step,
 .osi-name,
-.learning-value,
-.credit-x,
-.credit:hover .credit-name {
+.learning-value {
   color: var(--neo-text);
 }
 
-.learning-sub .dot,
-.menu-btn svg:last-child {
+.learning-sub .dot {
   color: var(--neo-muted);
 }
 
@@ -279,7 +275,6 @@ body {
 .osi-label,
 .learning-label,
 .learning-sub,
-.credit-label,
 .proto-full,
 .step-desc,
 .step.is-active .step-desc,
@@ -312,23 +307,15 @@ body {
 
 .tabs,
 .theme-toggle,
-.view-switch,
-.lang-menu {
+.view-switch {
   border-color: var(--neo-border);
   border-radius: 5px;
   background: var(--neo-surface);
   box-shadow: 2px 2px 0 var(--neo-shadow);
 }
 
-.lang-menu {
-  outline: 1px solid var(--neo-border);
-  box-shadow: 4px 4px 0 var(--neo-shadow);
-}
-
 .tab,
 .theme-toggle button,
-.lang-menu button,
-.lang-menu button b,
 .view-switch button,
 .more,
 .proto-chev,
@@ -342,9 +329,7 @@ body {
 }
 
 .tab.is-active,
-.theme-toggle .is-active,
-.lang-menu button[aria-checked="true"],
-.lang-menu button[aria-checked="true"] b {
+.theme-toggle .is-active {
   color: var(--neo-on-accent);
   background: var(--neo-accent);
 }
@@ -431,14 +416,11 @@ body {
 }
 
 .tab:not(.is-active):hover,
-.lang-menu button:not([aria-checked="true"]):hover,
-.lang-menu button:not([aria-checked="true"]):focus-visible,
 .proto.has-lesson:not(.is-active) .proto-row:hover {
   background-color: var(--neo-soft);
 }
 
 .btn,
-.menu-btn,
 .back-btn,
 .ins-nav button,
 .drawer-btn,
@@ -459,7 +441,6 @@ body {
 }
 
 .btn:not(:disabled):hover,
-.menu-btn:hover,
 .back-btn:hover,
 .ins-nav button:not(:disabled):hover,
 .drawer-btn:hover,
@@ -469,14 +450,12 @@ body {
 }
 
 .btn:not(.primary):not(:disabled):hover,
-.menu-btn:hover,
 .back-btn:hover,
 .ins-nav button:not(:disabled):hover {
   background: var(--neo-soft);
 }
 
 .btn:not(:disabled):active,
-.menu-btn:active,
 .back-btn:active,
 .ins-nav button:not(:disabled):active,
 .drawer-btn:active,
@@ -492,18 +471,12 @@ body {
 }
 
 .btn:focus-visible,
-.menu-btn:focus-visible,
 .back-btn:focus-visible,
 .ins-nav button:focus-visible,
 .drawer-btn:focus-visible,
 .drawer-close:focus-visible {
   outline: 2px solid var(--neo-text);
   outline-offset: 4px;
-}
-
-.lang-menu button:focus-visible {
-  outline: 2px solid var(--neo-text);
-  outline-offset: -2px;
 }
 
 :root[data-layout="phone"] .brand-text h1 {
@@ -868,7 +841,6 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .btn,
-  .menu-btn,
   .back-btn,
   .ins-nav button,
   .drawer-btn,

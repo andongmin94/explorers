@@ -4,9 +4,7 @@ import { icons } from "./icons.js";
 import { getLessonCompletion, getLessonStatus } from "../progress.js";
 import { animateTextChange } from "./motion.js";
 import {
-  getLanguage,
   localizedUpperCase,
-  supportedLanguages,
   translate,
   translatedElementContent,
 } from "../i18n.js";
@@ -88,125 +86,6 @@ function updateLearningProgress(topbar, lessons) {
   );
 }
 
-function renderAuthorCredit() {
-  return `
-  <a class="credit" href="https://x.com/DilumSanjaya" target="_blank" rel="noopener noreferrer" data-t-title="Dilum Sanjaya on X" title="${translate("Dilum Sanjaya on X")}">
-    <span class="credit-label" ${translatedElementContent("DESIGNED BY")}</span>
-    <span class="credit-name">
-      <svg class="credit-x" viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M17.75 3h3.07l-6.71 7.67L22 21h-6.18l-4.84-6.33L5.44 21H2.37l7.18-8.2L2 3h6.33l4.38 5.79L17.75 3Zm-1.08 16.18h1.7L7.4 4.73H5.58l11.09 14.45Z"/></svg>
-      DilumSanjaya
-    </span>
-  </a>`;
-}
-
-function renderLanguageMenu() {
-  const languageOptions = supportedLanguages
-    .map(
-      (
-        language,
-      ) => `<button type="button" role="menuitemradio" data-lang="${language.code}" lang="${language.html}" aria-checked="${language.code === getLanguage()}">
-      <span>${language.name}</span><b>${language.short}</b></button>`,
-    )
-    .join("");
-  return `
-  <div class="lang">
-    <button class="menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-t-label="Language" aria-label="${translate("Language")}" data-t-title="Language" title="${translate("Language")}">
-      ${icons.globe}<span class="lang-code">${supportedLanguages.find((language) => language.code === getLanguage()).short}</span>${icons.caret}
-    </button>
-    <div class="lang-menu" role="menu" hidden>${languageOptions}</div>
-  </div>`;
-}
-
-function bindLanguageMenu(topbar, onSelectLanguage) {
-  const languageControl = topbar.querySelector(".lang");
-  const menuButton = languageControl.querySelector(".menu-btn");
-  const menu = languageControl.querySelector(".lang-menu");
-  const getOptions = () => [...menu.querySelectorAll("[data-lang]")];
-  function setMenuOpen(open, focusSelection = true) {
-    if (open !== !menu.hidden) {
-      menu.hidden = !open;
-      menuButton.setAttribute("aria-expanded", open);
-      if (open) {
-        if (focusSelection) {
-          (
-            getOptions().find(
-              (option) => option.getAttribute("aria-checked") === "true",
-            ) ?? getOptions()[0]
-          ).focus();
-        }
-        document.addEventListener("pointerdown", handleOutsideClick, true);
-      } else {
-        document.removeEventListener("pointerdown", handleOutsideClick, true);
-      }
-    }
-  }
-  const handleOutsideClick = (event) =>
-    !languageControl.contains(event.target) && setMenuOpen(false, false);
-  menuButton.addEventListener("click", () => setMenuOpen(menu.hidden, true));
-  menu.addEventListener("click", async (event) => {
-    const option = event.target.closest("[data-lang]");
-    if (!option) {
-      return;
-    }
-    setMenuOpen(false);
-    menuButton.focus();
-    if (option.dataset.lang !== getLanguage()) {
-      languageControl.classList.add("is-loading");
-      try {
-        await onSelectLanguage(option.dataset.lang);
-      } finally {
-        languageControl.classList.remove("is-loading");
-      }
-    }
-  });
-  languageControl.addEventListener("keydown", (event) => {
-    if (menu.hidden) {
-      return;
-    }
-    const options = getOptions();
-    const focusedIndex = options.indexOf(document.activeElement);
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      options[
-        (focusedIndex + (event.key === "ArrowDown" ? 1 : -1) + options.length) %
-          options.length
-      ].focus();
-    } else if (event.key === "Home" || event.key === "End") {
-      event.preventDefault();
-      options[event.key === "Home" ? 0 : options.length - 1].focus();
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      setMenuOpen(false);
-      menuButton.focus();
-    } else if (event.key === "Tab") {
-      setMenuOpen(false, false);
-    }
-  });
-}
-
-function updateLanguageMenu(topbar) {
-  const languageCode = getLanguage();
-  topbar.querySelector(".lang-code").textContent = supportedLanguages.find(
-    (language) => language.code === languageCode,
-  ).short;
-  topbar
-    .querySelectorAll(".lang-menu [data-lang]")
-    .forEach((option) =>
-      option.setAttribute("aria-checked", option.dataset.lang === languageCode),
-    );
-}
-
-function translateTopbar(topbar) {
-  updateLanguageMenu(topbar);
-  topbar.querySelectorAll(".osi-chips span").forEach(
-    (chip, index) =>
-      (chip.title = translate("Layer {n}: {name}", {
-        n: index + 1,
-        name: translate(OSI_LAYER_NAMES[index]),
-      })),
-  );
-  delete topbar.dataset.lesson;
-}
 const OSI_LAYER_NAMES = [
   "Physical",
   "Data Link",
@@ -298,9 +177,6 @@ function renderTopbar() {
       <span class="topbar-sep"></span>
       ${renderLearningProgress()}
       <span class="topbar-sep"></span>
-      ${renderAuthorCredit()}
-      <span class="topbar-sep"></span>
-      ${renderLanguageMenu()}
       <div class="theme-toggle" role="group" data-t-label="Theme" aria-label="${translate("Theme")}">
         <button type="button" data-theme-choice="light" aria-pressed="false" data-t-label="Light mode" aria-label="${translate("Light mode")}" data-t-title="Light mode" title="${translate("Light mode")}">${icons.sun}</button>
         <button type="button" data-theme-choice="dark" aria-pressed="false" data-t-label="Dark mode" aria-label="${translate("Dark mode")}" data-t-title="Dark mode" title="${translate("Dark mode")}">${icons.moon}</button>
@@ -415,8 +291,8 @@ const measureTextWidth = (element) => {
 const THEME_STORAGE_KEY = "protocol-explorer:theme";
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const THEME_COLORS = {
-  light: "#fdfdfe",
-  dark: "#0b1020",
+  light: "#f4f5f7",
+  dark: "#18191c",
 };
 
 function updateThemeButtons(topbar, theme) {
@@ -498,11 +374,9 @@ function bindThemeToggle(topbar) {
   });
 }
 export {
-  bindLanguageMenu,
   bindThemeToggle,
   fitTopbarText,
   renderTopbar,
-  translateTopbar,
   updateLearningProgress,
   updateTopbar,
 };
