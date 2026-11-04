@@ -86,6 +86,111 @@ body {
   letter-spacing: 0;
 }
 
+.now-step,
+.osi-name,
+.learning-value,
+.credit-x,
+.credit:hover .credit-name {
+  color: var(--neo-text);
+}
+
+.learning-sub .dot,
+.menu-btn svg:last-child {
+  color: var(--neo-muted);
+}
+
+.topbar-sep,
+.is-stacked .topbar:after {
+  background: var(--neo-rule);
+}
+
+.osi-chips span {
+  color: var(--neo-muted);
+  border-color: var(--neo-rule);
+  border-radius: 3px;
+}
+
+.osi-marker {
+  background: var(--neo-accent);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--neo-border);
+}
+
+.osi-chips .is-active {
+  color: var(--neo-on-accent);
+  border-color: transparent;
+}
+
+.now-dots i,
+.learning-seg {
+  background: var(--neo-rule);
+}
+
+.now-dots i.is-active:after {
+  background: linear-gradient(
+      90deg,
+      var(--neo-text) 0 35%,
+      var(--neo-accent) 50%,
+      var(--neo-text) 65%
+    )
+    0 0 / 300% 100%;
+}
+
+.learning-seg i {
+  background: var(--neo-text);
+}
+
+.learning-seg.partial i {
+  background: var(--neo-accent);
+}
+
+/* Only table text and row surfaces change. Badges, legend dots and their
+   protocol colors keep their original independent styles. */
+.packet-table th {
+  color: var(--neo-text);
+  background: var(--neo-soft);
+  box-shadow: inset 0 -1px 0 var(--neo-rule);
+}
+
+.packet-table td {
+  color: var(--neo-text);
+  border-bottom-color: var(--neo-rule);
+}
+
+.packet-table .packet-empty td,
+.packet-table tr.is-lost td,
+.packet-table .lost-chip {
+  color: var(--neo-muted);
+}
+
+.packet-table .lost-chip {
+  border-color: var(--neo-rule);
+}
+
+.packet-table tr.is-current td,
+.packet-table tr[data-packet]:hover td {
+  background: var(--neo-soft);
+}
+
+.packet-table tr.is-current td:first-child {
+  box-shadow: inset 3px 0 0 var(--neo-text);
+}
+
+.packet-table tr[data-packet]:focus-visible {
+  outline-color: var(--neo-text);
+}
+
+.packet-table tr.is-inspected td,
+.packet-table tr.is-inspected:hover td {
+  background: color-mix(in srgb, var(--neo-accent) 12%, var(--neo-surface));
+  box-shadow: inset 0 -1px 0 var(--neo-rule);
+}
+
+.packet-table tr.is-inspected td:first-child,
+.packet-table tr.is-inspected:hover td:first-child {
+  box-shadow: inset 3px 0 0 var(--k-line-0e95a3);
+}
+
 .brand-text h1 {
   font-family: var(--neo-sans);
   font-size: 26px;
