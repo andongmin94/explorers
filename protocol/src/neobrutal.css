@@ -1,0 +1,308 @@
+@font-face {
+  font-family: Pretendard;
+  font-style: normal;
+  font-weight: 45 920;
+  font-display: swap;
+  src: url(/fonts/PretendardVariable.woff2) format("woff2");
+}
+
+/* UI chrome only. The original diagram, sequence, packet colors and layout
+   continue to use styles.css and its --k-* tokens without any overrides. */
+:root {
+  --neo-bg: #eeeee9;
+  --neo-surface: #fffffc;
+  --neo-soft: #f3f3ed;
+  --neo-text: #22251f;
+  --neo-muted: #666b60;
+  --neo-border: #20231d;
+  --neo-rule: #d3d6cb;
+  --neo-shadow: #20231d;
+  --neo-accent: #d4e990;
+  --neo-on-accent: #20231d;
+  --neo-sans: Pretendard, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+:root[data-theme="dark"] {
+  --neo-bg: #1d201c;
+  --neo-surface: #292d27;
+  --neo-soft: #343a30;
+  --neo-text: #f1f2e9;
+  --neo-muted: #b7bdad;
+  --neo-border: #929b86;
+  --neo-rule: #495140;
+  --neo-shadow: #070a05;
+  --neo-accent: #d4e990;
+  --neo-on-accent: #20231d;
+}
+
+body {
+  background: var(--neo-bg);
+}
+
+.topbar,
+.sidebar,
+.overview,
+.packets .panel-head,
+.view-switch,
+.ins-head,
+.ins-where,
+.ins-foot {
+  font-family: var(--neo-sans);
+  color: var(--neo-text);
+}
+
+/* Outlines add weight without shrinking the original simulation viewport. */
+.panel {
+  border-color: var(--neo-border);
+  border-radius: 5px;
+  outline: 1px solid var(--neo-border);
+  box-shadow: 3px 3px 0 var(--neo-shadow);
+}
+
+.sidebar,
+.overview,
+.packets {
+  background: var(--neo-surface);
+}
+
+.panel-head.bar {
+  border-bottom-color: var(--neo-border);
+  background: var(--neo-soft);
+}
+
+.panel-title,
+.brand-text h1,
+.now-title,
+.overview-name h3,
+.explain-title,
+.proto-name,
+.step-title,
+.step.is-active .step-title,
+.step.is-done .step-title,
+.step-btn:hover .step-title,
+.facts dt,
+.credit-name {
+  color: var(--neo-text);
+  letter-spacing: 0;
+}
+
+.brand-text h1 {
+  font-family: var(--neo-sans);
+  font-size: 26px;
+  font-weight: 850;
+  letter-spacing: -0.035em;
+}
+
+.brand-text h1 em {
+  font-style: normal;
+}
+
+.logo-frame {
+  color: var(--neo-text);
+  background: var(--neo-accent);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 2px var(--neo-border), 3px 3px 0 var(--neo-shadow);
+}
+
+.logo-frame .corner {
+  opacity: 0;
+}
+
+.brand-text p,
+.now-label,
+.osi-label,
+.learning-label,
+.learning-sub,
+.credit-label,
+.proto-full,
+.step-desc,
+.step.is-active .step-desc,
+.overview-full,
+.explain-sub,
+.facts dd,
+.packet-legend,
+.legend-note {
+  color: var(--neo-muted);
+  letter-spacing: 0;
+}
+
+.overview-desc,
+.explain-text {
+  color: var(--neo-text);
+}
+
+.explain-packet,
+.facts dd {
+  font-family: Iosevka, ui-monospace, monospace;
+}
+
+.facts > div,
+.facts > div:last-child,
+.proto,
+.topbar-sep,
+.legend-note {
+  border-color: var(--neo-rule);
+}
+
+.tabs,
+.theme-toggle,
+.view-switch,
+.lang-menu {
+  border-color: var(--neo-border);
+  border-radius: 5px;
+  background: var(--neo-surface);
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+}
+
+.lang-menu {
+  outline: 1px solid var(--neo-border);
+  box-shadow: 4px 4px 0 var(--neo-shadow);
+}
+
+.tab,
+.theme-toggle button,
+.lang-menu button,
+.lang-menu button b,
+.view-switch button,
+.more,
+.proto-chev,
+.proto.is-active .proto-chev {
+  color: var(--neo-text);
+}
+
+.tab,
+.theme-toggle button + button {
+  border-inline-start-color: var(--neo-border);
+}
+
+.tab.is-active,
+.theme-toggle .is-active,
+.lang-menu button[aria-checked="true"],
+.lang-menu button[aria-checked="true"] b {
+  color: var(--neo-on-accent);
+  background: var(--neo-accent);
+}
+
+.tab-indicator {
+  background: var(--neo-text);
+}
+
+.tab-count {
+  border-radius: 3px;
+  background: var(--neo-soft);
+  color: var(--neo-muted);
+}
+
+.tab.is-active .tab-count {
+  background: var(--neo-on-accent);
+  color: var(--neo-accent);
+}
+
+.view-indicator {
+  border-radius: 3px;
+  background: var(--neo-accent);
+  box-shadow: inset 0 0 0 1px var(--neo-border);
+}
+
+.view-switch button.is-active {
+  color: var(--neo-on-accent);
+}
+
+.proto.is-active .proto-row {
+  border-color: var(--neo-border);
+  border-radius: 5px;
+  background: var(--neo-soft);
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+}
+
+.tab:not(.is-active):hover,
+.lang-menu button:not([aria-checked="true"]):hover,
+.lang-menu button:not([aria-checked="true"]):focus-visible,
+.proto.has-lesson:not(.is-active) .proto-row:hover {
+  background-color: var(--neo-soft);
+}
+
+.btn,
+.menu-btn,
+.back-btn,
+.ins-nav button,
+.drawer-btn,
+.drawer-close {
+  border-color: var(--neo-border);
+  border-radius: 5px;
+  background: var(--neo-surface);
+  color: var(--neo-text);
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+  outline: 1px solid var(--neo-border);
+  transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.btn.primary {
+  background: var(--neo-accent);
+  border-color: var(--neo-border);
+  color: var(--neo-on-accent);
+}
+
+.btn:not(:disabled):hover,
+.menu-btn:hover,
+.back-btn:hover,
+.ins-nav button:not(:disabled):hover,
+.drawer-btn:hover,
+.drawer-close:hover {
+  translate: 1px 1px;
+  box-shadow: 1px 1px 0 var(--neo-shadow);
+}
+
+.btn:not(.primary):not(:disabled):hover,
+.menu-btn:hover,
+.back-btn:hover,
+.ins-nav button:not(:disabled):hover {
+  background: var(--neo-soft);
+}
+
+.btn:not(:disabled):active,
+.menu-btn:active,
+.back-btn:active,
+.ins-nav button:not(:disabled):active,
+.drawer-btn:active,
+.drawer-close:active {
+  translate: 2px 2px;
+  box-shadow: none;
+}
+
+.btn:disabled,
+.ins-nav button:disabled {
+  box-shadow: none;
+  outline: none;
+}
+
+.btn:focus-visible,
+.menu-btn:focus-visible,
+.back-btn:focus-visible,
+.ins-nav button:focus-visible,
+.drawer-btn:focus-visible,
+.drawer-close:focus-visible {
+  outline: 2px solid var(--neo-text);
+  outline-offset: 4px;
+}
+
+.lang-menu button:focus-visible {
+  outline: 2px solid var(--neo-text);
+  outline-offset: -2px;
+}
+
+:root[data-layout="phone"] .brand-text h1 {
+  font-size: 14px;
+  letter-spacing: -0.035em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .menu-btn,
+  .back-btn,
+  .ins-nav button,
+  .drawer-btn,
+  .drawer-close {
+    transition: none;
+  }
+}

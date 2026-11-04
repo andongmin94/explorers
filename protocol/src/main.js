@@ -1,5 +1,6 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import "./styles.css";
+import "./neobrutal.css";
 import { lessonsById, protocolCatalog } from "./lessons/index.js";
 import { recordLessonProgress } from "./progress.js";
 import { prefersReducedMotion } from "./ui/motion.js";
