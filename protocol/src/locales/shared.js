@@ -1,55 +1,88 @@
-const d = (e) => {
-    const n = e.replace(/,/g, "");
-    return n.length > 4 ? n.replace(/\B(?=(\d{3})+$)/g, " ") : n;
-  },
-  h = (e) =>
-    e.replace(new RegExp("(?<![\\d,])\\d{1,3}(?:,\\d{3})+(?![\\d,])", "g"), d),
-  $ = (e) => e.replace(/ ([:;?!»%])/g, " $1").replace(/« /g, "« "),
-  u = (e) => {
-    const n = e.replace(/,/g, "");
-    return n.length > 5
-      ? n.slice(0, -3).replace(/\B(?=(\d{2})+$)/g, ",") + "," + n.slice(-3)
-      : e;
-  },
-  A = (e) =>
-    e.replace(new RegExp("(?<![\\d,])\\d{1,3}(?:,\\d{3})+(?![\\d,])", "g"), u),
-  r = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/,
-  g =
-    /(?:[A-Za-z0-9.\/\\#@+"'(\[<*]|-(?=[A-Za-z]))[A-Za-z0-9.\/\\#@+\-"'’()\[\]<>*_:=,;&?%!$~{}^|×–− ]*[A-Za-z0-9)\]>%+*"'’~]|[A-Za-z0-9]/g,
-  i = { ")": "(", "]": "[" };
-function f(e) {
-  const n = [];
-  for (let t = 0; t < e.length; t++) {
-    const s = e[t];
-    if (s === "(" || s === "[") n.push(t);
-    else if (i[s]) {
-      if (!n.length || e[n.at(-1)] !== i[s]) return o(e.slice(0, t));
-      n.pop();
+const groupThousands = (numberText) => {
+  const digits = numberText.replace(/,/g, "");
+  return digits.length > 4 ? digits.replace(/\B(?=(\d{3})+$)/g, " ") : digits;
+};
+const localizeNumberGrouping = (text) =>
+  text.replace(
+    new RegExp("(?<![\\d,])\\d{1,3}(?:,\\d{3})+(?![\\d,])", "g"),
+    groupThousands,
+  );
+const applyFrenchSpacing = (text) =>
+  text.replace(/ ([:;?!»%])/g, " $1").replace(/« /g, "« ");
+const groupIndianNumber = (numberText) => {
+  const digits = numberText.replace(/,/g, "");
+  return digits.length > 5
+    ? digits.slice(0, -3).replace(/\B(?=(\d{2})+$)/g, ",") +
+        "," +
+        digits.slice(-3)
+    : numberText;
+};
+const localizeIndianGrouping = (text) =>
+  text.replace(
+    new RegExp("(?<![\\d,])\\d{1,3}(?:,\\d{3})+(?![\\d,])", "g"),
+    groupIndianNumber,
+  );
+const RTL_CHARACTERS = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/;
+const LTR_RUN_PATTERN =
+  /(?:[A-Za-z0-9.\/\\#@+"'(\[<*]|-(?=[A-Za-z]))[A-Za-z0-9.\/\\#@+\-"'’()\[\]<>*_:=,;&?%!$~{}^|×–− ]*[A-Za-z0-9)\]>%+*"'’~]|[A-Za-z0-9]/g;
+const OPENING_BRACKETS = {
+  ")": "(",
+  "]": "[",
+};
+/** Keep bracket pairs inside a left-to-right run, excluding unmatched punctuation. */
+function trimUnbalancedBrackets(text) {
+  const openingPositions = [];
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index];
+    if (character === "(" || character === "[") {
+      openingPositions.push(index);
+    } else if (OPENING_BRACKETS[character]) {
+      if (
+        !openingPositions.length ||
+        text[openingPositions.at(-1)] !== OPENING_BRACKETS[character]
+      ) {
+        return trimTrailingPunctuation(text.slice(0, index));
+      }
+      openingPositions.pop();
     }
   }
-  return o(n.length ? e.slice(0, n[0]) : e);
+  return trimTrailingPunctuation(
+    openingPositions.length ? text.slice(0, openingPositions[0]) : text,
+  );
 }
-const o = (e) => e.replace(/[^A-Za-z0-9)\]>%+*"'’~]+$/, "");
-function p(e) {
-  const n = new RegExp(g.source, "g");
-  let t = "",
-    s = 0;
-  for (let c; (c = n.exec(e));) {
-    let l = f(c[0]);
-    const a = /^(.*[A-Za-z)\]]),\s+\d[\d.,]*$/.exec(l);
+const trimTrailingPunctuation = (text) =>
+  text.replace(/[^A-Za-z0-9)\]>%+*"'’~]+$/, "");
+/** Isolate protocol names, addresses and numbers within Arabic or Hebrew text. */
+function isolateLtrRuns(text) {
+  const runPattern = new RegExp(LTR_RUN_PATTERN.source, "g");
+  let result = "";
+  let copiedThrough = 0;
+  for (let match; (match = runPattern.exec(text));) {
+    let run = trimUnbalancedBrackets(match[0]);
+    const trailingNumber = /^(.*[A-Za-z)\]]),\s+\d[\d.,]*$/.exec(run);
     if (
-      (a &&
-        r.test(e.slice(c.index + l.length).trimStart()[0] ?? "") &&
-        (l = a[1]),
-      !l)
+      trailingNumber &&
+      RTL_CHARACTERS.test(
+        text.slice(match.index + run.length).trimStart()[0] ?? "",
+      )
     ) {
-      n.lastIndex = c.index + 1;
+      run = trailingNumber[1];
+    }
+    if (!run) {
+      runPattern.lastIndex = match.index + 1;
       continue;
     }
-    ((t += `${e.slice(s, c.index)}⁦${l}⁩`),
-      (s = n.lastIndex = c.index + l.length));
+    result += `${text.slice(copiedThrough, match.index)}⁦${run}⁩`;
+    copiedThrough = match.index + run.length;
+    runPattern.lastIndex = copiedThrough;
   }
-  return t + e.slice(s);
+  return result + text.slice(copiedThrough);
 }
-const z = (e) => (r.test(e) ? `⁧${p(e)}⁩` : `⁦${e}⁩`);
-export { z as a, $ as f, A as i, h as n };
+const isolateBidirectionalText = (text) =>
+  RTL_CHARACTERS.test(text) ? `⁧${isolateLtrRuns(text)}⁩` : `⁦${text}⁩`;
+export {
+  isolateBidirectionalText as a,
+  applyFrenchSpacing as f,
+  localizeIndianGrouping as i,
+  localizeNumberGrouping as n,
+};

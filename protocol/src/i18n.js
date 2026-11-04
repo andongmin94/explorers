@@ -1,14 +1,14 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
-const escapeHtml = (e) =>
-  String(e).replace(
+const escapeHtml = (value) =>
+  String(value).replace(
     /[&<>"]/g,
-    (t) =>
+    (character) =>
       ({
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
-      })[t],
+      })[character],
   );
 const LANGUAGE_STORAGE_KEY = "protocol-explorer:lang";
 const supportedLanguages = [
@@ -115,87 +115,117 @@ const supportedLanguages = [
 let currentLanguage = "en";
 let currentLanguagePack = null;
 const languageListeners = new Set();
-const interpolateTranslation = (e, t) =>
-  t ? e.replace(/\{(\w+)\}/g, (s, a) => (a in t ? t[a] : s)) : e;
-function translate(e, t) {
-  if (typeof e != "string" || !e) return e;
-  let s = e;
+function interpolateTranslation(text, values) {
+  if (!values) {
+    return text;
+  }
+  return text.replace(/\{(\w+)\}/g, (placeholder, name) =>
+    name in values ? values[name] : placeholder,
+  );
+}
+
+/** Exact strings take priority over patterns; interpolation precedes locale typography. */
+function translate(text, values) {
+  if (typeof text !== "string" || !text) {
+    return text;
+  }
+  let translated = text;
   if (currentLanguagePack) {
-    const a = currentLanguagePack.strings[e];
-    if (a !== void 0) s = a;
-    else
-      for (const [n, o] of currentLanguagePack.patterns)
-        if (n.test(e)) {
-          s = e.replace(n, o);
+    const exactTranslation = currentLanguagePack.strings[text];
+    if (exactTranslation !== undefined) {
+      translated = exactTranslation;
+    } else {
+      for (const [pattern, replacement] of currentLanguagePack.patterns) {
+        if (pattern.test(text)) {
+          translated = text.replace(pattern, replacement);
           break;
         }
+      }
+    }
   }
-  return (
-    (s = interpolateTranslation(s, t)),
-    currentLanguagePack?.post ? currentLanguagePack.post(s) : s
-  );
+  translated = interpolateTranslation(translated, values);
+  return currentLanguagePack?.post
+    ? currentLanguagePack.post(translated)
+    : translated;
 }
 const getLanguage = () => currentLanguage;
 const isRtl = () =>
-  supportedLanguages.find((e) => e.code === currentLanguage).dir === "rtl";
-const isolateLtrText = (e) => (isRtl() ? `⁦${e}⁩` : e);
+  supportedLanguages.find((language) => language.code === currentLanguage)
+    .dir === "rtl";
+const isolateLtrText = (text) => (isRtl() ? `⁦${text}⁩` : text);
 const RTL_CHARACTERS = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufefc]/;
-const needsLtrDirection = (e) => isRtl() && !RTL_CHARACTERS.test(e);
-const localizedUpperCase = (e) =>
-  e.toLocaleUpperCase(
-    supportedLanguages.find((t) => t.code === currentLanguage).html,
+const needsLtrDirection = (text) => isRtl() && !RTL_CHARACTERS.test(text);
+const localizedUpperCase = (text) =>
+  text.toLocaleUpperCase(
+    supportedLanguages.find((language) => language.code === currentLanguage)
+      .html,
   );
-const translatedElementContent = (e, t = !1) =>
-  `data-t="${escapeHtml(e)}"${t ? " data-t-upper" : ""}>${escapeHtml(t ? localizedUpperCase(translate(e)) : translate(e))}`;
-function translateDom(e) {
-  (e.querySelectorAll("[data-t]").forEach((t) => {
-    const s = translate(t.dataset.t);
-    t.textContent = t.hasAttribute("data-t-upper") ? localizedUpperCase(s) : s;
-  }),
-    e
-      .querySelectorAll("[data-t-title]")
-      .forEach((t) => (t.title = translate(t.dataset.tTitle))),
-    e
-      .querySelectorAll("[data-t-label]")
-      .forEach((t) =>
-        t.setAttribute("aria-label", translate(t.dataset.tLabel)),
-      ));
+const translatedElementContent = (text, uppercase = false) =>
+  `data-t="${escapeHtml(text)}"${uppercase ? " data-t-upper" : ""}>${escapeHtml(uppercase ? localizedUpperCase(translate(text)) : translate(text))}`;
+function translateDom(root) {
+  root.querySelectorAll("[data-t]").forEach((element) => {
+    const translated = translate(element.dataset.t);
+    element.textContent = element.hasAttribute("data-t-upper")
+      ? localizedUpperCase(translated)
+      : translated;
+  });
+  root.querySelectorAll("[data-t-title]").forEach((element) => {
+    element.title = translate(element.dataset.tTitle);
+  });
+  root.querySelectorAll("[data-t-label]").forEach((element) => {
+    element.setAttribute("aria-label", translate(element.dataset.tLabel));
+  });
 }
-async function loadLanguagePack(e) {
-  const t = supportedLanguages.find((o) => o.code === e);
-  if (!t?.load) return null;
-  const { strings: s, patterns: a = [], post: n } = (await t.load()).default;
+async function loadLanguagePack(languageCode) {
+  const language = supportedLanguages.find(
+    (candidate) => candidate.code === languageCode,
+  );
+  if (!language?.load) {
+    return null;
+  }
+  const { strings, patterns = [], post } = (await language.load()).default;
   return {
-    strings: s,
-    patterns: a,
-    post: n,
+    strings,
+    patterns,
+    post,
   };
 }
 let languageRequestId = 0;
-async function setLanguage(e, t = !0) {
-  const s = ++languageRequestId,
-    a = supportedLanguages.some((r) => r.code === e) ? e : "en",
-    n = await loadLanguagePack(a);
-  if (s !== languageRequestId) return;
-  ((currentLanguagePack = n), (currentLanguage = a));
-  const o = supportedLanguages.find((r) => r.code === a);
-  if (
-    ((document.documentElement.lang = o.html),
-    (document.documentElement.dir = o.dir ?? "ltr"),
-    t)
+async function setLanguage(requestedCode, persist = true) {
+  const requestId = ++languageRequestId;
+  const languageCode = supportedLanguages.some(
+    (language) => language.code === requestedCode,
   )
+    ? requestedCode
+    : "en";
+  const languagePack = await loadLanguagePack(languageCode);
+  // A slower import must not overwrite a language selected more recently.
+  if (requestId !== languageRequestId) {
+    return;
+  }
+  currentLanguagePack = languagePack;
+  currentLanguage = languageCode;
+  const language = supportedLanguages.find(
+    (candidate) => candidate.code === languageCode,
+  );
+  document.documentElement.lang = language.html;
+  document.documentElement.dir = language.dir ?? "ltr";
+  if (persist) {
     try {
-      localStorage.setItem(LANGUAGE_STORAGE_KEY, a);
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, languageCode);
     } catch {}
-  languageListeners.forEach((r) => r(a));
+  }
+  languageListeners.forEach((listener) => listener(languageCode));
 }
-const onLanguageChange = (e) => languageListeners.add(e);
+const onLanguageChange = (listener) => languageListeners.add(listener);
 async function restoreLanguage() {
-  let e = null;
+  let savedLanguage = null;
   try {
-    e = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    savedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
   } catch {}
-  e && e !== "en" && (await setLanguage(e, !1).catch(() => {}));
+  if (savedLanguage && savedLanguage !== "en") {
+    await setLanguage(savedLanguage, false).catch(() => {});
+  }
 }
 export {
   escapeHtml,

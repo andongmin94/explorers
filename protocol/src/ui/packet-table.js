@@ -13,24 +13,26 @@ import {
   translatedElementContent,
 } from "../i18n.js";
 import { getLessonPackets } from "../packets/encode.js";
-const packetInfoDirectionAttributes = (e) =>
-  needsLtrDirection(translate(e)) ? ' dir="ltr" class="is-ltr"' : "";
-function renderPacketRows(e) {
-  return getLessonPackets(e)
+const packetInfoDirectionAttributes = (info) =>
+  needsLtrDirection(translate(info)) ? ' dir="ltr" class="is-ltr"' : "";
+
+function renderPacketRows(lesson) {
+  return getLessonPackets(lesson)
     .map(
-      ({ color: t, row: s, lost: a }, n) => `
-      <tr data-packet="${n}" class="${a ? "is-lost" : ""}" tabindex="0" hidden>
-        <td><span class="step-badge ${t}">${n + 1}</span></td>
-        <td><bdi dir="ltr">${escapeHtml(s.time)}</bdi></td>
-        <td><bdi dir="ltr">${escapeHtml(s.src)}</bdi></td>
-        <td><bdi dir="ltr">${escapeHtml(s.dst)}</bdi></td>
-        <td><bdi dir="ltr">${escapeHtml(s.proto)}</bdi></td>
-        <td title="${escapeHtml(translate(s.info))}"${packetInfoDirectionAttributes(s.info)}><span ${translatedElementContent(s.info)}</span>${a ? `<span class="lost-chip" ${translatedElementContent("LOST")}</span>` : ""}</td>
-        <td><bdi dir="ltr">${escapeHtml(s.len)}</bdi></td>
+      ({ color, row, lost }, index) => `
+      <tr data-packet="${index}" class="${lost ? "is-lost" : ""}" tabindex="0" hidden>
+        <td><span class="step-badge ${color}">${index + 1}</span></td>
+        <td><bdi dir="ltr">${escapeHtml(row.time)}</bdi></td>
+        <td><bdi dir="ltr">${escapeHtml(row.src)}</bdi></td>
+        <td><bdi dir="ltr">${escapeHtml(row.dst)}</bdi></td>
+        <td><bdi dir="ltr">${escapeHtml(row.proto)}</bdi></td>
+        <td title="${escapeHtml(translate(row.info))}"${packetInfoDirectionAttributes(row.info)}><span ${translatedElementContent(row.info)}</span>${lost ? `<span class="lost-chip" ${translatedElementContent("LOST")}</span>` : ""}</td>
+        <td><bdi dir="ltr">${escapeHtml(row.len)}</bdi></td>
       </tr>`,
     )
     .join("");
 }
+
 function renderPacketTable() {
   return `
   <section class="panel packets">
@@ -60,7 +62,7 @@ function renderPacketTable() {
           <col style="width:129px"><col><col style="width:86px">
         </colgroup>
         <thead>
-          <tr>${["NO.", "TIME", "SOURCE", "DESTINATION", "PROTOCOL", "INFO", "SIZE"].map((e) => `<th ${translatedElementContent(e)}</th>`).join("")}</tr>
+          <tr>${["NO.", "TIME", "SOURCE", "DESTINATION", "PROTOCOL", "INFO", "SIZE"].map((label) => `<th ${translatedElementContent(label)}</th>`).join("")}</tr>
         </thead>
         <tbody class="packet-empty-body"><tr class="packet-empty" hidden><td colspan="7" ${translatedElementContent("No packets on the wire yet.")}</td></tr></tbody>
         <tbody class="packet-rows"></tbody>
@@ -68,194 +70,255 @@ function renderPacketTable() {
     </div>
   </section>`;
 }
-function bindPacketTable(e, t) {
-  const s = e.querySelector(".toggle");
-  (new ResizeObserver(() => updatePlaybackButtonLayout(s)).observe(s),
-    e.addEventListener("click", (a) => {
-      const n = a.target.closest("[data-action]");
-      n && !n.disabled && t[n.dataset.action]();
-      const o = a.target.closest("tr[data-packet]");
-      o && !o.hidden && t.inspect(Number(o.dataset.packet));
-    }),
-    e.addEventListener("keydown", (a) => {
-      const n = a.key === "Enter" && a.target.closest("tr[data-packet]");
-      n && !n.hidden && t.inspect(Number(n.dataset.packet));
-    }));
+
+function bindPacketTable(panel, actions) {
+  const toggleButton = panel.querySelector(".toggle");
+  new ResizeObserver(() => updatePlaybackButtonLayout(toggleButton)).observe(
+    toggleButton,
+  );
+  panel.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-action]");
+    if (button && !button.disabled) {
+      actions[button.dataset.action]();
+    }
+    const packetRow = event.target.closest("tr[data-packet]");
+    if (packetRow && !packetRow.hidden) {
+      actions.inspect(Number(packetRow.dataset.packet));
+    }
+  });
+  panel.addEventListener("keydown", (event) => {
+    const packetRow =
+      event.key === "Enter" && event.target.closest("tr[data-packet]");
+    if (packetRow && !packetRow.hidden) {
+      actions.inspect(Number(packetRow.dataset.packet));
+    }
+  });
 }
-const getVisibleOpacity = (e) =>
-  e.hidden ? 0 : Number(getComputedStyle(e).opacity);
-function showPacketRow(e, t = 0) {
-  const s = getVisibleOpacity(e);
-  ((e.dataset.shown = "1"),
-    e.getAnimations().forEach((a) => a.cancel()),
-    (e.hidden = !1),
-    !(prefersReducedMotion() || s === 1) &&
-      e.animate(
-        [
-          {
-            opacity: s,
-            transform: `translateY(${10 * (1 - s)}px)`,
-          },
-          {
-            opacity: 1,
-            transform: "none",
-          },
-        ],
+const getVisibleOpacity = (element) =>
+  element.hidden ? 0 : Number(getComputedStyle(element).opacity);
+
+function showPacketRow(row, delay = 0) {
+  const opacity = getVisibleOpacity(row);
+  row.dataset.shown = "1";
+  row.getAnimations().forEach((animation) => animation.cancel());
+  row.hidden = false;
+  if (!(prefersReducedMotion() || opacity === 1)) {
+    row.animate(
+      [
         {
-          duration: 360,
-          delay: s > 0 ? 0 : t,
-          easing: EASE_OUT_EXPO,
-          fill: "backwards",
+          opacity,
+          transform: `translateY(${10 * (1 - opacity)}px)`,
         },
-      ));
+        {
+          opacity: 1,
+          transform: "none",
+        },
+      ],
+      {
+        duration: 360,
+        delay: opacity > 0 ? 0 : delay,
+        easing: EASE_OUT_EXPO,
+        fill: "backwards",
+      },
+    );
+  }
 }
-function hidePacketRow(e) {
-  const t = getVisibleOpacity(e),
-    s = e.hidden ? "none" : getComputedStyle(e).transform;
-  if (
-    ((e.dataset.shown = "0"),
-    e.getAnimations().forEach((n) => n.cancel()),
-    prefersReducedMotion() || t === 0)
-  )
-    return (e.hidden = !0);
-  const a = e.animate(
+
+function hidePacketRow(row) {
+  const opacity = getVisibleOpacity(row);
+  const transform = row.hidden ? "none" : getComputedStyle(row).transform;
+  row.dataset.shown = "0";
+  row.getAnimations().forEach((animation) => animation.cancel());
+  if (prefersReducedMotion() || opacity === 0) {
+    return (row.hidden = true);
+  }
+  const exitAnimation = row.animate(
     [
       {
-        opacity: t,
-        transform: s,
+        opacity,
+        transform,
       },
       {
         opacity: 0,
-        transform: s,
+        transform,
       },
     ],
     {
-      duration: 180 * t,
+      duration: 180 * opacity,
       fill: "forwards",
     },
   );
-  a.onfinish = () => {
-    (e.dataset.shown === "0" && (e.hidden = !0), a.cancel());
+  exitAnimation.onfinish = () => {
+    if (row.dataset.shown === "0") {
+      row.hidden = true;
+    }
+    exitAnimation.cancel();
   };
 }
-const renderPacketLegend = (e) =>
-  (e.legend ?? [])
-    .map(([t, s]) =>
-      t
-        ? `<span class="legend-item"><i class="legend-dot step-badge ${t}"></i>${escapeHtml(translate(s))}</span>`
-        : `<span class="legend-note">${escapeHtml(translate(s))}</span>`,
+const renderPacketLegend = (lesson) =>
+  (lesson.legend ?? [])
+    .map(([color, label]) =>
+      color
+        ? `<span class="legend-item"><i class="legend-dot step-badge ${color}"></i>${escapeHtml(translate(label))}</span>`
+        : `<span class="legend-note">${escapeHtml(translate(label))}</span>`,
     )
     .join("");
-function setPacketTableLesson(e, t) {
-  const s = e.querySelector(".packet-rows"),
-    a = e.querySelector(".packet-legend"),
-    n = !e.dataset.lesson;
-  ((e.dataset.lesson = t.id),
-    n
-      ? (a.innerHTML = renderPacketLegend(t))
-      : slideContent(a, () => (a.innerHTML = renderPacketLegend(t)), 1, 16));
-  const o = [...s.children].filter((i) => !i.hidden),
-    r = () => {
-      e.dataset.lesson === t.id &&
-        ((s.innerHTML = renderPacketRows(t)),
-        (s.dataset.lesson = t.id),
-        (e.querySelector(".packet-scroll").scrollTop = 0),
-        e._latest && updatePacketRows(e, e._latest));
-    };
-  if (!o.length || prefersReducedMotion()) return r();
-  (o.forEach(hidePacketRow), setTimeout(r, 200));
+
+function setPacketTableLesson(panel, lesson) {
+  const rowsContainer = panel.querySelector(".packet-rows");
+  const legend = panel.querySelector(".packet-legend");
+  const isFirstRender = !panel.dataset.lesson;
+  panel.dataset.lesson = lesson.id;
+  if (isFirstRender) {
+    legend.innerHTML = renderPacketLegend(lesson);
+  } else {
+    slideContent(
+      legend,
+      () => (legend.innerHTML = renderPacketLegend(lesson)),
+      1,
+      16,
+    );
+  }
+  const visibleRows = [...rowsContainer.children].filter((row) => !row.hidden);
+  const replaceRows = () => {
+    // The old rows may still be fading out after another lesson was selected.
+    if (panel.dataset.lesson === lesson.id) {
+      rowsContainer.innerHTML = renderPacketRows(lesson);
+      rowsContainer.dataset.lesson = lesson.id;
+      panel.querySelector(".packet-scroll").scrollTop = 0;
+      if (panel._latest) {
+        updatePacketRows(panel, panel._latest);
+      }
+    }
+  };
+  if (!visibleRows.length || prefersReducedMotion()) {
+    return replaceRows();
+  }
+  visibleRows.forEach(hidePacketRow);
+  setTimeout(replaceRows, 200);
 }
-function updatePacketRows(e, t) {
-  if (e.querySelector(".packet-rows").dataset.lesson !== e.dataset.lesson)
-    return;
-  const s = [...e.querySelectorAll("tr[data-packet]")],
-    a = s.map((l, c) => !t.started || t.packets[c] !== "future"),
-    n = s.filter((l, c) => a[c] && l.dataset.shown !== "1"),
-    o = s.filter((l, c) => !a[c] && l.dataset.shown === "1");
+
+function updatePacketRows(panel, playback) {
   if (
-    (o.forEach(hidePacketRow),
-    n.forEach((l, c) =>
-      showPacketRow(l, (o.length ? 200 : 0) + (n.length > 1 ? c * 35 : 0)),
-    ),
-    s.forEach((l, c) =>
-      l.classList.toggle("is-current", t.started && t.packets[c] === "current"),
-    ),
-    t.started && n.length === 1)
+    panel.querySelector(".packet-rows").dataset.lesson !== panel.dataset.lesson
   ) {
-    const l = e.querySelector(".packet-scroll");
+    return;
+  }
+  const rows = [...panel.querySelectorAll("tr[data-packet]")];
+  const shouldShow = rows.map(
+    (row, index) => !playback.started || playback.packets[index] !== "future",
+  );
+  const enteringRows = rows.filter(
+    (row, index) => shouldShow[index] && row.dataset.shown !== "1",
+  );
+  const leavingRows = rows.filter(
+    (row, index) => !shouldShow[index] && row.dataset.shown === "1",
+  );
+  leavingRows.forEach(hidePacketRow);
+  enteringRows.forEach((row, index) =>
+    showPacketRow(
+      row,
+      (leavingRows.length ? 200 : 0) +
+        (enteringRows.length > 1 ? index * 35 : 0),
+    ),
+  );
+  rows.forEach((row, index) =>
+    row.classList.toggle(
+      "is-current",
+      playback.started && playback.packets[index] === "current",
+    ),
+  );
+  if (playback.started && enteringRows.length === 1) {
+    const scrollContainer = panel.querySelector(".packet-scroll");
     requestAnimationFrame(() =>
-      l.scrollTo({
-        top: l.scrollHeight,
+      scrollContainer.scrollTo({
+        top: scrollContainer.scrollHeight,
         behavior: "smooth",
       }),
     );
   }
-  !t.started &&
-    n.length &&
-    e.querySelector(".packet-scroll").scrollTo({
+  if (!playback.started && enteringRows.length) {
+    panel.querySelector(".packet-scroll").scrollTo({
       top: 0,
       behavior: "smooth",
     });
-  const r = e.querySelector(".packet-empty"),
-    i = t.started && !a.some(Boolean);
-  (i && r.dataset.shown !== "1" && showPacketRow(r, o.length ? 220 : 0),
-    !i && r.dataset.shown === "1" && hidePacketRow(r));
+  }
+  const emptyMessage = panel.querySelector(".packet-empty");
+  const showEmptyMessage = playback.started && !shouldShow.some(Boolean);
+  if (showEmptyMessage && emptyMessage.dataset.shown !== "1") {
+    showPacketRow(emptyMessage, leavingRows.length ? 220 : 0);
+  }
+  if (!showEmptyMessage && emptyMessage.dataset.shown === "1") {
+    hidePacketRow(emptyMessage);
+  }
 }
-function updatePacketTable(e, t, s) {
-  ((e._latest = t),
-    e.dataset.lesson !== s.id
-      ? setPacketTableLesson(e, s)
-      : updatePacketRows(e, t));
-  const a = e.querySelector(".toggle");
-  (a.classList.toggle("is-playing", t.playing),
-    a.classList.toggle("is-done", t.done && !t.playing),
-    animateTextChange(
-      a.querySelector(".toggle-label"),
-      translate(t.playing ? "PAUSE" : t.done ? "REPLAY" : "PLAY"),
-    ),
-    (e.querySelector('[data-action="step"]').disabled = t.done),
-    (e.querySelector('[data-action="prev"]').disabled = !t.started));
-}
-function translatePacketTable(e, t) {
-  ((e.querySelector(".packet-legend").innerHTML = renderPacketLegend(t)),
-    fitPlaybackButton(e),
-    e.querySelectorAll("tr[data-packet] td[title]").forEach((s) => {
-      const a = translate(s.querySelector("[data-t]").dataset.t);
-      s.title = a;
-      const n = needsLtrDirection(a);
-      (s.classList.toggle("is-ltr", n),
-        n ? (s.dir = "ltr") : s.removeAttribute("dir"));
-    }));
-}
-function fitPlaybackButton(e) {
-  const t = e.querySelector(".toggle-label"),
-    s = t.textContent;
-  t.style.minWidth = "";
-  const a = Math.max(
-    ...["PLAY", "PAUSE", "REPLAY"].map(
-      (r) => ((t.textContent = translate(r)), t.scrollWidth),
-    ),
+
+function updatePacketTable(panel, playback, lesson) {
+  panel._latest = playback;
+  if (panel.dataset.lesson !== lesson.id) {
+    setPacketTableLesson(panel, lesson);
+  } else {
+    updatePacketRows(panel, playback);
+  }
+  const toggleButton = panel.querySelector(".toggle");
+  toggleButton.classList.toggle("is-playing", playback.playing);
+  toggleButton.classList.toggle("is-done", playback.done && !playback.playing);
+  animateTextChange(
+    toggleButton.querySelector(".toggle-label"),
+    translate(playback.playing ? "PAUSE" : playback.done ? "REPLAY" : "PLAY"),
   );
-  ((t.textContent = s), (t.style.minWidth = `${a}px`));
-  const n = e.querySelector(".toggle"),
-    o = getComputedStyle(n);
-  ((n._need =
-    a +
+  panel.querySelector('[data-action="step"]').disabled = playback.done;
+  panel.querySelector('[data-action="prev"]').disabled = !playback.started;
+}
+
+function translatePacketTable(panel, lesson) {
+  panel.querySelector(".packet-legend").innerHTML = renderPacketLegend(lesson);
+  fitPlaybackButton(panel);
+  panel.querySelectorAll("tr[data-packet] td[title]").forEach((cell) => {
+    const translatedInfo = translate(cell.querySelector("[data-t]").dataset.t);
+    cell.title = translatedInfo;
+    const forceLtr = needsLtrDirection(translatedInfo);
+    cell.classList.toggle("is-ltr", forceLtr);
+    if (forceLtr) {
+      cell.dir = "ltr";
+    } else {
+      cell.removeAttribute("dir");
+    }
+  });
+}
+
+function fitPlaybackButton(panel) {
+  const labelElement = panel.querySelector(".toggle-label");
+  const currentLabel = labelElement.textContent;
+  labelElement.style.minWidth = "";
+  const maxLabelWidth = Math.max(
+    ...["PLAY", "PAUSE", "REPLAY"].map((label) => {
+      labelElement.textContent = translate(label);
+      return labelElement.scrollWidth;
+    }),
+  );
+  labelElement.textContent = currentLabel;
+  labelElement.style.minWidth = `${maxLabelWidth}px`;
+  const toggleButton = panel.querySelector(".toggle");
+  const buttonStyle = getComputedStyle(toggleButton);
+  toggleButton._need =
+    maxLabelWidth +
     16 +
-    parseFloat(o.columnGap || 12) +
-    parseFloat(o.paddingLeft) +
-    parseFloat(o.paddingRight) +
-    2),
-    updatePlaybackButtonLayout(n));
+    parseFloat(buttonStyle.columnGap || 12) +
+    parseFloat(buttonStyle.paddingLeft) +
+    parseFloat(buttonStyle.paddingRight) +
+    2;
+  updatePlaybackButtonLayout(toggleButton);
 }
-const updatePlaybackButtonLayout = (e) =>
-  e.classList.toggle(
+const updatePlaybackButtonLayout = (toggleButton) =>
+  toggleButton.classList.toggle(
     "is-iconic",
-    getComputedStyle(e).containerType === "inline-size" &&
-      e.clientWidth < (e._need ?? 0),
+    getComputedStyle(toggleButton).containerType === "inline-size" &&
+      toggleButton.clientWidth < (toggleButton._need ?? 0),
   );
-function updatePlaybackSpeedLabel(e, t) {
-  animateTextChange(e.querySelector(".speed-label"), `${t}×`);
+
+function updatePlaybackSpeedLabel(panel, speed) {
+  animateTextChange(panel.querySelector(".speed-label"), `${speed}×`);
 }
 export {
   bindPacketTable,

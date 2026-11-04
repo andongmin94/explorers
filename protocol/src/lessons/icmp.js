@@ -7,37 +7,44 @@ import {
 } from "./helpers.js";
 const ICMP_SERVER_IP = "203.0.113.10";
 const ICMP_SECOND_HOP_IP = "198.51.100.1";
-const icmpPacketRow = (e, t, s, a, n, o) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const icmpPacketRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  sizeLabel,
+  wire,
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "ICMP",
-  info: a,
-  len: n,
-  wire: o,
+  info,
+  len: sizeLabel,
+  wire,
 });
 const ICMP_ECHO_DATA = "abcdefghijklmnopqrstuvwabcdefghi";
-const icmpEchoWire = (e, t, s) => ({
+const icmpEchoWire = (type, sequenceNumber, ttl) => ({
   icmp: {
-    type: e,
+    type,
     code: 0,
     id: 1,
-    seq: t,
+    seq: sequenceNumber,
     data: ICMP_ECHO_DATA,
   },
-  ...(s
+  ...(ttl
     ? {
-        ttl: s,
+        ttl,
       }
     : {}),
 });
-const icmpErrorWire = (e, t, s, a = "all") => ({
+const icmpErrorWire = (type, code, ttl, quotedBytes = "all") => ({
   icmp: {
-    type: e,
-    code: t,
+    type,
+    code,
     quote: -1,
-    ttl: s,
-    quoteBytes: a,
+    ttl,
+    quoteBytes: quotedBytes,
   },
 });
 const icmpLesson = {

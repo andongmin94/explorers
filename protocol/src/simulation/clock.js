@@ -1,12 +1,15 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 let playbackSpeed = 1;
-let playbackPaused = !1;
+let playbackPaused = false;
 const trackedAnimations = new Set();
-function syncAnimationPlayback(e) {
-  ((e.playbackRate = playbackSpeed),
-    playbackPaused && e.playState === "running" && e.pause(),
-    !playbackPaused && e.playState === "paused" && e.play());
+
+function syncAnimationPlayback(animation) {
+  animation.playbackRate = playbackSpeed;
+  if (playbackPaused && animation.playState === "running") animation.pause();
+  if (!playbackPaused && animation.playState === "paused") animation.play();
 }
+
+/** Shared playback controls for animation frames and Web Animations. */
 const playbackClock = {
   get speed() {
     return playbackSpeed;
@@ -14,39 +17,61 @@ const playbackClock = {
   get paused() {
     return playbackPaused;
   },
-  setSpeed(e) {
-    ((playbackSpeed = e), trackedAnimations.forEach(syncAnimationPlayback));
+  setSpeed(speed) {
+    playbackSpeed = speed;
+    trackedAnimations.forEach(syncAnimationPlayback);
   },
   pause() {
-    ((playbackPaused = !0), trackedAnimations.forEach(syncAnimationPlayback));
+    playbackPaused = true;
+    trackedAnimations.forEach(syncAnimationPlayback);
   },
   resume() {
-    ((playbackPaused = !1), trackedAnimations.forEach(syncAnimationPlayback));
+    playbackPaused = false;
+    trackedAnimations.forEach(syncAnimationPlayback);
   },
-  track(e) {
-    (trackedAnimations.add(e), syncAnimationPlayback(e));
-    const t = () => trackedAnimations.delete(e);
-    return (
-      e.addEventListener("finish", t),
-      e.addEventListener("cancel", t),
-      e
-    );
+  track(animation) {
+    trackedAnimations.add(animation);
+    syncAnimationPlayback(animation);
+    const untrack = () => trackedAnimations.delete(animation);
+    animation.addEventListener("finish", untrack);
+    animation.addEventListener("cancel", untrack);
+    return animation;
   },
 };
-function animateWithClock(e, t, s = () => {}) {
-  return new Promise((a) => {
-    let n = null,
-      o = 0;
-    const r = (i) => {
-      if (t.cancelled) return a();
-      (n !== null && !playbackPaused && (o += (i - n) * playbackSpeed),
-        (n = i));
-      const l = typeof e == "function" ? e() : e,
-        c = l > 0 ? Math.max(0, Math.min(1, o / l)) : 1;
-      (s(c), c < 1 ? requestAnimationFrame(r) : a());
-    };
-    requestAnimationFrame(r);
+
+/**
+ * Advance in playback time: pauses consume no time, and speed changes apply
+ * from the next frame. A duration callback allows the view to change mid-wait.
+ * Cancellation resolves normally; callers discard stale work using the token.
+ * @param {number|(() => number)} duration Milliseconds at normal playback speed.
+ * @param {{cancelled: boolean}} token Shared cancellation state.
+ * @param {(progress: number) => void} onFrame Progress from 0 to 1.
+ */
+function animateWithClock(duration, token, onFrame = () => {}) {
+  return new Promise((resolve) => {
+    let previousTimestamp = null;
+    let elapsed = 0;
+    function tick(timestamp) {
+      if (token.cancelled) {
+        resolve();
+        return;
+      }
+      if (previousTimestamp !== null && !playbackPaused) {
+        elapsed += (timestamp - previousTimestamp) * playbackSpeed;
+      }
+      previousTimestamp = timestamp;
+      const currentDuration =
+        typeof duration === "function" ? duration() : duration;
+      const progress =
+        currentDuration > 0
+          ? Math.max(0, Math.min(1, elapsed / currentDuration))
+          : 1;
+      onFrame(progress);
+      if (progress < 1) requestAnimationFrame(tick);
+      else resolve();
+    }
+    requestAnimationFrame(tick);
   });
 }
-const waitWithClock = (e, t) => animateWithClock(e, t);
+const waitWithClock = (duration, token) => animateWithClock(duration, token);
 export { animateWithClock, playbackClock, waitWithClock };

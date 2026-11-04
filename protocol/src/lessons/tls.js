@@ -21,7 +21,7 @@ import {
 } from "./https.js";
 const TLS_SERVER_IP = "203.0.113.10";
 const TLS_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
 const TLS_FRAME_HEADER_BYTES =
   ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES;
@@ -33,24 +33,40 @@ const TLS_HANDSHAKE_FLIGHT_BYTES =
   TLS_CHANGE_CIPHER_SPEC_BYTES +
   TLS_ENCRYPTED_HANDSHAKE_BYTES;
 const TLS_HANDSHAKE_SEGMENT_SIZES = [];
-for (let e = TLS_HANDSHAKE_FLIGHT_BYTES; e > 0; e -= TCP_MSS)
-  TLS_HANDSHAKE_SEGMENT_SIZES.push(Math.min(TCP_MSS, e));
+for (
+  let remainingBytes = TLS_HANDSHAKE_FLIGHT_BYTES;
+  remainingBytes > 0;
+  remainingBytes -= TCP_MSS
+) {
+  TLS_HANDSHAKE_SEGMENT_SIZES.push(Math.min(TCP_MSS, remainingBytes));
+}
 const TLS_CLOSE_NOTIFY_BYTES = 2 + TLS_RECORD_OVERHEAD_BYTES;
-const tlsPacketRow = (e, t, s, a, n, o = "TLSv1.3") => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
-  proto: o,
-  info: a,
-  len: n,
+const tlsPacketRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  sizeLabel,
+  protocol = "TLSv1.3",
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
+  proto: protocol,
+  info,
+  len: sizeLabel,
 });
 const TLS_CONNECTION = tcpConnection(CLIENT_IP, 52411, TLS_SERVER_IP, 443);
-const withPacketWire = (e, t) => ({
-  ...e,
-  wire: t,
+const withPacketWire = (row, wire) => ({
+  ...row,
+  wire,
 });
-const TLS_HANDSHAKE_SEGMENT_OFFSETS = TLS_HANDSHAKE_SEGMENT_SIZES.map((e, t) =>
-  TLS_HANDSHAKE_SEGMENT_SIZES.slice(0, t).reduce((s, a) => s + a, 0),
+const TLS_HANDSHAKE_SEGMENT_OFFSETS = TLS_HANDSHAKE_SEGMENT_SIZES.map(
+  (segmentBytes, segmentIndex) =>
+    TLS_HANDSHAKE_SEGMENT_SIZES.slice(0, segmentIndex).reduce(
+      (totalBytes, segmentBytes) => totalBytes + segmentBytes,
+      0,
+    ),
 );
 const tlsLesson = {
   id: "tls",
@@ -197,43 +213,47 @@ const tlsLesson = {
           to: "client",
           color: "teal",
           label: `${TLS_HANDSHAKE_SEGMENT_SIZES.length - 1} SEGMENTS`,
-          locked: !0,
+          locked: true,
           payload: [
             "encrypted: http/1.1, certificates,",
             "signature, Finished",
           ],
-          packets: TLS_HANDSHAKE_SEGMENT_SIZES.slice(1).map((e, t) =>
-            packetEvent(
-              "web",
-              "client",
-              "teal",
-              "ENCRYPTED",
-              [],
-              withPacketWire(
-                tlsPacketRow(
-                  0.052,
-                  TLS_SERVER_IP,
-                  CLIENT_IP,
-                  t === TLS_HANDSHAKE_SEGMENT_SIZES.length - 2
-                    ? "Encrypted handshake (certificate, verify, Finished)"
-                    : "Encrypted handshake (continued)",
-                  `${e + TLS_FRAME_HEADER_BYTES} B`,
+          packets: TLS_HANDSHAKE_SEGMENT_SIZES.slice(1).map(
+            (segmentBytes, segmentIndex) =>
+              packetEvent(
+                "web",
+                "client",
+                "teal",
+                "ENCRYPTED",
+                [],
+                withPacketWire(
+                  tlsPacketRow(
+                    0.052,
+                    TLS_SERVER_IP,
+                    CLIENT_IP,
+                    segmentIndex === TLS_HANDSHAKE_SEGMENT_SIZES.length - 2
+                      ? "Encrypted handshake (certificate, verify, Finished)"
+                      : "Encrypted handshake (continued)",
+                    `${segmentBytes + TLS_FRAME_HEADER_BYTES} B`,
+                  ),
+                  tcpWire(
+                    TLS_CONNECTION,
+                    TLS_SERVER_IP,
+                    segmentIndex === TLS_HANDSHAKE_SEGMENT_SIZES.length - 2
+                      ? "PA"
+                      : "A",
+                    {
+                      ...HTTPS_SERVER_HELLO_WIRE,
+                      take: [
+                        TLS_HANDSHAKE_SEGMENT_OFFSETS[segmentIndex + 1],
+                        TLS_HANDSHAKE_SEGMENT_OFFSETS[segmentIndex + 1] +
+                          segmentBytes,
+                      ],
+                    },
+                  ),
                 ),
-                tcpWire(
-                  TLS_CONNECTION,
-                  TLS_SERVER_IP,
-                  t === TLS_HANDSHAKE_SEGMENT_SIZES.length - 2 ? "PA" : "A",
-                  {
-                    ...HTTPS_SERVER_HELLO_WIRE,
-                    take: [
-                      TLS_HANDSHAKE_SEGMENT_OFFSETS[t + 1],
-                      TLS_HANDSHAKE_SEGMENT_OFFSETS[t + 1] + e,
-                    ],
-                  },
-                ),
+                TLS_ENCRYPTED_EVENT,
               ),
-              TLS_ENCRYPTED_EVENT,
-            ),
           ),
         },
         {
@@ -433,7 +453,7 @@ const tlsLesson = {
             tcpWire(TLS_CONNECTION, TLS_SERVER_IP, "FA"),
           ),
           {
-            quick: !0,
+            quick: true,
           },
         ),
         packetEvent(
@@ -454,7 +474,7 @@ const tlsLesson = {
             tcpWire(TLS_CONNECTION, CLIENT_IP, "FA"),
           ),
           {
-            quick: !0,
+            quick: true,
           },
         ),
       ],

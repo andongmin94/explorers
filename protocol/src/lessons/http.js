@@ -44,24 +44,24 @@ const HTTP_RESPONSE_BYTES =
 const HTTP_CONNECTION = tcpConnection(CLIENT_IP, 52344, HTTP_SERVER_IP, 80);
 const HTTP_DNS_QUESTION = {
   id: 15642,
-  rd: !0,
+  rd: true,
   q: ["www.example.com", "A"],
 };
-const httpDnsWire = (e, t) => ({
+const httpDnsWire = (sourceIp, dnsMessage) => ({
   udp:
-    e === CLIENT_IP
+    sourceIp === CLIENT_IP
       ? {
           sport: 59321,
           dport: 53,
           data: {
-            dns: t,
+            dns: dnsMessage,
           },
         }
       : {
           sport: 53,
           dport: 59321,
           data: {
-            dns: t,
+            dns: dnsMessage,
           },
         },
 });
@@ -180,10 +180,10 @@ const httpLesson = {
           len: "91 B",
           wire: httpDnsWire(HTTP_DNS_IP, {
             ...HTTP_DNS_QUESTION,
-            response: !0,
-            ra: !0,
+            response: true,
+            ra: true,
             an: [["www.example.com", "A", 1745, "203.0.113.10"]],
-            exampleTtl: !0,
+            exampleTtl: true,
           }),
         }),
       ],
@@ -209,7 +209,7 @@ const httpLesson = {
           sport: 52344,
           dport: 80,
           t: [0.024, 0.041, 0.058],
-          quick: !1,
+          quick: false,
         }),
       ],
     },

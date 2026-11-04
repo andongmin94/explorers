@@ -30,334 +30,421 @@ function renderSequencePanel() {
     <div class="seq-scroll"><svg class="seq-svg" xmlns="${SEQUENCE_SVG_NAMESPACE}"></svg></div>
   </div>`;
 }
-const getLifelineName = (e, t) =>
-  translate((e.labels?.[t] ?? NETWORK_NODE_LABELS[t])[0]);
-function getLifelineAddress(e, t, s) {
-  const a = (e.labels?.[t] ?? NETWORK_NODE_LABELS[t])[1];
-  return a || (s.packets.find((n) => n.p.from === t)?.p.row.src ?? "");
+const getLifelineName = (lesson, nodeId) =>
+  translate((lesson.labels?.[nodeId] ?? NETWORK_NODE_LABELS[nodeId])[0]);
+function getLifelineAddress(lesson, nodeId, layout) {
+  const address = (lesson.labels?.[nodeId] ?? NETWORK_NODE_LABELS[nodeId])[1];
+  return (
+    address ||
+    (layout.packets.find((packet) => packet.p.from === nodeId)?.p.row.src ?? "")
+  );
 }
-function renderSequenceArrow(e, t, s) {
-  const { p: a } = e,
-    n = t[a.from],
-    o = a.lost ? (t[a.from] + t[a.to]) / 2 : t[a.to],
-    [r, i] = [e.ySent, a.lost ? (e.ySent + e.yArrived) / 2 : e.yArrived],
-    l = Math.hypot(o - n, i - r),
-    [c, h] = [(o - n) / l, (i - r) / l],
-    d = a.lost ? 0 : 9,
-    [y, w] = [o - c * d, i - h * d];
-  let k = (Math.atan2(i - r, o - n) * 180) / Math.PI;
-  (k > 90 && (k -= 180), k < -90 && (k += 180));
-  const g = a.row,
-    T = `${isolateLtrText(`#${e.index + 1} · ${g.time} · ${g.src} → ${g.dst} · ${g.proto}`)} · ${translate(g.info)} · ${isolateLtrText(g.len)}`,
-    v = a.lost
-      ? `<path class="seq-cross" d="M${o - 6},${i - 6} L${o + 6},${i + 6} M${o + 6},${i - 6} L${o - 6},${i + 6}"/>`
-      : `<path class="seq-tip" d="M${o},${i} L${y - h * 4.5},${w + c * 4.5} L${y + h * 4.5},${w - c * 4.5} Z"/>`;
+function renderSequenceArrow(entry, laneX) {
+  const { p: packet } = entry;
+  const startX = laneX[packet.from];
+  const endX = packet.lost
+    ? (laneX[packet.from] + laneX[packet.to]) / 2
+    : laneX[packet.to];
+  const [startY, endY] = [
+    entry.ySent,
+    packet.lost ? (entry.ySent + entry.yArrived) / 2 : entry.yArrived,
+  ];
+  const length = Math.hypot(endX - startX, endY - startY);
+  const [directionX, directionY] = [
+    (endX - startX) / length,
+    (endY - startY) / length,
+  ];
+  const arrowheadLength = packet.lost ? 0 : 9;
+  const [lineEndX, lineEndY] = [
+    endX - directionX * arrowheadLength,
+    endY - directionY * arrowheadLength,
+  ];
+  let angleDegrees = (Math.atan2(endY - startY, endX - startX) * 180) / Math.PI;
+  if (angleDegrees > 90) {
+    angleDegrees -= 180;
+  }
+  if (angleDegrees < -90) {
+    angleDegrees += 180;
+  }
+  const row = packet.row;
+  const tooltip = `${isolateLtrText(`#${entry.index + 1} · ${row.time} · ${row.src} → ${row.dst} · ${row.proto}`)} · ${translate(row.info)} · ${isolateLtrText(row.len)}`;
+  const arrowhead = packet.lost
+    ? `<path class="seq-cross" d="M${endX - 6},${endY - 6} L${endX + 6},${endY + 6} M${endX + 6},${endY - 6} L${endX - 6},${endY + 6}"/>`
+    : `<path class="seq-tip" d="M${endX},${endY} L${lineEndX - directionY * 4.5},${lineEndY + directionX * 4.5} L${lineEndX + directionY * 4.5},${lineEndY - directionX * 4.5} Z"/>`;
   return `
-    <g class="seq-arrow c-${a.color}${a.lost ? " is-lost" : ""}" data-packet="${e.index}" data-len="${l.toFixed(1)}" data-geo="${[n, r, o, i, k.toFixed(2)].join(" ")}">
-      <title>${escapeHtml(T)}</title>
-      <text class="seq-time" x="${SEQUENCE_LEFT_PADDING - 14}" y="${r}">${escapeHtml(g.time)}</text>
-      <circle class="seq-dot" cx="${n}" cy="${r}" r="2.6"/>
-      <line class="seq-line" x1="${n}" y1="${r}" x2="${y}" y2="${w}"/>
-      ${v}
+    <g class="seq-arrow c-${packet.color}${packet.lost ? " is-lost" : ""}" data-packet="${entry.index}" data-len="${length.toFixed(1)}" data-geo="${[startX, startY, endX, endY, angleDegrees.toFixed(2)].join(" ")}">
+      <title>${escapeHtml(tooltip)}</title>
+      <text class="seq-time" x="${SEQUENCE_LEFT_PADDING - 14}" y="${startY}">${escapeHtml(row.time)}</text>
+      <circle class="seq-dot" cx="${startX}" cy="${startY}" r="2.6"/>
+      <line class="seq-line" x1="${startX}" y1="${startY}" x2="${lineEndX}" y2="${lineEndY}"/>
+      ${arrowhead}
       <g class="seq-label">
         <rect class="seq-label-bg" y="-17" height="15" rx="2"/>
-        ${a.locked ? `<path class="seq-lock" d="${SEQUENCE_LOCK_PATH}"/>` : ""}
-        <text class="seq-label-text" y="-6" text-anchor="middle">${escapeHtml(translate(a.label))}</text>
+        ${packet.locked ? `<path class="seq-lock" d="${SEQUENCE_LOCK_PATH}"/>` : ""}
+        <text class="seq-label-text" y="-6" text-anchor="middle">${escapeHtml(translate(packet.label))}</text>
       </g>
     </g>`;
 }
-function renderSequenceNote(e, t, s) {
-  const a = e.lane,
-    n = a && s.indexOf(a) === s.length - 1 && s.length > 1,
-    o = a
-      ? t[a]
-      : e.between
-        ? (t[e.between[0]] + t[e.between[1]]) / 2
-        : t[s[0]],
-    r = a ? (n ? "left" : "right") : "center";
+function renderSequenceNote(entry, laneX, lifelines) {
+  const lane = entry.lane;
+  const isRightmostLane =
+    lane &&
+    lifelines.indexOf(lane) === lifelines.length - 1 &&
+    lifelines.length > 1;
+  const x = lane
+    ? laneX[lane]
+    : entry.between
+      ? (laneX[entry.between[0]] + laneX[entry.between[1]]) / 2
+      : laneX[lifelines[0]];
+  const side = lane ? (isRightmostLane ? "left" : "right") : "center";
   return `
-    <g class="seq-note tone-${e.e.tone ?? "navy"}" data-note="${e.index}" data-side="${r}" transform="translate(${o} ${e.y})">
-      ${a ? '<circle class="seq-note-dot" r="3.5"/>' : ""}
+    <g class="seq-note tone-${entry.e.tone ?? "navy"}" data-note="${entry.index}" data-side="${side}" transform="translate(${x} ${entry.y})">
+      ${lane ? '<circle class="seq-note-dot" r="3.5"/>' : ""}
       <rect class="seq-note-bg" y="-10" height="20" rx="2"/>
-      <text class="seq-note-text" y="0.5">${escapeHtml(translate(e.e.text))}</text>
+      <text class="seq-note-text" y="0.5">${escapeHtml(translate(entry.e.text))}</text>
     </g>`;
 }
-function renderSequenceTimeBreak(e, t) {
-  const s = (a) => {
-    let n = `M0 ${a}`;
-    for (let o = 0; o < t; o += 12) n += " q3 -3 6 0 q3 3 6 0";
-    return n;
+function renderSequenceTimeBreak(entry, width) {
+  const wavePath = (y) => {
+    let path = `M0 ${y}`;
+    for (let x = 0; x < width; x += 12) {
+      path += " q3 -3 6 0 q3 3 6 0";
+    }
+    return path;
   };
   return `
-    <g class="seq-break" transform="translate(0 ${e.y})">
-      <rect class="seq-break-band" x="0" y="-15" width="${t}" height="30"/>
-      <path class="seq-wave" d="${s(-6)} ${s(6)}"/>
-      <g transform="translate(${t / 2} 0)">
+    <g class="seq-break" transform="translate(0 ${entry.y})">
+      <rect class="seq-break-band" x="0" y="-15" width="${width}" height="30"/>
+      <path class="seq-wave" d="${wavePath(-6)} ${wavePath(6)}"/>
+      <g transform="translate(${width / 2} 0)">
         <rect class="seq-break-bg" y="-10" height="20" rx="10"/>
-        <text class="seq-break-text" y="0.5" text-anchor="middle">${escapeHtml(translate(formatElapsedTimeBreak(e.seconds)))}</text>
+        <text class="seq-break-text" y="0.5" text-anchor="middle">${escapeHtml(translate(formatElapsedTimeBreak(entry.seconds)))}</text>
       </g>
     </g>`;
 }
-function polygonsOverlap(e, t) {
-  for (const s of [e, t])
-    for (let a = 0; a < s.length; a++) {
-      const [n, o] = [s[a], s[(a + 1) % s.length]],
-        [r, i] = [o[1] - n[1], n[0] - o[0]],
-        l = (d) => d.map(([y, w]) => y * r + w * i),
-        [c, h] = [l(e), l(t)];
-      if (Math.max(...c) <= Math.min(...h) || Math.max(...h) <= Math.min(...c))
-        return !1;
+// Separating-axis test: touching edges do not count as overlapping labels.
+function polygonsOverlap(firstPolygon, secondPolygon) {
+  for (const polygon of [firstPolygon, secondPolygon]) {
+    for (let edgeIndex = 0; edgeIndex < polygon.length; edgeIndex++) {
+      const [edgeStart, edgeEnd] = [
+        polygon[edgeIndex],
+        polygon[(edgeIndex + 1) % polygon.length],
+      ];
+      const [normalX, normalY] = [
+        edgeEnd[1] - edgeStart[1],
+        edgeStart[0] - edgeEnd[0],
+      ];
+      const project = (vertices) =>
+        vertices.map(([x, y]) => x * normalX + y * normalY);
+      const [firstProjection, secondProjection] = [
+        project(firstPolygon),
+        project(secondPolygon),
+      ];
+      if (
+        Math.max(...firstProjection) <= Math.min(...secondProjection) ||
+        Math.max(...secondProjection) <= Math.min(...firstProjection)
+      ) {
+        return false;
+      }
     }
-  return !0;
+  }
+  return true;
 }
-const rectanglePolygon = (e, t, s, a) => [
-  [e, t],
-  [s, t],
-  [s, a],
-  [e, a],
+const rectanglePolygon = (left, top, right, bottom) => [
+  [left, top],
+  [right, top],
+  [right, bottom],
+  [left, bottom],
 ];
-function layoutSequenceLabels(e) {
-  const t = (i) => i.querySelector("text").getComputedTextLength(),
-    s = [...e.querySelectorAll(".seq-note")].map((i) => ({
-      g: i,
-      w: t(i),
-    })),
-    a = [...e.querySelectorAll(".seq-arrow")].map((i) => ({
-      arrow: i,
-      g: i.querySelector(".seq-label"),
-      w: t(i.querySelector(".seq-label")),
-    })),
-    n = [...e.querySelectorAll(".seq-break")].map((i) => ({
-      g: i,
-      w: t(i),
-    })),
-    o = [...e.querySelectorAll(".seq-step")].map((i) => ({
-      g: i,
-      w: t(i),
-    })),
-    r = [...e.querySelectorAll(".seq-cross")].map((i) => {
-      const [l, c] = i
+function layoutSequenceLabels(svg) {
+  const measureText = (element) =>
+    element.querySelector("text").getComputedTextLength();
+  const noteLabels = [...svg.querySelectorAll(".seq-note")].map((element) => ({
+    element,
+    width: measureText(element),
+  }));
+  const arrowLabels = [...svg.querySelectorAll(".seq-arrow")].map((arrow) => ({
+    arrow,
+    element: arrow.querySelector(".seq-label"),
+    width: measureText(arrow.querySelector(".seq-label")),
+  }));
+  const breakLabels = [...svg.querySelectorAll(".seq-break")].map(
+    (element) => ({
+      element,
+      width: measureText(element),
+    }),
+  );
+  const stepLabels = [...svg.querySelectorAll(".seq-step")].map((element) => ({
+    element,
+    width: measureText(element),
+  }));
+  const occupiedPolygons = [...svg.querySelectorAll(".seq-cross")].map(
+    (cross) => {
+      const [left, top] = cross
         .getAttribute("d")
         .match(/[-\d.]+/g)
         .map(Number);
-      return rectanglePolygon(l - 3, c - 3, l + 15, c + 15);
-    });
-  (o.forEach(({ g: i, w: l }) =>
-    i.querySelector("line").setAttribute("x1", 12 + l + 10),
-  ),
-    s.forEach(({ g: i, w: l }) => {
-      const c = i.querySelector("text"),
-        h = i.querySelector("rect"),
-        d = i.dataset.side,
-        y = d === "right" ? 10 : d === "left" ? -10 - l - 16 : -l / 2 - 8;
-      (h.setAttribute("x", y),
-        h.setAttribute("width", l + 16),
-        c.setAttribute("x", y + 8));
-      const [w, k] = i
-        .getAttribute("transform")
-        .match(/[-\d.]+/g)
-        .map(Number);
-      r.push(rectanglePolygon(w + y, k - 10, w + y + l + 16, k + 10));
-    }),
-    n.forEach(({ g: i, w: l }) => {
-      const c = i.querySelector(".seq-break-bg");
-      (c.setAttribute("x", -l / 2 - 10), c.setAttribute("width", l + 20));
-    }),
-    a.sort((i, l) => l.w - i.w),
-    a.forEach(({ arrow: i, g: l, w: c }) => {
-      const h = l.querySelector("text"),
-        d = l.querySelector(".seq-lock"),
-        y = d ? 14 : 0;
-      (h.setAttribute("x", y / 2),
-        d && d.setAttribute("transform", `translate(${-c / 2 - 4} -10)`));
-      const w = l.querySelector("rect");
-      (w.setAttribute("x", -c / 2 - 5 - y / 2),
-        w.setAttribute("width", c + 10 + y));
-      const [k, g, T, v, I] = i.dataset.geo.split(" ").map(Number),
-        q = c / 2 + 6 + y / 2,
-        [re, C] = [
-          Math.cos((I * Math.PI) / 180),
-          Math.sin((I * Math.PI) / 180),
-        ],
-        Z = [
-          [-q - 2, -21],
-          [q + 2, -21],
-          [q + 2, 3],
-          [-q - 2, 3],
-        ].map(([A, _]) => [A * re - _ * C, A * C + _ * re]),
-        R = (A) => {
-          const [_, J] = [k + (T - k) * A, g + (v - g) * A];
-          return {
-            cx: _,
-            cy: J,
-            box: Z.map(([Re, V]) => [_ + Re, J + V]),
-          };
-        },
-        x = Math.hypot(T - k, v - g),
-        H = Math.min(0.45, (q + 8) / x),
-        we = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.12, 0.88]
-          .filter((A) => A >= H && A <= 1 - H)
-          .map(R),
-        ce = (A) => r.filter((_) => polygonsOverlap(A.box, _)).length,
-        P =
-          we.find((A) => !ce(A)) ??
-          [...we, R(0.5)].sort((A, _) => ce(A) - ce(_))[0];
-      (r.push(P.box),
-        l.setAttribute(
-          "transform",
-          `translate(${P.cx.toFixed(1)} ${P.cy.toFixed(1)}) rotate(${I})`,
-        ));
-    }));
+      return rectanglePolygon(left - 3, top - 3, left + 15, top + 15);
+    },
+  );
+  stepLabels.forEach(({ element, width }) =>
+    element.querySelector("line").setAttribute("x1", 12 + width + 10),
+  );
+  noteLabels.forEach(({ element, width }) => {
+    const text = element.querySelector("text");
+    const background = element.querySelector("rect");
+    const side = element.dataset.side;
+    const offsetX =
+      side === "right"
+        ? 10
+        : side === "left"
+          ? -10 - width - 16
+          : -width / 2 - 8;
+    background.setAttribute("x", offsetX);
+    background.setAttribute("width", width + 16);
+    text.setAttribute("x", offsetX + 8);
+    const [x, y] = element
+      .getAttribute("transform")
+      .match(/[-\d.]+/g)
+      .map(Number);
+    occupiedPolygons.push(
+      rectanglePolygon(x + offsetX, y - 10, x + offsetX + width + 16, y + 10),
+    );
+  });
+  breakLabels.forEach(({ element, width }) => {
+    const background = element.querySelector(".seq-break-bg");
+    background.setAttribute("x", -width / 2 - 10);
+    background.setAttribute("width", width + 20);
+  });
+  // Place long labels first, then prefer the arrow center with the fewest overlaps.
+  arrowLabels.sort((first, second) => second.width - first.width);
+  arrowLabels.forEach(({ arrow, element: label, width }) => {
+    const text = label.querySelector("text");
+    const lock = label.querySelector(".seq-lock");
+    const lockWidth = lock ? 14 : 0;
+    text.setAttribute("x", lockWidth / 2);
+    if (lock) {
+      lock.setAttribute("transform", `translate(${-width / 2 - 4} -10)`);
+    }
+    const background = label.querySelector("rect");
+    background.setAttribute("x", -width / 2 - 5 - lockWidth / 2);
+    background.setAttribute("width", width + 10 + lockWidth);
+    const [startX, startY, endX, endY, angleDegrees] = arrow.dataset.geo
+      .split(" ")
+      .map(Number);
+    const halfWidth = width / 2 + 6 + lockWidth / 2;
+    const [cosAngle, sinAngle] = [
+      Math.cos((angleDegrees * Math.PI) / 180),
+      Math.sin((angleDegrees * Math.PI) / 180),
+    ];
+    const rotatedCorners = [
+      [-halfWidth - 2, -21],
+      [halfWidth + 2, -21],
+      [halfWidth + 2, 3],
+      [-halfWidth - 2, 3],
+    ].map(([x, y]) => [
+      x * cosAngle - y * sinAngle,
+      x * sinAngle + y * cosAngle,
+    ]);
+    const candidateAt = (fraction) => {
+      const [centerX, centerY] = [
+        startX + (endX - startX) * fraction,
+        startY + (endY - startY) * fraction,
+      ];
+      return {
+        cx: centerX,
+        cy: centerY,
+        box: rotatedCorners.map(([offsetX, offsetY]) => [
+          centerX + offsetX,
+          centerY + offsetY,
+        ]),
+      };
+    };
+    const arrowLength = Math.hypot(endX - startX, endY - startY);
+    const endInset = Math.min(0.45, (halfWidth + 8) / arrowLength);
+    const candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.12, 0.88]
+      .filter((fraction) => fraction >= endInset && fraction <= 1 - endInset)
+      .map(candidateAt);
+    const countOverlaps = (candidate) =>
+      occupiedPolygons.filter((polygon) =>
+        polygonsOverlap(candidate.box, polygon),
+      ).length;
+    const placement =
+      candidates.find((candidate) => !countOverlaps(candidate)) ??
+      [...candidates, candidateAt(0.5)].sort(
+        (first, second) => countOverlaps(first) - countOverlaps(second),
+      )[0];
+    occupiedPolygons.push(placement.box);
+    label.setAttribute(
+      "transform",
+      `translate(${placement.cx.toFixed(1)} ${placement.cy.toFixed(1)}) rotate(${angleDegrees})`,
+    );
+  });
 }
-function drawSequenceDiagram(e, t) {
-  const s = e.querySelector(".seq-scroll"),
-    a = e.querySelector(".seq-svg"),
-    n = buildSequenceLayout(t),
-    o = Math.max(
-      s.clientWidth,
-      SEQUENCE_LEFT_PADDING +
-        SEQUENCE_RIGHT_PADDING +
-        n.lifelines.length * SEQUENCE_MIN_LANE_WIDTH,
-    ),
-    r =
-      (o - SEQUENCE_LEFT_PADDING - SEQUENCE_RIGHT_PADDING) / n.lifelines.length,
-    i = Object.fromEntries(
-      n.lifelines.map((d, y) => [
-        d,
-        Math.round(SEQUENCE_LEFT_PADDING + r * (y + 0.5)),
-      ]),
-    ),
-    l = e.querySelector(".seq-head");
-  ((l.innerHTML =
-    `<div class="seq-head-track" style="width:${o}px">` +
-    n.lifelines
+function drawSequenceDiagram(panel, lesson) {
+  const scrollArea = panel.querySelector(".seq-scroll");
+  const svg = panel.querySelector(".seq-svg");
+  const layout = buildSequenceLayout(lesson);
+  const width = Math.max(
+    scrollArea.clientWidth,
+    SEQUENCE_LEFT_PADDING +
+      SEQUENCE_RIGHT_PADDING +
+      layout.lifelines.length * SEQUENCE_MIN_LANE_WIDTH,
+  );
+  const laneWidth =
+    (width - SEQUENCE_LEFT_PADDING - SEQUENCE_RIGHT_PADDING) /
+    layout.lifelines.length;
+  const laneX = Object.fromEntries(
+    layout.lifelines.map((nodeId, index) => [
+      nodeId,
+      Math.round(SEQUENCE_LEFT_PADDING + laneWidth * (index + 0.5)),
+    ]),
+  );
+  const header = panel.querySelector(".seq-head");
+  header.innerHTML =
+    `<div class="seq-head-track" style="width:${width}px">` +
+    layout.lifelines
       .map(
-        (d) =>
-          `<span class="seq-who" style="left:${i[d]}px; max-width:${Math.floor(r - 10)}px"><b>${escapeHtml(getLifelineName(t, d))}</b><i>${escapeHtml(getLifelineAddress(t, d, n))}</i></span>`,
+        (nodeId) =>
+          `<span class="seq-who" style="left:${laneX[nodeId]}px; max-width:${Math.floor(laneWidth - 10)}px"><b>${escapeHtml(getLifelineName(lesson, nodeId))}</b><i>${escapeHtml(getLifelineAddress(lesson, nodeId, layout))}</i></span>`,
       )
       .join("") +
-    "</div>"),
-    (l.style.height = `${Math.max(46, ...[...l.querySelectorAll(".seq-who")].map((d) => d.offsetHeight + 6))}px`));
-  const c = n.lifelines
-      .map(
-        (d) =>
-          `<line class="seq-life" x1="${i[d]}" y1="0" x2="${i[d]}" y2="${n.height}"/>`,
-      )
-      .join(""),
-    h = n.steps
-      .map(
-        (d) => `
-    <g class="seq-step" data-step="${d.step}" transform="translate(0 ${d.y})">
-      <line class="seq-step-line" x1="10" y1="0" x2="${o - 10}" y2="0"/>
+    "</div>";
+  header.style.height = `${Math.max(46, ...[...header.querySelectorAll(".seq-who")].map((heading) => heading.offsetHeight + 6))}px`;
+  const lifelineMarkup = layout.lifelines
+    .map(
+      (nodeId) =>
+        `<line class="seq-life" x1="${laneX[nodeId]}" y1="0" x2="${laneX[nodeId]}" y2="${layout.height}"/>`,
+    )
+    .join("");
+  const stepMarkup = layout.steps
+    .map(
+      (entry) => `
+    <g class="seq-step" data-step="${entry.step}" transform="translate(0 ${entry.y})">
+      <line class="seq-step-line" x1="10" y1="0" x2="${width - 10}" y2="0"/>
       <text class="seq-step-text" x="12" y="0.5"><tspan class="seq-step-num">${translate(
         "STEP {n}",
         {
-          n: d.step + 1,
+          n: entry.step + 1,
         },
-      )}</tspan> · ${escapeHtml(localizedUpperCase(translate(t.steps[d.step].title)))}</text>
+      )}</tspan> · ${escapeHtml(localizedUpperCase(translate(lesson.steps[entry.step].title)))}</text>
     </g>`,
-      )
+    )
+    .join("");
+  svg.setAttribute("viewBox", `0 0 ${width} ${layout.height}`);
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", layout.height);
+  svg.innerHTML =
+    lifelineMarkup +
+    layout.breaks
+      .map((entry) => renderSequenceTimeBreak(entry, width))
+      .join("") +
+    stepMarkup +
+    layout.notes
+      .map((entry) => renderSequenceNote(entry, laneX, layout.lifelines))
+      .join("") +
+    [
+      ...layout.packets.filter((entry) => !entry.p.lost),
+      ...layout.packets.filter((entry) => entry.p.lost),
+    ]
+      .map((entry) => renderSequenceArrow(entry, laneX))
       .join("");
-  (a.setAttribute("viewBox", `0 0 ${o} ${n.height}`),
-    a.setAttribute("width", o),
-    a.setAttribute("height", n.height),
-    (a.innerHTML =
-      c +
-      n.breaks.map((d) => renderSequenceTimeBreak(d, o)).join("") +
-      h +
-      n.notes.map((d) => renderSequenceNote(d, i, n.lifelines)).join("") +
-      [
-        ...n.packets.filter((d) => !d.p.lost),
-        ...n.packets.filter((d) => d.p.lost),
-      ]
-        .map((d) => renderSequenceArrow(d, i))
-        .join("")),
-    layoutSequenceLabels(a),
-    (e._layout = n),
-    (e._lesson = t),
-    (e._width = s.clientWidth),
-    (e.dataset.lesson = t.id),
-    (s.scrollTop = 0),
-    (s.scrollLeft = 0),
-    syncSequenceHeaderScroll(e));
+  layoutSequenceLabels(svg);
+  panel._layout = layout;
+  panel._lesson = lesson;
+  panel._width = scrollArea.clientWidth;
+  panel.dataset.lesson = lesson.id;
+  scrollArea.scrollTop = 0;
+  scrollArea.scrollLeft = 0;
+  syncSequenceHeaderScroll(panel);
 }
-const syncSequenceHeaderScroll = (e) => {
-  const t = e.querySelector(".seq-head-track");
-  t &&
-    (t.style.transform = `translateX(${-e.querySelector(".seq-scroll").scrollLeft}px)`);
+const syncSequenceHeaderScroll = (panel) => {
+  const headerTrack = panel.querySelector(".seq-head-track");
+  if (headerTrack) {
+    headerTrack.style.transform = `translateX(${-panel.querySelector(".seq-scroll").scrollLeft}px)`;
+  }
 };
-function refreshSequenceDiagram(e) {
-  if (!e._lesson || e.dataset.lesson !== e._want) return;
-  const t = e.querySelector(".seq-scroll"),
-    s = t.scrollTop;
-  (drawSequenceDiagram(e, e._lesson),
-    e._state && applySequenceState(e, e._state, e._lesson),
-    e
-      .querySelector(".seq-svg")
-      .getAnimations({
-        subtree: !0,
-      })
-      .forEach((a) => a.finish()),
-    (t.scrollTop = s));
-}
-function bindSequenceScrolling(e) {
-  const t = e.querySelector(".seq-scroll");
-  (t.addEventListener("scroll", () => syncSequenceHeaderScroll(e), {
-    passive: !0,
-  }),
-    new ResizeObserver(
-      () =>
-        Math.abs(t.clientWidth - e._width) >= 1 && refreshSequenceDiagram(e),
-    ).observe(t));
-}
-const getSequenceElementOpacity = (e) => Number(getComputedStyle(e).opacity);
-function revealSequenceElement(e, t, s) {
-  const a = getSequenceElementOpacity(e);
-  if (
-    (e
-      .getAnimations({
-        subtree: !0,
-      })
-      .forEach((l) => l.cancel()),
-    e.classList.add("is-shown"),
-    prefersReducedMotion() ||
-      ((t === "fade" || a > 0) &&
-        (e.animate(
-          [
-            {
-              opacity: a,
-            },
-            {
-              opacity: 1,
-            },
-          ],
-          {
-            duration: 260 * (1 - a),
-            delay: a > 0 ? 0 : s,
-            easing: "ease-out",
-            fill: "backwards",
-          },
-        ),
-        t === "fade" || a > 0.5)))
-  )
+function refreshSequenceDiagram(panel) {
+  if (!panel._lesson || panel.dataset.lesson !== panel._want) {
     return;
-  const n = e.querySelector(".seq-line"),
-    o = Number(e.dataset.len),
-    r =
-      t === "quick"
-        ? SEQUENCE_ANIMATION_TIMINGS.quick
-        : SEQUENCE_ANIMATION_TIMINGS.draw,
-    i = (l, c, h) =>
-      playbackClock.track(
-        l.animate(c, {
-          delay: s,
-          fill: "backwards",
-          ...h,
-        }),
-      );
-  (s &&
-    i(
-      e,
+  }
+  const scrollArea = panel.querySelector(".seq-scroll");
+  const scrollTop = scrollArea.scrollTop;
+  drawSequenceDiagram(panel, panel._lesson);
+  if (panel._state) {
+    applySequenceState(panel, panel._state, panel._lesson);
+  }
+  panel
+    .querySelector(".seq-svg")
+    .getAnimations({
+      subtree: true,
+    })
+    .forEach((animation) => animation.finish());
+  scrollArea.scrollTop = scrollTop;
+}
+function bindSequenceScrolling(panel) {
+  const scrollArea = panel.querySelector(".seq-scroll");
+  scrollArea.addEventListener("scroll", () => syncSequenceHeaderScroll(panel), {
+    passive: true,
+  });
+  new ResizeObserver(() => {
+    if (Math.abs(scrollArea.clientWidth - panel._width) >= 1) {
+      refreshSequenceDiagram(panel);
+    }
+  }).observe(scrollArea);
+}
+const getSequenceElementOpacity = (element) =>
+  Number(getComputedStyle(element).opacity);
+function revealSequenceElement(element, mode, delay) {
+  const opacity = getSequenceElementOpacity(element);
+  element
+    .getAnimations({
+      subtree: true,
+    })
+    .forEach((animation) => animation.cancel());
+  element.classList.add("is-shown");
+  if (prefersReducedMotion()) {
+    return;
+  }
+  if (mode === "fade" || opacity > 0) {
+    element.animate(
+      [
+        {
+          opacity,
+        },
+        {
+          opacity: 1,
+        },
+      ],
+      {
+        duration: 260 * (1 - opacity),
+        delay: opacity > 0 ? 0 : delay,
+        easing: "ease-out",
+        fill: "backwards",
+      },
+    );
+    // A mostly visible arrow only needs its fade to finish; a new one still draws.
+    if (mode === "fade" || opacity > 0.5) {
+      return;
+    }
+  }
+  const line = element.querySelector(".seq-line");
+  const length = Number(element.dataset.len);
+  const duration =
+    mode === "quick"
+      ? SEQUENCE_ANIMATION_TIMINGS.quick
+      : SEQUENCE_ANIMATION_TIMINGS.draw;
+  const animateTracked = (target, keyframes, options) =>
+    playbackClock.track(
+      target.animate(keyframes, {
+        delay,
+        fill: "backwards",
+        ...options,
+      }),
+    );
+  if (delay) {
+    animateTracked(
+      element,
       [
         {
           opacity: 0,
@@ -369,42 +456,11 @@ function revealSequenceElement(e, t, s) {
       {
         duration: 1,
       },
-    ),
-    e.classList.contains("is-lost")
-      ? i(
-          n,
-          [
-            {
-              opacity: 0,
-            },
-            {
-              opacity: 1,
-            },
-          ],
-          {
-            duration: r,
-            easing: "ease-out",
-          },
-        )
-      : i(
-          n,
-          [
-            {
-              strokeDasharray: `${o} ${o}`,
-              strokeDashoffset: o,
-            },
-            {
-              strokeDasharray: `${o} ${o}`,
-              strokeDashoffset: 0,
-            },
-          ],
-          {
-            duration: r,
-            easing: EASE_OUT_EXPO,
-          },
-        ),
-    i(
-      e.querySelector(".seq-tip, .seq-cross"),
+    );
+  }
+  if (element.classList.contains("is-lost")) {
+    animateTracked(
+      line,
       [
         {
           opacity: 0,
@@ -414,130 +470,195 @@ function revealSequenceElement(e, t, s) {
         },
       ],
       {
-        duration: 160,
-        delay: s + r * 0.7,
+        duration,
         easing: "ease-out",
       },
-    ),
-    i(
-      e.querySelector(".seq-label"),
+    );
+  } else {
+    animateTracked(
+      line,
       [
         {
-          opacity: 0,
+          strokeDasharray: `${length} ${length}`,
+          strokeDashoffset: length,
         },
         {
-          opacity: 1,
+          strokeDasharray: `${length} ${length}`,
+          strokeDashoffset: 0,
         },
       ],
       {
-        duration: 240,
-        delay: s + r * 0.3,
-        easing: "ease-out",
+        duration,
+        easing: EASE_OUT_EXPO,
       },
-    ));
+    );
+  }
+  // Labels appear during travel; the arrival tip (or loss mark) follows at 70%.
+  animateTracked(
+    element.querySelector(".seq-tip, .seq-cross"),
+    [
+      {
+        opacity: 0,
+      },
+      {
+        opacity: 1,
+      },
+    ],
+    {
+      duration: 160,
+      delay: delay + duration * 0.7,
+      easing: "ease-out",
+    },
+  );
+  animateTracked(
+    element.querySelector(".seq-label"),
+    [
+      {
+        opacity: 0,
+      },
+      {
+        opacity: 1,
+      },
+    ],
+    {
+      duration: 240,
+      delay: delay + duration * 0.3,
+      easing: "ease-out",
+    },
+  );
 }
-function hideSequenceElement(e) {
-  const t = getSequenceElementOpacity(e);
-  (e
+function hideSequenceElement(element) {
+  const opacity = getSequenceElementOpacity(element);
+  element
     .getAnimations({
-      subtree: !0,
+      subtree: true,
     })
-    .forEach((s) => s.cancel()),
-    e.classList.remove("is-shown"),
-    !prefersReducedMotion() &&
-      t > 0 &&
-      e.animate(
-        [
-          {
-            opacity: t,
-          },
-          {
-            opacity: 0,
-          },
-        ],
+    .forEach((animation) => animation.cancel());
+  element.classList.remove("is-shown");
+  if (!prefersReducedMotion() && opacity > 0) {
+    element.animate(
+      [
         {
-          duration: 180 * t,
-          easing: t < 1 ? "linear" : "ease-in",
+          opacity,
         },
-      ));
+        {
+          opacity: 0,
+        },
+      ],
+      {
+        duration: 180 * opacity,
+        easing: opacity < 1 ? "linear" : "ease-in",
+      },
+    );
+  }
 }
-function applySequenceState(e, t, s) {
-  const a = e.querySelector(".seq-svg"),
-    n = e._layout,
-    o = [];
-  let r = 0;
-  a.querySelectorAll(".seq-arrow").forEach((w) => {
-    const k = Number(w.dataset.packet),
-      g = t.packets[k],
-      T = !t.started || g !== "future",
-      v = t.started && g === "current";
-    (T &&
-      !w.classList.contains("is-shown") &&
-      o.push({
-        g: w,
-        current: v,
-        y: n.packets[k].yArrived,
-      }),
-      !T && w.classList.contains("is-shown") && hideSequenceElement(w),
-      w.classList.toggle("is-current", v));
+function applySequenceState(panel, state) {
+  const svg = panel.querySelector(".seq-svg");
+  const layout = panel._layout;
+  const newlyVisible = [];
+  let fadeIndex = 0;
+  svg.querySelectorAll(".seq-arrow").forEach((arrow) => {
+    const packetIndex = Number(arrow.dataset.packet);
+    const packetState = state.packets[packetIndex];
+    const visible = !state.started || packetState !== "future";
+    const current = state.started && packetState === "current";
+    if (visible && !arrow.classList.contains("is-shown")) {
+      newlyVisible.push({
+        element: arrow,
+        current,
+        y: layout.packets[packetIndex].yArrived,
+      });
+    }
+    if (!visible && arrow.classList.contains("is-shown")) {
+      hideSequenceElement(arrow);
+    }
+    arrow.classList.toggle("is-current", current);
   });
-  const i = o.length && o.every((w) => w.current);
-  (o.forEach((w, k) => {
-    const g = n.packets.find((T) => T.index === Number(w.g.dataset.packet))?.p
-      .quick;
-    i
-      ? revealSequenceElement(
-          w.g,
-          g ? "quick" : "draw",
-          k * SEQUENCE_ANIMATION_TIMINGS.stagger,
-        )
-      : revealSequenceElement(w.g, "fade", Math.min(r++ * 14, 420));
-  }),
-    a.querySelectorAll(".seq-note").forEach((w) => {
-      const k = !t.started || t.notes[Number(w.dataset.note)] !== "future";
-      (k &&
-        !w.classList.contains("is-shown") &&
-        (revealSequenceElement(w, "fade", 0),
-        o.push({
-          g: w,
-          y: n.notes[Number(w.dataset.note)].y,
-        })),
-        !k && w.classList.contains("is-shown") && hideSequenceElement(w));
-    }),
-    a
-      .querySelectorAll(".seq-step")
-      .forEach((w) =>
-        w.classList.toggle(
-          "is-active",
-          t.started && !t.done && Number(w.dataset.step) === t.activeStep,
-        ),
-      ));
-  const l = e.querySelector(".seq-scroll");
-  if (!t.started) return o.length && smoothScrollTo(l, 0);
-  const h = [
-      ...a.querySelectorAll(".seq-arrow.is-shown, .seq-note.is-shown"),
-    ].map((w) =>
-      w.dataset.packet !== void 0
-        ? n.packets[Number(w.dataset.packet)].yArrived
-        : n.notes[Number(w.dataset.note)].y,
-    ),
-    d = h.length ? Math.max(...h) : 0,
-    y = l.clientHeight;
-  d > l.scrollTop + y - 44
-    ? smoothScrollTo(l, d - y * 0.62)
-    : d < l.scrollTop + 30 && smoothScrollTo(l, d - y * 0.4);
+  const onlyCurrentPackets =
+    newlyVisible.length && newlyVisible.every((entry) => entry.current);
+  // Current packets draw in send order. Seeking or replaying past packets uses a fade.
+  newlyVisible.forEach((entry, index) => {
+    const quick = layout.packets.find(
+      (packet) => packet.index === Number(entry.element.dataset.packet),
+    )?.p.quick;
+    if (onlyCurrentPackets) {
+      revealSequenceElement(
+        entry.element,
+        quick ? "quick" : "draw",
+        index * SEQUENCE_ANIMATION_TIMINGS.stagger,
+      );
+    } else {
+      revealSequenceElement(
+        entry.element,
+        "fade",
+        Math.min(fadeIndex++ * 14, 420),
+      );
+    }
+  });
+  svg.querySelectorAll(".seq-note").forEach((note) => {
+    const visible =
+      !state.started || state.notes[Number(note.dataset.note)] !== "future";
+    if (visible && !note.classList.contains("is-shown")) {
+      revealSequenceElement(note, "fade", 0);
+      newlyVisible.push({
+        element: note,
+        y: layout.notes[Number(note.dataset.note)].y,
+      });
+    }
+    if (!visible && note.classList.contains("is-shown")) {
+      hideSequenceElement(note);
+    }
+  });
+  svg
+    .querySelectorAll(".seq-step")
+    .forEach((step) =>
+      step.classList.toggle(
+        "is-active",
+        state.started &&
+          !state.done &&
+          Number(step.dataset.step) === state.activeStep,
+      ),
+    );
+  const scrollArea = panel.querySelector(".seq-scroll");
+  if (!state.started) {
+    if (newlyVisible.length) {
+      return smoothScrollTo(scrollArea, 0);
+    }
+    return newlyVisible.length;
+  }
+  const visibleYPositions = [
+    ...svg.querySelectorAll(".seq-arrow.is-shown, .seq-note.is-shown"),
+  ].map((element) =>
+    element.dataset.packet !== undefined
+      ? layout.packets[Number(element.dataset.packet)].yArrived
+      : layout.notes[Number(element.dataset.note)].y,
+  );
+  // Follow the latest arrival position so the complete arrow remains in view.
+  const latestY = visibleYPositions.length ? Math.max(...visibleYPositions) : 0;
+  const viewportHeight = scrollArea.clientHeight;
+  if (latestY > scrollArea.scrollTop + viewportHeight - 44) {
+    smoothScrollTo(scrollArea, latestY - viewportHeight * 0.62);
+  } else if (latestY < scrollArea.scrollTop + 30) {
+    smoothScrollTo(scrollArea, latestY - viewportHeight * 0.4);
+  }
 }
-function transitionSequenceLesson(e, t, s) {
-  const a = [e.querySelector(".seq-scroll"), e.querySelector(".seq-head")];
-  ((e._want = t.id), (e._state = s));
-  const n = () => {
-    e._want === t.id &&
-      (a.forEach((o) => o.getAnimations().forEach((r) => r.cancel())),
-      drawSequenceDiagram(e, t),
-      applySequenceState(e, e._state),
-      prefersReducedMotion() ||
-        a.forEach((o) =>
-          o.animate(
+function transitionSequenceLesson(panel, lesson, state) {
+  const sections = [
+    panel.querySelector(".seq-scroll"),
+    panel.querySelector(".seq-head"),
+  ];
+  panel._want = lesson.id;
+  panel._state = state;
+  const showLesson = () => {
+    if (panel._want === lesson.id) {
+      sections.forEach((section) =>
+        section.getAnimations().forEach((animation) => animation.cancel()),
+      );
+      drawSequenceDiagram(panel, lesson);
+      applySequenceState(panel, panel._state);
+      if (!prefersReducedMotion()) {
+        sections.forEach((section) =>
+          section.animate(
             [
               {
                 opacity: 0,
@@ -551,34 +672,42 @@ function transitionSequenceLesson(e, t, s) {
               easing: "ease-out",
             },
           ),
-        ));
+        );
+      }
+    }
   };
-  if (!e.dataset.lesson || prefersReducedMotion()) return n();
-  (a.forEach((o) => {
-    const r = Number(getComputedStyle(o).opacity);
-    (o.getAnimations().forEach((i) => i.cancel()),
-      o.animate(
-        [
-          {
-            opacity: r,
-          },
-          {
-            opacity: 0,
-          },
-        ],
+  if (!panel.dataset.lesson || prefersReducedMotion()) {
+    return showLesson();
+  }
+  sections.forEach((section) => {
+    const opacity = Number(getComputedStyle(section).opacity);
+    section.getAnimations().forEach((animation) => animation.cancel());
+    section.animate(
+      [
         {
-          duration: 160 * r,
-          easing: r < 1 ? "linear" : "ease-in",
-          fill: "forwards",
+          opacity,
         },
-      ));
-  }),
-    setTimeout(n, 170));
+        {
+          opacity: 0,
+        },
+      ],
+      {
+        duration: 160 * opacity,
+        easing: opacity < 1 ? "linear" : "ease-in",
+        fill: "forwards",
+      },
+    );
+  });
+  setTimeout(showLesson, 170);
 }
-function updateSequenceDiagram(e, t, s) {
-  if (((e._state = t), e._want !== s.id))
-    return transitionSequenceLesson(e, s, t);
-  e.dataset.lesson === s.id && applySequenceState(e, t);
+function updateSequenceDiagram(panel, state, lesson) {
+  panel._state = state;
+  if (panel._want !== lesson.id) {
+    return transitionSequenceLesson(panel, lesson, state);
+  }
+  if (panel.dataset.lesson === lesson.id) {
+    applySequenceState(panel, state);
+  }
 }
 export {
   bindSequenceScrolling,

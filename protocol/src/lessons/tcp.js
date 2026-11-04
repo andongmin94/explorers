@@ -27,36 +27,43 @@ const TCP_CONNECTION = tcpConnection(
   TCP_SERVER_IP,
   80,
 );
-const tcpPacketRow = (e, t, s, a, n, o) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const tcpPacketRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  frameBytes,
+  wire,
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "TCP",
-  info: a,
-  len: `${n} B`,
-  wire: o,
+  info,
+  len: `${frameBytes} B`,
+  wire,
 });
-const tcpClientRow = (e, t, s, a, n, o) =>
+const tcpClientRow = (seconds, info, frameBytes, flags, data, options) =>
   tcpPacketRow(
-    e,
+    seconds,
     CLIENT_IP,
     TCP_SERVER_IP,
-    `${TCP_CLIENT_PORT} → 80 ${t}`,
-    s,
-    tcpWire(TCP_CONNECTION, CLIENT_IP, a, n, o),
+    `${TCP_CLIENT_PORT} → 80 ${info}`,
+    frameBytes,
+    tcpWire(TCP_CONNECTION, CLIENT_IP, flags, data, options),
   );
-const tcpServerRow = (e, t, s, a, n, o) =>
+const tcpServerRow = (seconds, info, frameBytes, flags, data, options) =>
   tcpPacketRow(
-    e,
+    seconds,
     TCP_SERVER_IP,
     CLIENT_IP,
-    `80 → ${TCP_CLIENT_PORT} ${t}`,
-    s,
-    tcpWire(TCP_CONNECTION, TCP_SERVER_IP, a, n, o),
+    `80 → ${TCP_CLIENT_PORT} ${info}`,
+    frameBytes,
+    tcpWire(TCP_CONNECTION, TCP_SERVER_IP, flags, data, options),
   );
-const tcpResponseSegment = (e) => ({
+const tcpResponseSegment = (startByte) => ({
   opaque: TCP_MSS,
-  what: `the HTTP response, bytes ${e}–${e + TCP_MSS - 1}`,
+  what: `the HTTP response, bytes ${startByte}–${startByte + TCP_MSS - 1}`,
   name: "HTTP",
 });
 const tcpLesson = {
@@ -127,7 +134,7 @@ const tcpLesson = {
           sport: TCP_CLIENT_PORT,
           dport: 80,
           t: [0, 0.017, 0.034],
-          quick: !1,
+          quick: false,
         }),
       ],
     },
@@ -205,7 +212,7 @@ const tcpLesson = {
                 tcpResponseSegment(1),
               ),
               {
-                lost: !0,
+                lost: true,
               },
             ),
             packetEvent(
@@ -253,9 +260,9 @@ const tcpLesson = {
             `[ACK] Seq=${TCP_REQUEST_BYTES + 1} Ack=1 SLE=${TCP_MSS + 1} SRE=${TCP_RESPONSE_BYTES + 1}`,
             66,
             "A",
-            void 0,
+            undefined,
             {
-              sack: !0,
+              sack: true,
             },
           ),
         ),

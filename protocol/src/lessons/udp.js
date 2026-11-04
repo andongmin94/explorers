@@ -1,19 +1,27 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 const UDP_CLIENT_IP = "192.168.1.10";
 const UDP_SERVER_IP = "203.0.113.20";
-const udpPacketEvent = (e, t, s, a, n, o, r = {}) => ({
+const udpPacketEvent = (
+  from,
+  to,
+  color,
+  label,
+  payload,
+  row,
+  options = {},
+) => ({
   type: "packet",
-  from: e,
-  to: t,
-  color: s,
-  label: a,
-  payload: n,
-  row: o,
-  ...r,
+  from,
+  to,
+  color,
+  label,
+  payload,
+  row,
+  ...options,
 });
-const rtpDatagramWire = (e, t) => ({
+const rtpDatagramWire = (packetNumber, outgoing) => ({
   udp: {
-    ...(t
+    ...(outgoing
       ? {
           sport: 5e4,
           dport: 5004,
@@ -24,43 +32,43 @@ const rtpDatagramWire = (e, t) => ({
         }),
     data: {
       rtp: {
-        seq: (t ? 21737 : 4418) + e,
-        ts: (t ? 2617440 : 913280) + 960 * (e - 1),
-        ssrc: t ? 1590076113 : 460833806,
+        seq: (outgoing ? 21737 : 4418) + packetNumber,
+        ts: (outgoing ? 2617440 : 913280) + 960 * (packetNumber - 1),
+        ssrc: outgoing ? 1590076113 : 460833806,
         pt: 111,
-        marker: e === 1,
+        marker: packetNumber === 1,
         audio: 80,
       },
     },
   },
 });
-const outgoingVoiceEvent = (e, t, s) =>
+const outgoingVoiceEvent = (packetNumber, time, options) =>
   udpPacketEvent(
     "client",
     "web",
     "amber",
-    `VOICE ${e}`,
+    `VOICE ${packetNumber}`,
     [],
     {
-      time: t,
+      time,
       src: UDP_CLIENT_IP,
       dst: UDP_SERVER_IP,
       proto: "UDP",
       info: "50000 → 5004 Len=92",
       len: "134 B",
-      wire: rtpDatagramWire(e, !0),
+      wire: rtpDatagramWire(packetNumber, true),
     },
-    s,
+    options,
   );
-const incomingVoiceEvent = (e, t) =>
-  udpPacketEvent("web", "client", "violet", `REMOTE ${e}`, [], {
-    time: t,
+const incomingVoiceEvent = (packetNumber, time) =>
+  udpPacketEvent("web", "client", "violet", `REMOTE ${packetNumber}`, [], {
+    time,
     src: UDP_SERVER_IP,
     dst: UDP_CLIENT_IP,
     proto: "UDP",
     info: "5004 → 50000 Len=92",
     len: "134 B",
-    wire: rtpDatagramWire(e, !1),
+    wire: rtpDatagramWire(packetNumber, false),
   });
 const udpLesson = {
   id: "udp",
@@ -136,7 +144,7 @@ const udpLesson = {
             proto: "UDP",
             info: "50000 → 5004 Len=92",
             len: "134 B",
-            wire: rtpDatagramWire(1, !0),
+            wire: rtpDatagramWire(1, true),
           },
         ),
       ],
@@ -189,7 +197,7 @@ const udpLesson = {
           packets: [
             outgoingVoiceEvent(6, "0.100s"),
             outgoingVoiceEvent(7, "0.120s", {
-              lost: !0,
+              lost: true,
             }),
             outgoingVoiceEvent(8, "0.140s"),
           ],

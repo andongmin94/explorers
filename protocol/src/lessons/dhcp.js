@@ -7,39 +7,46 @@ import {
 } from "./helpers.js";
 const DHCP_INITIAL_TRANSACTION_ID = "0x3903f326";
 const DHCP_RENEWAL_TRANSACTION_ID = "0x7a1c22e5";
-const dhcpPacketRow = (e, t, s, a, n, o) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const dhcpPacketRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  frameBytes,
+  wire,
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "DHCP",
-  info: a,
-  len: `${n} B`,
-  wire: o,
+  info,
+  len: `${frameBytes} B`,
+  wire,
 });
 const DHCP_CLIENT_HOSTNAME = "alice-laptop";
 const DHCP_PARAMETER_REQUEST_LIST = [
   1, 3, 6, 15, 31, 33, 43, 44, 46, 47, 119, 121, 249, 252,
 ];
-const dhcpRequestWire = (e) => ({
+const dhcpRequestWire = (message) => ({
   udp: {
     sport: 68,
     dport: 67,
     data: {
       dhcp: {
         op: 1,
-        ...e,
+        ...message,
       },
     },
   },
 });
-const dhcpReplyWire = (e) => ({
+const dhcpReplyWire = (message) => ({
   udp: {
     sport: 67,
     dport: 68,
     data: {
       dhcp: {
         op: 2,
-        ...e,
+        ...message,
       },
     },
   },

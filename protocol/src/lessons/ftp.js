@@ -25,55 +25,60 @@ const FTP_DATA_CONNECTION = tcpConnection(
   FTP_SERVER_IP,
   FTP_PASSIVE_PORT,
 );
-const ftpPacketRow = (e, t, s, a, n) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const ftpPacketRow = (seconds, sourceIp, destinationIp, info, line) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "FTP",
-  info: a,
-  len: `${tcpFrameBytes(textLinesBytes(n))} B`,
-  wire: tcpWire(FTP_CONTROL_CONNECTION, t, "PA", {
-    text: [n],
+  info,
+  len: `${tcpFrameBytes(textLinesBytes(line))} B`,
+  wire: tcpWire(FTP_CONTROL_CONNECTION, sourceIp, "PA", {
+    text: [line],
     name: "FTP",
   }),
 });
-const ftpCommandEvent = (e, t) =>
+const ftpCommandEvent = (seconds, command) =>
   packetEvent(
     "client",
     "web",
     "amber",
-    t.split(" ")[0],
-    [t],
-    ftpPacketRow(e, CLIENT_IP, FTP_SERVER_IP, t, t),
+    command.split(" ")[0],
+    [command],
+    ftpPacketRow(seconds, CLIENT_IP, FTP_SERVER_IP, command, command),
   );
-const ftpReplyEvent = (e, t, s, a) =>
+const ftpReplyEvent = (seconds, label, payload, reply) =>
   packetEvent(
     "web",
     "client",
     "violet",
-    t,
-    s,
-    ftpPacketRow(e, FTP_SERVER_IP, CLIENT_IP, a, a),
+    label,
+    payload,
+    ftpPacketRow(seconds, FTP_SERVER_IP, CLIENT_IP, reply, reply),
   );
 const FTP_DATA_SEGMENT_SIZES = [];
-for (let e = FTP_FILE_BYTES; e > 0; e -= TCP_MSS)
-  FTP_DATA_SEGMENT_SIZES.push(Math.min(TCP_MSS, e));
-const ftpDataRow = (e, t) => {
-  const s = 1 + t * TCP_MSS;
+for (
+  let remainingBytes = FTP_FILE_BYTES;
+  remainingBytes > 0;
+  remainingBytes -= TCP_MSS
+) {
+  FTP_DATA_SEGMENT_SIZES.push(Math.min(TCP_MSS, remainingBytes));
+}
+const ftpDataRow = (segmentBytes, segmentIndex) => {
+  const startByte = 1 + segmentIndex * TCP_MSS;
   return {
     time: formatPacketTime(0.225),
     src: FTP_SERVER_IP,
     dst: CLIENT_IP,
     proto: "FTP-DATA",
-    info: `FTP Data: ${e} bytes (Seq=${s})`,
-    len: `${tcpFrameBytes(e)} B`,
+    info: `FTP Data: ${segmentBytes} bytes (Seq=${startByte})`,
+    len: `${tcpFrameBytes(segmentBytes)} B`,
     wire: tcpWire(
       FTP_DATA_CONNECTION,
       FTP_SERVER_IP,
-      t === FTP_DATA_SEGMENT_SIZES.length - 1 ? "PA" : "A",
+      segmentIndex === FTP_DATA_SEGMENT_SIZES.length - 1 ? "PA" : "A",
       {
-        opaque: e,
-        what: `report.pdf, bytes ${s}–${s + e - 1}`,
+        opaque: segmentBytes,
+        what: `report.pdf, bytes ${startByte}–${startByte + segmentBytes - 1}`,
         name: "FTP data",
         note: "The file itself, unencrypted: anyone on the path could read it.",
       },
@@ -275,8 +280,15 @@ const ftpLesson = {
             "report.pdf",
             `${FTP_FILE_BYTES.toLocaleString("en-US")} bytes, readable by anyone`,
           ],
-          packets: FTP_DATA_SEGMENT_SIZES.map((e, t) =>
-            packetEvent("web", "client", "blue", "DATA", [], ftpDataRow(e, t)),
+          packets: FTP_DATA_SEGMENT_SIZES.map((segmentBytes, segmentIndex) =>
+            packetEvent(
+              "web",
+              "client",
+              "blue",
+              "DATA",
+              [],
+              ftpDataRow(segmentBytes, segmentIndex),
+            ),
           ),
         },
         packetEvent(

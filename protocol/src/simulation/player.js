@@ -1,188 +1,233 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
 import { playbackClock, waitWithClock } from "./clock.js";
+
 const PLAYER_EVENT_DELAYS = {
-  network: {
-    event: 450,
-    step: 1100,
-    quick: 120,
-  },
-  sequence: {
-    event: 260,
-    step: 650,
-    quick: 80,
-  },
+  network: { event: 450, step: 1100, quick: 120 },
+  sequence: { event: 260, step: 650, quick: 80 },
 };
-function getSequenceEventDuration(e) {
-  return e.type === "packet"
-    ? e.quick
+
+function getSequenceEventDuration(event) {
+  if (event.type === "packet") {
+    return event.quick
       ? SEQUENCE_ANIMATION_TIMINGS.quick
-      : SEQUENCE_ANIMATION_TIMINGS.draw
-    : e.type === "stream"
-      ? (e.packets.length - 1) * SEQUENCE_ANIMATION_TIMINGS.stagger +
-        SEQUENCE_ANIMATION_TIMINGS.draw
-      : e.type === "note"
-        ? SEQUENCE_ANIMATION_TIMINGS.note
-        : 0;
+      : SEQUENCE_ANIMATION_TIMINGS.draw;
+  }
+  if (event.type === "stream") {
+    return (
+      (event.packets.length - 1) * SEQUENCE_ANIMATION_TIMINGS.stagger +
+      SEQUENCE_ANIMATION_TIMINGS.draw
+    );
+  }
+  return event.type === "note" ? SEQUENCE_ANIMATION_TIMINGS.note : 0;
 }
-function createLessonPlayer(e, t, s, { mode: a = "network" } = {}) {
-  const n = [
-      {
-        type: "focus",
-        ...e.start,
-        step: 0,
-      },
-      ...e.steps.flatMap((R, x) =>
-        R.events.map((H) => ({
-          ...H,
-          step: x,
-        })),
-      ),
-    ],
-    o = e.steps.map((R, x) => n.findLastIndex((H) => H.step === x));
-  let r = 0,
-    i = -1,
-    l = !1,
-    c = {
-      cancelled: !1,
-    },
-    h = null,
-    d = a;
-  function y() {
-    const R = r >= n.length && i === -1,
-      x = r > 0 || i !== -1,
-      H = i !== -1 ? i : r - 1,
-      we = H >= 0 ? n[H].step : 0,
-      ce = (A) => A.type === "packet" || A.type === "stream",
-      P = H >= 0 && ce(n[H]) ? H : -1;
+
+/**
+ * Play ordered lesson events through the network renderer. Sequence mode
+ * applies each event immediately and lets its separate diagram animate it.
+ * The callback drives the sidebar, explanation, packet table and diagram.
+ */
+function createLessonPlayer(
+  lesson,
+  renderer,
+  onStateChange,
+  { mode = "network" } = {},
+) {
+  const events = [
+    { type: "focus", ...lesson.start, step: 0 },
+    ...lesson.steps.flatMap((step, stepIndex) =>
+      step.events.map((event) => ({ ...event, step: stepIndex })),
+    ),
+  ];
+  const lastEventByStep = lesson.steps.map((step, stepIndex) =>
+    events.findLastIndex((event) => event.step === stepIndex),
+  );
+  let nextEventIndex = 0;
+  let runningEventIndex = -1;
+  let playing = false;
+  let eventToken = { cancelled: false };
+  let delayToken = null;
+  let currentMode = mode;
+  let notificationQueued = false;
+  let disposed = false;
+
+  function getState() {
+    const done = nextEventIndex >= events.length && runningEventIndex === -1;
+    const started = nextEventIndex > 0 || runningEventIndex !== -1;
+    const activeEventIndex =
+      runningEventIndex !== -1 ? runningEventIndex : nextEventIndex - 1;
+    const activeStep =
+      activeEventIndex >= 0 ? events[activeEventIndex].step : 0;
+    const isPacketEvent = (event) =>
+      event.type === "packet" || event.type === "stream";
+    const currentPacketEvent =
+      activeEventIndex >= 0 && isPacketEvent(events[activeEventIndex])
+        ? activeEventIndex
+        : -1;
     return {
-      playing: l,
-      running: i !== -1,
-      started: x,
-      done: R,
-      activeStep: we,
-      event: H >= 0 ? n[H] : null,
-      steps: e.steps.map((A, _) =>
-        _ === we && x && !R ? "active" : o[_] < r ? "done" : "todo",
-      ),
-      packets: n.flatMap((A, _) => {
-        if (!ce(A)) return [];
-        const J = _ === P ? "current" : _ < r ? "past" : "future";
-        return A.type === "stream" ? A.packets.map(() => J) : [J];
+      playing,
+      running: runningEventIndex !== -1,
+      started,
+      done,
+      activeStep,
+      event: activeEventIndex >= 0 ? events[activeEventIndex] : null,
+      steps: lesson.steps.map((step, stepIndex) => {
+        if (stepIndex === activeStep && started && !done) return "active";
+        return lastEventByStep[stepIndex] < nextEventIndex ? "done" : "todo";
       }),
-      notes: n.flatMap((A, _) =>
-        A.type === "note" ? [_ < r || _ === i ? "past" : "future"] : [],
+      packets: events.flatMap((event, eventIndex) => {
+        if (!isPacketEvent(event)) return [];
+        const status =
+          eventIndex === currentPacketEvent
+            ? "current"
+            : eventIndex < nextEventIndex
+              ? "past"
+              : "future";
+        return event.type === "stream"
+          ? event.packets.map(() => status)
+          : [status];
+      }),
+      notes: events.flatMap((event, eventIndex) =>
+        event.type === "note"
+          ? [
+              eventIndex < nextEventIndex || eventIndex === runningEventIndex
+                ? "past"
+                : "future",
+            ]
+          : [],
       ),
     };
   }
-  let w = !1,
-    k = !1;
-  function g() {
-    w ||
-      ((w = !0),
-      queueMicrotask(() => {
-        ((w = !1), k || s(y()));
-      }));
+
+  function notifyStateChange() {
+    if (notificationQueued) return;
+    notificationQueued = true;
+    queueMicrotask(() => {
+      notificationQueued = false;
+      if (!disposed) onStateChange(getState());
+    });
   }
-  function T() {
-    const R = t.snapshot();
-    (r === 0
-      ? t.overview(e.nodes, e.labels)
-      : n.slice(0, r).forEach((x) => t.apply(x)),
-      t.morph(R, c));
+
+  function restoreScene() {
+    const previousScene = renderer.snapshot();
+    if (nextEventIndex === 0) renderer.overview(lesson.nodes, lesson.labels);
+    else
+      events.slice(0, nextEventIndex).forEach((event) => renderer.apply(event));
+    renderer.morph(previousScene, eventToken);
   }
-  function v(R) {
-    const x = n[R + 1],
-      H = PLAYER_EVENT_DELAYS[d];
-    return x.step !== n[R].step
-      ? H.step
-      : x.quick && n[R].quick
-        ? H.quick
-        : H.event;
+
+  function getDelayAfter(eventIndex) {
+    const nextEvent = events[eventIndex + 1];
+    const delays = PLAYER_EVENT_DELAYS[currentMode];
+    if (nextEvent.step !== events[eventIndex].step) return delays.step;
+    return nextEvent.quick && events[eventIndex].quick
+      ? delays.quick
+      : delays.event;
   }
-  async function I() {
-    if (i !== -1) return;
-    if (r >= n.length) {
-      ((l = !1), g());
+
+  async function runNextEvent() {
+    if (runningEventIndex !== -1) return;
+    if (nextEventIndex >= events.length) {
+      playing = false;
+      notifyStateChange();
       return;
     }
-    const R = r,
-      x = c;
-    if (
-      ((i = R),
-      g(),
-      d === "sequence"
-        ? (t.apply(n[R]),
-          await waitWithClock(getSequenceEventDuration(n[R]), x))
-        : await t.run(n[R], x),
-      x !== c ||
-        (x.finish &&
-          ((c = {
-            cancelled: !1,
-          }),
-          t.clear(),
-          t.apply(n[R])),
-        (i = -1),
-        (r = R + 1),
-        r >= n.length && (l = !1),
-        g(),
-        !l))
-    )
-      return;
-    const H = (h = {
-      cancelled: !1,
-    });
-    (await waitWithClock(() => v(R), H),
-      h === H && (h = null),
-      !H.cancelled && l && I());
+
+    const eventIndex = nextEventIndex;
+    const token = eventToken;
+    runningEventIndex = eventIndex;
+    notifyStateChange();
+    if (currentMode === "sequence") {
+      renderer.apply(events[eventIndex]);
+      await waitWithClock(getSequenceEventDuration(events[eventIndex]), token);
+    } else {
+      await renderer.run(events[eventIndex], token);
+    }
+
+    // Reset/jump replaces the token. Switching to sequence view instead asks
+    // this event to finish instantly while retaining its playback position.
+    if (token !== eventToken) return;
+    if (token.finish) {
+      eventToken = { cancelled: false };
+      renderer.clear();
+      renderer.apply(events[eventIndex]);
+    }
+    runningEventIndex = -1;
+    nextEventIndex = eventIndex + 1;
+    if (nextEventIndex >= events.length) playing = false;
+    notifyStateChange();
+    if (!playing) return;
+
+    const waitToken = { cancelled: false };
+    delayToken = waitToken;
+    await waitWithClock(() => getDelayAfter(eventIndex), waitToken);
+    if (delayToken === waitToken) delayToken = null;
+    if (!waitToken.cancelled && playing) runNextEvent();
   }
-  function q() {
-    ((c.cancelled = !0),
-      (c = {
-        cancelled: !1,
-      }),
-      h && (h.cancelled = !0),
-      (h = null),
-      (i = -1),
-      t.clear(),
-      playbackClock.resume());
+
+  function cancelPendingWork() {
+    eventToken.cancelled = true;
+    eventToken = { cancelled: false };
+    if (delayToken) delayToken.cancelled = true;
+    delayToken = null;
+    runningEventIndex = -1;
+    renderer.clear();
+    playbackClock.resume();
   }
-  function re() {
-    (q(), (l = !1), (r = 0), T(), g());
+
+  function reset() {
+    cancelPendingWork();
+    playing = false;
+    nextEventIndex = 0;
+    restoreScene();
+    notifyStateChange();
   }
-  function C() {
-    (r >= n.length && i === -1 && re(),
-      (l = !0),
-      playbackClock.resume(),
-      g(),
-      i === -1 && !h && I());
+
+  function play() {
+    if (nextEventIndex >= events.length && runningEventIndex === -1) reset();
+    playing = true;
+    playbackClock.resume();
+    notifyStateChange();
+    if (runningEventIndex === -1 && !delayToken) runNextEvent();
   }
-  function Z() {
-    ((l = !1), playbackClock.pause(), g());
+
+  function pause() {
+    playing = false;
+    playbackClock.pause();
+    notifyStateChange();
   }
+
   return {
-    reset: re,
+    reset,
     dispose() {
-      (q(), (l = !1), (k = !0));
+      cancelPendingWork();
+      playing = false;
+      disposed = true;
     },
-    toggle: () => (l ? Z() : C()),
-    pause: Z,
-    play: C,
+    toggle: () => (playing ? pause() : play()),
+    pause,
+    play,
     step() {
-      ((l = !1),
-        h && (h.cancelled = !0),
-        (h = null),
-        playbackClock.resume(),
-        g(),
-        i === -1 && I());
+      playing = false;
+      if (delayToken) delayToken.cancelled = true;
+      delayToken = null;
+      playbackClock.resume();
+      notifyStateChange();
+      if (runningEventIndex === -1) runNextEvent();
     },
-    setMode(R) {
-      R !== d &&
-        ((d = R),
-        R === "sequence" && i !== -1 && ((c.finish = !0), (c.cancelled = !0)));
+    setMode(nextMode) {
+      if (nextMode === currentMode) return;
+      currentMode = nextMode;
+      if (nextMode === "sequence" && runningEventIndex !== -1) {
+        eventToken.finish = true;
+        eventToken.cancelled = true;
+      }
     },
-    jump(R) {
-      (q(), (r = n.findIndex((x) => x.step === R)), T(), C());
+    jump(stepIndex) {
+      cancelPendingWork();
+      nextEventIndex = events.findIndex((event) => event.step === stepIndex);
+      restoreScene();
+      play();
     },
   };
 }

@@ -20,9 +20,13 @@ const LOGO_SVG = `
     <path d="M58 32 L32 45.5 L32 61 L58 47.5 Z" />
   </g>
 </svg>`;
+
 function renderLearningProgress() {
-  const e = protocolCatalog
-    .map((t, s) => `<span class="learning-seg"><i style="--i:${s}"></i></span>`)
+  const segments = protocolCatalog
+    .map(
+      (protocol, index) =>
+        `<span class="learning-seg"><i style="--i:${index}"></i></span>`,
+    )
     .join("");
   return `
   <div class="learning">
@@ -30,42 +34,60 @@ function renderLearningProgress() {
       <span class="learning-label" ${translatedElementContent("LEARNING PROGRESS")}</span>
       <span class="learning-value"></span>
     </div>
-    <div class="learning-bars" role="img">${e}</div>
+    <div class="learning-bars" role="img">${segments}</div>
     <div class="learning-sub"><span class="learning-done"></span> / ${protocolCatalog.length} <span ${translatedElementContent("COMPLETE")}</span> <span class="dot">·</span> <span class="learning-active"></span> <span ${translatedElementContent("IN PROGRESS")}</span></div>
   </div>`;
 }
-function updateLearningProgress(e, t) {
-  const s = protocolCatalog
-      .map((o) => ({
-        name: o.name,
-        value: getLessonCompletion(t[o.id]),
-        status: getLessonStatus(t[o.id]),
-      }))
-      .sort((o, r) => r.value - o.value),
-    a = Math.round((s.reduce((o, r) => o + r.value, 0) / s.length) * 100),
-    n = e.querySelector(".learning");
-  (n.querySelectorAll(".learning-seg").forEach((o, r) => {
-    const i = s[r];
-    (o.classList.toggle("partial", i.value > 0 && i.value < 1),
-      (o.title = `${i.name}: ${Math.round(i.value * 100)}%`),
-      (o.firstElementChild.style.width = `${i.value * 100}%`));
-  }),
-    n.querySelector(".learning-bars").setAttribute(
-      "aria-label",
-      translate("{pct}% complete", {
-        pct: a,
-      }),
+
+function updateLearningProgress(topbar, lessons) {
+  const progressByProtocol = protocolCatalog
+    .map((protocol) => ({
+      name: protocol.name,
+      value: getLessonCompletion(lessons[protocol.id]),
+      status: getLessonStatus(lessons[protocol.id]),
+    }))
+    .sort((left, right) => right.value - left.value);
+  const completionPercent = Math.round(
+    (progressByProtocol.reduce((sum, progress) => sum + progress.value, 0) /
+      progressByProtocol.length) *
+      100,
+  );
+  const progressPanel = topbar.querySelector(".learning");
+  progressPanel.querySelectorAll(".learning-seg").forEach((segment, index) => {
+    const progress = progressByProtocol[index];
+    segment.classList.toggle(
+      "partial",
+      progress.value > 0 && progress.value < 1,
+    );
+    segment.title = `${progress.name}: ${Math.round(progress.value * 100)}%`;
+    segment.firstElementChild.style.width = `${progress.value * 100}%`;
+  });
+  progressPanel.querySelector(".learning-bars").setAttribute(
+    "aria-label",
+    translate("{pct}% complete", {
+      pct: completionPercent,
+    }),
+  );
+  animateTextChange(
+    progressPanel.querySelector(".learning-value"),
+    `${completionPercent}%`,
+  );
+  animateTextChange(
+    progressPanel.querySelector(".learning-done"),
+    String(
+      progressByProtocol.filter((progress) => progress.status === "done")
+        .length,
     ),
-    animateTextChange(n.querySelector(".learning-value"), `${a}%`),
-    animateTextChange(
-      n.querySelector(".learning-done"),
-      String(s.filter((o) => o.status === "done").length),
+  );
+  animateTextChange(
+    progressPanel.querySelector(".learning-active"),
+    String(
+      progressByProtocol.filter((progress) => progress.status === "progress")
+        .length,
     ),
-    animateTextChange(
-      n.querySelector(".learning-active"),
-      String(s.filter((o) => o.status === "progress").length),
-    ));
+  );
 }
+
 function renderAuthorCredit() {
   return `
   <a class="credit" href="https://x.com/DilumSanjaya" target="_blank" rel="noopener noreferrer" data-t-title="Dilum Sanjaya on X" title="${translate("Dilum Sanjaya on X")}">
@@ -76,89 +98,114 @@ function renderAuthorCredit() {
     </span>
   </a>`;
 }
+
 function renderLanguageMenu() {
-  const e = supportedLanguages
+  const languageOptions = supportedLanguages
     .map(
       (
-        t,
-      ) => `<button type="button" role="menuitemradio" data-lang="${t.code}" lang="${t.html}" aria-checked="${t.code === getLanguage()}">
-      <span>${t.name}</span><b>${t.short}</b></button>`,
+        language,
+      ) => `<button type="button" role="menuitemradio" data-lang="${language.code}" lang="${language.html}" aria-checked="${language.code === getLanguage()}">
+      <span>${language.name}</span><b>${language.short}</b></button>`,
     )
     .join("");
   return `
   <div class="lang">
     <button class="menu-btn" type="button" aria-haspopup="menu" aria-expanded="false" data-t-label="Language" aria-label="${translate("Language")}" data-t-title="Language" title="${translate("Language")}">
-      ${icons.globe}<span class="lang-code">${supportedLanguages.find((t) => t.code === getLanguage()).short}</span>${icons.caret}
+      ${icons.globe}<span class="lang-code">${supportedLanguages.find((language) => language.code === getLanguage()).short}</span>${icons.caret}
     </button>
-    <div class="lang-menu" role="menu" hidden>${e}</div>
+    <div class="lang-menu" role="menu" hidden>${languageOptions}</div>
   </div>`;
 }
-function bindLanguageMenu(e, t) {
-  const s = e.querySelector(".lang"),
-    a = s.querySelector(".menu-btn"),
-    n = s.querySelector(".lang-menu"),
-    o = () => [...n.querySelectorAll("[data-lang]")];
-  function r(l, c = !0) {
-    l !== !n.hidden &&
-      ((n.hidden = !l),
-      a.setAttribute("aria-expanded", l),
-      l
-        ? (c &&
-            (
-              o().find((h) => h.getAttribute("aria-checked") === "true") ??
-              o()[0]
-            ).focus(),
-          document.addEventListener("pointerdown", i, !0))
-        : document.removeEventListener("pointerdown", i, !0));
-  }
-  const i = (l) => !s.contains(l.target) && r(!1, !1);
-  (a.addEventListener("click", () => r(n.hidden, !0)),
-    n.addEventListener("click", async (l) => {
-      const c = l.target.closest("[data-lang]");
-      if (c && (r(!1), a.focus(), c.dataset.lang !== getLanguage())) {
-        s.classList.add("is-loading");
-        try {
-          await t(c.dataset.lang);
-        } finally {
-          s.classList.remove("is-loading");
+
+function bindLanguageMenu(topbar, onSelectLanguage) {
+  const languageControl = topbar.querySelector(".lang");
+  const menuButton = languageControl.querySelector(".menu-btn");
+  const menu = languageControl.querySelector(".lang-menu");
+  const getOptions = () => [...menu.querySelectorAll("[data-lang]")];
+  function setMenuOpen(open, focusSelection = true) {
+    if (open !== !menu.hidden) {
+      menu.hidden = !open;
+      menuButton.setAttribute("aria-expanded", open);
+      if (open) {
+        if (focusSelection) {
+          (
+            getOptions().find(
+              (option) => option.getAttribute("aria-checked") === "true",
+            ) ?? getOptions()[0]
+          ).focus();
         }
+        document.addEventListener("pointerdown", handleOutsideClick, true);
+      } else {
+        document.removeEventListener("pointerdown", handleOutsideClick, true);
       }
-    }),
-    s.addEventListener("keydown", (l) => {
-      if (n.hidden) return;
-      const c = o(),
-        h = c.indexOf(document.activeElement);
-      l.key === "ArrowDown" || l.key === "ArrowUp"
-        ? (l.preventDefault(),
-          c[
-            (h + (l.key === "ArrowDown" ? 1 : -1) + c.length) % c.length
-          ].focus())
-        : l.key === "Home" || l.key === "End"
-          ? (l.preventDefault(), c[l.key === "Home" ? 0 : c.length - 1].focus())
-          : l.key === "Escape"
-            ? (l.preventDefault(), r(!1), a.focus())
-            : l.key === "Tab" && r(!1, !1);
-    }));
+    }
+  }
+  const handleOutsideClick = (event) =>
+    !languageControl.contains(event.target) && setMenuOpen(false, false);
+  menuButton.addEventListener("click", () => setMenuOpen(menu.hidden, true));
+  menu.addEventListener("click", async (event) => {
+    const option = event.target.closest("[data-lang]");
+    if (!option) {
+      return;
+    }
+    setMenuOpen(false);
+    menuButton.focus();
+    if (option.dataset.lang !== getLanguage()) {
+      languageControl.classList.add("is-loading");
+      try {
+        await onSelectLanguage(option.dataset.lang);
+      } finally {
+        languageControl.classList.remove("is-loading");
+      }
+    }
+  });
+  languageControl.addEventListener("keydown", (event) => {
+    if (menu.hidden) {
+      return;
+    }
+    const options = getOptions();
+    const focusedIndex = options.indexOf(document.activeElement);
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      options[
+        (focusedIndex + (event.key === "ArrowDown" ? 1 : -1) + options.length) %
+          options.length
+      ].focus();
+    } else if (event.key === "Home" || event.key === "End") {
+      event.preventDefault();
+      options[event.key === "Home" ? 0 : options.length - 1].focus();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      setMenuOpen(false);
+      menuButton.focus();
+    } else if (event.key === "Tab") {
+      setMenuOpen(false, false);
+    }
+  });
 }
-function updateLanguageMenu(e) {
-  const t = getLanguage();
-  ((e.querySelector(".lang-code").textContent = supportedLanguages.find(
-    (s) => s.code === t,
-  ).short),
-    e
-      .querySelectorAll(".lang-menu [data-lang]")
-      .forEach((s) => s.setAttribute("aria-checked", s.dataset.lang === t)));
+
+function updateLanguageMenu(topbar) {
+  const languageCode = getLanguage();
+  topbar.querySelector(".lang-code").textContent = supportedLanguages.find(
+    (language) => language.code === languageCode,
+  ).short;
+  topbar
+    .querySelectorAll(".lang-menu [data-lang]")
+    .forEach((option) =>
+      option.setAttribute("aria-checked", option.dataset.lang === languageCode),
+    );
 }
-function translateTopbar(e) {
-  (updateLanguageMenu(e),
-    e.querySelectorAll(".osi-chips span").forEach(
-      (t, s) =>
-        (t.title = translate("Layer {n}: {name}", {
-          n: s + 1,
-          name: translate(OSI_LAYER_NAMES[s]),
-        })),
-    ),
-    delete e.dataset.lesson);
+
+function translateTopbar(topbar) {
+  updateLanguageMenu(topbar);
+  topbar.querySelectorAll(".osi-chips span").forEach(
+    (chip, index) =>
+      (chip.title = translate("Layer {n}: {name}", {
+        n: index + 1,
+        name: translate(OSI_LAYER_NAMES[index]),
+      })),
+  );
+  delete topbar.dataset.lesson;
 }
 const OSI_LAYER_NAMES = [
   "Physical",
@@ -169,26 +216,33 @@ const OSI_LAYER_NAMES = [
   "Presentation",
   "Application",
 ];
-function fitTopbarText(e) {
-  fitStepLabel(e.querySelector(".topbar .now-step"));
-  const t = e.querySelector(".brand-text h1"),
-    s = e.querySelector(".brand-text p");
-  if (!t?.offsetWidth || !s) return;
-  s.style.letterSpacing = s.style.fontSize = "";
-  const a = measureTextWidth,
-    n = a(t),
-    o = a(s);
-  if (o <= n) return;
-  const r = getComputedStyle(s),
-    i = parseFloat(r.fontSize),
-    l = parseFloat(r.letterSpacing) / i,
-    c = 0.02;
-  s.style.letterSpacing = `${c}em`;
-  const h = a(s);
-  h <= n
-    ? (s.style.letterSpacing = `${l - ((o - n) / (o - h)) * (l - c)}em`)
-    : (s.style.fontSize = `${(i * n) / h}px`);
+
+function fitTopbarText(root) {
+  fitStepLabel(root.querySelector(".topbar .now-step"));
+  const heading = root.querySelector(".brand-text h1");
+  const tagline = root.querySelector(".brand-text p");
+  if (!heading?.offsetWidth || !tagline) {
+    return;
+  }
+  tagline.style.letterSpacing = tagline.style.fontSize = "";
+  const headingWidth = measureTextWidth(heading);
+  const taglineWidth = measureTextWidth(tagline);
+  if (taglineWidth <= headingWidth) {
+    return;
+  }
+  const taglineStyle = getComputedStyle(tagline);
+  const fontSize = parseFloat(taglineStyle.fontSize);
+  const originalSpacingEm = parseFloat(taglineStyle.letterSpacing) / fontSize;
+  const minimumSpacingEm = 0.02;
+  tagline.style.letterSpacing = `${minimumSpacingEm}em`;
+  const compactWidth = measureTextWidth(tagline);
+  if (compactWidth <= headingWidth) {
+    tagline.style.letterSpacing = `${originalSpacingEm - ((taglineWidth - headingWidth) / (taglineWidth - compactWidth)) * (originalSpacingEm - minimumSpacingEm)}em`;
+  } else {
+    tagline.style.fontSize = `${(fontSize * headingWidth) / compactWidth}px`;
+  }
 }
+
 function renderCurrentLesson() {
   return `
   <div class="now">
@@ -200,13 +254,14 @@ function renderCurrentLesson() {
     </div>
   </div>`;
 }
+
 function renderOsiLayers() {
-  const e = OSI_LAYER_NAMES.map(
-    (t, s) =>
-      `<span data-layer="${s + 1}" title="${translate("Layer {n}: {name}", {
-        n: s + 1,
-        name: translate(t),
-      })}">${s + 1}</span>`,
+  const layerChips = OSI_LAYER_NAMES.map(
+    (name, index) =>
+      `<span data-layer="${index + 1}" title="${translate("Layer {n}: {name}", {
+        n: index + 1,
+        name: translate(name),
+      })}">${index + 1}</span>`,
   ).join("");
   return `
   <div class="osi">
@@ -214,9 +269,10 @@ function renderOsiLayers() {
       <span class="osi-label" ${translatedElementContent("OSI LAYER")}</span>
       <span class="osi-name"></span>
     </div>
-    <div class="osi-chips"><i class="osi-marker"></i>${e}</div>
+    <div class="osi-chips"><i class="osi-marker"></i>${layerChips}</div>
   </div>`;
 }
+
 function renderTopbar() {
   return `
   <header class="topbar">
@@ -252,84 +308,109 @@ function renderTopbar() {
     </div>
   </header>`;
 }
-function setTopbarLesson(e, t) {
-  const s = e.dataset.layer ? Number(e.dataset.layer) : null;
-  ((e.dataset.lesson = t.id),
-    (e.dataset.layer = t.layer),
-    animateTextChange(
-      e.querySelector(".now-name"),
-      `${t.name} · ${localizedUpperCase(translate(t.title))}`,
-    ),
-    animateTextChange(
-      e.querySelector(".osi-name"),
-      localizedUpperCase(translate(OSI_LAYER_NAMES[t.layer - 1])),
-      s && t.layer < s ? -1 : 1,
-    ));
-  const a = e.querySelector(".now-dots");
-  (a.children.length !== t.steps.length &&
-    (a.innerHTML = t.steps.map(() => "<i></i>").join("")),
-    a.style.setProperty("--dots", t.steps.length));
-  const n = e.querySelector(`.osi-chips [data-layer="${t.layer}"]`);
-  (e
-    .querySelectorAll(".osi-chips span")
-    .forEach((o) => o.classList.toggle("is-active", o === n)),
-    positionOsiMarker(e),
-    s === null &&
-      (requestAnimationFrame(() =>
-        e.querySelector(".osi-marker").classList.add("is-ready"),
-      ),
-      new ResizeObserver(() => positionOsiMarker(e, !1)).observe(
-        e.querySelector(".osi-chips"),
-      )));
-}
-function positionOsiMarker(e, t = !0) {
-  const s = e.querySelector(".osi-chips .is-active"),
-    a = e.querySelector(".osi-marker");
-  !s ||
-    !s.offsetWidth ||
-    (t || (a.style.transition = "none"),
-    (a.style.left = `${s.offsetLeft}px`),
-    (a.style.width = `${s.offsetWidth}px`),
-    t || requestAnimationFrame(() => a.style.removeProperty("transition")));
-}
-function updateTopbar(e, t, s) {
-  (e.dataset.lesson !== s.id && setTopbarLesson(e, s),
-    e
-      .querySelectorAll(".now-dots i")
-      .forEach((o, r) => (o.className = `is-${t.steps[r]}`)));
-  const a = s.steps[t.activeStep],
-    n = t.done
-      ? translate("LESSON COMPLETE")
-      : t.started
-        ? translate("STEP {n}/{total} · {title}", {
-            n: t.activeStep + 1,
-            total: s.steps.length,
-            title: localizedUpperCase(translate(a.title)),
-          })
-        : translate("OVERVIEW · {n} STEPS", {
-            n: s.steps.length,
-          });
+
+function setTopbarLesson(topbar, lesson) {
+  const previousLayer = topbar.dataset.layer
+    ? Number(topbar.dataset.layer)
+    : null;
+  topbar.dataset.lesson = lesson.id;
+  topbar.dataset.layer = lesson.layer;
   animateTextChange(
-    e.querySelector(".now-step"),
-    n,
-    t.started ? 1 : -1,
+    topbar.querySelector(".now-name"),
+    `${lesson.name} · ${localizedUpperCase(translate(lesson.title))}`,
+  );
+  animateTextChange(
+    topbar.querySelector(".osi-name"),
+    localizedUpperCase(translate(OSI_LAYER_NAMES[lesson.layer - 1])),
+    previousLayer && lesson.layer < previousLayer ? -1 : 1,
+  );
+  const progressDots = topbar.querySelector(".now-dots");
+  if (progressDots.children.length !== lesson.steps.length) {
+    progressDots.innerHTML = lesson.steps.map(() => "<i></i>").join("");
+  }
+  progressDots.style.setProperty("--dots", lesson.steps.length);
+  const activeChip = topbar.querySelector(
+    `.osi-chips [data-layer="${lesson.layer}"]`,
+  );
+  topbar
+    .querySelectorAll(".osi-chips span")
+    .forEach((chip) => chip.classList.toggle("is-active", chip === activeChip));
+  positionOsiMarker(topbar);
+  if (previousLayer === null) {
+    requestAnimationFrame(() =>
+      topbar.querySelector(".osi-marker").classList.add("is-ready"),
+    );
+    new ResizeObserver(() => positionOsiMarker(topbar, false)).observe(
+      topbar.querySelector(".osi-chips"),
+    );
+  }
+}
+
+function positionOsiMarker(topbar, animate = true) {
+  const activeChip = topbar.querySelector(".osi-chips .is-active");
+  const marker = topbar.querySelector(".osi-marker");
+  if (!activeChip || !activeChip.offsetWidth) {
+    return;
+  }
+  if (!animate) {
+    marker.style.transition = "none";
+  }
+  marker.style.left = `${activeChip.offsetLeft}px`;
+  marker.style.width = `${activeChip.offsetWidth}px`;
+  if (!animate) {
+    requestAnimationFrame(() => marker.style.removeProperty("transition"));
+  }
+}
+
+function updateTopbar(topbar, playback, lesson) {
+  if (topbar.dataset.lesson !== lesson.id) {
+    setTopbarLesson(topbar, lesson);
+  }
+  topbar
+    .querySelectorAll(".now-dots i")
+    .forEach((dot, index) => (dot.className = `is-${playback.steps[index]}`));
+  const activeStep = lesson.steps[playback.activeStep];
+  const stepLabel = playback.done
+    ? translate("LESSON COMPLETE")
+    : playback.started
+      ? translate("STEP {n}/{total} · {title}", {
+          n: playback.activeStep + 1,
+          total: lesson.steps.length,
+          title: localizedUpperCase(translate(activeStep.title)),
+        })
+      : translate("OVERVIEW · {n} STEPS", {
+          n: lesson.steps.length,
+        });
+  animateTextChange(
+    topbar.querySelector(".now-step"),
+    stepLabel,
+    playback.started ? 1 : -1,
     fitStepLabel,
   );
 }
-function fitStepLabel(e) {
-  if (!e) return;
-  e.style.letterSpacing = "";
-  const t = e.getBoundingClientRect().width - 0.5,
-    s = measureTextWidth(e);
-  if (t <= 0 || s <= t) return;
-  const a = getComputedStyle(e).letterSpacing;
-  e.style.letterSpacing = "0px";
-  const n = measureTextWidth(e);
-  e.style.letterSpacing = n >= t ? "0px" : `calc(${a} * ${(t - n) / (s - n)})`;
+
+function fitStepLabel(label) {
+  if (!label) {
+    return;
+  }
+  label.style.letterSpacing = "";
+  const availableWidth = label.getBoundingClientRect().width - 0.5;
+  const naturalWidth = measureTextWidth(label);
+  if (availableWidth <= 0 || naturalWidth <= availableWidth) {
+    return;
+  }
+  const originalSpacing = getComputedStyle(label).letterSpacing;
+  label.style.letterSpacing = "0px";
+  const compactWidth = measureTextWidth(label);
+  label.style.letterSpacing =
+    compactWidth >= availableWidth
+      ? "0px"
+      : `calc(${originalSpacing} * ${(availableWidth - compactWidth) / (naturalWidth - compactWidth)})`;
 }
-const measureTextWidth = (e) => {
-  const t = document.createRange();
-  return (t.selectNodeContents(e), t.getBoundingClientRect().width);
+const measureTextWidth = (element) => {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  return range.getBoundingClientRect().width;
 };
 const THEME_STORAGE_KEY = "protocol-explorer:theme";
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -337,41 +418,53 @@ const THEME_COLORS = {
   light: "#fdfdfe",
   dark: "#0b1020",
 };
-function updateThemeButtons(e, t) {
-  let s = null;
+
+function updateThemeButtons(topbar, theme) {
+  let savedTheme = null;
   try {
-    s = localStorage.getItem(THEME_STORAGE_KEY);
+    savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
   } catch {}
-  if (s)
-    for (const a of document.querySelectorAll('meta[name="theme-color"]'))
-      a.content = THEME_COLORS[t];
-  e.querySelectorAll("[data-theme-choice]").forEach((a) => {
-    const n = a.dataset.themeChoice === t;
-    (a.classList.toggle("is-active", n), a.setAttribute("aria-pressed", n));
+  if (savedTheme) {
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+      meta.content = THEME_COLORS[theme];
+    }
+  }
+  topbar.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    const selected = button.dataset.themeChoice === theme;
+    button.classList.toggle("is-active", selected);
+    button.setAttribute("aria-pressed", selected);
   });
 }
-function applyTheme(e, t, s) {
-  const a = document.documentElement;
-  if (a.dataset.theme === t) return updateThemeButtons(e, t);
-  const n = () => {
-    ((a.dataset.theme = t), updateThemeButtons(e, t));
+
+function applyTheme(topbar, theme, originButton) {
+  const root = document.documentElement;
+  if (root.dataset.theme === theme) {
+    return updateThemeButtons(topbar, theme);
+  }
+  const updateTheme = () => {
+    root.dataset.theme = theme;
+    updateThemeButtons(topbar, theme);
   };
   if (
-    !s ||
+    !originButton ||
     !document.startViewTransition ||
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  )
-    return n();
-  const o = s.getBoundingClientRect(),
-    r = o.left + o.width / 2,
-    i = o.top + o.height / 2,
-    l = Math.hypot(Math.max(r, innerWidth - r), Math.max(i, innerHeight - i));
-  document.startViewTransition(n).ready.then(() =>
-    a.animate(
+  ) {
+    return updateTheme();
+  }
+  const buttonRect = originButton.getBoundingClientRect();
+  const centerX = buttonRect.left + buttonRect.width / 2;
+  const centerY = buttonRect.top + buttonRect.height / 2;
+  const radius = Math.hypot(
+    Math.max(centerX, innerWidth - centerX),
+    Math.max(centerY, innerHeight - centerY),
+  );
+  document.startViewTransition(updateTheme).ready.then(() =>
+    root.animate(
       {
         clipPath: [
-          `circle(0px at ${r}px ${i}px)`,
-          `circle(${l}px at ${r}px ${i}px)`,
+          `circle(0px at ${centerX}px ${centerY}px)`,
+          `circle(${radius}px at ${centerX}px ${centerY}px)`,
         ],
       },
       {
@@ -382,24 +475,27 @@ function applyTheme(e, t, s) {
     ),
   );
 }
-function bindThemeToggle(e) {
-  (updateThemeButtons(e, document.documentElement.dataset.theme),
-    e.querySelector(".theme-toggle").addEventListener("click", (t) => {
-      const s = t.target.closest("[data-theme-choice]");
-      if (s) {
-        try {
-          localStorage.setItem(THEME_STORAGE_KEY, s.dataset.themeChoice);
-        } catch {}
-        applyTheme(e, s.dataset.themeChoice, s);
-      }
-    }),
-    systemThemeQuery.addEventListener("change", (t) => {
-      let s = null;
+
+function bindThemeToggle(topbar) {
+  updateThemeButtons(topbar, document.documentElement.dataset.theme);
+  topbar.querySelector(".theme-toggle").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-theme-choice]");
+    if (button) {
       try {
-        s = localStorage.getItem(THEME_STORAGE_KEY);
+        localStorage.setItem(THEME_STORAGE_KEY, button.dataset.themeChoice);
       } catch {}
-      s || applyTheme(e, t.matches ? "dark" : "light");
-    }));
+      applyTheme(topbar, button.dataset.themeChoice, button);
+    }
+  });
+  systemThemeQuery.addEventListener("change", (event) => {
+    let savedTheme = null;
+    try {
+      savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {}
+    if (!savedTheme) {
+      applyTheme(topbar, event.matches ? "dark" : "light");
+    }
+  });
 }
 export {
   bindLanguageMenu,

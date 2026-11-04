@@ -2,8 +2,12 @@
 const PROGRESS_STORAGE_KEY = "protocol-explorer:progress:v1";
 function loadLessonProgress() {
   try {
-    const e = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY));
-    return e && typeof e == "object" ? e : {};
+    const savedProgress = JSON.parse(
+      localStorage.getItem(PROGRESS_STORAGE_KEY),
+    );
+    return savedProgress && typeof savedProgress === "object"
+      ? savedProgress
+      : {};
   } catch {
     return {};
   }
@@ -14,34 +18,49 @@ function saveLessonProgress() {
     localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(lessonProgress));
   } catch {}
 }
-function recordLessonProgress(e, t) {
-  const s = (lessonProgress[e.id] ??= {
+function recordLessonProgress(lesson, playback) {
+  const progress = (lessonProgress[lesson.id] ??= {
     seen: [],
-    done: !1,
+    done: false,
   });
-  let a = !1;
+  let changed = false;
+  if (
+    playback.started &&
+    !playback.done &&
+    !progress.seen.includes(playback.activeStep)
+  ) {
+    progress.seen.push(playback.activeStep);
+    changed = true;
+  }
+  if (playback.done && !progress.done) {
+    progress.done = true;
+    progress.seen = lesson.steps.map((step, index) => index);
+    changed = true;
+  }
+  if (changed) {
+    saveLessonProgress();
+  }
+  return changed;
+}
+function getLessonCompletion(lesson) {
+  const progress = lessonProgress[lesson.id];
+  if (!progress) {
+    return 0;
+  }
+  if (progress.done) {
+    return 1;
+  }
+  // Visiting the last step is not completion until playback reaches the summary.
   return (
-    t.started &&
-      !t.done &&
-      !s.seen.includes(t.activeStep) &&
-      (s.seen.push(t.activeStep), (a = !0)),
-    t.done &&
-      !s.done &&
-      ((s.done = !0), (s.seen = e.steps.map((n, o) => o)), (a = !0)),
-    a && saveLessonProgress(),
-    a
+    Math.min(progress.seen.length, lesson.steps.length - 1) /
+    lesson.steps.length
   );
 }
-function getLessonCompletion(e) {
-  const t = lessonProgress[e.id];
-  return t
-    ? t.done
-      ? 1
-      : Math.min(t.seen.length, e.steps.length - 1) / e.steps.length
-    : 0;
-}
-function getLessonStatus(e) {
-  const t = lessonProgress[e.id];
-  return t?.done ? "done" : t?.seen.length ? "progress" : "new";
+function getLessonStatus(lesson) {
+  const progress = lessonProgress[lesson.id];
+  if (progress?.done) {
+    return "done";
+  }
+  return progress?.seen.length ? "progress" : "new";
 }
 export { getLessonCompletion, getLessonStatus, recordLessonProgress };

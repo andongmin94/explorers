@@ -202,7 +202,7 @@ const ipLesson = {
             info: "TTL 127 · 40112 → 443 [SYN] (after NAT)",
             len: "66 B",
             wire: {
-              ...tcpWire(IP_NAT_CONNECTION, PUBLIC_NAT_IP, "S", void 0, {
+              ...tcpWire(IP_NAT_CONNECTION, PUBLIC_NAT_IP, "S", undefined, {
                 seq: 0,
               }),
               ttl: 127,
@@ -266,7 +266,7 @@ const ipLesson = {
             info: "TTL 52 · 443 → 52344 [SYN, ACK] (after NAT)",
             len: "66 B",
             wire: {
-              ...tcpWire(IP_LOCAL_CONNECTION, IP_SERVER_IP, "SA", void 0, {
+              ...tcpWire(IP_LOCAL_CONNECTION, IP_SERVER_IP, "SA", undefined, {
                 seq: 0,
               }),
               natOf: -1,

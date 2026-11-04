@@ -27,172 +27,215 @@ const SEQUENCE_NOTE_SEND_SPACING = 22;
 const SEQUENCE_STEP_HEIGHT = 30;
 const SEQUENCE_TOP_PADDING = 30;
 const SEQUENCE_BOTTOM_PADDING = 40;
-const roundTimestamp = (e) => Math.round(e * 1e6) / 1e6;
-function getLinkLatency(e, t, s) {
-  const a = e.latency?.[`${t}-${s}`] ?? e.latency?.[`${s}-${t}`];
-  if (a === void 0) throw new Error(`${e.id}: no delay between ${t} and ${s}`);
-  return a;
+const roundTimestamp = (timestamp) => Math.round(timestamp * 1e6) / 1e6;
+/** Lesson latency values are in seconds and apply in either direction. */
+function getLinkLatency(lesson, from, to) {
+  const latency =
+    lesson.latency?.[`${from}-${to}`] ?? lesson.latency?.[`${to}-${from}`];
+  if (latency === undefined)
+    throw new Error(`${lesson.id}: no delay between ${from} and ${to}`);
+  return latency;
 }
-function formatElapsedTimeBreak(e) {
-  return e >= 3600
-    ? `${+(e / 3600).toFixed(1)} h later`
-    : e >= 60
-      ? `${+(e / 60).toFixed(1)} min later`
-      : `${e < 10 ? e.toFixed(2) : e.toFixed(1)} s later`;
+function formatElapsedTimeBreak(seconds) {
+  return seconds >= 3600
+    ? `${+(seconds / 3600).toFixed(1)} h later`
+    : seconds >= 60
+      ? `${+(seconds / 60).toFixed(1)} min later`
+      : `${seconds < 10 ? seconds.toFixed(2) : seconds.toFixed(1)} s later`;
 }
-function buildSequenceLayout(e) {
-  const t = [];
-  let s = 0,
-    a = 0;
-  e.steps.forEach((g, T) =>
-    g.events.forEach((v) => {
-      (v.type === "packet" &&
-        t.push({
+/**
+ * Convert lesson events into diagram coordinates. Sends and arrivals remain
+ * chronological; long idle intervals use a labeled break instead of empty space.
+ * Packet `p` and note `e` retain the original event objects for the diagram and
+ * inspector. Their numeric `index` is the same index used by the packet table.
+ */
+function buildSequenceLayout(lesson) {
+  const items = [];
+  let packetIndex = 0;
+  let noteIndex = 0;
+  lesson.steps.forEach((step, stepIndex) =>
+    step.events.forEach((event) => {
+      if (event.type === "packet") {
+        items.push({
           type: "packet",
-          p: v,
-          step: T,
-          index: s++,
-        }),
-        v.type === "stream" &&
-          v.packets.forEach((I) =>
-            t.push({
-              type: "packet",
-              p: I,
-              step: T,
-              index: s++,
-            }),
-          ),
-        v.type === "note" &&
-          t.push({
-            type: "note",
-            e: v,
-            step: T,
-            index: a++,
-          }));
+          p: event,
+          step: stepIndex,
+          index: packetIndex++,
+        });
+      }
+      if (event.type === "stream") {
+        event.packets.forEach((packet) =>
+          items.push({
+            type: "packet",
+            p: packet,
+            step: stepIndex,
+            index: packetIndex++,
+          }),
+        );
+      }
+      if (event.type === "note") {
+        items.push({
+          type: "note",
+          e: event,
+          step: stepIndex,
+          index: noteIndex++,
+        });
+      }
     }),
   );
-  const n = new Set(
-      t.flatMap((g) => (g.type === "packet" ? [g.p.from, g.p.to] : [])),
+  const activeNodes = new Set(
+    items.flatMap((item) =>
+      item.type === "packet" ? [item.p.from, item.p.to] : [],
     ),
-    o = (e.lifelines ?? DEFAULT_LIFELINE_ORDER).filter((g) => n.has(g)),
-    r = t
-      .filter((g) => g.type === "packet")
-      .map((g, T) => {
-        const { p: v } = g,
-          I = roundTimestamp(parseFloat(v.row.time)),
-          q = getLinkLatency(e, v.from, v.to);
-        return {
-          ...g,
-          k: T,
-          sent: I,
-          arrived: roundTimestamp(I + q),
-        };
-      }),
-    i = t
-      .map((g, T) => ({
-        it: g,
-        i: T,
-      }))
-      .filter(({ it: g }) => g.type === "note")
-      .map(({ it: g, i: T }) => {
-        const v = t.slice(0, T).findLast((R) => R.type === "packet"),
-          I = t.slice(T + 1).find((R) => R.type === "packet"),
-          q = v ? r.find((R) => R.index === v.index).arrived : 0,
-          re =
-            I && I.step === g.step
-              ? r.find((R) => R.index === I.index).sent
-              : -1 / 0,
-          C = o.includes(g.e.at) ? g.e.at : null,
-          Z = v ? [v.p.from, v.p.to] : null;
-        return {
-          ...g,
-          order: T,
-          t: Math.max(q, re),
-          lane: C,
-          between: Z,
-        };
-      }),
-    l = [
-      ...r.flatMap((g) => [
-        {
-          t: g.sent,
-          kind: 1,
-          order: t.indexOf(
-            t.find((T) => T.type === "packet" && T.index === g.index),
+  );
+  const lifelines = (lesson.lifelines ?? DEFAULT_LIFELINE_ORDER).filter(
+    (node) => activeNodes.has(node),
+  );
+  const packets = items
+    .filter((item) => item.type === "packet")
+    .map((item, order) => {
+      const { p: packet } = item;
+      const sent = roundTimestamp(parseFloat(packet.row.time));
+      const latency = getLinkLatency(lesson, packet.from, packet.to);
+      return {
+        ...item,
+        k: order,
+        sent,
+        arrived: roundTimestamp(sent + latency),
+      };
+    });
+  const notes = items
+    .map((item, index) => ({
+      it: item,
+      i: index,
+    }))
+    .filter(({ it: item }) => item.type === "note")
+    .map(({ it: item, i: itemIndex }) => {
+      const previousPacket = items
+        .slice(0, itemIndex)
+        .findLast((candidate) => candidate.type === "packet");
+      const nextPacket = items
+        .slice(itemIndex + 1)
+        .find((candidate) => candidate.type === "packet");
+      const previousArrival = previousPacket
+        ? packets.find((candidate) => candidate.index === previousPacket.index)
+            .arrived
+        : 0;
+      const nextSend =
+        nextPacket && nextPacket.step === item.step
+          ? packets.find((candidate) => candidate.index === nextPacket.index)
+              .sent
+          : -Infinity;
+      const lane = lifelines.includes(item.e.at) ? item.e.at : null;
+      const between = previousPacket
+        ? [previousPacket.p.from, previousPacket.p.to]
+        : null;
+      return {
+        ...item,
+        order: itemIndex,
+        t: Math.max(previousArrival, nextSend),
+        lane,
+        between,
+      };
+    });
+  // At equal timestamps: arrivals (0), notes (0.5), then sends (1). Original
+  // event order breaks ties so labels stay deterministic across redraws.
+  const timeline = [
+    ...packets.flatMap((packet) => [
+      {
+        t: packet.sent,
+        kind: 1,
+        order: items.indexOf(
+          items.find(
+            (item) => item.type === "packet" && item.index === packet.index,
           ),
-          pk: g,
-          end: "sent",
-        },
-        {
-          t: g.arrived,
-          kind: 0,
-          order: g.k,
-          pk: g,
-          end: "arrived",
-        },
-      ]),
-      ...i.map((g) => ({
-        t: g.t,
-        kind: 0.5,
-        order: g.order,
-        n: g,
-      })),
-    ].sort((g, T) => g.t - T.t || g.kind - T.kind || g.order - T.order),
-    c = [],
-    h = [];
-  let d = SEQUENCE_TOP_PADDING,
-    y = null,
-    w = -1 / 0,
-    k = -1 / 0;
-  for (const g of l) {
-    if (y) {
-      const v = roundTimestamp(g.t - y.t);
-      v > SEQUENCE_TIME_BREAK_THRESHOLD
-        ? (h.push({
-            y: d + SEQUENCE_TIME_BREAK_HEIGHT / 2,
-            seconds: v,
-          }),
-          (d += SEQUENCE_TIME_BREAK_HEIGHT))
-        : v > 0
-          ? (d += Math.max(
-              SEQUENCE_MIN_TIME_SPACING,
-              v * SEQUENCE_PIXELS_PER_SECOND,
-            ))
-          : g.kind === y.kind &&
-            g.kind === 0 &&
-            (d += SEQUENCE_ARRIVAL_SPACING);
+        ),
+        pk: packet,
+        end: "sent",
+      },
+      {
+        t: packet.arrived,
+        kind: 0,
+        order: packet.k,
+        pk: packet,
+        end: "arrived",
+      },
+    ]),
+    ...notes.map((note) => ({
+      t: note.t,
+      kind: 0.5,
+      order: note.order,
+      n: note,
+    })),
+  ].sort(
+    (left, right) =>
+      left.t - right.t || left.kind - right.kind || left.order - right.order,
+  );
+  const steps = [];
+  const breaks = [];
+  let cursorY = SEQUENCE_TOP_PADDING;
+  let previousEvent = null;
+  let previousSendY = -Infinity;
+  let previousNoteBottom = -Infinity;
+  for (const event of timeline) {
+    if (previousEvent) {
+      const elapsed = roundTimestamp(event.t - previousEvent.t);
+      if (elapsed > SEQUENCE_TIME_BREAK_THRESHOLD) {
+        breaks.push({
+          y: cursorY + SEQUENCE_TIME_BREAK_HEIGHT / 2,
+          seconds: elapsed,
+        });
+        cursorY += SEQUENCE_TIME_BREAK_HEIGHT;
+      } else if (elapsed > 0) {
+        cursorY += Math.max(
+          SEQUENCE_MIN_TIME_SPACING,
+          elapsed * SEQUENCE_PIXELS_PER_SECOND,
+        );
+      } else if (event.kind === previousEvent.kind && event.kind === 0) {
+        cursorY += SEQUENCE_ARRIVAL_SPACING;
+      }
     }
-    g.kind === 1 &&
-      (d = Math.max(
-        d,
-        w + SEQUENCE_SEND_SPACING,
-        k + SEQUENCE_NOTE_SEND_SPACING,
-      ));
-    const T = g.pk && g.end === "sent" ? g.pk.step : g.n ? g.n.step : null;
-    (T !== null &&
-      !c.some((v) => v.step === T) &&
-      ((d += SEQUENCE_STEP_HEIGHT / 2),
-      c.push({
-        step: T,
-        y: d,
-      }),
-      (d += SEQUENCE_STEP_HEIGHT / 2)),
-      g.n
-        ? ((d += SEQUENCE_NOTE_HEIGHT / 2),
-          (g.n.y = d),
-          (k = d + 10),
-          (d += SEQUENCE_NOTE_HEIGHT / 2))
-        : (g.pk[g.end === "sent" ? "ySent" : "yArrived"] = d),
-      g.kind === 1 && (w = d),
-      (y = g));
+    if (event.kind === 1) {
+      cursorY = Math.max(
+        cursorY,
+        previousSendY + SEQUENCE_SEND_SPACING,
+        previousNoteBottom + SEQUENCE_NOTE_SEND_SPACING,
+      );
+    }
+    const stepIndex =
+      event.pk && event.end === "sent"
+        ? event.pk.step
+        : event.n
+          ? event.n.step
+          : null;
+    if (stepIndex !== null && !steps.some((step) => step.step === stepIndex)) {
+      cursorY += SEQUENCE_STEP_HEIGHT / 2;
+      steps.push({
+        step: stepIndex,
+        y: cursorY,
+      });
+      cursorY += SEQUENCE_STEP_HEIGHT / 2;
+    }
+    if (event.n) {
+      cursorY += SEQUENCE_NOTE_HEIGHT / 2;
+      event.n.y = cursorY;
+      previousNoteBottom = cursorY + 10;
+      cursorY += SEQUENCE_NOTE_HEIGHT / 2;
+    } else {
+      event.pk[event.end === "sent" ? "ySent" : "yArrived"] = cursorY;
+    }
+    if (event.kind === 1) {
+      previousSendY = cursorY;
+    }
+    previousEvent = event;
   }
   return {
-    lifelines: o,
-    packets: r,
-    notes: i,
-    steps: c,
-    breaks: h,
-    height: d + SEQUENCE_BOTTOM_PADDING,
+    lifelines,
+    packets,
+    notes,
+    steps,
+    breaks,
+    height: cursorY + SEQUENCE_BOTTOM_PADDING,
   };
 }
 export {

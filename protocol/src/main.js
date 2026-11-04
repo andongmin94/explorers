@@ -49,6 +49,7 @@ import {
 } from "./ui/packet-table.js";
 import { createNetworkAnimation } from "./simulation/network-animation.js";
 import { createLessonPlayer } from "./simulation/player.js";
+// Load the saved language before building any translated markup.
 await restoreLanguage();
 const appElement = document.querySelector("#app");
 appElement.innerHTML = `
@@ -92,50 +93,67 @@ const LAYOUT_BREAKPOINTS = [
 ];
 const documentRoot = document.documentElement;
 const shellElement = appElement.querySelector(".shell");
+
 function updateResponsiveLayout() {
-  const e = documentRoot.clientWidth,
-    t = LAYOUT_BREAKPOINTS.find((n) => e >= n.min),
-    s = t.name === "wide" ? e / t.canvas : Math.min(1, e / t.canvas),
-    a = !["wide", "medium"].includes(t.name);
-  ((documentRoot.dataset.layout = t.name),
-    documentRoot.classList.toggle("is-stacked", a),
-    documentRoot.classList.toggle(
-      "is-single",
-      t.name === "narrow" || t.name === "phone",
-    ),
-    a ? (drawerElement.inert = !isDrawerOpen()) : setDrawerOpen(!1),
-    (shellElement.style.zoom = s),
-    (shellElement.style.width = `${e / s}px`),
-    (shellElement.style.height = a ? "" : `${window.innerHeight / s}px`),
-    (shellElement.style.minHeight = a ? `${window.innerHeight / s}px` : ""),
-    fitTopbarText(appElement));
+  // Keep diagram coordinates fixed while scaling the surrounding layout.
+  const viewportWidth = documentRoot.clientWidth;
+  const breakpoint = LAYOUT_BREAKPOINTS.find(
+    (candidate) => viewportWidth >= candidate.min,
+  );
+  const scale =
+    breakpoint.name === "wide"
+      ? viewportWidth / breakpoint.canvas
+      : Math.min(1, viewportWidth / breakpoint.canvas);
+  const isStacked = !["wide", "medium"].includes(breakpoint.name);
+  documentRoot.dataset.layout = breakpoint.name;
+  documentRoot.classList.toggle("is-stacked", isStacked);
+  documentRoot.classList.toggle(
+    "is-single",
+    breakpoint.name === "narrow" || breakpoint.name === "phone",
+  );
+  if (isStacked) {
+    drawerElement.inert = !isDrawerOpen();
+  } else {
+    setDrawerOpen(false);
+  }
+  shellElement.style.zoom = scale;
+  shellElement.style.width = `${viewportWidth / scale}px`;
+  shellElement.style.height = isStacked
+    ? ""
+    : `${window.innerHeight / scale}px`;
+  shellElement.style.minHeight = isStacked
+    ? `${window.innerHeight / scale}px`
+    : "";
+  fitTopbarText(appElement);
 }
 const drawerButton = appElement.querySelector(".drawer-btn");
 const drawerElement = appElement.querySelector(".sidebar");
+
 const isDrawerOpen = () => shellElement.classList.contains("is-drawer-open");
-function setDrawerOpen(e) {
-  const t = documentRoot.classList.contains("is-stacked");
-  (shellElement.classList.toggle("is-drawer-open", e),
-    documentRoot.classList.toggle("is-locked", e),
-    drawerButton.setAttribute("aria-expanded", e),
-    (drawerElement.inert = t && !e),
-    e
-      ? drawerElement.querySelector(".drawer-close").focus({
-          preventScroll: !0,
-        })
-      : t &&
-        drawerElement.contains(document.activeElement) &&
-        drawerButton.focus({
-          preventScroll: !0,
-        }));
+
+function setDrawerOpen(open) {
+  const isStacked = documentRoot.classList.contains("is-stacked");
+  shellElement.classList.toggle("is-drawer-open", open);
+  documentRoot.classList.toggle("is-locked", open);
+  drawerButton.setAttribute("aria-expanded", open);
+  drawerElement.inert = isStacked && !open;
+  if (open) {
+    drawerElement.querySelector(".drawer-close").focus({
+      preventScroll: true,
+    });
+  } else if (isStacked && drawerElement.contains(document.activeElement)) {
+    drawerButton.focus({
+      preventScroll: true,
+    });
+  }
 }
 drawerButton.addEventListener("click", () => setDrawerOpen(!isDrawerOpen()));
 drawerElement
   .querySelector(".drawer-close")
-  .addEventListener("click", () => setDrawerOpen(!1));
+  .addEventListener("click", () => setDrawerOpen(false));
 appElement
   .querySelector(".scrim")
-  .addEventListener("click", () => setDrawerOpen(!1));
+  .addEventListener("click", () => setDrawerOpen(false));
 updateResponsiveLayout();
 window.addEventListener("resize", updateResponsiveLayout);
 window.addEventListener("orientationchange", updateResponsiveLayout);
@@ -148,53 +166,71 @@ const sequenceElement = appElement.querySelector(".sequence");
 let currentLesson = null;
 let lessonPlayer = null;
 let currentPlaybackState = null;
-const viewController = createViewSwitcher(simulationElement, (e) =>
-  lessonPlayer?.setMode(e),
+const viewController = createViewSwitcher(simulationElement, (view) =>
+  lessonPlayer?.setMode(view),
 );
+
 const getVisiblePacketIndices = () =>
   [...packetsElement.querySelectorAll("tr[data-packet]")]
-    .filter((e) => !e.hidden && e.dataset.shown === "1")
-    .map((e) => Number(e.dataset.packet));
+    .filter((row) => !row.hidden && row.dataset.shown === "1")
+    .map((row) => Number(row.dataset.packet));
 const packetInspector = createPacketInspector(
   simulationElement.querySelector(".inspector"),
   {
     visible: getVisiblePacketIndices,
-    onChange: (e) => {
-      for (const n of appElement.querySelectorAll(".is-inspected"))
-        n.classList.remove("is-inspected");
-      if (
-        (documentRoot.classList.toggle("is-inspecting", e !== null), e === null)
-      )
+    onChange: (packetIndex) => {
+      for (const highlightedElement of appElement.querySelectorAll(
+        ".is-inspected",
+      )) {
+        highlightedElement.classList.remove("is-inspected");
+      }
+      documentRoot.classList.toggle("is-inspecting", packetIndex !== null);
+      if (packetIndex === null) {
         return;
+      }
       appElement
         .querySelectorAll(
-          `tr[data-packet="${e}"], .seq-arrow[data-packet="${e}"]`,
+          `tr[data-packet="${packetIndex}"], .seq-arrow[data-packet="${packetIndex}"]`,
         )
-        .forEach((n) => n.classList.add("is-inspected"));
-      const t = packetsElement.querySelector(`tr[data-packet="${e}"]`),
-        s = packetsElement.querySelector(".packet-scroll"),
-        a = packetsElement.querySelector("thead").offsetHeight;
-      t.offsetTop < s.scrollTop + a
-        ? s.scrollTo({
-            top: t.offsetTop - a,
-            behavior: "smooth",
-          })
-        : t.offsetTop + t.offsetHeight > s.scrollTop + s.clientHeight &&
-          s.scrollTo({
-            top: t.offsetTop + t.offsetHeight - s.clientHeight,
-            behavior: "smooth",
-          });
+        .forEach((matchingElement) =>
+          matchingElement.classList.add("is-inspected"),
+        );
+      const packetRow = packetsElement.querySelector(
+        `tr[data-packet="${packetIndex}"]`,
+      );
+      const scrollContainer = packetsElement.querySelector(".packet-scroll");
+      const headerHeight = packetsElement.querySelector("thead").offsetHeight;
+      if (packetRow.offsetTop < scrollContainer.scrollTop + headerHeight) {
+        scrollContainer.scrollTo({
+          top: packetRow.offsetTop - headerHeight,
+          behavior: "smooth",
+        });
+      } else if (
+        packetRow.offsetTop + packetRow.offsetHeight >
+        scrollContainer.scrollTop + scrollContainer.clientHeight
+      ) {
+        scrollContainer.scrollTo({
+          top:
+            packetRow.offsetTop +
+            packetRow.offsetHeight -
+            scrollContainer.clientHeight,
+          behavior: "smooth",
+        });
+      }
     },
   },
 );
-const inspectPacket = (e) => {
-  ((currentPlaybackState?.playing || currentPlaybackState?.running) &&
-    lessonPlayer.pause(),
-    packetInspector.open(currentLesson, e));
+const inspectPacket = (packetIndex) => {
+  if (currentPlaybackState?.playing || currentPlaybackState?.running) {
+    lessonPlayer.pause();
+  }
+  packetInspector.open(currentLesson, packetIndex);
 };
-sequenceElement.addEventListener("click", (e) => {
-  const t = e.target.closest(".seq-arrow.is-shown");
-  t && inspectPacket(Number(t.dataset.packet));
+sequenceElement.addEventListener("click", (event) => {
+  const arrow = event.target.closest(".seq-arrow.is-shown");
+  if (arrow) {
+    inspectPacket(Number(arrow.dataset.packet));
+  }
 });
 bindSequenceScrolling(sequenceElement);
 const networkAnimation = createNetworkAnimation(
@@ -202,92 +238,116 @@ const networkAnimation = createNetworkAnimation(
 );
 updateLearningProgress(topbarElement, lessonsById);
 bindThemeToggle(topbarElement);
-function updateAppPlaybackState(e, t = currentLesson) {
-  (updateTopbar(topbarElement, e, t),
-    updateSidebar(sidebarElement, e, t),
-    updateOverviewPanel(
-      overviewElement,
-      e,
-      t,
-      protocolCatalog.findIndex((a) => a.id === t.id),
-    ),
-    updatePacketTable(packetsElement, e, t));
-  const s = packetInspector.index();
-  (s !== null &&
-    !getVisiblePacketIndices().includes(s) &&
-    packetInspector.close(),
-    updateSequenceDiagram(sequenceElement, e, t));
+/** Render one shared playback snapshot across all panels. */
+
+function updateAppPlaybackState(state, lesson = currentLesson) {
+  updateTopbar(topbarElement, state, lesson);
+  updateSidebar(sidebarElement, state, lesson);
+  updateOverviewPanel(
+    overviewElement,
+    state,
+    lesson,
+    protocolCatalog.findIndex((protocol) => protocol.id === lesson.id),
+  );
+  updatePacketTable(packetsElement, state, lesson);
+  const inspectedIndex = packetInspector.index();
+  if (
+    inspectedIndex !== null &&
+    !getVisiblePacketIndices().includes(inspectedIndex)
+  ) {
+    packetInspector.close();
+  }
+  updateSequenceDiagram(sequenceElement, state, lesson);
 }
-function selectLesson(e) {
-  if (currentLesson?.id === e) return lessonPlayer.reset();
-  (packetInspector.close(),
-    lessonPlayer?.dispose(),
-    (currentLesson = lessonsById[e]));
-  const t = currentLesson;
-  ((lessonPlayer = createLessonPlayer(
-    t,
+
+function selectLesson(lessonId) {
+  if (currentLesson?.id === lessonId) {
+    return lessonPlayer.reset();
+  }
+  packetInspector.close();
+  lessonPlayer?.dispose();
+  currentLesson = lessonsById[lessonId];
+  // Capture this lesson: asynchronous notifications must not read a newer one.
+  const selectedLesson = currentLesson;
+  lessonPlayer = createLessonPlayer(
+    selectedLesson,
     networkAnimation,
-    (s) => {
-      ((currentPlaybackState = s),
-        recordLessonProgress(t, s) &&
-          (updateLearningProgress(topbarElement, lessonsById),
-          updateSidebarProgress(sidebarElement, lessonsById)),
-        updateAppPlaybackState(s, t));
+    (state) => {
+      currentPlaybackState = state;
+      if (recordLessonProgress(selectedLesson, state)) {
+        updateLearningProgress(topbarElement, lessonsById);
+        updateSidebarProgress(sidebarElement, lessonsById);
+      }
+      updateAppPlaybackState(state, selectedLesson);
     },
     {
       mode: viewController.view(),
     },
-  )),
-    lessonPlayer.reset());
+  );
+  lessonPlayer.reset();
 }
+
 function refreshAppTranslations() {
-  (translateDom(appElement),
-    translateTopbar(topbarElement),
-    fitTopbarText(topbarElement),
-    updateLearningProgress(topbarElement, lessonsById),
-    currentLesson &&
-      (invalidateOverview(overviewElement),
-      translatePacketTable(packetsElement, currentLesson),
-      networkAnimation.retext(),
-      refreshSequenceDiagram(sequenceElement),
-      packetInspector.isOpen() &&
-        packetInspector.open(currentLesson, packetInspector.index()),
-      currentPlaybackState && updateAppPlaybackState(currentPlaybackState)));
+  translateDom(appElement);
+  translateTopbar(topbarElement);
+  fitTopbarText(topbarElement);
+  updateLearningProgress(topbarElement, lessonsById);
+  if (currentLesson) {
+    invalidateOverview(overviewElement);
+    translatePacketTable(packetsElement, currentLesson);
+    networkAnimation.retext();
+    refreshSequenceDiagram(sequenceElement);
+    if (packetInspector.isOpen()) {
+      packetInspector.open(currentLesson, packetInspector.index());
+    }
+    if (currentPlaybackState) {
+      updateAppPlaybackState(currentPlaybackState);
+    }
+  }
 }
 onLanguageChange(() => {
-  if (!document.startViewTransition || prefersReducedMotion())
+  if (!document.startViewTransition || prefersReducedMotion()) {
     return refreshAppTranslations();
-  (documentRoot.classList.add("is-retexting"),
-    document
-      .startViewTransition(refreshAppTranslations)
-      .finished.finally(() => documentRoot.classList.remove("is-retexting")));
+  }
+  documentRoot.classList.add("is-retexting");
+  document
+    .startViewTransition(refreshAppTranslations)
+    .finished.finally(() => documentRoot.classList.remove("is-retexting"));
 });
-bindLanguageMenu(topbarElement, (e) => setLanguage(e));
+bindLanguageMenu(topbarElement, (language) => setLanguage(language));
+
 const closeDrawerAfterSelection = () =>
-  isDrawerOpen() && setTimeout(() => setDrawerOpen(!1), 220);
+  isDrawerOpen() && setTimeout(() => setDrawerOpen(false), 220);
 bindSidebar(sidebarElement, {
-  onStep: (e) => {
-    (lessonPlayer.jump(e), closeDrawerAfterSelection());
+  onStep: (stepIndex) => {
+    lessonPlayer.jump(stepIndex);
+    closeDrawerAfterSelection();
   },
-  onSelect: (e) => {
-    (selectLesson(e), closeDrawerAfterSelection());
+  onSelect: (lessonId) => {
+    selectLesson(lessonId);
+    closeDrawerAfterSelection();
   },
 });
 bindOverviewBackButton(overviewElement, () => lessonPlayer.reset());
 const PLAYBACK_SPEED_OPTIONS = [0.5, 1, 1.5, 2];
 const PLAYBACK_SPEED_STORAGE_KEY = "protocol-explorer:speed";
-function setPlaybackSpeed(e, t = !0) {
-  if (
-    (playbackClock.setSpeed(e), updatePlaybackSpeedLabel(packetsElement, e), t)
-  )
+
+function setPlaybackSpeed(speed, persist = true) {
+  playbackClock.setSpeed(speed);
+  updatePlaybackSpeedLabel(packetsElement, speed);
+  if (persist) {
     try {
-      localStorage.setItem(PLAYBACK_SPEED_STORAGE_KEY, e);
+      localStorage.setItem(PLAYBACK_SPEED_STORAGE_KEY, speed);
     } catch {}
+  }
 }
 try {
-  const e = Number(localStorage.getItem(PLAYBACK_SPEED_STORAGE_KEY));
-  PLAYBACK_SPEED_OPTIONS.includes(e) && setPlaybackSpeed(e, !1);
+  const savedSpeed = Number(localStorage.getItem(PLAYBACK_SPEED_STORAGE_KEY));
+  if (PLAYBACK_SPEED_OPTIONS.includes(savedSpeed)) {
+    setPlaybackSpeed(savedSpeed, false);
+  }
 } catch {}
+
 const cyclePlaybackSpeed = () =>
   setPlaybackSpeed(
     PLAYBACK_SPEED_OPTIONS[
@@ -296,7 +356,8 @@ const cyclePlaybackSpeed = () =>
     ],
   );
 document.fonts.ready.then(() => {
-  (fitPlaybackButton(packetsElement), fitTopbarText(topbarElement));
+  fitPlaybackButton(packetsElement);
+  fitTopbarText(topbarElement);
 });
 bindPacketTable(packetsElement, {
   toggle: () => lessonPlayer.toggle(),
@@ -306,22 +367,32 @@ bindPacketTable(packetsElement, {
   speed: cyclePlaybackSpeed,
   inspect: inspectPacket,
 });
+
 function jumpToNextStep() {
-  if (!currentPlaybackState?.started) return lessonPlayer.jump(0);
-  currentPlaybackState.activeStep < currentLesson.steps.length - 1 &&
+  if (!currentPlaybackState?.started) {
+    return lessonPlayer.jump(0);
+  }
+  if (currentPlaybackState.activeStep < currentLesson.steps.length - 1) {
     lessonPlayer.jump(currentPlaybackState.activeStep + 1);
-}
-function jumpToPreviousStep() {
-  if (currentPlaybackState?.started) {
-    if (currentPlaybackState.done)
-      return lessonPlayer.jump(currentLesson.steps.length - 1);
-    currentPlaybackState.activeStep > 0
-      ? lessonPlayer.jump(currentPlaybackState.activeStep - 1)
-      : lessonPlayer.reset();
   }
 }
+
+function jumpToPreviousStep() {
+  if (currentPlaybackState?.started) {
+    if (currentPlaybackState.done) {
+      return lessonPlayer.jump(currentLesson.steps.length - 1);
+    }
+    if (currentPlaybackState.activeStep > 0) {
+      lessonPlayer.jump(currentPlaybackState.activeStep - 1);
+    } else {
+      lessonPlayer.reset();
+    }
+  }
+}
+
 const navigateForward = () =>
   packetInspector.isOpen() ? packetInspector.step(1) : jumpToNextStep();
+
 const navigateBackward = () =>
   packetInspector.isOpen() ? packetInspector.step(-1) : jumpToPreviousStep();
 const keyboardActions = {
@@ -330,25 +401,35 @@ const keyboardActions = {
   ArrowLeft: () => (isRtl() ? navigateForward() : navigateBackward()),
   Escape: () =>
     isDrawerOpen()
-      ? setDrawerOpen(!1)
+      ? setDrawerOpen(false)
       : packetInspector.isOpen()
         ? packetInspector.close()
         : lessonPlayer.reset(),
   v: () => viewController.toggle(),
   V: () => viewController.toggle(),
 };
-const isTextInputTarget = (e) =>
-  e instanceof Element &&
-  e.closest('input, textarea, select, [contenteditable="true"], .lang-menu');
-for (const e of ["keydown", "keyup"])
-  window.addEventListener(e, (t) => {
-    const s = keyboardActions[t.key];
-    !s ||
+const isTextInputTarget = (target) =>
+  target instanceof Element &&
+  target.closest(
+    'input, textarea, select, [contenteditable="true"], .lang-menu',
+  );
+for (const eventType of ["keydown", "keyup"]) {
+  window.addEventListener(eventType, (event) => {
+    const action = keyboardActions[event.key];
+    if (
+      !action ||
       !lessonPlayer ||
-      t.ctrlKey ||
-      t.metaKey ||
-      t.altKey ||
-      isTextInputTarget(t.target) ||
-      (t.preventDefault(), e === "keydown" && !t.repeat && s());
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      isTextInputTarget(event.target)
+    ) {
+      return;
+    }
+    event.preventDefault();
+    if (eventType === "keydown" && !event.repeat) {
+      action();
+    }
   });
+}
 document.fonts.ready.then(() => selectLesson("http"));

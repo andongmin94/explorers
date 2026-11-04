@@ -29,27 +29,45 @@ const SMTP_RELAY_CONNECTION = tcpConnection(
   SMTP_RECIPIENT_IP,
   25,
 );
-function smtpPacketRow(e, t, s, a, n, o = !0) {
-  const r = t === SMTP_RECIPIENT_IP || s === SMTP_RECIPIENT_IP,
-    i = r ? SMTP_RELAY_CONNECTION : SMTP_SUBMISSION_CONNECTION,
-    l = n.message ? n.message + SMTP_TERMINATOR_BYTES : textLinesBytes(...n),
-    c = n.message ? `${n.what}, then a line holding only “.”` : "SMTP",
-    h = o
-      ? n.message
-        ? tlsOpaqueWire(l, c)
-        : tlsTextWire(n, c)
-      : {
-          text: n,
-          name: "SMTP",
-        };
+/** Encode either command lines or an opaque mail body, including its dot terminator. */
+function smtpPacketRow(
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  message,
+  encrypted = true,
+) {
+  const isRelay =
+    sourceIp === SMTP_RECIPIENT_IP || destinationIp === SMTP_RECIPIENT_IP;
+  const connection = isRelay
+    ? SMTP_RELAY_CONNECTION
+    : SMTP_SUBMISSION_CONNECTION;
+  const payloadBytes = message.message
+    ? message.message + SMTP_TERMINATOR_BYTES
+    : textLinesBytes(...message);
+  const description = message.message
+    ? `${message.what}, then a line holding only “.”`
+    : "SMTP";
+  let wirePayload;
+  if (!encrypted) {
+    wirePayload = {
+      text: message,
+      name: "SMTP",
+    };
+  } else if (message.message) {
+    wirePayload = tlsOpaqueWire(payloadBytes, description);
+  } else {
+    wirePayload = tlsTextWire(message, description);
+  }
   return {
-    time: formatPacketTime(e),
-    src: t,
-    dst: s,
-    proto: o ? "SMTP (TLS)" : "SMTP",
-    info: a,
-    len: `${(o ? tlsFrameBytes(l) : tcpFrameBytes(l)) + (r ? TCP_TIMESTAMP_OPTIONS_BYTES : 0)} B`,
-    wire: tcpWire(i, t, "PA", h),
+    time: formatPacketTime(seconds),
+    src: sourceIp,
+    dst: destinationIp,
+    proto: encrypted ? "SMTP (TLS)" : "SMTP",
+    info,
+    len: `${(encrypted ? tlsFrameBytes(payloadBytes) : tcpFrameBytes(payloadBytes)) + (isRelay ? TCP_TIMESTAMP_OPTIONS_BYTES : 0)} B`,
+    wire: tcpWire(connection, sourceIp, "PA", wirePayload),
   };
 }
 const SMTP_DNS_OPTIONS = {
@@ -58,24 +76,31 @@ const SMTP_DNS_OPTIONS = {
     size: 1232,
   },
 };
-const smtpDnsRow = (e, t, s, a, n, o) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const smtpDnsRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  frameBytes,
+  dnsMessage,
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "DNS",
-  info: a,
-  len: `${n} B`,
+  info,
+  len: `${frameBytes} B`,
   wire: {
     udp:
-      t === SMTP_SUBMISSION_IP
+      sourceIp === SMTP_SUBMISSION_IP
         ? {
             sport: SMTP_DNS_OPTIONS.sport,
             dport: 53,
             data: {
               dns: {
-                rd: !0,
+                rd: true,
                 edns: SMTP_DNS_OPTIONS.edns,
-                ...o,
+                ...dnsMessage,
               },
             },
           }
@@ -84,19 +109,19 @@ const smtpDnsRow = (e, t, s, a, n, o) => ({
             dport: SMTP_DNS_OPTIONS.sport,
             data: {
               dns: {
-                response: !0,
-                rd: !0,
-                ra: !0,
+                response: true,
+                rd: true,
+                ra: true,
                 edns: SMTP_DNS_OPTIONS.edns,
-                exampleTtl: !0,
-                ...o,
+                exampleTtl: true,
+                ...dnsMessage,
               },
             },
           },
   },
 });
 const SMTP_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
 const SMTP_ORIGINAL_MESSAGE_BYTES = 316;
 const SMTP_SIGNED_MESSAGE_BYTES = 1316;
@@ -139,7 +164,7 @@ const SMTP_RECIPIENT_CAPABILITIES = [
 const SMTP_STARTTLS_COMMAND = ["STARTTLS"];
 const SMTP_STARTTLS_READY = ["220 2.0.0 Ready to start TLS"];
 const SMTP_SECURE_RECIPIENT_CAPABILITIES = SMTP_RECIPIENT_CAPABILITIES.filter(
-  (e) => e !== "250-STARTTLS",
+  (capability) => capability !== "250-STARTTLS",
 );
 const SMTP_RELAY_ENVELOPE = [
   `MAIL FROM:<alice@example.com> SIZE=${SMTP_SIGNED_MESSAGE_BYTES}`,
@@ -518,7 +543,7 @@ const smtpLesson = {
           sport: 41522,
           dport: 25,
           t: [0.225, 0.245, 0.265],
-          linux: !0,
+          linux: true,
         }),
         packetEvent(
           "mx",
@@ -532,7 +557,7 @@ const smtpLesson = {
             SMTP_SUBMISSION_IP,
             "220 mx.example.org ESMTP Postfix",
             SMTP_RECIPIENT_GREETING,
-            !1,
+            false,
           ),
         ),
         packetEvent(
@@ -547,7 +572,7 @@ const smtpLesson = {
             SMTP_RECIPIENT_IP,
             "EHLO smtp.example.com",
             SMTP_RELAY_EHLO,
-            !1,
+            false,
           ),
         ),
         packetEvent(
@@ -562,7 +587,7 @@ const smtpLesson = {
             SMTP_SUBMISSION_IP,
             "250 capabilities (PIPELINING, STARTTLS …)",
             SMTP_RECIPIENT_CAPABILITIES,
-            !1,
+            false,
           ),
         ),
         packetEvent(
@@ -577,7 +602,7 @@ const smtpLesson = {
             SMTP_RECIPIENT_IP,
             "STARTTLS",
             SMTP_STARTTLS_COMMAND,
-            !1,
+            false,
           ),
         ),
         packetEvent(
@@ -592,7 +617,7 @@ const smtpLesson = {
             SMTP_SUBMISSION_IP,
             "220 2.0.0 Ready to start TLS",
             SMTP_STARTTLS_READY,
-            !1,
+            false,
           ),
         ),
         ...tlsHandshakeEvents({
@@ -604,7 +629,7 @@ const smtpLesson = {
           sport: 41522,
           dport: 25,
           t: [0.385, 0.405, 0.427],
-          linux: !0,
+          linux: true,
         }),
       ],
     },

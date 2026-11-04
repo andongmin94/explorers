@@ -16,17 +16,19 @@ import {
 } from "../i18n.js";
 import { NETWORK_SHORT_LABELS } from "../simulation/network-drawing.js";
 import { getLessonPackets } from "../packets/encode.js";
-const getLocalizedNodeName = (e, t) =>
-  translate(e.labels?.[t]?.[0] ?? NETWORK_SHORT_LABELS[t]);
+
+const getLocalizedNodeName = (lesson, nodeId) =>
+  translate(lesson.labels?.[nodeId]?.[0] ?? NETWORK_SHORT_LABELS[nodeId]);
 const PACKET_LOCK_SVG =
   '<svg class="pill-lock" viewBox="0 0 12 14" width="10" height="12" aria-hidden="true"><path d="M3 6.5 V4.5 a3 3 0 0 1 6 0 V6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="1.5" y="6.5" width="9" height="6.5" rx="1.3" fill="currentColor"/></svg>';
-const renderFacts = (e) =>
-  e
+const renderFacts = (facts) =>
+  facts
     .map(
-      ([t, s]) =>
-        `<div><dt>${escapeHtml(localizedUpperCase(translate(t)))}</dt><dd>${escapeHtml(translate(s))}</dd></div>`,
+      ([label, value]) =>
+        `<div><dt>${escapeHtml(localizedUpperCase(translate(label)))}</dt><dd>${escapeHtml(translate(value))}</dd></div>`,
     )
     .join("");
+
 function renderOverviewPanel() {
   return `
   <section class="panel overview">
@@ -68,154 +70,177 @@ function renderOverviewPanel() {
     </div>
   </section>`;
 }
-function bindOverviewBackButton(e, t) {
-  e.querySelector(".back-btn").addEventListener("click", t);
+
+function bindOverviewBackButton(panel, onBack) {
+  panel.querySelector(".back-btn").addEventListener("click", onBack);
 }
-function buildOverviewState(e, t, s) {
-  const a = t.steps[e.activeStep],
-    n = getLessonPackets(t),
-    o = e.event,
-    r =
-      e.started &&
-      !e.done &&
-      (o?.type === "packet" || o?.type === "stream") &&
-      o.step === e.activeStep,
-    i = r
-      ? n.indexOf(
-          o.type === "stream" ? o.packets[0] : n.find((l) => l.row === o.row),
-        ) + 1
-      : 0;
+
+function buildOverviewState(playback, lesson, lessonOrder) {
+  const activeStep = lesson.steps[playback.activeStep];
+  const packets = getLessonPackets(lesson);
+  const activeEvent = playback.event;
+  const showPacket =
+    playback.started &&
+    !playback.done &&
+    (activeEvent?.type === "packet" || activeEvent?.type === "stream") &&
+    activeEvent.step === playback.activeStep;
+  const firstPacketNumber = showPacket
+    ? packets.indexOf(
+        activeEvent.type === "stream"
+          ? activeEvent.packets[0]
+          : packets.find((packet) => packet.row === activeEvent.row),
+      ) + 1
+    : 0;
   return {
-    lesson: t,
-    order: s,
-    view: e.started ? "step" : "overview",
+    lesson,
+    order: lessonOrder,
+    view: playback.started ? "step" : "overview",
     title: translate(
-      e.started
-        ? e.done
+      playback.started
+        ? playback.done
           ? "LESSON SUMMARY"
           : "STEP DETAILS"
         : "PROTOCOL OVERVIEW",
     ),
-    rank: e.started ? (e.done ? t.steps.length : e.activeStep) : -1,
-    content: e.done
+    rank: playback.started
+      ? playback.done
+        ? lesson.steps.length
+        : playback.activeStep
+      : -1,
+    content: playback.done
       ? {
           label: translate("LESSON COMPLETE"),
-          ...t.outro,
-          done: !0,
+          ...lesson.outro,
+          done: true,
         }
       : {
           label: translate("STEP {n} OF {total}", {
-            n: e.activeStep + 1,
-            total: t.steps.length,
+            n: playback.activeStep + 1,
+            total: lesson.steps.length,
           }),
-          title: a.title,
-          desc: a.desc,
-          text: a.detail,
-          facts: a.facts,
+          title: activeStep.title,
+          desc: activeStep.desc,
+          text: activeStep.detail,
+          facts: activeStep.facts,
         },
-    packet: r
+    packet: showPacket
       ? {
-          number: i,
-          count: o.type === "stream" ? o.packets.length : 1,
-          total: n.length,
-          event: o,
+          number: firstPacketNumber,
+          count: activeEvent.type === "stream" ? activeEvent.packets.length : 1,
+          total: packets.length,
+          event: activeEvent,
         }
       : null,
   };
 }
-function updateProtocolOverview(e, t) {
-  const s = e.querySelector('[data-view="overview"]');
-  ((s.querySelector("h3").textContent = t.name),
-    (s.querySelector(".overview-full").textContent = translate(
-      t.overview.full,
-    )),
-    (s.querySelector(".overview-desc").textContent = translate(
-      t.overview.description,
-    )),
-    (s.querySelector(".overview-facts").innerHTML = renderFacts(
-      t.overview.facts,
-    )));
+
+function updateProtocolOverview(panel, lesson) {
+  const overview = panel.querySelector('[data-view="overview"]');
+  overview.querySelector("h3").textContent = lesson.name;
+  overview.querySelector(".overview-full").textContent = translate(
+    lesson.overview.full,
+  );
+  overview.querySelector(".overview-desc").textContent = translate(
+    lesson.overview.description,
+  );
+  overview.querySelector(".overview-facts").innerHTML = renderFacts(
+    lesson.overview.facts,
+  );
 }
-function updateStepExplanation(e, t) {
-  const s = e.querySelector(".explain");
-  (s.classList.toggle("is-done", !!t.done),
-    (s.querySelector(".explain-label").textContent = t.label),
-    (s.querySelector(".explain-title").textContent = localizedUpperCase(
-      translate(t.title),
-    )),
-    (s.querySelector(".explain-sub").textContent = translate(t.desc)),
-    (s.querySelector(".explain-text").textContent = translate(t.text)),
-    (s.querySelector(".explain-facts").innerHTML = renderFacts(t.facts ?? [])),
-    (s.scrollTop = 0));
+
+function updateStepExplanation(panel, content) {
+  const explanation = panel.querySelector(".explain");
+  explanation.classList.toggle("is-done", !!content.done);
+  explanation.querySelector(".explain-label").textContent = content.label;
+  explanation.querySelector(".explain-title").textContent = localizedUpperCase(
+    translate(content.title),
+  );
+  explanation.querySelector(".explain-sub").textContent = translate(
+    content.desc,
+  );
+  explanation.querySelector(".explain-text").textContent = translate(
+    content.text,
+  );
+  explanation.querySelector(".explain-facts").innerHTML = renderFacts(
+    content.facts ?? [],
+  );
+  explanation.scrollTop = 0;
 }
-function updatePacketExplanation(e, t, s) {
-  if (!t) return;
-  const a = e.querySelector(".explain-packet"),
-    { event: n, number: o, count: r, total: i } = t;
-  if (
-    ((a.dataset.color = n.color),
-    (a.querySelector("b").innerHTML =
-      (n.locked ? PACKET_LOCK_SVG : "") + escapeHtml(translate(n.label))),
-    (a.querySelector("span").textContent = localizedUpperCase(
-      `${getLocalizedNodeName(s, n.from)} ${isRtl() ? "←" : "→"} ${getLocalizedNodeName(s, n.to)}`,
-    )),
-    (a.querySelector(".explain-payload").textContent = n.payload.map((l) =>
-      translate(l),
-    ).join(`
-`)),
-    n.type === "stream")
-  ) {
-    const l = n.packets.filter((y) => y.lost).length,
-      c = n.packets.map((y) => y.row.len),
-      h = c.every((y) => y === c[0])
-        ? `${r} × ${c[0]}`
-        : c.every((y) => y.endsWith(" B"))
-          ? `${c.map((y) => y.slice(0, -2)).join(" + ")} B`
-          : c.join(" + "),
-      d = l
-        ? ` · ${translate(l === 1 ? "1 LOST" : "{n} LOST", {
-            n: l,
-          })}`
-        : n.locked
-          ? ` · ${translate("ENCRYPTED")}`
-          : "";
-    a.querySelector(".explain-meta").textContent = `${translate(
-      "PACKETS {from}–{to} OF {total}",
-      {
-        from: o,
-        to: o + r - 1,
-        total: i,
-      },
-    )} · ${isolateLtrText(h)}${d}`;
-  } else {
-    const l = n.lost
-      ? ` · ${translate("LOST ON THE WAY")}`
-      : n.locked
+
+function updatePacketExplanation(panel, packetInfo, lesson) {
+  if (!packetInfo) {
+    return;
+  }
+  const card = panel.querySelector(".explain-packet");
+  const {
+    event,
+    number: firstNumber,
+    count: packetCount,
+    total: totalPackets,
+  } = packetInfo;
+  card.dataset.color = event.color;
+  card.querySelector("b").innerHTML =
+    (event.locked ? PACKET_LOCK_SVG : "") + escapeHtml(translate(event.label));
+  card.querySelector("span").textContent = localizedUpperCase(
+    `${getLocalizedNodeName(lesson, event.from)} ${isRtl() ? "←" : "→"} ${getLocalizedNodeName(lesson, event.to)}`,
+  );
+  card.querySelector(".explain-payload").textContent = event.payload.map(
+    (line) => translate(line),
+  ).join(`
+`);
+  if (event.type === "stream") {
+    const lostCount = event.packets.filter((packet) => packet.lost).length;
+    const lengths = event.packets.map((packet) => packet.row.len);
+    const sizeSummary = lengths.every((length) => length === lengths[0])
+      ? `${packetCount} × ${lengths[0]}`
+      : lengths.every((length) => length.endsWith(" B"))
+        ? `${lengths.map((length) => length.slice(0, -2)).join(" + ")} B`
+        : lengths.join(" + ");
+    const statusSuffix = lostCount
+      ? ` · ${translate(lostCount === 1 ? "1 LOST" : "{n} LOST", {
+          n: lostCount,
+        })}`
+      : event.locked
         ? ` · ${translate("ENCRYPTED")}`
         : "";
-    a.querySelector(".explain-meta").textContent = `${translate(
+    card.querySelector(".explain-meta").textContent = `${translate(
+      "PACKETS {from}–{to} OF {total}",
+      {
+        from: firstNumber,
+        to: firstNumber + packetCount - 1,
+        total: totalPackets,
+      },
+    )} · ${isolateLtrText(sizeSummary)}${statusSuffix}`;
+  } else {
+    const statusSuffix = event.lost
+      ? ` · ${translate("LOST ON THE WAY")}`
+      : event.locked
+        ? ` · ${translate("ENCRYPTED")}`
+        : "";
+    card.querySelector(".explain-meta").textContent = `${translate(
       "PACKET {n} OF {total}",
       {
-        n: o,
-        total: i,
+        n: firstNumber,
+        total: totalPackets,
       },
-    )} · ${isolateLtrText(n.row.proto)} · ${isolateLtrText(n.row.len)}${l}`;
+    )} · ${isolateLtrText(event.row.proto)} · ${isolateLtrText(event.row.len)}${statusSuffix}`;
   }
 }
-function animatePacketExplanationHeight(e, t) {
-  const s = e.querySelector(".explain-packet"),
-    a = s.offsetHeight;
-  (s.getAnimations().forEach((o) => o.cancel()), t());
-  const n = s.offsetHeight;
-  a !== n &&
-    !prefersReducedMotion() &&
-    s.animate(
+
+function animatePacketExplanationHeight(panel, updateContent) {
+  const card = panel.querySelector(".explain-packet");
+  const previousHeight = card.offsetHeight;
+  card.getAnimations().forEach((animation) => animation.cancel());
+  updateContent();
+  const nextHeight = card.offsetHeight;
+  if (previousHeight !== nextHeight && !prefersReducedMotion()) {
+    card.animate(
       [
         {
-          height: `${a}px`,
+          height: `${previousHeight}px`,
         },
         {
-          height: `${n}px`,
+          height: `${nextHeight}px`,
         },
       ],
       {
@@ -223,28 +248,35 @@ function animatePacketExplanationHeight(e, t) {
         easing: EASE_OUT_EXPO,
       },
     );
+  }
 }
-const refreshPacketExplanation = (e, t) =>
-  t.packet &&
-  animatePacketExplanationHeight(e, () =>
-    updatePacketExplanation(e, t.packet, t.lesson),
+
+const refreshPacketExplanation = (panel, state) =>
+  state.packet &&
+  animatePacketExplanationHeight(panel, () =>
+    updatePacketExplanation(panel, state.packet, state.lesson),
   );
-function applyOverviewState(e, t) {
-  (updateProtocolOverview(e, t.lesson),
-    (e.querySelector('[data-view="overview"]').hidden = t.view !== "overview"),
-    (e.querySelector('[data-view="step"]').hidden = t.view !== "step"),
-    updateStepExplanation(e, t.content),
-    updatePacketExplanation(e, t.packet, t.lesson),
-    e.querySelector(".explain-packet").classList.toggle("is-open", !!t.packet));
+
+function applyOverviewState(panel, state) {
+  updateProtocolOverview(panel, state.lesson);
+  panel.querySelector('[data-view="overview"]').hidden =
+    state.view !== "overview";
+  panel.querySelector('[data-view="step"]').hidden = state.view !== "step";
+  updateStepExplanation(panel, state.content);
+  updatePacketExplanation(panel, state.packet, state.lesson);
+  panel
+    .querySelector(".explain-packet")
+    .classList.toggle("is-open", !!state.packet);
 }
-function updateOverviewBackButton(e, t) {
-  const s = e.querySelector(".back-btn"),
-    a = e.querySelector(".more");
-  s.hidden === t &&
-    ((s.hidden = !t),
-    (a.hidden = t),
-    prefersReducedMotion() ||
-      (t ? s : a).animate(
+
+function updateOverviewBackButton(panel, showBack) {
+  const backButton = panel.querySelector(".back-btn");
+  const moreButton = panel.querySelector(".more");
+  if (backButton.hidden === showBack) {
+    backButton.hidden = !showBack;
+    moreButton.hidden = showBack;
+    if (!prefersReducedMotion()) {
+      (showBack ? backButton : moreButton).animate(
         [
           {
             transform: `translateX(${isRtl() ? -14 : 14}px)`,
@@ -259,64 +291,77 @@ function updateOverviewBackButton(e, t) {
           duration: 320,
           easing: EASE_OUT_EXPO,
         },
-      ));
-}
-function invalidateOverview(e) {
-  e._shown = null;
-}
-function updateOverviewPanel(e, t, s, a = 0) {
-  const n = buildOverviewState(t, s, a),
-    o = e._shown;
-  e._latest = n;
-  const r = () => e._latest;
-  if (
-    (animateTextChange(
-      e.querySelector(".panel-title"),
-      n.title,
-      !o || n.rank >= o.rank ? 1 : -1,
-    ),
-    updateOverviewBackButton(e, n.view === "step"),
-    !o)
-  )
-    applyOverviewState(e, n);
-  else if (n.lesson !== o.lesson)
-    slideContent(
-      e.querySelector(".overview-stage"),
-      () => applyOverviewState(e, r()),
-      n.order > o.order ? 1 : -1,
-      32,
-    );
-  else if (n.view !== o.view)
-    slideContent(
-      e.querySelector(".overview-stage"),
-      () => applyOverviewState(e, r()),
-      n.view === "step" ? 1 : -1,
-      32,
-    );
-  else if (n.view === "step" && n.rank !== o.rank)
-    slideContent(
-      e.querySelector(".explain"),
-      () => applyOverviewState(e, r()),
-      n.rank > o.rank ? 1 : -1,
-    );
-  else if (n.view === "step" && n.packet?.number !== o.packet?.number) {
-    const i = e.querySelector(".explain-packet"),
-      l =
-        ["client", "dns"].includes(n.packet?.event.to) &&
-        n.packet?.event.from !== "client";
-    n.packet && o.packet
-      ? slideContent(
-          i.querySelector(".explain-packet-inner"),
-          () => refreshPacketExplanation(e, r()),
-          l ? 1 : -1,
-          18,
-        )
-      : animatePacketExplanationHeight(e, () => {
-          (n.packet && updatePacketExplanation(e, n.packet, n.lesson),
-            i.classList.toggle("is-open", !!n.packet));
-        });
+      );
+    }
   }
-  e._shown = n;
+}
+
+function invalidateOverview(panel) {
+  panel._shown = null;
+}
+
+function updateOverviewPanel(panel, playback, lesson, lessonOrder = 0) {
+  const nextState = buildOverviewState(playback, lesson, lessonOrder);
+  const previousState = panel._shown;
+  panel._latest = nextState;
+  // A transition can finish after several updates; render the latest snapshot.
+  const latestState = () => panel._latest;
+  animateTextChange(
+    panel.querySelector(".panel-title"),
+    nextState.title,
+    !previousState || nextState.rank >= previousState.rank ? 1 : -1,
+  );
+  updateOverviewBackButton(panel, nextState.view === "step");
+  if (!previousState) {
+    applyOverviewState(panel, nextState);
+  } else if (nextState.lesson !== previousState.lesson) {
+    slideContent(
+      panel.querySelector(".overview-stage"),
+      () => applyOverviewState(panel, latestState()),
+      nextState.order > previousState.order ? 1 : -1,
+      32,
+    );
+  } else if (nextState.view !== previousState.view) {
+    slideContent(
+      panel.querySelector(".overview-stage"),
+      () => applyOverviewState(panel, latestState()),
+      nextState.view === "step" ? 1 : -1,
+      32,
+    );
+  } else if (
+    nextState.view === "step" &&
+    nextState.rank !== previousState.rank
+  ) {
+    slideContent(
+      panel.querySelector(".explain"),
+      () => applyOverviewState(panel, latestState()),
+      nextState.rank > previousState.rank ? 1 : -1,
+    );
+  } else if (
+    nextState.view === "step" &&
+    nextState.packet?.number !== previousState.packet?.number
+  ) {
+    const card = panel.querySelector(".explain-packet");
+    const isReply =
+      ["client", "dns"].includes(nextState.packet?.event.to) &&
+      nextState.packet?.event.from !== "client";
+    if (nextState.packet && previousState.packet) {
+      slideContent(
+        card.querySelector(".explain-packet-inner"),
+        () => refreshPacketExplanation(panel, latestState()),
+        isReply ? 1 : -1,
+        18,
+      );
+    } else {
+      animatePacketExplanationHeight(panel, () => {
+        if (nextState.packet) {
+          updatePacketExplanation(panel, nextState.packet, nextState.lesson);
+        }
+        card.classList.toggle("is-open", !!nextState.packet);
+      });
+    }
+  }
+  panel._shown = nextState;
 }
 export {
   bindOverviewBackButton,

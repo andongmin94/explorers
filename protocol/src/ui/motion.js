@@ -4,80 +4,89 @@ const EASE_IN_CUBIC = "cubic-bezier(0.5, 0, 0.75, 0)";
 const reducedMotionQuery = window.matchMedia(
   "(prefers-reduced-motion: reduce)",
 );
+
 const prefersReducedMotion = () => reducedMotionQuery.matches;
 const contentTransitions = new WeakMap();
+/** Coalesce rapid updates while text leaves, then animate the newest content in. */
+
 function transitionContent(
-  e,
-  t,
+  element,
+  updateContent,
   {
-    axis: s = "x",
-    dir: a = 1,
-    distance: n = 24,
-    out: o = 160,
-    inn: r = 300,
+    axis = "x",
+    dir: direction = 1,
+    distance = 24,
+    out: exitDuration = 160,
+    inn: enterDuration = 300,
   } = {},
 ) {
-  if (prefersReducedMotion()) return t();
-  const i = (w) => (s === "x" ? `translateX(${w}px)` : `translateY(${w}px)`),
-    l = contentTransitions.get(e);
-  if (l?.phase === "out") {
-    ((l.update = t), (l.dir = a));
+  if (prefersReducedMotion()) {
+    return updateContent();
+  }
+  const translateBy = (offset) =>
+    axis === "x" ? `translateX(${offset}px)` : `translateY(${offset}px)`;
+  const previousTransition = contentTransitions.get(element);
+  if (previousTransition?.phase === "out") {
+    previousTransition.update = updateContent;
+    previousTransition.dir = direction;
     return;
   }
-  const c = getComputedStyle(e),
-    h = {
-      transform: c.transform,
-      opacity: Number(c.opacity),
-    };
-  if (l?.phase === "in" && h.opacity < 0.5) {
-    (l.entering.cancel(),
-      t(),
-      (l.entering = e.animate(
-        [
-          h,
-          {
-            transform: "none",
-            opacity: 1,
-          },
-        ],
-        {
-          duration: r * (1 - h.opacity),
-          easing: EASE_OUT_EXPO,
-        },
-      )),
-      (l.entering.onfinish = () =>
-        contentTransitions.get(e) === l && contentTransitions.delete(e)));
-    return;
-  }
-  l?.entering.cancel();
-  const d = {
-    phase: "out",
-    update: t,
-    dir: a,
+  const computedStyle = getComputedStyle(element);
+  const currentFrame = {
+    transform: computedStyle.transform,
+    opacity: Number(computedStyle.opacity),
   };
-  contentTransitions.set(e, d);
-  const y = e.animate(
-    [
-      h,
+  if (previousTransition?.phase === "in" && currentFrame.opacity < 0.5) {
+    // Content is still mostly invisible, so replace it without a second exit.
+    previousTransition.entering.cancel();
+    updateContent();
+    previousTransition.entering = element.animate(
+      [
+        currentFrame,
+        {
+          transform: "none",
+          opacity: 1,
+        },
+      ],
       {
-        transform: i(-n * a),
+        duration: enterDuration * (1 - currentFrame.opacity),
+        easing: EASE_OUT_EXPO,
+      },
+    );
+    previousTransition.entering.onfinish = () =>
+      contentTransitions.get(element) === previousTransition &&
+      contentTransitions.delete(element);
+    return;
+  }
+  previousTransition?.entering.cancel();
+  const transition = {
+    phase: "out",
+    update: updateContent,
+    dir: direction,
+  };
+  contentTransitions.set(element, transition);
+  const exitAnimation = element.animate(
+    [
+      currentFrame,
+      {
+        transform: translateBy(-distance * direction),
         opacity: 0,
       },
     ],
     {
-      duration: o * h.opacity,
-      easing: l ? "linear" : EASE_IN_CUBIC,
+      duration: exitDuration * currentFrame.opacity,
+      easing: previousTransition ? "linear" : EASE_IN_CUBIC,
       fill: "forwards",
     },
   );
-  y.onfinish = () => {
-    contentTransitions.get(e) === d &&
-      (d.update(),
-      (d.phase = "in"),
-      (d.entering = e.animate(
+  exitAnimation.onfinish = () => {
+    if (contentTransitions.get(element) === transition) {
+      transition.update();
+      transition.phase = "in";
+      transition.entering = element.animate(
         [
           {
-            transform: i(n * d.dir),
+            transform: translateBy(distance * transition.dir),
             opacity: 0,
           },
           {
@@ -86,65 +95,92 @@ function transitionContent(
           },
         ],
         {
-          duration: r,
+          duration: enterDuration,
           easing: EASE_OUT_EXPO,
         },
-      )),
-      y.cancel(),
-      (d.entering.onfinish = () =>
-        contentTransitions.get(e) === d && contentTransitions.delete(e)));
+      );
+      exitAnimation.cancel();
+      transition.entering.onfinish = () =>
+        contentTransitions.get(element) === transition &&
+        contentTransitions.delete(element);
+    }
   };
 }
+
 const getReadingDirection = () =>
   document.documentElement.dir === "rtl" ? -1 : 1;
-const slideContent = (e, t, s = 1, a = 24) =>
-  transitionContent(e, t, {
+
+const slideContent = (element, updateContent, direction = 1, distance = 24) =>
+  transitionContent(element, updateContent, {
     axis: "x",
-    dir: s * getReadingDirection(),
-    distance: a,
+    dir: direction * getReadingDirection(),
+    distance,
   });
-function animateTextChange(e, t, s = 1, a) {
-  if (e.dataset.text === t) return;
-  const n = e.dataset.text === void 0;
-  e.dataset.text = t;
-  const o = () => {
-    ((e.textContent = t), a?.(e));
+
+function animateTextChange(element, text, direction = 1, onUpdate) {
+  if (element.dataset.text === text) {
+    return;
+  }
+  const isFirstRender = element.dataset.text === undefined;
+  element.dataset.text = text;
+  const applyText = () => {
+    element.textContent = text;
+    onUpdate?.(element);
   };
-  if (n) return o();
-  transitionContent(e, o, {
+  if (isFirstRender) {
+    return applyText();
+  }
+  transitionContent(element, applyText, {
     axis: "y",
-    dir: s,
+    dir: direction,
     distance: 10,
     out: 120,
     inn: 240,
   });
 }
-function smoothScrollTo(e, t) {
-  const s = e.scrollTop,
-    a = Math.max(0, Math.min(t, e.scrollHeight - e.clientHeight)) - s;
-  if (Math.abs(a) < 1) return;
-  if (prefersReducedMotion()) return (e.scrollTop = s + a);
-  const n = Math.min(650, 280 + Math.abs(a) * 0.8),
-    o = (e._glide = {});
-  if (!e._glideWatched) {
-    e._glideWatched = !0;
-    const l = () => e._glide && (e._glide.stopped = !0);
-    (e.addEventListener("wheel", l, {
-      passive: !0,
-    }),
-      e.addEventListener("touchstart", l, {
-        passive: !0,
-      }));
+
+function smoothScrollTo(element, targetTop) {
+  const initialTop = element.scrollTop;
+  const distance =
+    Math.max(
+      0,
+      Math.min(targetTop, element.scrollHeight - element.clientHeight),
+    ) - initialTop;
+  if (Math.abs(distance) < 1) {
+    return;
   }
-  let r;
-  const i = (l) => {
-    if (o.stopped || e._glide !== o) return;
-    r ??= l;
-    const c = Math.min(1, (l - r) / n);
-    ((e.scrollTop = s + a * (c < 0.5 ? 4 * c ** 3 : 1 - (2 - 2 * c) ** 3 / 2)),
-      c < 1 && requestAnimationFrame(i));
+  if (prefersReducedMotion()) {
+    return (element.scrollTop = initialTop + distance);
+  }
+  const duration = Math.min(650, 280 + Math.abs(distance) * 0.8);
+  // A newer scroll or direct user input invalidates this animation's session.
+  const scrollSession = (element._glide = {});
+  if (!element._glideWatched) {
+    element._glideWatched = true;
+    const stopScroll = () => element._glide && (element._glide.stopped = true);
+    element.addEventListener("wheel", stopScroll, {
+      passive: true,
+    });
+    element.addEventListener("touchstart", stopScroll, {
+      passive: true,
+    });
+  }
+  let startedAt;
+  const animateFrame = (timestamp) => {
+    if (scrollSession.stopped || element._glide !== scrollSession) {
+      return;
+    }
+    startedAt ??= timestamp;
+    const progress = Math.min(1, (timestamp - startedAt) / duration);
+    element.scrollTop =
+      initialTop +
+      distance *
+        (progress < 0.5 ? 4 * progress ** 3 : 1 - (2 - 2 * progress) ** 3 / 2);
+    if (progress < 1) {
+      requestAnimationFrame(animateFrame);
+    }
   };
-  requestAnimationFrame(i);
+  requestAnimationFrame(animateFrame);
 }
 export {
   EASE_OUT_EXPO,

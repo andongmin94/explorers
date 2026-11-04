@@ -19,7 +19,7 @@ import {
 const HTTPS_DNS_IP = "8.8.8.8";
 const HTTPS_SERVER_IP = "203.0.113.10";
 const HTTPS_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
 const HTTPS_REQUEST_LINES = [
   "GET / HTTP/1.1",
@@ -66,7 +66,7 @@ const HTTPS_CLIENT_HELLO_WIRE = {
   tls: [
     {
       type: "handshake",
-      legacy: !0,
+      legacy: true,
       length: 1845,
       hello: {
         type: 1,
@@ -121,24 +121,24 @@ const HTTPS_SESSION_TICKET_RECORD = {
 const HTTPS_CONNECTION = tcpConnection(CLIENT_IP, 52411, HTTPS_SERVER_IP, 443);
 const HTTPS_DNS_QUESTION = {
   id: 31810,
-  rd: !0,
+  rd: true,
   q: ["www.example.com", "A"],
 };
-const httpsDnsWire = (e, t) => ({
+const httpsDnsWire = (sourceIp, dnsMessage) => ({
   udp:
-    e === CLIENT_IP
+    sourceIp === CLIENT_IP
       ? {
           sport: 61744,
           dport: 53,
           data: {
-            dns: t,
+            dns: dnsMessage,
           },
         }
       : {
           sport: 53,
           dport: 61744,
           data: {
-            dns: t,
+            dns: dnsMessage,
           },
         },
 });
@@ -214,7 +214,7 @@ const httpsLesson = {
         {
           type: "type-url",
           text: "https://www.example.com",
-          secure: !0,
+          secure: true,
         },
         {
           type: "show",
@@ -264,10 +264,10 @@ const httpsLesson = {
           len: "91 B",
           wire: httpsDnsWire(HTTPS_DNS_IP, {
             ...HTTPS_DNS_QUESTION,
-            response: !0,
-            ra: !0,
+            response: true,
+            ra: true,
             an: [["www.example.com", "A", 1722, "203.0.113.10"]],
-            exampleTtl: !0,
+            exampleTtl: true,
           }),
         }),
       ],
@@ -293,7 +293,7 @@ const httpsLesson = {
           sport: 52411,
           dport: 443,
           t: [0.024, 0.041, 0.058],
-          quick: !1,
+          quick: false,
         }),
       ],
     },
@@ -442,7 +442,7 @@ const httpsLesson = {
           },
           {
             ...HTTPS_ENCRYPTED_EVENT,
-            quick: !0,
+            quick: true,
           },
         ),
         packetEvent(

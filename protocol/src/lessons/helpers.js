@@ -7,144 +7,169 @@ const IPV4_HEADER_BYTES = 20;
 const TCP_HEADER_BYTES = 20;
 const TLS_RECORD_OVERHEAD_BYTES = 22;
 const TCP_MSS = 1460;
-const formatPacketTime = (e) => `${e.toFixed(3)}s`;
-const tcpFrameBytes = (e) =>
+const formatPacketTime = (seconds) => `${seconds.toFixed(3)}s`;
+const tcpFrameBytes = (payloadBytes) =>
   Math.max(
     60,
-    ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + e,
+    ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + payloadBytes,
   );
-const tlsFrameBytes = (e) =>
+const tlsFrameBytes = (payloadBytes) =>
   ETHERNET_HEADER_BYTES +
   IPV4_HEADER_BYTES +
   TCP_HEADER_BYTES +
   TLS_RECORD_OVERHEAD_BYTES +
-  e;
-const textLinesBytes = (...e) => e.reduce((t, s) => t + s.length + 2, 0);
-const formatByteSize = (e) =>
-  e >= 1024 ? `${(e / 1024).toFixed(1)} KB` : `${e} B`;
-const tcpSegmentCount = (e) => Math.ceil(e / TCP_MSS);
-const formatFrameSize = (e, t = 1) => (t > 1 ? formatByteSize(e) : `${e} B`);
-const packetEvent = (e, t, s, a, n, o, r = {}) => ({
+  payloadBytes;
+// Text protocol lines include the terminating CRLF sent on the wire.
+const textLinesBytes = (...lines) =>
+  lines.reduce((totalBytes, line) => totalBytes + line.length + 2, 0);
+const formatByteSize = (byteCount) =>
+  byteCount >= 1024 ? `${(byteCount / 1024).toFixed(1)} KB` : `${byteCount} B`;
+const tcpSegmentCount = (payloadBytes) => Math.ceil(payloadBytes / TCP_MSS);
+const formatFrameSize = (byteCount, segmentCount = 1) =>
+  segmentCount > 1 ? formatByteSize(byteCount) : `${byteCount} B`;
+/** One animation event and its matching packet-table/inspector data. */
+const packetEvent = (from, to, color, label, payload, row, options = {}) => ({
   type: "packet",
-  from: e,
-  to: t,
-  color: s,
-  label: a,
-  payload: n,
-  row: o,
-  ...r,
+  from,
+  to,
+  color,
+  label,
+  payload,
+  row,
+  ...options,
 });
-function tcpConnection(e, t, s, a) {
+/** Resolve source/destination ports for either direction of one connection. */
+function tcpConnection(clientIp, clientPort, serverIp, serverPort) {
   return {
-    a: e,
-    b: s,
-    ports: (n) =>
-      n === e
+    a: clientIp,
+    b: serverIp,
+    ports: (sourceIp) =>
+      sourceIp === clientIp
         ? {
-            sport: t,
-            dport: a,
+            sport: clientPort,
+            dport: serverPort,
           }
         : {
-            sport: a,
-            dport: t,
+            sport: serverPort,
+            dport: clientPort,
           },
   };
 }
-const tcpWire = (e, t, s, a, n = {}) => ({
+const tcpWire = (connection, sourceIp, flags, data, options = {}) => ({
   tcp: {
-    ...e.ports(t),
-    flags: s,
-    data: a,
-    ...n,
+    ...connection.ports(sourceIp),
+    flags,
+    data,
+    ...options,
   },
 });
 const TCP_TIMESTAMP_OPTIONS_BYTES = 12;
+/** Build SYN, SYN-ACK and ACK events; Linux examples include timestamp options. */
 function tcpHandshakeEvents({
-  from: e = "client",
-  to: t = "web",
-  src: s = CLIENT_IP,
-  dst: a,
-  sport: n,
-  dport: o,
-  t: r,
-  quick: i = !0,
-  linux: l = !1,
+  from = "client",
+  to = "web",
+  src: sourceIp = CLIENT_IP,
+  dst: destinationIp,
+  sport: sourcePort,
+  dport: destinationPort,
+  t: times,
+  quick = true,
+  linux = false,
 }) {
-  const c = (w, k, g, T, v, I) => ({
-      time: formatPacketTime(w),
-      src: k,
-      dst: g,
-      proto: "TCP",
-      info: T,
-      len: `${v} B`,
-      wire: I,
-    }),
-    h = (w) => (i ? [] : w),
-    d = tcpConnection(s, n, a, o),
-    y = l ? TCP_TIMESTAMP_OPTIONS_BYTES : 0;
+  const tcpHandshakeRow = (
+    seconds,
+    sourceIp,
+    destinationIp,
+    info,
+    frameBytes,
+    wire,
+  ) => ({
+    time: formatPacketTime(seconds),
+    src: sourceIp,
+    dst: destinationIp,
+    proto: "TCP",
+    info,
+    len: `${frameBytes} B`,
+    wire,
+  });
+  const handshakePayload = (lines) => (quick ? [] : lines);
+  const connection = tcpConnection(
+    sourceIp,
+    sourcePort,
+    destinationIp,
+    destinationPort,
+  );
+  const timestampOptionsBytes = linux ? TCP_TIMESTAMP_OPTIONS_BYTES : 0;
   return [
     packetEvent(
-      e,
-      t,
+      from,
+      to,
       "green",
       "SYN",
-      h(["seq=0"]),
-      c(r[0], s, a, `${n} → ${o} [SYN] Seq=0`, l ? 74 : 66, tcpWire(d, s, "S")),
+      handshakePayload(["seq=0"]),
+      tcpHandshakeRow(
+        times[0],
+        sourceIp,
+        destinationIp,
+        `${sourcePort} → ${destinationPort} [SYN] Seq=0`,
+        linux ? 74 : 66,
+        tcpWire(connection, sourceIp, "S"),
+      ),
       {
-        quick: i,
+        quick,
       },
     ),
     packetEvent(
-      t,
-      e,
+      to,
+      from,
       "green",
       "SYN-ACK",
-      h(["seq=0 ack=1"]),
-      c(
-        r[1],
-        a,
-        s,
-        `${o} → ${n} [SYN, ACK] Seq=0 Ack=1`,
-        l ? 74 : 66,
-        tcpWire(d, a, "SA"),
+      handshakePayload(["seq=0 ack=1"]),
+      tcpHandshakeRow(
+        times[1],
+        destinationIp,
+        sourceIp,
+        `${destinationPort} → ${sourcePort} [SYN, ACK] Seq=0 Ack=1`,
+        linux ? 74 : 66,
+        tcpWire(connection, destinationIp, "SA"),
       ),
       {
-        quick: i,
+        quick,
       },
     ),
     packetEvent(
-      e,
-      t,
+      from,
+      to,
       "green",
       "ACK",
-      h(["seq=1 ack=1"]),
-      c(
-        r[2],
-        s,
-        a,
-        `${n} → ${o} [ACK] Seq=1 Ack=1`,
-        tcpFrameBytes(y),
-        tcpWire(d, s, "A"),
+      handshakePayload(["seq=1 ack=1"]),
+      tcpHandshakeRow(
+        times[2],
+        sourceIp,
+        destinationIp,
+        `${sourcePort} → ${destinationPort} [ACK] Seq=1 Ack=1`,
+        tcpFrameBytes(timestampOptionsBytes),
+        tcpWire(connection, sourceIp, "A"),
       ),
       {
-        quick: i,
+        quick,
       },
     ),
   ];
 }
 const TLS_SERVER_FLIGHT_BYTES = 2862;
-const tlsClientHelloWire = (e) => ({
+const tlsClientHelloWire = (serverName) => ({
   tls: [
     {
       type: "handshake",
-      legacy: !0,
+      legacy: true,
       length: 512,
       hello: {
         type: 1,
         name: "Client Hello",
         note: "What this client supports. Its exact contents vary from client to client; this is an example.",
         fields: [
-          ["Server name (SNI)", e],
+          ["Server name (SNI)", serverName],
           ["Versions offered", "TLS 1.3, TLS 1.2"],
           ["Key share", "X25519"],
           ["Padding", "up to 512 bytes"],
@@ -153,11 +178,11 @@ const tlsClientHelloWire = (e) => ({
     },
   ],
 });
-const tlsServerHelloWire = (e = "X25519", t = 122) => ({
+const tlsServerHelloWire = (keyShare = "X25519", handshakeBytes = 122) => ({
   tls: [
     {
       type: "handshake",
-      length: t,
+      length: handshakeBytes,
       hello: {
         type: 2,
         name: "Server Hello",
@@ -165,7 +190,7 @@ const tlsServerHelloWire = (e = "X25519", t = 122) => ({
         fields: [
           ["Version", "TLS 1.3"],
           ["Cipher suite", "TLS_AES_128_GCM_SHA256"],
-          ["Key share", e],
+          ["Key share", keyShare],
         ],
       },
     },
@@ -197,107 +222,124 @@ const TLS_FINISHED_WIRE = {
     },
   ],
 };
-const tlsTextWire = (e, t) => ({
+const tlsTextWire = (lines, description) => ({
   tls: [
     {
       type: "appdata",
-      length: textLinesBytes(...e) + 17,
+      length: textLinesBytes(...lines) + 17,
       inner: {
-        what: t,
-        text: e,
+        what: description,
+        text: lines,
       },
     },
   ],
 });
-const tlsOpaqueWire = (e, t) => ({
+const tlsOpaqueWire = (payloadBytes, description) => ({
   tls: [
     {
       type: "appdata",
-      length: e + 17,
+      length: payloadBytes + 17,
       inner: {
-        what: t,
+        what: description,
       },
     },
   ],
 });
+/** Build the abbreviated TLS exchange shared by the secure mail lessons. */
 function tlsHandshakeEvents({
-  from: e = "client",
-  to: t = "web",
-  src: s = CLIENT_IP,
-  dst: a,
-  sni: n,
-  sport: o,
-  dport: r,
-  t: i,
-  linux: l = !1,
+  from = "client",
+  to = "web",
+  src: sourceIp = CLIENT_IP,
+  dst: destinationIp,
+  sni: serverName,
+  sport: sourcePort,
+  dport: destinationPort,
+  t: times,
+  linux = false,
 }) {
-  const c = (w, k, g, T, v, I) => ({
-      time: formatPacketTime(w),
-      src: k,
-      dst: g,
-      proto: "TLSv1.3",
-      info: T,
-      len: v,
-      wire: I,
-    }),
-    h = tcpConnection(s, o, a, r),
-    d = l ? TCP_TIMESTAMP_OPTIONS_BYTES : 0,
-    y =
-      TLS_SERVER_FLIGHT_BYTES +
-      2 * (ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + d);
+  const tlsHandshakeRow = (
+    seconds,
+    sourceIp,
+    destinationIp,
+    info,
+    sizeLabel,
+    wire,
+  ) => ({
+    time: formatPacketTime(seconds),
+    src: sourceIp,
+    dst: destinationIp,
+    proto: "TLSv1.3",
+    info,
+    len: sizeLabel,
+    wire,
+  });
+  const connection = tcpConnection(
+    sourceIp,
+    sourcePort,
+    destinationIp,
+    destinationPort,
+  );
+  const timestampOptionsBytes = linux ? TCP_TIMESTAMP_OPTIONS_BYTES : 0;
+  const serverFlightFrameBytes =
+    TLS_SERVER_FLIGHT_BYTES +
+    2 *
+      (ETHERNET_HEADER_BYTES +
+        IPV4_HEADER_BYTES +
+        TCP_HEADER_BYTES +
+        timestampOptionsBytes);
   return [
     packetEvent(
-      e,
-      t,
+      from,
+      to,
       "teal",
       "CLIENT HELLO",
       [],
-      c(
-        i[0],
-        s,
-        a,
-        `Client Hello (SNI=${n})`,
-        `${517 + ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + d} B`,
-        tcpWire(h, s, "PA", tlsClientHelloWire(n)),
+      tlsHandshakeRow(
+        times[0],
+        sourceIp,
+        destinationIp,
+        `Client Hello (SNI=${serverName})`,
+        `${517 + ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + timestampOptionsBytes} B`,
+        tcpWire(connection, sourceIp, "PA", tlsClientHelloWire(serverName)),
       ),
       {
-        quick: !0,
+        quick: true,
       },
     ),
     packetEvent(
-      t,
-      e,
+      to,
+      from,
       "teal",
       "SERVER HELLO",
       [],
-      c(
-        i[1],
-        a,
-        s,
+      tlsHandshakeRow(
+        times[1],
+        destinationIp,
+        sourceIp,
         "Server Hello + encrypted handshake, 2 segments",
-        formatByteSize(y),
-        tcpWire(h, a, "PA", tlsServerHelloWire()),
+        formatByteSize(serverFlightFrameBytes),
+        tcpWire(connection, destinationIp, "PA", tlsServerHelloWire()),
       ),
       {
-        quick: !0,
+        quick: true,
       },
     ),
     packetEvent(
-      e,
-      t,
+      from,
+      to,
       "teal",
       "FINISHED",
       [],
-      c(
-        i[2],
-        s,
-        a,
+      tlsHandshakeRow(
+        times[2],
+        sourceIp,
+        destinationIp,
         "Change Cipher Spec, Finished (encrypted)",
-        `${64 + ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + d} B`,
-        tcpWire(h, s, "PA", TLS_FINISHED_WIRE),
+        `${64 + ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES + timestampOptionsBytes} B`,
+        tcpWire(connection, sourceIp, "PA", TLS_FINISHED_WIRE),
       ),
       {
-        quick: !0,
+        quick: true,
       },
     ),
   ];

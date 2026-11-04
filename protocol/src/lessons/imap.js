@@ -19,18 +19,18 @@ import {
 } from "./helpers.js";
 const IMAP_SERVER_IP = "198.51.100.143";
 const IMAP_CONNECTION = tcpConnection(CLIENT_IP, 53140, IMAP_SERVER_IP, 993);
-const imapLines = (...e) => e;
-const imapPacketRow = (e, t, s, a, n) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const imapLines = (...lines) => lines;
+const imapPacketRow = (seconds, sourceIp, destinationIp, info, lines) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "IMAP (TLS)",
-  info: a,
-  len: `${tlsFrameBytes(textLinesBytes(...n))} B`,
-  wire: tcpWire(IMAP_CONNECTION, t, "PA", tlsTextWire(n, "IMAP")),
+  info,
+  len: `${tlsFrameBytes(textLinesBytes(...lines))} B`,
+  wire: tcpWire(IMAP_CONNECTION, sourceIp, "PA", tlsTextWire(lines, "IMAP")),
 });
 const IMAP_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
 const IMAP_GREETING = imapLines(
   "* OK [CAPABILITY IMAP4rev1 IDLE LITERAL+ AUTH=PLAIN] Service ready",

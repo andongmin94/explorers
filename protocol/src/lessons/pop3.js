@@ -19,18 +19,18 @@ import {
 } from "./helpers.js";
 const POP3_SERVER_IP = "198.51.100.110";
 const POP3_CONNECTION = tcpConnection(CLIENT_IP, 53010, POP3_SERVER_IP, 995);
-const pop3Lines = (...e) => e;
-const pop3PacketRow = (e, t, s, a, n) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const pop3Lines = (...lines) => lines;
+const pop3PacketRow = (seconds, sourceIp, destinationIp, info, lines) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "POP (TLS)",
-  info: a,
-  len: `${tlsFrameBytes(textLinesBytes(...n))} B`,
-  wire: tcpWire(POP3_CONNECTION, t, "PA", tlsTextWire(n, "POP3")),
+  info,
+  len: `${tlsFrameBytes(textLinesBytes(...lines))} B`,
+  wire: tcpWire(POP3_CONNECTION, sourceIp, "PA", tlsTextWire(lines, "POP3")),
 });
 const POP3_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
 const POP3_DOWNLOAD_BYTES =
   textLinesBytes("+OK 1904 octets") +

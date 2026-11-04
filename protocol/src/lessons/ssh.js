@@ -15,19 +15,26 @@ import {
 } from "./helpers.js";
 const SSH_SERVER_IP = "203.0.113.22";
 const SSH_ENCRYPTED_EVENT = {
-  locked: !0,
+  locked: true,
 };
-const sshPaddingBytes = (e) => {
-  let t = 8 - (e % 8);
-  return (t < 4 && (t += 8), t);
+// SSH padding must contain at least four bytes and align the packet to eight bytes.
+const sshPaddingBytes = (packetBytes) => {
+  let paddingBytes = 8 - (packetBytes % 8);
+  if (paddingBytes < 4) {
+    paddingBytes += 8;
+  }
+  return paddingBytes;
 };
-const sshPlainPacketBytes = (e) => 5 + e + sshPaddingBytes(5 + e);
-const sshEncryptedPacketBytes = (e) => 5 + e + sshPaddingBytes(1 + e) + 16;
-const sshStringBytes = (e) => 4 + (typeof e == "number" ? e : e.length);
-const sshNameListBytes = (e) => sshStringBytes(e.join(","));
-const sshFrameBytes = (e) =>
-  e +
-  tcpSegmentCount(e) *
+const sshPlainPacketBytes = (payloadBytes) =>
+  5 + payloadBytes + sshPaddingBytes(5 + payloadBytes);
+const sshEncryptedPacketBytes = (payloadBytes) =>
+  5 + payloadBytes + sshPaddingBytes(1 + payloadBytes) + 16;
+const sshStringBytes = (value) =>
+  4 + (typeof value == "number" ? value : value.length);
+const sshNameListBytes = (names) => sshStringBytes(names.join(","));
+const sshFrameBytes = (packetBytes) =>
+  packetBytes +
+  tcpSegmentCount(packetBytes) *
     (ETHERNET_HEADER_BYTES + IPV4_HEADER_BYTES + TCP_HEADER_BYTES);
 const SSH_KEY_EXCHANGE_ALGORITHMS = [
   "sntrup761x25519-sha512@openssh.com",
@@ -86,11 +93,11 @@ const SSH_MAC_ALGORITHMS = [
   "hmac-sha1",
 ];
 const SSH_COMPRESSION_ALGORITHMS = ["none", "zlib@openssh.com"];
-const sshKexInitBytes = (e, t) =>
+const sshKexInitBytes = (keyExchanges, hostKeyAlgorithms) =>
   sshPlainPacketBytes(
     17 +
-      sshNameListBytes(e) +
-      sshNameListBytes(t) +
+      sshNameListBytes(keyExchanges) +
+      sshNameListBytes(hostKeyAlgorithms) +
       2 * sshNameListBytes(SSH_CIPHERS) +
       2 * sshNameListBytes(SSH_MAC_ALGORITHMS) +
       2 * sshNameListBytes(SSH_COMPRESSION_ALGORITHMS) +
@@ -161,8 +168,8 @@ const SSH_CHANNEL_OPEN_BYTES = sshEncryptedPacketBytes(
   1 + sshStringBytes("session") + 4 + 4 + 4,
 );
 const SSH_CHANNEL_CONFIRMATION_BYTES = sshEncryptedPacketBytes(17);
-const sshChannelDataBytes = (e) =>
-  sshEncryptedPacketBytes(5 + sshStringBytes(e));
+const sshChannelDataBytes = (data) =>
+  sshEncryptedPacketBytes(5 + sshStringBytes(data));
 const SSH_KEYSTROKE_BYTES = sshChannelDataBytes(1);
 const SSH_SHELL_PROMPT =
   "\x1B]0;alice@server: ~\x07\x1B[01;32malice@server\x1B[00m:\x1B[01;34m~\x1B[00m$ ";
@@ -172,57 +179,111 @@ const SSH_COMMAND_OUTPUT =
 \x1B[?2004h` + SSH_SHELL_PROMPT;
 const SSH_COMMAND_OUTPUT_BYTES = sshChannelDataBytes(SSH_COMMAND_OUTPUT.length);
 const SSH_CONNECTION = tcpConnection(CLIENT_IP, 53210, SSH_SERVER_IP, 22);
-const sshPacketRow = (e, t, s, a, n, o) => ({
-  time: formatPacketTime(e),
-  src: t,
-  dst: s,
+const sshPacketRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  packetBytes,
+  wire,
+) => ({
+  time: formatPacketTime(seconds),
+  src: sourceIp,
+  dst: destinationIp,
   proto: "SSH",
-  info: a,
-  len: formatFrameSize(sshFrameBytes(n), tcpSegmentCount(n)),
-  wire: tcpWire(SSH_CONNECTION, t, "PA", o),
+  info,
+  len: formatFrameSize(
+    sshFrameBytes(packetBytes),
+    tcpSegmentCount(packetBytes),
+  ),
+  wire: tcpWire(SSH_CONNECTION, sourceIp, "PA", wire),
 });
-const sshEncryptedRow = (e, t, s, a, n, o) =>
-  sshPacketRow(e, t, s, `Encrypted (len=${n}): ${a}`, n, {
-    ssh: {
-      sealed: n,
-      inside: o,
+const sshEncryptedRow = (
+  seconds,
+  sourceIp,
+  destinationIp,
+  info,
+  packetBytes,
+  description,
+) =>
+  sshPacketRow(
+    seconds,
+    sourceIp,
+    destinationIp,
+    `Encrypted (len=${packetBytes}): ${info}`,
+    packetBytes,
+    {
+      ssh: {
+        sealed: packetBytes,
+        inside: description,
+      },
     },
-  });
-const sshClientEvent = (e, t, s, a, n, o, r) =>
+  );
+const sshClientEvent = (
+  seconds,
+  label,
+  payload,
+  info,
+  packetBytes,
+  options,
+  description,
+) =>
   packetEvent(
     "client",
     "web",
     "amber",
-    t,
-    s,
-    sshEncryptedRow(e, CLIENT_IP, SSH_SERVER_IP, a, n, r),
+    label,
+    payload,
+    sshEncryptedRow(
+      seconds,
+      CLIENT_IP,
+      SSH_SERVER_IP,
+      info,
+      packetBytes,
+      description,
+    ),
     {
       ...SSH_ENCRYPTED_EVENT,
-      ...o,
+      ...options,
     },
   );
-const sshServerEvent = (e, t, s, a, n, o, r) =>
+const sshServerEvent = (
+  seconds,
+  label,
+  payload,
+  info,
+  packetBytes,
+  options,
+  description,
+) =>
   packetEvent(
     "web",
     "client",
     "violet",
-    t,
-    s,
-    sshEncryptedRow(e, SSH_SERVER_IP, CLIENT_IP, a, n, r),
+    label,
+    payload,
+    sshEncryptedRow(
+      seconds,
+      SSH_SERVER_IP,
+      CLIENT_IP,
+      info,
+      packetBytes,
+      description,
+    ),
     {
       ...SSH_ENCRYPTED_EVENT,
-      ...o,
+      ...options,
     },
   );
-const sshVersionWire = (e) => ({
-  text: [e],
+const sshVersionWire = (version) => ({
+  text: [version],
   name: "SSH",
 });
-const sshKexInitWire = (e, t) => ({
+const sshKexInitWire = (keyExchanges, hostKeyAlgorithms) => ({
   ssh: {
     msg: "kexinit",
-    kex: e,
-    hostkeys: t,
+    kex: keyExchanges,
+    hostkeys: hostKeyAlgorithms,
     ciphers: SSH_CIPHERS,
     macs: SSH_MAC_ALGORITHMS,
     compression: SSH_COMPRESSION_ALGORITHMS,
@@ -230,7 +291,7 @@ const sshKexInitWire = (e, t) => ({
 });
 const SSH_CHANNEL_DATA_DESCRIPTION = "SSH_MSG_CHANNEL_DATA (94), channel 0:";
 const SSH_QUICK_EVENT = {
-  quick: !0,
+  quick: true,
 };
 const sshLesson = {
   id: "ssh",

@@ -4,14 +4,14 @@ const DNS_RESOLVER_IP = "8.8.8.8";
 const DNS_ROOT_IP = "198.41.0.4";
 const DNS_TLD_IP = "192.5.6.30";
 const DNS_AUTHORITATIVE_IP = "198.51.100.53";
-const dnsPacketEvent = (e, t, s, a, n, o) => ({
+const dnsPacketEvent = (from, to, color, label, payload, row) => ({
   type: "packet",
-  from: e,
-  to: t,
-  color: s,
-  label: a,
-  payload: n,
-  row: o,
+  from,
+  to,
+  color,
+  label,
+  payload,
+  row,
 });
 const DNS_QUESTION = ["www.example.com", "A"];
 const DNS_EDNS_OPTIONS = {
@@ -31,7 +31,7 @@ const DNS_TLD_HOSTNAMES = [
   "k",
   "l",
   "m",
-].map((e) => `${e}.gtld-servers.net`);
+].map((serverLetter) => `${serverLetter}.gtld-servers.net`);
 const DNS_TLD_IPV4_ADDRESSES = [
   "192.5.6.30",
   "192.33.14.30",
@@ -62,21 +62,21 @@ const DNS_TLD_IPV6_ADDRESSES = [
   "2001:500:d937::30",
   "2001:501:b1f9::30",
 ];
-const dnsQueryWire = (e, t) => ({
+const dnsQueryWire = (sourcePort, dnsMessage) => ({
   udp: {
-    sport: e,
+    sport: sourcePort,
     dport: 53,
     data: {
-      dns: t,
+      dns: dnsMessage,
     },
   },
 });
-const dnsResponseWire = (e, t) => ({
+const dnsResponseWire = (destinationPort, dnsMessage) => ({
   udp: {
     sport: 53,
-    dport: e,
+    dport: destinationPort,
     data: {
-      dns: t,
+      dns: dnsMessage,
     },
   },
 });
@@ -162,7 +162,7 @@ const dnsLesson = {
             len: "75 B",
             wire: dnsQueryWire(54871, {
               id: 39486,
-              rd: !0,
+              rd: true,
               q: DNS_QUESTION,
             }),
           },
@@ -226,22 +226,27 @@ const dnsLesson = {
             len: "882 B",
             wire: dnsResponseWire(38143, {
               id: 20935,
-              response: !0,
+              response: true,
               q: DNS_QUESTION,
               edns: DNS_EDNS_OPTIONS,
-              ns: DNS_TLD_HOSTNAMES.map((e) => ["com", "NS", 172800, e]),
+              ns: DNS_TLD_HOSTNAMES.map((hostname) => [
+                "com",
+                "NS",
+                172800,
+                hostname,
+              ]),
               ar: [
-                ...DNS_TLD_HOSTNAMES.map((e, t) => [
-                  e,
+                ...DNS_TLD_HOSTNAMES.map((hostname, serverIndex) => [
+                  hostname,
                   "A",
                   172800,
-                  DNS_TLD_IPV4_ADDRESSES[t],
+                  DNS_TLD_IPV4_ADDRESSES[serverIndex],
                 ]),
-                ...DNS_TLD_HOSTNAMES.map((e, t) => [
-                  e,
+                ...DNS_TLD_HOSTNAMES.map((hostname, serverIndex) => [
+                  hostname,
                   "AAAA",
                   172800,
-                  DNS_TLD_IPV6_ADDRESSES[t],
+                  DNS_TLD_IPV6_ADDRESSES[serverIndex],
                 ]),
               ],
             }),
@@ -300,7 +305,7 @@ const dnsLesson = {
             len: "154 B",
             wire: dnsResponseWire(41766, {
               id: 11152,
-              response: !0,
+              response: true,
               q: DNS_QUESTION,
               edns: DNS_EDNS_OPTIONS,
               ns: [
@@ -367,8 +372,8 @@ const dnsLesson = {
             len: "102 B",
             wire: dnsResponseWire(50911, {
               id: 58884,
-              response: !0,
-              aa: !0,
+              response: true,
+              aa: true,
               q: DNS_QUESTION,
               edns: DNS_EDNS_OPTIONS,
               an: [["www.example.com", "A", 3600, "203.0.113.10"]],
@@ -403,9 +408,9 @@ const dnsLesson = {
             len: "91 B",
             wire: dnsResponseWire(54871, {
               id: 39486,
-              response: !0,
-              rd: !0,
-              ra: !0,
+              response: true,
+              rd: true,
+              ra: true,
               q: DNS_QUESTION,
               an: [["www.example.com", "A", 3600, "203.0.113.10"]],
             }),
