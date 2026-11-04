@@ -226,7 +226,7 @@ body {
 }
 
 .packet-table tr.is-current td:first-child {
-  box-shadow: inset 3px 0 0 var(--neo-text);
+  box-shadow: none;
 }
 
 .packet-table tr[data-packet]:focus-visible {
@@ -241,7 +241,7 @@ body {
 
 .packet-table tr.is-inspected td:first-child,
 .packet-table tr.is-inspected:hover td:first-child {
-  box-shadow: inset 3px 0 0 var(--k-line-0e95a3);
+  box-shadow: inset 0 -1px 0 var(--neo-rule);
 }
 
 .brand-text h1 {
