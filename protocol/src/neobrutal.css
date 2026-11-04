@@ -491,31 +491,27 @@ body {
 /* Device-only palette: never let these aliases reach packets or arrow markers.
    The existing polygons, cloud clipping, and screen animation stay intact. */
 .network {
-  --scene-top: #fffff5;
-  --scene-front: #e8ecdb;
-  --scene-side: #c5ccb8;
-  --scene-well: #d9dfcc;
-  --scene-screen: #eef3df;
   --scene-outline: #20251b;
-  --scene-detail: #67705c;
   --scene-grid: #e1e5d8;
   --scene-idle: #abb69d;
   background: var(--neo-surface);
 }
 
 :root[data-theme="dark"] .network {
-  --scene-top: #59644d;
-  --scene-front: #424c38;
-  --scene-side: #2f3829;
-  --scene-well: #333e2c;
-  --scene-screen: #253020;
   --scene-outline: #d2dac6;
-  --scene-detail: #a3af96;
   --scene-grid: #3e4737;
   --scene-idle: #69795b;
 }
 
 .network .device {
+  /* Printed cream/lime objects with dark ink in either page theme. */
+  --scene-top: #fffdf0;
+  --scene-front: #d4e990;
+  --scene-side: #a2b566;
+  --scene-well: #20251b;
+  --scene-screen: #fffdf0;
+  --scene-outline: #20251b;
+  --scene-detail: #20251b;
   --k-line-1b3fae: var(--scene-outline);
   --k-line-8ea9e2: var(--scene-detail);
   --k-line-7d9be0: var(--scene-detail);
@@ -567,7 +563,7 @@ body {
   fill: var(--scene-side);
 }
 
-/* Strengthen the large body panels, leaving keyboard keys and vents thin. */
+/* Bold silhouettes and flat faces retain the original isometric projection. */
 .network .device > polygon:is(
   [stroke-width="1.9"],
   [stroke-width="2"],
@@ -575,12 +571,70 @@ body {
   [stroke-width="2.2"],
   [stroke-width="2.3"]
 ) {
-  stroke-width: 3;
+  stroke-width: 4;
+  stroke-linejoin: miter;
 }
 
 .network .device .iso-shadow {
-  fill: var(--neo-shadow);
-  opacity: 0.3;
+  fill: var(--scene-outline);
+  opacity: 1;
+}
+
+.network .device.laptop {
+  --k-fill-f4f7fe: var(--scene-outline);
+  --k-fill-cddcf8: var(--scene-outline);
+  --k-fill-f5f8ff: var(--neo-accent);
+  --k-fill-f2f6fe: var(--neo-accent);
+  --k-fill-c3d4f5: var(--scene-top);
+}
+
+.network .device.laptop > polygon[fill="var(--k-fill-dce6fb)"],
+.network .device.laptop > polygon[fill="var(--k-fill-c3d4f5)"] {
+  stroke-width: 2.5;
+}
+
+.network .device.laptop > polyline[stroke-width="0.9"] {
+  stroke: var(--scene-top);
+  stroke-width: 1.1;
+}
+
+.network .device.laptop .screen-content > polyline {
+  stroke-linecap: square;
+}
+
+.network .device.dns {
+  --scene-top: #d4e990;
+  --scene-front: #fffdf0;
+  --k-fill-5ed6ea: var(--scene-outline);
+  --k-fill-a6eef6: var(--neo-accent);
+}
+
+/* Keep the vent wells, replacing dense decorative hatching with solid insets. */
+.network .device.dns > polyline[stroke-width="0.6"],
+.network .device.web > polyline[stroke-width="0.7"] {
+  opacity: 0;
+}
+
+.network .device.router > polyline[stroke-width="0.9"] {
+  stroke: var(--scene-top);
+  stroke-width: 1.4;
+}
+
+.network .device.cloud {
+  --k-fill-e3eaf8: var(--scene-outline);
+}
+
+/* The clipped circles still merge into one cloud; outline only its outer set. */
+.network .device.cloud > circle {
+  stroke-width: 8;
+}
+
+.network .device.cloud > g[fill="none"] {
+  stroke-width: 3;
+}
+
+.network .device.cloud > g[fill="none"] > circle {
+  fill: var(--neo-accent);
 }
 
 .network #iso-grid path {
