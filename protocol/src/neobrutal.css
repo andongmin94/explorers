@@ -6,8 +6,8 @@
   src: url(/fonts/PretendardVariable.woff2) format("woff2");
 }
 
-/* UI chrome only. The original diagram, sequence, packet colors and layout
-   continue to use styles.css and its --k-* tokens without any overrides. */
+/* Neobrutal presentation. Scene geometry, typography, animation and semantic
+   packet colors remain owned by the original drawing and playback modules. */
 :root {
   --neo-bg: #eeeee9;
   --neo-surface: #fffffc;
@@ -294,6 +294,157 @@ body {
 :root[data-layout="phone"] .brand-text h1 {
   font-size: 14px;
   letter-spacing: -0.035em;
+}
+
+/* Device-only palette: never let these aliases reach packets or arrow markers.
+   The existing polygons, cloud clipping, and screen animation stay intact. */
+.network {
+  --scene-top: #fffff5;
+  --scene-front: #e8ecdb;
+  --scene-side: #c5ccb8;
+  --scene-well: #d9dfcc;
+  --scene-screen: #eef3df;
+  --scene-outline: #20251b;
+  --scene-detail: #67705c;
+  --scene-grid: #d6dbce;
+  --scene-idle: #abb69d;
+  background: var(--neo-surface);
+}
+
+:root[data-theme="dark"] .network {
+  --scene-top: #59644d;
+  --scene-front: #424c38;
+  --scene-side: #2f3829;
+  --scene-well: #333e2c;
+  --scene-screen: #253020;
+  --scene-outline: #d2dac6;
+  --scene-detail: #a3af96;
+  --scene-grid: #3e4737;
+  --scene-idle: #69795b;
+}
+
+.network .device {
+  --k-line-1b3fae: var(--scene-outline);
+  --k-line-8ea9e2: var(--scene-detail);
+  --k-line-7d9be0: var(--scene-detail);
+  --k-line-9db5e6: var(--scene-detail);
+  --k-line-9db5e8: var(--scene-outline);
+  --k-line-a9c0ec: var(--scene-outline);
+  --k-fill-f4f7fe: var(--scene-top);
+  --k-fill-e5edfc: var(--scene-front);
+  --k-fill-d0def8: var(--scene-side);
+  --k-fill-a9c0ee: var(--scene-detail);
+  --k-fill-e8effd: var(--scene-front);
+  --k-fill-c4d5f6: var(--scene-well);
+  --k-fill-c9d8f6: var(--scene-side);
+  --k-fill-2f55c2: var(--scene-detail);
+  --k-fill-24479f: var(--scene-outline);
+  --k-fill-5ed6ea: var(--neo-accent);
+  --k-fill-d7e3fa: var(--scene-top);
+  --k-fill-a6eef6: var(--scene-top);
+  --k-fill-9fbcf0: var(--scene-side);
+  --k-fill-dfe8fb: var(--scene-well);
+  --k-fill-f4f8ff: var(--scene-front);
+  --k-fill-c9d8f4: var(--scene-well);
+  --k-fill-f5f8ff: var(--scene-top);
+  --k-fill-e3ebfc: var(--scene-front);
+  --k-fill-3d63c9: var(--scene-outline);
+  --k-fill-a7bff0: var(--neo-accent);
+  --k-fill-c7d8f7: var(--scene-side);
+  --k-fill-e2ebfc: var(--scene-front);
+  --k-fill-cddcf8: var(--scene-side);
+  --k-fill-dce6fb: var(--scene-screen);
+  --k-fill-f2f6fe: var(--scene-top);
+  --k-fill-a9c0ec: var(--scene-outline);
+  --k-fill-dfe8fc: var(--scene-front);
+  --k-fill-dce7fb: var(--scene-well);
+  --k-fill-c3d4f5: var(--neo-accent);
+  --k-fill-fdfdff: var(--scene-top);
+  --k-fill-e3eaf8: var(--scene-side);
+}
+
+.network .device [fill="url(#face-top)"] {
+  fill: var(--scene-top);
+}
+
+.network .device [fill="url(#face-left)"] {
+  fill: var(--scene-front);
+}
+
+.network .device [fill="url(#face-right)"] {
+  fill: var(--scene-side);
+}
+
+/* Strengthen the large body panels, leaving keyboard keys and vents thin. */
+.network .device > polygon:is(
+  [stroke-width="1.9"],
+  [stroke-width="2"],
+  [stroke-width="2.1"],
+  [stroke-width="2.2"],
+  [stroke-width="2.3"]
+) {
+  stroke-width: 2.6;
+}
+
+.network .device .iso-shadow {
+  fill: var(--neo-shadow);
+  opacity: 0.2;
+}
+
+.network #iso-grid path {
+  stroke: var(--scene-grid);
+}
+
+.network #grid-vignette stop {
+  stop-color: var(--neo-surface);
+}
+
+.network .lane:not(.is-active) {
+  stroke: var(--scene-idle);
+}
+
+.network #head-idle path {
+  fill: var(--scene-idle);
+}
+
+.network .node-name,
+.network .url-text,
+.network .note-text,
+.network .packet-field {
+  fill: var(--neo-text);
+}
+
+.network .node-ip {
+  fill: var(--neo-muted);
+}
+
+.network.is-scaled .node-label text {
+  stroke: var(--neo-surface);
+}
+
+.network .url-bar .url-box {
+  fill: var(--neo-surface);
+  stroke: var(--scene-outline);
+  stroke-width: 2;
+  filter: drop-shadow(2px 2px 0 var(--neo-shadow));
+}
+
+.network .url-globe {
+  stroke: var(--scene-outline);
+}
+
+.network .url-leader {
+  stroke: var(--scene-idle);
+}
+
+.network .url-bar .url-caret {
+  fill: var(--neo-text);
+  stroke: none;
+}
+
+.network .note-box,
+.network .packet-body {
+  fill: var(--neo-surface);
 }
 
 @media (prefers-reduced-motion: reduce) {
