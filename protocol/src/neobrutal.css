@@ -6,8 +6,8 @@
   src: url(/fonts/PretendardVariable.woff2) format("woff2");
 }
 
-/* Neobrutal presentation. Scene geometry, typography, animation and semantic
-   packet colors remain owned by the original drawing and playback modules. */
+/* Neobrutal presentation. Scene geometry, animation and semantic packet colors
+   remain owned by the original drawing and playback modules. */
 :root {
   /* Base colors from andongmin94/neobrutal-ui's default Mono theme. */
   --neo-bg: #f4f5f7;
@@ -21,6 +21,7 @@
   --neo-accent: #27282b;
   --neo-on-accent: #f4f5f7;
   --neo-sans: Pretendard, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --neo-mono: Iosevka, Pretendard, ui-monospace, monospace;
 }
 
 :root[data-theme="dark"] {
@@ -51,6 +52,7 @@
 
 body {
   background: var(--neo-bg);
+  font-family: var(--neo-sans);
 }
 
 .topbar,
@@ -292,9 +294,40 @@ body {
   color: var(--neo-text);
 }
 
-.explain-packet,
+/* Use fixed-width type for raw data only; descriptions inherit Pretendard. */
+.packet-table bdi,
+.explain-payload,
+.seq-who i,
+.seq-time,
+.ins-field.is-mono .ins-value,
+.hx-row {
+  font-family: var(--neo-mono);
+}
+
+.facts dt,
 .facts dd {
-  font-family: Iosevka, Pretendard, ui-monospace, monospace;
+  line-height: 1.45;
+}
+
+.packet-table th,
+.packet-empty td,
+.explain-meta,
+.ins-title b,
+.ins-where,
+.ins-seg b,
+.ins-layer h4 span,
+.hx-head,
+.hx-head span,
+.seq-who b,
+.seq-step-text,
+.seq-label-text,
+.seq-note-text,
+.seq-break-text {
+  letter-spacing: 0;
+}
+
+.explain-meta {
+  line-height: 1.5;
 }
 
 .facts > div,
@@ -483,7 +516,7 @@ body {
   --scene-outline: #3b3c40;
   --scene-grid: #eceef1;
   --scene-idle: #a3a5ad;
-  font-family: Iosevka, Pretendard, ui-monospace, monospace;
+  font-family: var(--neo-mono);
   background: var(--neo-surface);
 }
 
@@ -661,7 +694,8 @@ body {
 }
 
 .network .node-name,
-.network .note-text {
+.network .note-text,
+.network .packet-label {
   font-family: var(--neo-sans);
   letter-spacing: 0;
 }

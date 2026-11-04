@@ -3155,17 +3155,21 @@ html.is-stacked.is-inspecting {
 .is-single .packet-actions .btn[data-action] {
   width: auto;
 }
+:root[data-layout="medium"] .ins-body,
 .is-single .ins-body {
   grid-template-columns: minmax(0, 1fr);
   grid-auto-rows: max-content;
   align-content: start;
   overflow-y: auto;
 }
+:root[data-layout="medium"] .ins-tree,
+:root[data-layout="medium"] .ins-hex,
 .is-single .ins-tree,
 .is-single .ins-hex {
   min-height: auto;
   overflow: visible;
 }
+:root[data-layout="medium"] .ins-hex,
 .is-single .ins-hex {
   border-inline-start: 0;
   border-top: 1px solid var(--k-line-dfe7f4);
