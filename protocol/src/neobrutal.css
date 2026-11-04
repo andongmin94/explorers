@@ -490,6 +490,7 @@ body {
   --scene-outline: #3b3c40;
   --scene-grid: #eceef1;
   --scene-idle: #a3a5ad;
+  font-family: Iosevka, Pretendard, ui-monospace, monospace;
   background: var(--neo-surface);
 }
 
@@ -664,6 +665,12 @@ body {
 
 .network .node-ip {
   fill: var(--neo-muted);
+}
+
+.network .node-name,
+.network .note-text {
+  font-family: var(--neo-sans);
+  letter-spacing: 0;
 }
 
 .network .node-label text,
