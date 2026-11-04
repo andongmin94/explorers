@@ -144,8 +144,47 @@ body {
   background: var(--neo-accent);
 }
 
-/* Only table text and row surfaces change. Badges, legend dots and their
-   protocol colors keep their original independent styles. */
+/* Flat, outlined badges retain the original six protocol color families. */
+.step-badge {
+  border: 2px solid var(--neo-border);
+  border-radius: 3px;
+  box-shadow: 1px 1px 0 var(--neo-shadow);
+  font-family: var(--neo-sans);
+  font-weight: 850;
+  line-height: 1;
+}
+
+.step-badge.blue {
+  background: var(--k-fill-1166e3);
+}
+
+.step-badge.green {
+  background: var(--k-fill-0d9b59);
+}
+
+.step-badge.amber {
+  background: var(--k-fill-f4b305);
+  color: var(--neo-on-accent);
+}
+
+.step-badge.violet {
+  background: var(--k-fill-6d4bdc);
+}
+
+.step-badge.teal {
+  background: var(--k-fill-0b8b98);
+}
+
+.step-badge.slate {
+  background: var(--k-fill-546588);
+}
+
+.legend-dot.step-badge {
+  border-width: 1px;
+  border-radius: 2px;
+  box-shadow: none;
+}
+
 .packet-table th {
   color: var(--neo-text);
   background: var(--neo-soft);
@@ -320,6 +359,54 @@ body {
   box-shadow: 2px 2px 0 var(--neo-shadow);
 }
 
+/* Keep the completion check and number transitions; use a fixed square frame
+   for the current step instead of the original circular blue spinner. */
+.step-num {
+  border: 2px solid var(--neo-border);
+  border-radius: 3px;
+  background: var(--neo-soft);
+  color: var(--neo-muted);
+  box-shadow: 1px 1px 0 var(--neo-shadow);
+  font-weight: 850;
+}
+
+.step.is-active .step-num {
+  background: var(--neo-accent);
+  color: var(--neo-on-accent);
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+}
+
+.step-num:after {
+  inset: -5px;
+  border: 1px solid var(--neo-border);
+  border-radius: 5px;
+}
+
+.step.is-active .step-num:after {
+  animation: none;
+}
+
+.step.is-done .step-num {
+  background: var(--k-fill-0aa86b);
+  color: var(--k-text-ffffff);
+}
+
+.step:not(:last-child):before {
+  border-inline-start: 2px dashed var(--neo-rule);
+}
+
+.step:not(:last-child):after {
+  border-inline-start-width: 2px;
+}
+
+.step-btn:hover .step-num {
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+}
+
+.step-btn:focus-visible {
+  outline-color: var(--neo-text);
+}
+
 .tab:not(.is-active):hover,
 .lang-menu button:not([aria-checked="true"]):hover,
 .lang-menu button:not([aria-checked="true"]):focus-visible,
@@ -411,7 +498,7 @@ body {
   --scene-screen: #eef3df;
   --scene-outline: #20251b;
   --scene-detail: #67705c;
-  --scene-grid: #d6dbce;
+  --scene-grid: #e1e5d8;
   --scene-idle: #abb69d;
   background: var(--neo-surface);
 }
@@ -488,20 +575,20 @@ body {
   [stroke-width="2.2"],
   [stroke-width="2.3"]
 ) {
-  stroke-width: 2.6;
+  stroke-width: 3;
 }
 
 .network .device .iso-shadow {
   fill: var(--neo-shadow);
-  opacity: 0.2;
+  opacity: 0.3;
 }
 
 .network #iso-grid path {
   stroke: var(--scene-grid);
 }
 
-.network #grid-vignette stop {
-  stop-color: var(--neo-surface);
+.network > rect[fill="url(#grid-vignette)"] {
+  opacity: 0;
 }
 
 .network .lane:not(.is-active) {
@@ -523,15 +610,20 @@ body {
   fill: var(--neo-muted);
 }
 
+.network .node-label text,
 .network.is-scaled .node-label text {
+  paint-order: stroke;
   stroke: var(--neo-surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .network .url-bar .url-box {
   fill: var(--neo-surface);
   stroke: var(--scene-outline);
-  stroke-width: 2;
-  filter: drop-shadow(2px 2px 0 var(--neo-shadow));
+  stroke-width: 2.5;
+  rx: 1px;
+  filter: drop-shadow(3px 3px 0 var(--neo-shadow));
 }
 
 .network .url-globe {
