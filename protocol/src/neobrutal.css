@@ -294,7 +294,7 @@ body {
 
 .explain-packet,
 .facts dd {
-  font-family: Iosevka, ui-monospace, monospace;
+  font-family: Iosevka, Pretendard, ui-monospace, monospace;
 }
 
 .facts > div,
@@ -366,8 +366,7 @@ body {
   box-shadow: 2px 2px 0 var(--neo-shadow);
 }
 
-/* Keep the completion check and number transitions; use a fixed square frame
-   for the current step instead of the original circular blue spinner. */
+/* The filled square marks the current step; keep the number/check transitions. */
 .step-num {
   border: 2px solid var(--neo-border);
   border-radius: 3px;
@@ -384,13 +383,7 @@ body {
 }
 
 .step-num:after {
-  inset: -5px;
-  border: 1px solid var(--neo-border);
-  border-radius: 5px;
-}
-
-.step.is-active .step-num:after {
-  animation: none;
+  content: none;
 }
 
 .step.is-done .step-num {
@@ -768,6 +761,29 @@ body {
   background: var(--neo-soft);
   border-color: var(--neo-rule);
   border-inline-start-color: var(--packet);
+}
+
+.explain-packet-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  font-family: var(--neo-sans);
+}
+
+.explain-packet-head b {
+  max-width: 100%;
+  border: 1px solid var(--neo-border);
+  border-radius: 3px;
+  box-shadow: 1px 1px 0 var(--neo-shadow);
+  white-space: normal;
+  letter-spacing: 0;
+}
+
+.explain-packet-head span {
+  font-size: 12.5px;
+  line-height: 18px;
+  letter-spacing: 0;
+  word-break: keep-all;
 }
 
 .ins-head,
