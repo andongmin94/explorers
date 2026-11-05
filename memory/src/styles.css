@@ -514,6 +514,65 @@ kbd {
   flex: none;
   min-width: 0;
 }
+.process-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  list-style: none;
+  padding: 9px 12px;
+  margin: 0;
+  gap: 6px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+}
+.process-strip li {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+.process-strip li > b {
+  font-size: 11px;
+}
+.process-strip li > span {
+  white-space: nowrap;
+}
+.process-strip .active {
+  border: 2px solid var(--border);
+  color: var(--inverse);
+  background: var(--ink);
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.process-strip .done {
+  color: var(--ink);
+  background: var(--soft);
+}
+.process-strip .skipped {
+  border-style: dashed;
+}
+.process-strip small {
+  font-size: 10px;
+  display: block;
+  text-align: center;
+}
+.replay-access {
+  padding: 3px 6px;
+  border: 2px solid var(--border);
+  border-radius: 2px;
+  box-shadow: 1px 1px 0 var(--shadow);
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.replay-access:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
 .scene-summary {
   display: flex;
   align-items: center;
@@ -701,46 +760,45 @@ kbd {
   text-align: left;
   font-size: 12px;
 }
+#milestones {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  padding: 12px;
+  border-bottom: 1px solid var(--rule);
+  flex: none;
+  background: var(--soft);
+}
 .milestone {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 8px 6px;
+  justify-content: center;
+  gap: 4px;
+  min-height: 47px;
+  padding: 4px 0;
   font-size: 11px;
-  text-align: left;
-  border: 1px solid transparent;
+  font-weight: 700;
+  border: 1.5px solid var(--border);
   border-radius: 2px;
+  background: var(--surface);
+  box-shadow: 1px 1px 0 var(--shadow);
 }
 .milestone > b {
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 19px;
-  font-size: 10px;
-  border: 1px solid var(--rule);
-  flex: none;
+  font-size: 12px;
 }
 .milestone > span {
-  line-height: 1.5;
-}
-.milestone > small {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: 10px;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 .milestone.active {
-  background: var(--soft);
-  font-weight: 800;
-}
-.milestone.active > b {
   background: var(--ink);
   color: var(--inverse);
-  border-color: var(--border);
+  font-weight: 800;
+  box-shadow: none;
+  transform: translate(1px, 1px);
 }
 .milestone:hover {
-  border-color: var(--rule);
+  outline: 1px solid var(--border);
 }
 .records-panel {
   grid-column: 1/-1;
@@ -1202,6 +1260,18 @@ dialog {
   }
 }
 @media (max-width: 759px) {
+  .process-strip {
+    padding: 8px;
+    gap: 4px;
+  }
+  .process-strip li {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 47px;
+  }
+  .process-strip .skipped > b {
+    display: none;
+  }
   .app-header {
     padding: 17px 14px;
     gap: 10px;

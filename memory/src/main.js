@@ -47,20 +47,50 @@ $("#app").innerHTML = `
 <div class="concept-pair"><div><b>페이지</b><span>프로그램이 사용하는 메모리 단위</span></div><div><b>프레임</b><span>페이지 한 개가 들어가는 RAM 자리</span></div></div>
 <details class="model-notes"><summary>이 실험의 규칙</summary><ul><li>RAM 프레임은 3개이며 처음에는 모두 비어 있습니다.</li><li>A~E는 디스크에 원본이 있는 읽기 전용 페이지입니다.</li><li>빈 프레임이 있으면 교체 없이 적재합니다.</li><li>내보내는 RAM 사본은 수정되지 않았으므로 디스크에 다시 쓰지 않습니다.</li><li>TLB·수정 페이지·실제 지연 시간은 다루지 않습니다. 1단계는 1번의 페이지 접근입니다.</li></ul></details>
 </div></aside>
-<section class="panel scene-panel"><div class="panel-head"><h2>페이지가 RAM에 들어오는 과정</h2><b class="step-clock"><span id="step-count">0</span><small>/ 10 접근</small></b></div><div id="memory-scene"></div><div class="scene-summary"><strong id="access-summary"></strong><span id="counts-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 접근">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 접근 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="10" step="1" value="0" aria-label="처리한 페이지 접근 수"/><span>10</span></div></div></section>
-<aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span id="lesson-progress"></span></div><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-index"></span></div><p id="event-body" aria-live="polite"></p></div><div class="insight"><b>!</b><p id="insight"></p></div><button class="button prediction-button" data-action="predict" hidden>다음 교체, 먼저 맞혀보기 →</button><button class="button primary conclusion-button" data-action="compare" hidden>두 방식의 전체 결과 비교 →</button><div class="section-label">핵심 장면으로 이동</div><nav id="milestones" aria-label="핵심 학습 장면"></nav></div></aside>
+<section class="panel scene-panel"><div class="panel-head"><h2>페이지가 RAM에 들어오는 과정</h2><b class="step-clock"><span id="step-count">0</span><small>/ 10 접근</small></b></div><ol class="process-strip" id="process-strip" aria-label="한 번의 페이지 접근 과정"></ol><div id="memory-scene"></div><div class="scene-summary"><strong id="access-summary"></strong><button class="replay-access" data-action="replay" title="이번 접근을 처음부터 다시 재생">↻ 다시 보기</button><span id="counts-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 접근">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 접근 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="10" step="1" value="0" aria-label="처리한 페이지 접근 수"/><span>10</span></div></div></section>
+<aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span id="lesson-progress"></span></div><nav id="milestones" aria-label="핵심 학습 장면"></nav><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-index"></span></div><p id="event-body" aria-live="polite"></p></div><div class="insight"><b>!</b><p id="insight"></p></div><button class="button prediction-button" data-action="predict" hidden>다음 교체, 먼저 맞혀보기 →</button><button class="button primary conclusion-button" data-action="compare" hidden>두 방식의 전체 결과 비교 →</button></div></aside>
 <section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button role="tab" id="tab-history" aria-controls="record-history" aria-selected="true" data-record="history">프레임 기록</button><button role="tab" id="tab-events" aria-controls="record-events" aria-selected="false" data-record="events" tabindex="-1">접근 기록 <span id="event-count"></span></button><button role="tab" id="tab-results" aria-controls="record-results" aria-selected="false" data-record="results" tabindex="-1">누적 결과</button><span class="record-hint">기록을 눌러 그 접근으로 이동</span></div><section id="record-history" role="tabpanel" aria-labelledby="tab-history"><div class="history-legend"><span>각 접근을 처리한 뒤의 RAM</span><span><i class="hit-mark"></i>적중 <i class="fault-mark"></i>부재</span></div><div class="history-wrap" id="frame-history"></div></section><section id="record-events" role="tabpanel" aria-labelledby="tab-events" hidden><div id="access-log" class="access-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section>
 </main><footer><span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 접근 이동 <kbd>R</kbd> 처음으로</span><span>학습 근거 <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-beyondphys.pdf" target="_blank" rel="noreferrer">OSTEP 21장 ↗</a> · <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/vm-beyondphys-policy.pdf" target="_blank" rel="noreferrer">22장 ↗</a></span></footer>
 <dialog id="prediction-dialog" aria-labelledby="prediction-title"></dialog><dialog id="comparison-dialog" aria-labelledby="comparison-title"></dialog>`;
 
 const scene = createMemoryScene($("#memory-scene"), {
   onPhase(phase) {
+    renderProcess(phase.kind);
     $("#event-title").textContent = phase.title;
     $("#event-body").textContent = phase.body;
     $("#event-index").textContent = index ? `${index}번째 접근` : "시작 전";
   },
 });
 
+function renderProcess(kind = "ready") {
+  const step = run().steps[index];
+  const position = {
+    ready: -1,
+    lookup: 0,
+    hit: 1,
+    miss: 1,
+    select: 2,
+    evict: 2,
+    load: 3,
+    retry: 4,
+    access: 4,
+  }[kind];
+  const decided = position >= 1;
+  const labels = [
+    "조회",
+    decided && step.index ? (step.hit ? "적중" : "부재") : "판정",
+    "프레임 선택",
+    "SSD 적재",
+    "접근 완료",
+  ];
+  $("#process-strip").innerHTML = labels
+    .map((label, i) => {
+      const skipped = decided && step.hit && (i === 2 || i === 3);
+      const active = i === position;
+      return `<li class="${skipped ? "skipped" : active ? "active" : i < position ? "done" : ""}" ${active ? 'aria-current="step"' : ""}><b>${skipped ? "—" : i < position ? "✓" : i + 1}</b><span>${label}${skipped ? "<small>생략</small>" : ""}</span></li>`;
+    })
+    .join("");
+}
 function renderControls() {
   const moving = playing || (busy && !motionPaused);
   $('[data-action="play"]').innerHTML =
@@ -71,6 +101,7 @@ function renderControls() {
   );
   $('[data-action="back"]').disabled = index === 0;
   $('[data-action="next"]').disabled = index === 10;
+  $('[data-action="replay"]').disabled = index === 0 || busy;
   $('[data-action="guided"]').setAttribute("aria-checked", String(guided));
   $("#memory-scene").setAttribute("aria-busy", String(busy));
   $("#playback-hint").textContent = busy
@@ -148,9 +179,10 @@ function render() {
   $("#milestones").innerHTML = milestones
     .map(
       (m, i) =>
-        `<button data-seek="${m.index}" class="milestone ${i === chapter ? "active" : ""}"><b>${i + 1}</b><span>${m.title}</span><small>${m.index === 0 ? "시작" : `${m.index}번째`}</small></button>`,
+        `<button data-seek="${m.index}" class="milestone ${i === chapter ? "active" : ""}" aria-label="${i + 1}. ${m.title}" ${i === chapter ? 'aria-current="step"' : ""} title="${m.title} · ${m.index === 0 ? "시작" : `${m.index}번째 접근`}"><b>${i + 1}</b><span>${["개념", "빈 칸", "재사용", "교체", "영향", "비교"][i]}</span></button>`,
     )
     .join("");
+  if (!busy) renderProcess(index ? "access" : "ready");
   renderRecords();
   renderControls();
 }
@@ -345,6 +377,13 @@ $("#app").addEventListener("click", async (event) => {
       pause();
       await navigate(index - 1);
       break;
+    case "replay": {
+      const target = index;
+      pause();
+      await navigate(target - 1);
+      await navigate(target, true);
+      break;
+    }
     case "next":
       pause();
       await navigate(index + 1, true);

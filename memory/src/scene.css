@@ -56,6 +56,48 @@
   fill: var(--border);
   opacity: 0.15;
 }
+.memory-scene .mem-housing-top,
+.memory-scene .mem-housing-side,
+.memory-scene .mem-housing-front {
+  stroke: var(--border);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.memory-scene .mem-housing-top {
+  fill: var(--device-top);
+}
+.memory-scene .mem-housing-side {
+  fill: var(--device-side);
+}
+.memory-scene .mem-housing-front {
+  fill: var(--device-front);
+}
+.memory-scene .mem-housing-rail,
+.memory-scene .mem-bay-rail,
+.memory-scene .mem-tray-slot {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.memory-scene .mem-housing-rail {
+  opacity: 0.35;
+}
+.memory-scene .mem-controller,
+.memory-scene .mem-request-socket {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+.memory-scene .mem-controller-label {
+  font-size: 13px;
+  font-weight: 800;
+}
+.memory-scene .mem-physical-port,
+.memory-scene .mem-controller-port {
+  fill: var(--ink);
+  stroke: var(--surface);
+  stroke-width: 1;
+}
 .memory-scene .mem-pins polygon {
   stroke-width: 0.8;
 }
@@ -153,20 +195,20 @@
   position: absolute;
   border: 2px solid var(--border);
   background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
-  border-radius: 3px;
+  box-shadow: 0 3px 0 var(--border);
+  border-radius: 1px;
   padding: 8px;
   z-index: 2;
 }
 .memory-scene .mem-frame-id {
   position: absolute;
-  top: -12px;
+  top: -9px;
   left: 8px;
   padding: 0 4px;
   background: var(--surface);
   color: var(--ink);
   font-size: 12px;
-  line-height: 18px;
+  line-height: 16px;
   font-weight: 800;
 }
 .memory-scene .mem-frame-content {
@@ -212,7 +254,9 @@
 }
 .memory-scene .mem-frame[data-selected] {
   outline: 2px solid var(--ink);
-  outline-offset: 3px;
+  outline-offset: 2px;
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--shadow);
 }
 .memory-scene .mem-frame[data-hit],
 .memory-scene .mem-frame[data-receiving] {
@@ -222,15 +266,15 @@
 .memory-scene .mem-request {
   position: absolute;
   display: grid;
-  grid-template-columns: 32px 1fr;
+  grid-template-columns: 28px 1fr;
   grid-template-rows: 20px 20px;
   align-content: center;
-  gap: 0 7px;
-  padding: 8px;
+  gap: 0 5px;
+  padding: 6px;
   background: var(--surface);
   border: 2px solid var(--border);
-  box-shadow: 3px 3px 0 var(--shadow);
-  border-radius: 3px;
+  box-shadow: none;
+  border-radius: 1px;
   z-index: 2;
 }
 .memory-scene .mem-request > span {
@@ -296,6 +340,7 @@
 .memory-scene .mem-disk-pages text {
   font-size: 16px;
   font-weight: 850;
+  fill: var(--page-color);
 }
 .memory-scene .mem-disk-pages [data-current="true"] rect {
   fill: var(--page-color);
@@ -363,6 +408,14 @@
 .memory-scene .mem-transfer[data-kind="access"] {
   background: var(--surface);
   color: var(--page-color);
+}
+.memory-scene .mem-transfer[data-kind="lookup"],
+.memory-scene .mem-transfer[data-kind="retry"] {
+  background: var(--surface);
+  color: var(--page-color);
+  font-size: 16px;
+  border-style: dashed;
+  box-shadow: none;
 }
 .memory-scene [hidden] {
   display: none !important;

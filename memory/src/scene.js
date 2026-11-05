@@ -164,58 +164,111 @@ function ssdDrawing({ x, y, width }) {
     }).join("")}</g>`;
 }
 
+function housingDrawing({ x, y, width, height, depth = 16 }, kind) {
+  const rise = depth / Math.sqrt(3),
+    bottom = y + height;
+  return `<g class="mem-housing mem-housing-${kind}">
+    <path class="mem-device-shadow" d="M${x + 5} ${bottom + 5}H${x + width + depth + 5}L${x + width + 5} ${bottom + rise + 11}H${x + 5}Z"/>
+    <path class="mem-housing-top" d="M${x} ${y}L${x + depth} ${y - rise}H${x + width + depth}L${x + width} ${y}Z"/>
+    <path class="mem-housing-side" d="M${x + width} ${y}L${x + width + depth} ${y - rise}V${bottom - rise}L${x + width} ${bottom}Z"/>
+    <rect class="mem-housing-front" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>
+    <path class="mem-housing-rail" d="M${x + 5} ${y + 5}V${bottom - 5}H${x + width - 5}V${y + 5}"/>
+    ${[
+      [x + 5, y + 6],
+      [x + width - 5, y + 6],
+      [x + 5, bottom - 6],
+      [x + width - 5, bottom - 6],
+    ]
+      .map(([a, b]) => `<circle class="mem-bolt" cx="${a}" cy="${b}" r="1.5"/>`)
+      .join("")}
+  </g>`;
+}
+
 function layoutFor(width) {
   const compact = width < 620;
   const ramWidth = compact
-    ? Math.min(166, width * 0.475)
+    ? Math.min(158, width * 0.46)
     : Math.min(184, width * 0.275);
-  const ramX = compact ? width - ramWidth - 20 : (width - ramWidth) / 2;
-  const cpuX = compact ? 75 : Math.max(92, width * 0.15);
-  const ssdX = compact ? 82 : width - Math.max(92, width * 0.15);
+  const ramX = compact ? width - ramWidth - 26 : (width - ramWidth) / 2;
+  const cpuX = compact ? 69 : Math.max(92, width * 0.15);
+  const ssdX = compact ? 74 : width - Math.max(92, width * 0.15);
+  const requestWidth = 112;
+  const request = {
+    x: cpuX - requestWidth / 2,
+    y: 220,
+    width: requestWidth,
+    height: 62,
+  };
+  const ramHousing = {
+    x: ramX - 8,
+    y: compact ? 192 : 183,
+    width: ramWidth + 16,
+    height: compact ? 242 : 243,
+    depth: compact ? 10 : 16,
+  };
+  const cpuHousing = {
+    x: request.x - 8,
+    y: 204,
+    width: requestWidth + 16,
+    height: 92,
+    depth: compact ? 10 : 16,
+  };
+  const ssdHousing = {
+    x: ssdX - 62,
+    y: compact ? 435 : 207,
+    width: 124,
+    height: 106,
+    depth: compact ? 10 : 16,
+  };
   return {
     width,
     compact,
     height: compact ? 664 : 520,
     cpu: {
       x: cpuX,
-      y: 166,
+      y: 155,
       width: compact
-        ? Math.min(126, width * 0.36)
-        : Math.min(182, width * 0.27),
+        ? Math.min(120, width * 0.35)
+        : Math.min(178, width * 0.265),
     },
     ram: {
-      x: ramX + 4,
-      y: compact ? 114 : 91,
-      width: ramWidth - (compact ? 26 : 14),
-      height: compact ? 108 : 126,
+      x: ramX + 14,
+      y: compact ? 85 : 73,
+      width: compact
+        ? Math.min(122, ramWidth - 30)
+        : Math.min(144, ramWidth - 34),
+      height: compact ? 105 : 111,
     },
     ssd: {
       x: ssdX,
-      y: compact ? 408 : 158,
-      width: compact ? 136 : Math.min(174, width * 0.26),
+      y: compact ? 393 : 165,
+      width: compact ? 132 : Math.min(166, width * 0.25),
     },
     ramX,
     ramWidth,
-    frameY: compact ? 232 : 222,
+    ramHousing,
+    cpuHousing,
+    ssdHousing,
+    frameY: compact ? 230 : 221,
     frameGap: 68,
     frameHeight: 56,
-    request: { x: cpuX - 56, y: compact ? 222 : 238, width: 112, height: 62 },
-    disk: { x: ssdX - 57, y: compact ? 479 : 245, gap: 42 },
-    lookup: { x: ramX + ramWidth / 2, y: compact ? 218 : 207 },
-    accessY: compact ? 300 : 389,
+    request,
+    disk: { x: ssdX - 50, y: compact ? 457 : 229, gap: 36 },
+    lookup: { x: ramHousing.x - 2, y: ramHousing.y + 20 },
+    accessY: compact ? 306 : 355,
     order: { x: 18, y: compact ? 586 : 450, width: width - 36 },
-    titleY: compact ? 85 : 79,
+    titleY: 79,
   };
 }
 const framePosition = (layout, slot) => ({
-  x: layout.ramX + layout.ramWidth / 2,
+  x: layout.ramX + 24,
   y: layout.frameY + slot * layout.frameGap + layout.frameHeight / 2,
 });
 const diskPosition = (layout, page) => {
   const index = PAGES.indexOf(page);
   return {
-    x: layout.disk.x + (index % 3) * layout.disk.gap + 15,
-    y: layout.disk.y + Math.floor(index / 3) * 41 + 15,
+    x: layout.disk.x + (index % 3) * layout.disk.gap + 14,
+    y: layout.disk.y + Math.floor(index / 3) * 37 + 14,
   };
 };
 const cloneFrames = (frames) => frames.map((frame) => ({ ...frame }));
@@ -259,16 +312,24 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     revision = 0,
     destroyed = false;
   function path(kind, slot = 0, page = step?.page) {
-    const cpu = { x: layout.request.x + 56, y: layout.request.y + 31 },
+    const cpu = { x: layout.request.x + 24, y: layout.request.y + 31 },
       ram = framePosition(layout, slot),
       disk = diskPosition(layout, page || "A");
-    const leftGap = (layout.request.x + 112 + layout.ramX) / 2;
-    if (kind === "lookup" || kind === "retry")
+    const leftGap =
+      (layout.cpuHousing.x + layout.cpuHousing.width + layout.ramHousing.x) / 2;
+    if (kind === "lookup")
       return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}`;
+    if (kind === "retry")
+      return `M${cpu.x} ${cpu.y}H${leftGap}V${ram.y}H${ram.x}`;
     if (kind === "load") {
-      const corridor = layout.compact
-        ? layout.width - 16
-        : (layout.ramX + layout.ramWidth + layout.disk.x) / 2;
+      if (layout.compact)
+        return `M${disk.x} ${disk.y}H${layout.ssdHousing.x + layout.ssdHousing.width + 5}V552H${layout.width - 14}V${ram.y}H${ram.x}`;
+      const corridor =
+        (layout.ramHousing.x +
+          layout.ramHousing.width +
+          layout.ramHousing.depth +
+          layout.ssdHousing.x) /
+        2;
       return `M${disk.x} ${disk.y}H${corridor}V${ram.y}H${ram.x}`;
     }
     return `M${ram.x} ${ram.y}H${leftGap}V${layout.accessY}H${cpu.x}V${cpu.y}`;
@@ -313,11 +374,20 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       : "시작 전";
     svg
       .querySelectorAll("[data-disk-page]")
-      .forEach(
-        (e) => (e.dataset.current = String(e.dataset.diskPage === page)),
-      );
+      .forEach((e) => (e.dataset.current = "false"));
   }
   function phase(kind, title, body) {
+    request.querySelector("small").textContent = {
+      ready: "시작 전",
+      lookup: "주소 조회",
+      hit: "RAM 적중",
+      miss: "부재 대기",
+      select: "부재 대기",
+      evict: "부재 대기",
+      load: "부재 대기",
+      retry: "접근 재시도",
+      access: "접근 완료",
+    }[kind];
     status.querySelector("b").textContent = {
       ready: "준비",
       lookup: "조회",
@@ -331,6 +401,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     }[kind];
     status.querySelector("strong").textContent = title;
     status.dataset.phase = kind;
+    host.dataset.phase = kind;
     onPhase({ kind, title, body });
   }
   function finalPhase() {
@@ -357,19 +428,39 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     const title = (x, y, text, sub) =>
       `<text class="mem-device-title" x="${x}" y="${y}" text-anchor="middle">${text}</text><text class="mem-device-sub" x="${x}" y="${y + 18}" text-anchor="middle">${sub}</text>`;
     const ramCenter = layout.ramX + layout.ramWidth / 2,
-      leftGap = (layout.request.x + 112 + layout.ramX) / 2;
+      leftGap =
+        (layout.cpuHousing.x + layout.cpuHousing.width + layout.ramHousing.x) /
+        2;
+    const ports = Array.from({ length: 3 }, (_, slot) => {
+      const p = framePosition(layout, slot);
+      return `<path class="mem-bay-rail" d="M${layout.ramX - 3} ${p.y + 29}H${layout.ramX + layout.ramWidth + 3}"/><rect class="mem-physical-port" x="${layout.ramX - 11}" y="${p.y - 5}" width="5" height="10"/><rect class="mem-physical-port" x="${layout.ramX + layout.ramWidth + 6}" y="${p.y - 5}" width="5" height="10"/>`;
+    }).join("");
     svg.innerHTML = `<defs><marker id="mem-arrow-${id}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z"/></marker></defs>
       <g class="mem-lanes">${["lookup", "load", "access"].map((kind) => `<path data-lane="${kind}" d="${path(kind)}" marker-end="url(#mem-arrow-${id})"/>`).join("")}<path class="mem-active-flow"/></g>
-      ${title(layout.cpu.x, layout.titleY, "CPU", "페이지를 요청합니다")}${cpuDrawing(layout.cpu)}
-      ${title(ramCenter, layout.titleY, "RAM", "고정된 프레임 3개")}${ramDrawing(layout.ram)}
-      ${title(layout.ssd.x, layout.compact ? 344 : layout.titleY, "SSD", "페이지 원본을 보관합니다")}${ssdDrawing(layout.ssd)}
-      <path class="mem-device-dock" d="M${layout.cpu.x} ${layout.compact ? 196 : 209}V${layout.request.y}M${ramCenter} ${layout.compact ? 214 : 204}V${layout.frameY}"/>
-      <g class="mem-disk-pages">${PAGES.map((page) => {
-        const p = diskPosition(layout, page);
-        return `<g data-disk-page="${page}" style="--page-color:${COLOR[page]}"><rect x="${p.x - 15}" y="${p.y - 15}" width="30" height="30" rx="2"/><text x="${p.x}" y="${p.y + 5}" text-anchor="middle">${page}</text></g>`;
-      }).join("")}</g>
-      <g class="mem-lane-labels"><text x="${leftGap}" y="${layout.compact ? 212 : 228}" text-anchor="middle">${layout.compact ? "조회" : "페이지 조회"}</text><text x="${layout.cpu.x}" y="${layout.compact ? 320 : 414}" text-anchor="middle">접근 완료</text><text x="${layout.compact ? layout.width / 2 + 20 : (layout.ramX + layout.ramWidth + layout.disk.x) / 2}" y="${layout.compact ? 564 : 226}" text-anchor="middle">페이지 읽기</text></g>
-      <path class="mem-measure"/>`;
+      <g class="mem-station" data-device="cpu">${title(layout.cpu.x, layout.titleY, "CPU", "페이지 요청")}
+        ${housingDrawing(layout.cpuHousing, "cpu")}${cpuDrawing(layout.cpu)}
+        <rect class="mem-request-socket" x="${layout.request.x - 3}" y="${layout.request.y - 3}" width="${layout.request.width + 6}" height="68" rx="2"/>
+        <rect class="mem-physical-port" x="${layout.cpuHousing.x + layout.cpuHousing.width - 2}" y="246" width="6" height="10"/>
+      </g>
+      <g class="mem-station" data-device="ram">${housingDrawing(layout.ramHousing, "ram")}${ramDrawing(layout.ram)}
+        <rect class="mem-controller" x="${layout.ramX}" y="${layout.ramHousing.y + 8}" width="${layout.ramWidth}" height="23"/>
+        <text class="mem-controller-label" x="${ramCenter}" y="${layout.ramHousing.y + 24}" text-anchor="middle">RAM · 프레임 3개</text>
+        <rect class="mem-controller-port" x="${layout.lookup.x - 2}" y="${layout.lookup.y - 6}" width="6" height="12"/>
+        ${ports}
+      </g>
+      <g class="mem-station" data-device="ssd">${title(layout.ssd.x, layout.compact ? 329 : layout.titleY, "SSD", "원본 페이지 보관")}
+        ${housingDrawing(layout.ssdHousing, "ssd")}${ssdDrawing(layout.ssd)}
+        <g class="mem-disk-pages">${PAGES.map((page) => {
+          const p = diskPosition(layout, page);
+          return `<g data-disk-page="${page}" style="--page-color:${COLOR[page]}"><path class="mem-tray-slot" d="M${p.x - 16} ${p.y + 17}H${p.x + 16}l3 -3"/><rect x="${p.x - 14}" y="${p.y - 14}" width="28" height="28" rx="1"/><text x="${p.x}" y="${p.y + 5}" text-anchor="middle">${page}</text></g>`;
+        }).join("")}</g>
+        <rect class="mem-physical-port" x="${layout.compact ? layout.ssdHousing.x + layout.ssdHousing.width - 2 : layout.ssdHousing.x - 4}" y="${layout.ssdHousing.y + 56}" width="6" height="10"/>
+      </g>
+      <g class="mem-lane-labels">
+        <text x="${leftGap}" y="${layout.compact ? 215 : 224}" text-anchor="middle">${layout.compact ? "조회" : "조회 요청"}</text>
+        <text x="${layout.compact ? 122 : layout.cpu.x}" y="${layout.compact ? 322 : 377}" text-anchor="middle">접근 완료</text>
+        <text x="${layout.compact ? layout.width / 2 + 20 : layout.ssd.x}" y="${layout.compact ? 574 : 341}" text-anchor="middle">페이지 읽기</text>
+      </g><path class="mem-measure"/>`;
     cards.forEach((card, slot) =>
       Object.assign(card.style, {
         left: `${layout.ramX}px`,
@@ -381,7 +472,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     Object.assign(request.style, {
       left: `${layout.request.x}px`,
       top: `${layout.request.y}px`,
-      width: "112px",
+      width: `${layout.request.width}px`,
       height: "62px",
     });
     Object.assign(order.style, {
@@ -401,7 +492,13 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     svg
       .querySelectorAll("[data-active]")
       .forEach((e) => delete e.dataset.active);
+    svg
+      .querySelectorAll("[data-lane]")
+      .forEach((lane) => lane.setAttribute("d", path(lane.dataset.lane)));
     svg.querySelector(".mem-active-flow").style.opacity = 0;
+    svg
+      .querySelectorAll("[data-disk-page]")
+      .forEach((source) => (source.dataset.current = "false"));
     transfer.hidden = true;
   }
   function cancel() {
@@ -444,10 +541,14 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     lane.setAttribute("d", data);
     const length = measure.getTotalLength(),
       duration = (440 + length * 0.6) * pace;
-    transfer.textContent = kind === "access" ? "✓" : page;
+    transfer.textContent =
+      kind === "access" ? "✓" : kind === "load" ? page : `${page}?`;
     transfer.hidden = false;
     transfer.style.setProperty("--page-color", COLOR[page]);
     transfer.dataset.kind = kind;
+    const source =
+      kind === "load" ? svg.querySelector(`[data-disk-page="${page}"]`) : null;
+    if (source) source.dataset.current = "true";
     const keys = Array.from({ length: 33 }, (_, index) => {
       const p = measure.getPointAtLength((length * index) / 32);
       return {
@@ -467,8 +568,10 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     ]);
     if (alive(active)) {
       transfer.hidden = true;
+      if (source) source.dataset.current = "false";
       flow.style.opacity = 0;
       delete lane.dataset.active;
+      lane.setAttribute("d", path(lane.dataset.lane));
     }
   }
   async function animateStep(active, pace) {
@@ -497,7 +600,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           `페이지 부재 · ${page}가 RAM에 없습니다`,
           "페이지를 SSD에서 읽어올 프레임이 필요합니다.",
         );
-        await hold(330 * pace, active);
+        await hold(500 * pace, active);
       } else if (event.type === "select") {
         cards[slot].dataset.selected = "true";
         const reason =
@@ -510,10 +613,10 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           "select",
           event.reason === "empty"
             ? `빈 프레임 F${slot} 선택`
-            : `교체할 페이지 ${event.victim} 선택`,
+            : `OS가 교체할 페이지 ${event.victim} 선택`,
           reason,
         );
-        await hold(530 * pace, active);
+        await hold(900 * pace, active);
       } else if (event.type === "evict") {
         phase(
           "evict",
@@ -549,7 +652,19 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         pageOrder = [...step.order];
         paintFrames();
         delete cards[slot].dataset.receiving;
-        await hold(160 * pace, active);
+        delete cards[slot].dataset.selected;
+        await track(
+          cards[slot]
+            .querySelector(".mem-frame-content")
+            .animate(
+              [
+                { transform: "translateY(-5px)" },
+                { transform: "translateY(0)" },
+              ],
+              { duration: 200 * pace, easing: "ease-out" },
+            ),
+          active,
+        );
       } else if (event.type === "access") {
         if (step.fault) {
           phase(
