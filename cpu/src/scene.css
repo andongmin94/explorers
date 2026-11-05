@@ -108,9 +108,7 @@
   stroke: none;
 }
 .scheduler-scene .cpu-dock {
-  stroke: var(--scene-border);
-  stroke-width: 2;
-  stroke-dasharray: 3 3;
+  display: none;
 }
 .scheduler-scene .ssd-label {
   fill: var(--scene-surface);
@@ -141,22 +139,67 @@
   font-weight: 550;
   fill: var(--scene-muted);
 }
-.scheduler-scene .scene-queue-empty {
-  font-size: 11px;
-  font-weight: 600;
-  fill: var(--scene-muted);
-}
 .scheduler-scene .scene-queue-order text {
   font-size: 10px;
   font-weight: 850;
   fill: var(--scene-muted);
 }
-.scheduler-scene .scene-circuit {
+.scheduler-scene .scene-lane {
   fill: none;
-  stroke: var(--scene-border);
-  stroke-width: 1.2;
-  opacity: 0.27;
+  stroke: var(--scene-muted);
+  stroke-width: 1.5;
   stroke-linejoin: round;
+  opacity: 0.7;
+}
+.scheduler-scene .scene-lane[data-route="preempt"],
+.scheduler-scene .scene-lane[data-route="unblock"] {
+  stroke-dasharray: 5 4;
+}
+.scheduler-scene .scene-route-labels text {
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--scene-muted);
+  stroke: var(--scene-surface);
+  stroke-width: 4px;
+  paint-order: stroke;
+  stroke-linejoin: round;
+}
+.scheduler-scene .scene-lane[data-active] {
+  stroke: var(--flow-color);
+  stroke-width: 2.5;
+  opacity: 1;
+}
+.scheduler-scene .scene-route-labels [data-active] {
+  fill: var(--flow-color);
+}
+.scheduler-scene[data-algorithm="fcfs"] [data-route="preempt"],
+.scheduler-scene[data-algorithm="fcfs"] [data-route-label="preempt"] {
+  display: none;
+}
+.scheduler-scene .scene-dock {
+  stroke: var(--scene-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+.scheduler-scene .scene-station[data-occupied="true"] .scene-dock {
+  stroke: var(--station-color);
+  stroke-width: 2;
+}
+.scheduler-scene .scene-slot rect {
+  fill: var(--scene-surface);
+  fill-opacity: 0.86;
+  stroke: var(--scene-rule);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+.scheduler-scene .scene-slot text {
+  fill: var(--scene-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.scheduler-scene .scene-slot[data-receiving] rect {
+  stroke: var(--slot-color);
+  stroke-width: 2;
 }
 .scheduler-scene .scene-flow {
   fill: none;
@@ -207,6 +250,19 @@
 }
 .scheduler-scene .scene-process[data-moving="true"] {
   z-index: 8;
+  border-color: var(--process-color);
+  box-shadow: 2px 2px 0 var(--process-color);
+  gap: 0;
+  padding: 3px;
+}
+.scheduler-scene .scene-process[data-moving="true"] .scene-token-copy {
+  position: absolute;
+  left: 39px;
+  right: 6px;
+}
+.scheduler-scene .scene-process[data-moving="true"] .scene-token-check,
+.scheduler-scene .scene-process[data-moving="true"] .scene-io-meter {
+  display: none;
 }
 .scheduler-scene .scene-pid {
   display: grid;
@@ -371,6 +427,9 @@
 }
 .scheduler-scene[data-compact="true"] .scene-device-sub {
   font-size: 9px;
+}
+.scheduler-scene[data-compact="true"] .scene-route-labels text {
+  font-size: 8px;
 }
 .scheduler-scene[data-compact="true"] .scene-memory {
   opacity: 0.95;

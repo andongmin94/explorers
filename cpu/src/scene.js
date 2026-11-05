@@ -21,14 +21,6 @@ const MOVES = new Set([
   "block",
   "complete",
 ]);
-const WEIGHTS = {
-  arrive: 1,
-  unblock: 1.2,
-  preempt: 1.15,
-  dispatch: 1.25,
-  block: 1.1,
-  complete: 1,
-};
 const escape = (value) =>
   String(value).replace(
     /[&<>"']/g,
@@ -40,61 +32,48 @@ const escape = (value) =>
 let sceneSerial = 0;
 
 function layoutFor(width) {
-  if (width < 540) {
-    const tokenWidth = Math.min(132, (width - 54) / 2),
-      cpuX = width * 0.725;
-    return {
-      width,
-      height: 650,
-      mobile: true,
-      tokenWidth,
-      tokenHeight: 44,
-      arrival: { x: 16, y: 34, gap: tokenWidth + 12 },
-      ready: { x: 18, y: 174, gap: 52 },
-      running: { x: cpuX - tokenWidth / 2, y: 177 },
-      blocked: { x: width - tokenWidth - 18, y: 497, gap: 50 },
-      done: {
-        x: 18,
-        y: 612,
-        gap: (width - 36) / 3,
-        width: Math.min(88, (width - 48) / 3),
-      },
-      cpu: { x: cpuX, y: 274, width: Math.min(152, width * 0.43) },
-      memory: { x: 10, y: 327, width: tokenWidth + 28, height: 125 },
-      ssd: { x: 86, y: 527, width: 136 },
-      meter: { x: cpuX - 73, y: 344, width: 146 },
-      callout: { x: 16, y: 92, width: width - 32 },
-      returnY: 351,
-    };
-  }
-  const tokenWidth = Math.min(158, Math.max(128, width * 0.18)),
-    cpuX = width * 0.53;
+  const mobile = width < 540;
+  const tokenWidth = mobile
+    ? Math.min(132, (width - 96) / 2)
+    : Math.min(152, (width - 150) / 3);
+  const readyX = mobile ? 34 : 26;
+  const cpuX = mobile ? width - 24 - tokenWidth / 2 : width / 2;
+  const ioX = mobile ? cpuX : width - 26 - tokenWidth / 2;
   return {
     width,
-    height: 420,
-    mobile: false,
+    mobile,
+    height: mobile ? 780 : 510,
     tokenWidth,
     tokenHeight: 44,
-    arrival: { x: 20, y: 62, gap: tokenWidth + 10 },
-    ready: { x: 28, y: 146, gap: 52 },
-    running: { x: cpuX - tokenWidth / 2, y: 127 },
-    blocked: { x: width - tokenWidth - 24, y: 175, gap: 51 },
-    done: { x: width - 114, y: 302, gap: 36, width: 86, vertical: true },
-    cpu: { x: cpuX, y: 245, width: Math.min(246, width * 0.33) },
-    memory: {
-      x: 20,
-      y: 265,
-      width: Math.min(172, tokenWidth + 32),
-      height: 130,
+    arrival: { x: 26, y: 55, gap: tokenWidth + 12 },
+    ready: { x: readyX, y: 252, gap: 52 },
+    running: { x: cpuX - tokenWidth / 2, y: 252 },
+    blocked: { x: ioX - tokenWidth / 2, y: mobile ? 575 : 252, gap: 52 },
+    done: {
+      x: Math.max(26, width / 2 - 136),
+      y: mobile ? 740 : 466,
+      gap: mobile ? (width - 52) / 3 : 94,
+      width: mobile ? Math.min(82, (width - 64) / 3) : 82,
     },
+    cpu: {
+      x: cpuX,
+      y: 177,
+      width: mobile ? Math.min(148, width * 0.42) : Math.min(190, width * 0.29),
+    },
+    memory: { x: readyX - 2, y: 137, width: tokenWidth + 8, height: 128 },
     ssd: {
-      x: width - tokenWidth / 2 - 24,
-      y: 95,
-      width: Math.min(170, width * 0.25),
+      x: ioX,
+      y: mobile ? 510 : 191,
+      width: mobile ? 134 : Math.min(148, width * 0.25),
     },
-    meter: { x: cpuX - 98, y: 337, width: 196 },
-    callout: { x: 20, y: 0, width: Math.min(330, width - 40) },
-    returnY: 350,
+    meter: {
+      x: cpuX - (mobile ? Math.min(142, tokenWidth + 20) / 2 : 80),
+      y: 344,
+      width: mobile ? Math.min(142, tokenWidth + 20) : 160,
+    },
+    callout: { x: 18, y: 6, width: width - 36 },
+    returnY: mobile ? 704 : 424,
+    ioTitleY: mobile ? 443 : 112,
   };
 }
 
@@ -103,17 +82,6 @@ const center = (position) => ({
   y: position.y + position.height / 2,
 });
 
-function circuitPath(a, b) {
-  const slope = Math.tan(Math.PI / 6);
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const startY =
-    Math.abs(dy) > Math.abs(dx) * slope
-      ? b.y - Math.sign(dy) * Math.abs(dx) * slope * 0.5
-      : a.y;
-  const step = (dx + (b.y - startY) / slope) / 2;
-  return `M${a.x} ${a.y}V${startY}L${a.x + step} ${startY + slope * step}L${b.x} ${b.y}`;
-}
 const copyView = (frame, processes) => ({
   new: processes
     .filter((p) => frame.states[p.id].status === "new")
@@ -216,29 +184,33 @@ export function createSchedulerScene(hostElement, processes) {
   function route(type, from, to) {
     const a = center(from),
       b = center(to);
-    const right = layout.width - layout.tokenWidth / 2 - 5;
-    const left = layout.tokenWidth / 2 + 5;
-    if (type === "preempt") {
-      const side = layout.mobile
-        ? layout.ready.x + layout.tokenWidth + 9
-        : layout.cpu.x - layout.cpu.width / 2 - 18;
-      return `M${a.x} ${a.y}C${side} ${a.y + 30} ${side} ${layout.returnY} ${b.x} ${layout.returnY}L${b.x} ${b.y}`;
-    }
+    const left = 17,
+      right = layout.width - 18;
+    const queueSide = layout.ready.x + layout.tokenWidth + 18;
+    if (type === "preempt")
+      return `M${a.x} ${a.y}V312H${queueSide}V${b.y}H${b.x}`;
     if (type === "unblock")
       return layout.mobile
-        ? `M${a.x} ${a.y}L${right} ${a.y}V148H${left}V${b.y}H${b.x}`
-        : `M${a.x} ${a.y}L${right} ${a.y}V98H${left}V${b.y}H${b.x}`;
-    if (type === "arrive")
-      return `M${a.x} ${a.y}C${a.x} ${a.y + 45} ${b.x} ${b.y - 45} ${b.x} ${b.y}`;
+        ? `M${a.x} ${a.y}V${layout.returnY}H${left}V${b.y}H${b.x}`
+        : `M${a.x} ${a.y}H${right}V${layout.returnY}H${left}V${b.y}H${b.x}`;
+    if (type === "arrive") return `M${a.x} ${a.y}H${left}V${b.y}H${b.x}`;
     if (type === "block") {
-      const middle = (a.x + b.x) / 2;
-      return layout.mobile
-        ? `M${a.x} ${a.y}L${right} ${a.y}V${b.y}H${b.x}`
-        : `M${a.x} ${a.y}C${middle} ${a.y - 22} ${middle} ${b.y} ${b.x} ${b.y}`;
+      const corridor = layout.mobile
+        ? right
+        : (layout.running.x + layout.tokenWidth + layout.blocked.x) / 2;
+      return `M${a.x} ${a.y}H${corridor}V${b.y}H${b.x}`;
     }
-    if (type === "complete")
-      return `M${a.x} ${a.y}C${a.x + 48} ${a.y + 68} ${b.x + 34} ${b.y - 60} ${b.x} ${b.y}`;
-    return `M${a.x} ${a.y}C${a.x + (b.x - a.x) * 0.45} ${a.y} ${a.x + (b.x - a.x) * 0.55} ${b.y} ${b.x} ${b.y}`;
+    if (type === "complete") {
+      const side = layout.mobile
+        ? right
+        : layout.running.x + layout.tokenWidth + 19;
+      return `M${a.x} ${a.y}H${side}V${layout.done.y - 15}H${b.x}V${b.y}`;
+    }
+    return `M${a.x} ${a.y}L${b.x} ${b.y}`;
+  }
+
+  function slot(position, label, extra = "") {
+    return `<g class="scene-slot" ${extra}><rect x="${position.x}" y="${position.y}" width="${layout.tokenWidth}" height="44" rx="3"/><text x="${position.x + layout.tokenWidth / 2}" y="${position.y + 26}" text-anchor="middle">${label}</text></g>`;
   }
 
   function drawMap() {
@@ -247,40 +219,49 @@ export function createSchedulerScene(hostElement, processes) {
     hostElement.dataset.compact = String(layout.mobile);
     svg.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
     svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
+    const readyCenter = layout.ready.x + layout.tokenWidth / 2;
     const cpu = layout.cpu,
       ssd = layout.ssd;
-    const memoryPort = {
-      x: layout.memory.x + layout.memory.width * 0.78 + 16,
-      y:
-        layout.memory.y +
-        layout.memory.height -
-        15 -
-        (layout.memory.width * 0.78) / Math.sqrt(3),
-    };
-    const cpuLeft = { x: cpu.x - cpu.width * 0.42, y: cpu.y + 12 };
-    const cpuRight = { x: cpu.x + cpu.width * 0.42, y: cpu.y + 12 };
-    const storagePort = {
-      x: ssd.x - ssd.width * 0.35,
-      y: ssd.y + ssd.width * 0.22,
-    };
+    const labelX = (layout.ready.x + layout.tokenWidth + layout.running.x) / 2;
+    const ioLabelX = layout.mobile
+      ? layout.width - 29
+      : (layout.running.x + layout.tokenWidth + layout.blocked.x) / 2;
+    const deviceTitle = (x, y, title, sub) =>
+      `<text class="scene-device-title" x="${x}" y="${y}" text-anchor="middle">${title}</text><text class="scene-device-sub" x="${x}" y="${y + 16}" text-anchor="middle">${sub}</text>`;
     svg.innerHTML = `<defs>
       <marker id="scene-arrow-${serial}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z"/></marker>
     </defs>
-    <g class="scene-buses">
-      ${[0, 5].map((offset) => `<path class="scene-circuit" transform="translate(0 ${offset})" d="${circuitPath(memoryPort, cpuLeft)}"/><path class="scene-circuit" transform="translate(0 ${offset})" d="${circuitPath(cpuRight, storagePort)}"/>`).join("")}
+    <g class="scene-lanes">${["dispatch", "block", "preempt", "unblock"].map((type) => `<path class="scene-lane" data-route="${type}" marker-end="url(#scene-arrow-${serial})"/>`).join("")}<path class="scene-flow"/></g>
+    <g class="scene-station" data-station="ready">
+      ${deviceTitle(readyCenter, 112, "준비 큐", "메모리 · 위에서부터 배정")}
+      ${memoryDrawing(layout.memory)}
+      <path class="scene-dock" d="M${readyCenter} 219V252M${layout.ready.x + 5} 248H${layout.ready.x + layout.tokenWidth - 5}"/>
+      ${[0, 1, 2].map((index) => slot({ x: layout.ready.x, y: layout.ready.y + index * 52 }, index ? "" : "CPU를 기다리는 자리", `data-slot="${index}"`)).join("")}
+      <g class="scene-queue-order">${[0, 1, 2].map((index) => `<text x="${layout.ready.x - 8}" y="${layout.ready.y + index * 52 + 27}" text-anchor="end" data-order="${index}">${index + 1}</text>`).join("")}</g>
     </g>
-    ${memoryDrawing(layout.memory)}${cpuDrawing(cpu)}${ssdDrawing(ssd)}
-    <text class="scene-device-title" x="${layout.ready.x}" y="${layout.ready.y - 19}">준비 큐</text>
-    <text class="scene-device-sub" x="${layout.ready.x + 67}" y="${layout.ready.y - 19}">메모리 · 앞에서부터 배정</text>
-    <text class="scene-device-title" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 469 : 18}" text-anchor="${layout.mobile ? "start" : "middle"}">입출력 장치</text>
-    <text class="scene-device-sub" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 484 : 34}" text-anchor="${layout.mobile ? "start" : "middle"}">CPU와 독립적으로 진행</text>
-    <text class="scene-rail-label" x="${layout.arrival.x}" y="${layout.arrival.y - 11}">도착 예정</text>
-    <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="${layout.arrival.y - 11}"></text>
-    <text class="scene-rail-label" x="${layout.done.x}" y="${layout.done.y - 12}">완료한 작업</text>
-    <text class="scene-done-note" x="${layout.done.x + 71}" y="${layout.done.y - 12}"></text>
-    <text class="scene-queue-empty" x="${layout.ready.x + layout.tokenWidth / 2}" y="${layout.ready.y + 66}" text-anchor="middle">준비된 작업 없음</text>
-    <g class="scene-queue-order">${[0, 1, 2].map((index) => `<text x="${layout.ready.x - 12}" y="${layout.ready.y + index * 52 + 27}" data-order="${index}">${index + 1}</text>`).join("")}</g>
-    <path class="scene-flow" marker-end="url(#scene-arrow-${serial})"/><path class="scene-motion-measure"/>`;
+    <g class="scene-station" data-station="running">
+      ${deviceTitle(cpu.x, 112, "CPU", "한 번에 한 작업 실행")}
+      ${cpuDrawing(cpu)}
+      <path class="scene-dock" d="M${cpu.x} 236V252M${layout.running.x + 5} 248H${layout.running.x + layout.tokenWidth - 5}"/>
+      ${slot(layout.running, "CPU 대기")}
+    </g>
+    <g class="scene-station" data-station="blocked">
+      ${deviceTitle(ssd.x, layout.ioTitleY, "입출력", "CPU와 동시에 진행")}
+      ${ssdDrawing(ssd)}
+      <path class="scene-dock" d="M${ssd.x} ${layout.mobile ? 553 : 235}V${layout.blocked.y}M${layout.blocked.x + 5} ${layout.blocked.y - 4}H${layout.blocked.x + layout.tokenWidth - 5}"/>
+      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * 52 }, index ? "" : "입출력 요청 없음", `data-io-slot="${index}"`)).join("")}
+    </g>
+    <g class="scene-route-labels">
+      <text data-route-label="dispatch" x="${labelX}" y="262" text-anchor="middle">CPU 배정</text>
+      <text data-route-label="block" x="${ioLabelX}" y="${layout.mobile ? 425 : 262}" text-anchor="${layout.mobile ? "end" : "middle"}">입출력 요청</text>
+      <text data-route-label="preempt" x="${labelX}" y="329" text-anchor="middle">${layout.mobile ? `<tspan x="${labelX}">할당량</tspan><tspan x="${labelX}" dy="10">만료</tspan>` : "할당량 만료"}</text>
+      <text data-route-label="unblock" x="${layout.width / 2}" y="${layout.returnY - 10}" text-anchor="middle">입출력 완료 → 큐 뒤로</text>
+    </g>
+    <text class="scene-rail-label" x="${layout.arrival.x}" y="49">도착 예정</text>
+    <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="49"></text>
+    <text class="scene-rail-label" x="${layout.done.x}" y="${layout.done.y - 10}">완료한 작업</text>
+    <text class="scene-done-note" x="${layout.done.x + 71}" y="${layout.done.y - 10}"></text>
+    <path class="scene-motion-measure"/>`;
     Object.assign(readout.style, {
       left: `${layout.meter.x}px`,
       top: `${layout.meter.y}px`,
@@ -303,9 +284,69 @@ export function createSchedulerScene(hostElement, processes) {
       : "모두 도착";
     svg.querySelector(".scene-done-note").textContent =
       `${view.done.length} / ${processes.length}`;
-    svg.querySelector(".scene-queue-empty").style.opacity = view.ready.length
-      ? 0
-      : 1;
+    const emptyPosition = (zone, index = 0) => ({
+      ...zone,
+      y: zone.y + (zone.gap || 0) * index,
+      width: layout.tokenWidth,
+      height: 44,
+    });
+    const queueTail = emptyPosition(
+      layout.ready,
+      Math.min(2, view.ready.length),
+    );
+    const main = emptyPosition(layout.running),
+      io = emptyPosition(layout.blocked);
+    for (const type of ["dispatch", "block", "preempt", "unblock"]) {
+      const from =
+        type === "dispatch"
+          ? emptyPosition(layout.ready)
+          : type === "unblock"
+            ? io
+            : main;
+      const to = type === "dispatch" ? main : type === "block" ? io : queueTail;
+      const entersFromLeft =
+        type === "dispatch" ||
+        type === "unblock" ||
+        (type === "block" && !layout.mobile);
+      const arrowEnd = {
+        ...to,
+        x: to.x + (entersFromLeft ? -1 : 1) * (layout.tokenWidth / 2 + 4),
+      };
+      svg
+        .querySelector(`[data-route="${type}"]`)
+        .setAttribute("d", route(type, from, arrowEnd));
+    }
+    svg.querySelectorAll("[data-slot]").forEach((slot) => {
+      const index = Number(slot.dataset.slot);
+      slot.style.opacity = index <= view.ready.length ? 1 : 0;
+      slot.querySelector("text").textContent =
+        index === view.ready.length
+          ? view.ready.length
+            ? "큐 뒤 · 여기에 합류"
+            : "CPU를 기다리는 자리"
+          : "";
+    });
+    svg
+      .querySelectorAll("[data-io-slot]")
+      .forEach(
+        (slot) =>
+          (slot.style.opacity =
+            Number(slot.dataset.ioSlot) < Math.max(1, view.blocked.length)
+              ? 1
+              : 0),
+      );
+    for (const [state, id] of [
+      ["ready", view.ready[0]],
+      ["running", view.running],
+      ["blocked", view.blocked[0]],
+    ]) {
+      const station = svg.querySelector(`[data-station="${state}"]`);
+      station.dataset.occupied = String(!!id);
+      station.style.setProperty(
+        "--station-color",
+        id ? COLORS[id] : "var(--scene-muted)",
+      );
+    }
     svg
       .querySelectorAll("[data-order]")
       .forEach(
@@ -386,7 +427,8 @@ export function createSchedulerScene(hostElement, processes) {
   function renderProgress() {
     if (!currentFrame || !view) return;
     const id = view.running,
-      stableCPU = id && id === currentFrame.running;
+      stableCPU =
+        id && id === currentFrame.running && !tokens.get(id).dataset.moving;
     readout
       .querySelectorAll(".scene-meter-row")
       .forEach((row) => (row.hidden = !stableCPU));
@@ -435,10 +477,16 @@ export function createSchedulerScene(hostElement, processes) {
     activeRun.cancelled = true;
     for (const animation of activeRun.animations) animation.cancel();
     for (const token of tokens.values()) delete token.dataset.moving;
+    svg
+      .querySelectorAll("[data-active], [data-receiving]")
+      .forEach((element) => {
+        delete element.dataset.active;
+        delete element.dataset.receiving;
+      });
     activeRun = null;
   }
 
-  async function animateEvent(event, milliseconds, run) {
+  async function animateEvent(event, pace, run) {
     const previousPositions = new Map(
       processes.map((process) => [
         process.id,
@@ -458,6 +506,40 @@ export function createSchedulerScene(hostElement, processes) {
     measure.setAttribute("d", pathData);
     const length = measure.getTotalLength(),
       waits = [];
+    const milliseconds = (510 + length * 0.75) * pace;
+    const lane = svg.querySelector(`[data-route="${event.type}"]`);
+    if (lane) {
+      const entersFromLeft =
+        event.type === "dispatch" ||
+        event.type === "unblock" ||
+        (event.type === "block" && !layout.mobile);
+      const arrowEnd = {
+        ...end,
+        x: end.x + (entersFromLeft ? -1 : 1) * (end.width / 2 + 4),
+      };
+      lane.setAttribute(
+        "d",
+        route(event.type, previousPositions.get(event.id), arrowEnd),
+      );
+    }
+    const routeLabel = svg.querySelector(`[data-route-label="${event.type}"]`);
+    for (const element of [lane, routeLabel].filter(Boolean)) {
+      element.dataset.active = "true";
+      element.style.setProperty("--flow-color", COLORS[event.id]);
+    }
+    const destination = svg.querySelector(`[data-station="${event.to}"]`);
+    const slotIndex =
+      event.to === "ready"
+        ? view.ready.indexOf(event.id)
+        : event.to === "blocked"
+          ? view.blocked.indexOf(event.id)
+          : 0;
+    const receivingSlot =
+      destination?.querySelectorAll(".scene-slot")[slotIndex];
+    if (receivingSlot) {
+      receivingSlot.dataset.receiving = "true";
+      receivingSlot.style.setProperty("--slot-color", COLORS[event.id]);
+    }
     function track(animation) {
       run.animations.add(animation);
       if (run.paused) animation.pause();
@@ -477,29 +559,67 @@ export function createSchedulerScene(hostElement, processes) {
       if (from.x === to.x && from.y === to.y && from.width === to.width)
         continue;
       if (id === event.id) {
-        const keyframes = Array.from({ length: 25 }, (_, index) => {
-          const p = index / 24,
-            point = measure.getPointAtLength(length * p);
-          const width = from.width + (to.width - from.width) * p,
-            height = from.height + (to.height - from.height) * p;
-          return {
-            transform: `translate(${point.x - width / 2}px, ${point.y - height / 2}px)`,
-            width: `${width}px`,
-            height: `${height}px`,
-            offset: p,
-          };
-        });
+        const keyframes = [
+          {
+            transform: `translate(${from.x}px, ${from.y}px)`,
+            width: `${from.width}px`,
+            height: `${from.height}px`,
+            offset: 0,
+          },
+          ...Array.from({ length: 25 }, (_, index) => {
+            const p = index / 24,
+              point = measure.getPointAtLength(length * p);
+            return {
+              transform: `translate(${point.x - 18}px, ${point.y - 17}px)`,
+              width: "36px",
+              height: "34px",
+              offset: 0.14 + p * 0.64,
+            };
+          }),
+          {
+            transform: token.style.transform,
+            width: `${to.width}px`,
+            height: `${to.height}px`,
+            offset: 0.88,
+          },
+          {
+            transform: token.style.transform,
+            width: `${to.width}px`,
+            height: `${to.height}px`,
+            offset: 1,
+          },
+        ];
         token.dataset.moving = "true";
+        token.dataset.state = "moving";
+        token.setAttribute(
+          "aria-label",
+          `${id} ${process.name}. ${STATE_NAMES[event.from]}에서 ${STATE_NAMES[event.to]}로 이동 중`,
+        );
         const animation = token.animate(keyframes, {
           duration: milliseconds,
-          easing: "cubic-bezier(.25,.1,.25,1)",
+          easing: "linear",
         });
         track(animation);
+        track(
+          token.querySelector(".scene-token-copy").animate(
+            [
+              { opacity: 1, offset: 0 },
+              { opacity: 0, offset: 0.12 },
+              { opacity: 0, offset: 0.78 },
+              { opacity: 1, offset: 0.9 },
+              { opacity: 1, offset: 1 },
+            ],
+            { duration: milliseconds, easing: "linear" },
+          ),
+        );
         waits.push(
           animation.finished
             .catch(() => {})
             .then(() => {
-              if (!run.cancelled) delete token.dataset.moving;
+              if (!run.cancelled) {
+                delete token.dataset.moving;
+                setTokenPresentation(id, to);
+              }
             }),
         );
       } else {
@@ -527,6 +647,12 @@ export function createSchedulerScene(hostElement, processes) {
     );
     renderProgress();
     await Promise.all(waits);
+    if (!run.cancelled) {
+      for (const element of [lane, routeLabel].filter(Boolean))
+        delete element.dataset.active;
+      if (receivingSlot) delete receivingSlot.dataset.receiving;
+      paintPresence();
+    }
   }
 
   function update(
@@ -572,18 +698,10 @@ export function createSchedulerScene(hostElement, processes) {
     activeRun = run;
     view = copyView(previousFrame, processes);
     snapTokens(view);
-    const totalWeight = events.reduce(
-      (total, event) => total + WEIGHTS[event.type],
-      0,
-    );
     return (async () => {
       for (const event of events) {
         if (run.cancelled || run.revision !== revision) return;
-        await animateEvent(
-          event,
-          (Math.max(160, duration) * WEIGHTS[event.type]) / totalWeight,
-          run,
-        );
+        await animateEvent(event, duration / 1100, run);
       }
       if (run.cancelled || run.revision !== revision) return;
       activeRun = null;

@@ -1966,7 +1966,7 @@ kbd {
 }
 @media (min-width: 1100px) {
   .workspace {
-    grid-template-rows: clamp(620px, calc(100dvh - 390px), 900px) 230px;
+    grid-template-rows: clamp(720px, calc(100dvh - 390px), 960px) 230px;
   }
 }
 @media (min-width: 1500px) {

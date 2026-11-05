@@ -158,11 +158,6 @@ function render(animate = false, previous = null) {
     `${time}밀리초, 전체 ${result.stats.makespan}밀리초`,
   );
   $("#seek-time").textContent = `${time}ms`;
-  $("#running-summary").innerHTML = frame.running
-    ? `<i class="status-square ${colors[frame.running]}"></i><b>${frame.running} 실행 중</b><span>${algorithm === "rr" ? `남은 할당량 ${frame.quantumLeft}ms` : "입출력 요청 또는 완료까지"}</span>`
-    : `<i class="status-square idle"></i><b>${time === result.stats.makespan ? "모든 작업 완료" : "CPU 유휴"}</b>`;
-  $("#queue-summary").textContent =
-    `준비 ${frame.ready.length} · 입출력 ${frame.blocked.length} · 완료 ${frame.completed.length}`;
   DEFAULT_PROCESSES.forEach((p) => {
     const state = frame.states[p.id];
     $(`#status-${p.id}`).innerHTML =
@@ -228,6 +223,15 @@ function renderProcessDetail() {
 }
 
 function updateControls() {
+  const frame = result.frames[time];
+  $("#running-summary").innerHTML = transitioning
+    ? `<i class="status-square idle"></i><b>작업 이동 중</b>`
+    : frame.running
+      ? `<i class="status-square ${colors[frame.running]}"></i><b>${frame.running} 실행 중</b><span>${algorithm === "rr" ? `남은 할당량 ${frame.quantumLeft}ms` : "입출력 요청 또는 완료까지"}</span>`
+      : `<i class="status-square idle"></i><b>${time === result.stats.makespan ? "모든 작업 완료" : "CPU 유휴"}</b>`;
+  $("#queue-summary").textContent =
+    `${transitioning ? "이동 후 · " : ""}준비 ${frame.ready.length} · 입출력 ${frame.blocked.length} · 완료 ${frame.completed.length}`;
+
   $("#scene").setAttribute("aria-busy", String(transitioning));
   $('[data-action="play"]').innerHTML =
     `${icon(playing ? "pause" : time === result.stats.makespan && !transitioning ? "reset" : "play")}<span>${playing ? "일시정지" : time === result.stats.makespan && !transitioning ? "다시 재생" : time === 0 ? "학습 시작" : "이어서 재생"}</span>`;
