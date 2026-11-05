@@ -1,4 +1,5 @@
 import "./scene.css";
+import { memoryDrawing, cpuDrawing, ssdDrawing } from "./devices.js";
 
 const COLORS = {
   P1: "var(--p1, #3971d9)",
@@ -44,24 +45,24 @@ function layoutFor(width) {
       cpuX = width * 0.725;
     return {
       width,
-      height: 582,
+      height: 650,
       mobile: true,
       tokenWidth,
       tokenHeight: 44,
       arrival: { x: 16, y: 34, gap: tokenWidth + 12 },
       ready: { x: 18, y: 174, gap: 52 },
       running: { x: cpuX - tokenWidth / 2, y: 177 },
-      blocked: { x: width - tokenWidth - 18, y: 407, gap: 50 },
+      blocked: { x: width - tokenWidth - 18, y: 497, gap: 50 },
       done: {
         x: 18,
-        y: 544,
+        y: 612,
         gap: (width - 36) / 3,
         width: Math.min(88, (width - 48) / 3),
       },
       cpu: { x: cpuX, y: 274, width: Math.min(152, width * 0.43) },
-      memory: { x: 10, y: 162, width: tokenWidth + 16, height: 169 },
-      ssd: { x: 86, y: 437, width: 136 },
-      meter: { x: cpuX - 73, y: 324, width: 146 },
+      memory: { x: 10, y: 327, width: tokenWidth + 28, height: 125 },
+      ssd: { x: 86, y: 527, width: 136 },
+      meter: { x: cpuX - 73, y: 344, width: 146 },
       callout: { x: 16, y: 92, width: width - 32 },
       returnY: 351,
     };
@@ -77,14 +78,19 @@ function layoutFor(width) {
     arrival: { x: 20, y: 62, gap: tokenWidth + 10 },
     ready: { x: 28, y: 146, gap: 52 },
     running: { x: cpuX - tokenWidth / 2, y: 127 },
-    blocked: { x: width - tokenWidth - 24, y: 157, gap: 51 },
+    blocked: { x: width - tokenWidth - 24, y: 175, gap: 51 },
     done: { x: width - 114, y: 302, gap: 36, width: 86, vertical: true },
     cpu: { x: cpuX, y: 245, width: Math.min(246, width * 0.33) },
-    memory: { x: 20, y: 134, width: tokenWidth + 16, height: 169 },
+    memory: {
+      x: 20,
+      y: 265,
+      width: Math.min(172, tokenWidth + 32),
+      height: 130,
+    },
     ssd: {
       x: width - tokenWidth / 2 - 24,
-      y: 101,
-      width: Math.min(176, width * 0.25),
+      y: 95,
+      width: Math.min(170, width * 0.25),
     },
     meter: { x: cpuX - 98, y: 337, width: 196 },
     callout: { x: 20, y: 0, width: Math.min(330, width - 40) },
@@ -92,62 +98,22 @@ function layoutFor(width) {
   };
 }
 
-function memoryDrawing({ x, y, width, height }) {
-  const right = x + width,
-    bottom = y + height;
-  return `<g class="scene-memory">
-    <path class="device-shadow" d="M${x + 6} ${y + 12}L${right + 13} ${y + 1}V${bottom + 12}L${x + 6} ${bottom + 23}Z"/>
-    <path class="device-side" d="M${right} ${y - 6}L${right + 8} ${y + 1}V${bottom + 12}L${right} ${bottom + 5}Z"/>
-    <path class="device-top" d="M${x} ${y + 5}L${right} ${y - 6}L${right + 8} ${y + 1}L${x + 8} ${y + 12}Z"/>
-    <path class="device-front" d="M${x} ${y + 5}L${right} ${y - 6}V${bottom + 5}L${x} ${bottom + 16}Z"/>
-    ${[0, 1, 2].map((i) => `<path class="memory-trace" d="M${x + 9} ${y + 23 + i * 52}H${right - 9}M${x + 9} ${y + 45 + i * 52}H${right - 9}"/>`).join("")}
-    ${[0, 1, 2, 3, 4, 5].map((i) => `<path class="memory-contact" d="M${x + 16 + (i * (width - 35)) / 6} ${bottom + 14}v8"/>`).join("")}
-  </g>`;
-}
-
-function cpuDrawing({ x, y, width }) {
-  const w = width / 2,
-    h = width * 0.285,
-    thickness = 15;
-  const pin = (side, index) => {
-    const t = (index + 1) / 8;
-    const point =
-      side === 0
-        ? { x: x - w + t * w, y: y - t * h }
-        : { x: x + t * w, y: y + h - t * h };
-    const direction = side === 0 ? -1 : 1;
-    return `<path class="cpu-pin" d="M${point.x} ${point.y}l${-12 * direction} ${-7 * direction}m${x * 2 - point.x * 2} ${y * 2 - point.y * 2}l${12 * direction} ${7 * direction}"/>`;
-  };
-  return `<g class="scene-chip">
-    <path class="device-shadow" d="M${x - w + 6} ${y + 14}L${x + 7} ${y - h + 13}L${x + w + 14} ${y + 18}L${x + 13} ${y + h + 31}Z"/>
-    ${[0, 1].flatMap((side) => Array.from({ length: 7 }, (_, i) => pin(side, i))).join("")}
-    <path class="device-front" d="M${x - w} ${y}L${x} ${y + h}V${y + h + thickness}L${x - w} ${y + thickness}Z"/>
-    <path class="device-side" d="M${x} ${y + h}L${x + w} ${y}V${y + thickness}L${x} ${y + h + thickness}Z"/>
-    <path class="device-top" d="M${x - w} ${y}L${x} ${y - h}L${x + w} ${y}L${x} ${y + h}Z"/>
-    <path class="cpu-die" d="M${x - w * 0.57} ${y}L${x} ${y - h * 0.57}L${x + w * 0.57} ${y}L${x} ${y + h * 0.57}Z"/>
-    <text class="cpu-die-label" x="${x}" y="${y + 6}" text-anchor="middle">CPU</text>
-    <path class="cpu-dock" d="M${x} ${y - h - 3}V${y - h - 15}" />
-  </g>`;
-}
-
-function ssdDrawing({ x, y, width }) {
-  const w = width / 2,
-    h = width * 0.24;
-  return `<g class="scene-ssd">
-    <path class="device-shadow" d="M${x - w + 9} ${y + 14}L${x - 4} ${y - h + 11}L${x + w + 9} ${y + 6}L${x + 14} ${y + h + 28}Z"/>
-    <path class="device-front" d="M${x - w} ${y}L${x + 7} ${y + h}V${y + h + 13}L${x - w} ${y + 13}Z"/>
-    <path class="device-side" d="M${x + 7} ${y + h}L${x + w} ${y - 9}V${y + 4}L${x + 7} ${y + h + 13}Z"/>
-    <path class="device-top" d="M${x - w} ${y}L${x - 7} ${y - h}L${x + w} ${y - 9}L${x + 7} ${y + h}Z"/>
-    <path class="ssd-label" d="M${x - w * 0.58} ${y - 1}L${x - 6} ${y - h * 0.57}L${x + w * 0.57} ${y - 4}L${x + 3} ${y + h * 0.57}Z"/>
-    <text class="ssd-die-label" x="${x}" y="${y + 4}" text-anchor="middle">SSD</text>
-    ${[0, 1, 2, 3].map((i) => `<path class="ssd-port" d="M${x + 21 + i * 7} ${y + h - 5 - i * 3}v6"/>`).join("")}
-  </g>`;
-}
-
 const center = (position) => ({
   x: position.x + position.width / 2,
   y: position.y + position.height / 2,
 });
+
+function circuitPath(a, b) {
+  const slope = Math.tan(Math.PI / 6);
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const startY =
+    Math.abs(dy) > Math.abs(dx) * slope
+      ? b.y - Math.sign(dy) * Math.abs(dx) * slope * 0.5
+      : a.y;
+  const step = (dx + (b.y - startY) / slope) / 2;
+  return `M${a.x} ${a.y}V${startY}L${a.x + step} ${startY + slope * step}L${b.x} ${b.y}`;
+}
 const copyView = (frame, processes) => ({
   new: processes
     .filter((p) => frame.states[p.id].status === "new")
@@ -283,43 +249,31 @@ export function createSchedulerScene(hostElement, processes) {
     svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
     const cpu = layout.cpu,
       ssd = layout.ssd;
-    const example = {
-      new: [],
-      ready: ["source"],
-      running: "target",
-      blocked: [],
-      done: [],
+    const memoryPort = {
+      x: layout.memory.x + layout.memory.width * 0.78 + 16,
+      y:
+        layout.memory.y +
+        layout.memory.height -
+        15 -
+        (layout.memory.width * 0.78) / Math.sqrt(3),
     };
-    const ready = positionFor("source", example, layout),
-      running = positionFor("target", example, layout);
-    const blocked = {
-      x: layout.blocked.x,
-      y: layout.blocked.y,
-      width: layout.tokenWidth,
-      height: 44,
-    };
-    const done = {
-      x: layout.done.x,
-      y: layout.done.y,
-      width: layout.done.width,
-      height: 28,
+    const cpuLeft = { x: cpu.x - cpu.width * 0.42, y: cpu.y + 12 };
+    const cpuRight = { x: cpu.x + cpu.width * 0.42, y: cpu.y + 12 };
+    const storagePort = {
+      x: ssd.x - ssd.width * 0.35,
+      y: ssd.y + ssd.width * 0.22,
     };
     svg.innerHTML = `<defs>
-      <pattern id="scene-grid-${serial}" width="44" height="26" patternUnits="userSpaceOnUse"><path d="M-22 0L44 39M0 -13L66 26M-22 26L44 -13M0 39L66 0"/></pattern>
       <marker id="scene-arrow-${serial}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z"/></marker>
     </defs>
-    <rect class="scene-grid" width="100%" height="100%" fill="url(#scene-grid-${serial})"/>
     <g class="scene-buses">
-      <path class="scene-bus" d="${route("dispatch", ready, running)}"/>
-      <path class="scene-bus" d="${route("block", running, blocked)}"/>
-      <path class="scene-bus scene-preempt-bus" d="${route("preempt", running, { ...ready, y: layout.ready.y + 104 })}"/>
-      <path class="scene-bus" d="${route("complete", running, done)}"/>
+      ${[0, 5].map((offset) => `<path class="scene-circuit" transform="translate(0 ${offset})" d="${circuitPath(memoryPort, cpuLeft)}"/><path class="scene-circuit" transform="translate(0 ${offset})" d="${circuitPath(cpuRight, storagePort)}"/>`).join("")}
     </g>
     ${memoryDrawing(layout.memory)}${cpuDrawing(cpu)}${ssdDrawing(ssd)}
     <text class="scene-device-title" x="${layout.ready.x}" y="${layout.ready.y - 19}">준비 큐</text>
     <text class="scene-device-sub" x="${layout.ready.x + 67}" y="${layout.ready.y - 19}">메모리 · 앞에서부터 배정</text>
-    <text class="scene-device-title" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 379 : 40}" text-anchor="${layout.mobile ? "start" : "middle"}">입출력 장치</text>
-    <text class="scene-device-sub" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 394 : 56}" text-anchor="${layout.mobile ? "start" : "middle"}">CPU와 독립적으로 진행</text>
+    <text class="scene-device-title" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 469 : 18}" text-anchor="${layout.mobile ? "start" : "middle"}">입출력 장치</text>
+    <text class="scene-device-sub" x="${layout.mobile ? 18 : ssd.x}" y="${layout.mobile ? 484 : 34}" text-anchor="${layout.mobile ? "start" : "middle"}">CPU와 독립적으로 진행</text>
     <text class="scene-rail-label" x="${layout.arrival.x}" y="${layout.arrival.y - 11}">도착 예정</text>
     <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="${layout.arrival.y - 11}"></text>
     <text class="scene-rail-label" x="${layout.done.x}" y="${layout.done.y - 12}">완료한 작업</text>

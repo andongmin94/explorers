@@ -76,6 +76,7 @@ CPU는 하나, I/O는 서로 독립적으로 진행되며 문맥 교환 비용�
 | --- | --- |
 | `src/engine.js` | 순수 함수 기반 RR·FCFS 계산, 프레임·사건·통계 |
 | `src/scene.js`, `src/scene.css` | CPU 그림, 프로세스 이동, 상태별 배치 |
+| `src/devices.js` | 공통 30° 아이소메트릭 투영의 CPU·DIMM 메모리·SSD |
 | `src/lesson.js` | 장면별 고정 해설, 동적 핵심 장면, 작업별 구간 진행·시간 분해 |
 | `src/main.js` | 재생·탐색·예측·비교 UI, 시간표와 사건 기록 |
 | `src/styles.css` | 네오브루탈 Mono·Pretendard·반응형 스타일 |

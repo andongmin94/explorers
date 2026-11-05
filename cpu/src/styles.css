@@ -1581,9 +1581,6 @@ kbd {
 .scene-panel .scheduler-scene {
   background: transparent;
 }
-.scene-panel .scene-grid {
-  opacity: 0;
-}
 #scene {
   flex: none;
   margin-block: auto;
