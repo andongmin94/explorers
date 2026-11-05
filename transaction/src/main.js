@@ -60,18 +60,79 @@ const icon = (name) =>
 $("#app").innerHTML =
   `<header class="app-header"><div class="brand-icon">${icon("db")}</div><div><h1>트랜잭션 탐험가</h1><p>보면서 이해하는 데이터베이스</p></div><div class="scenario-heading"><small>대표 시나리오 03</small><strong>같은 재고, 두 개의 주문</strong></div><div class="header-actions"><button class="button" data-action="compare">${icon("compare")}<span>두 방식 비교</span></button><button class="button icon-button" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button></div></header>
 <main class="workspace"><aside class="panel setup-panel"><button class="panel-head setup-toggle" data-action="setup" aria-expanded="true" aria-controls="setup-content"><h2>실험 조건</h2><span>재고 한 행 ⌄</span></button><div class="setup-content" id="setup-content"><div class="section-label">값을 읽는 방법</div><div class="mode-toggle" role="group" aria-label="읽기 잠금 방식"><button data-mode="naive" aria-pressed="true"><strong>일반 SELECT</strong><span>읽은 뒤 앱에서 계산</span></button><button data-mode="locked" aria-pressed="false"><strong>읽기부터 잠금</strong><span>SELECT FOR UPDATE</span></button></div><p class="rule-summary" id="rule-summary"></p><div class="scenario-goal"><span>두 주문이 각각 1개 감소</span><strong>10 − 1 − 1 = <b>8</b></strong><small>기대하는 최종 재고</small></div><div class="section-label">한 주문의 네 단계</div><ol class="recipe"><li><b>읽기</b><span>DB의 값을 앱에 보관</span></li><li><b>계산</b><span>앱에서 읽은 값 − 1</span></li><li><b>쓰기</b><span>계산한 숫자로 UPDATE</span></li><li><b>확정</b><span>COMMIT · 잠금 해제</span></li></ol><div class="isolation"><b>READ COMMITTED</b><span>PostgreSQL · 고정된 사건 순서</span></div><details class="model-notes"><summary>이 실험의 범위</summary><ul>${MODEL_NOTES.map((t) => `<li>${t}</li>`).join("")}<li>실제 데이터베이스 연결이나 실행 시간 측정 없이 한 행의 상태 변화를 재현합니다.</li></ul></details></div></aside>
-<section class="panel scene-panel"><div class="panel-head"><h2>요청과 잠금의 흐름</h2><b class="step-clock"><span id="step-count">0</span><small>/ 11 사건</small></b></div><div id="transaction-scene"></div><div class="scene-summary"><strong id="state-summary"></strong><span id="commit-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 사건">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 사건 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="11" value="0" step="1" aria-label="처리한 사건 수"/><span>11</span></div></div></section>
-<aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span id="lesson-mode"></span></div><nav id="milestones" aria-label="핵심 학습 장면"></nav><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-number"></span></div><p id="event-body" aria-live="polite"></p><code id="current-sql"></code></div><ul id="lesson-details" class="lesson-details"></ul><div class="insight"><b>!</b><p id="takeaway"></p></div><button class="button prediction-button" data-action="predict" hidden>대기 다음의 결과, 맞혀보기 →</button><button class="button primary conclusion-button" data-action="compare" hidden>전체 실행 결과 비교 →</button></div></aside>
+<section class="panel scene-panel"><div class="panel-head"><h2>요청과 잠금의 흐름</h2><b class="step-clock"><span id="step-count">0</span><small>/ 11 사건</small></b></div><div id="transaction-scene"></div><div class="scene-summary"><strong id="state-summary"></strong><button class="replay-event" data-action="replay" disabled>↻ 이번 사건 다시 보기</button><span id="commit-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 사건">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 사건 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="11" value="0" step="1" aria-label="처리한 사건 수"/><span>11</span></div></div></section>
+<aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span id="lesson-mode"></span></div><nav id="milestones" aria-label="핵심 학습 장면"></nav><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-number"></span></div><p id="event-body" aria-live="polite"></p><code id="current-sql"></code><div id="change-facts"></div></div><ul id="lesson-details" class="lesson-details"></ul><div class="insight"><b>!</b><p id="takeaway"></p></div><button class="button prediction-button" data-action="predict" hidden>대기 다음의 결과, 맞혀보기 →</button><button class="button primary conclusion-button" data-action="compare" hidden>전체 실행 결과 비교 →</button></div></aside>
 <section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 순서</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">SQL 기록 <span id="log-count"></span></button><button id="tab-results" role="tab" aria-selected="false" aria-controls="record-results" data-record="results" tabindex="-1">재고 결과</button><span class="record-hint">기록을 눌러 그 사건으로 이동</span></div><section id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline"><div class="history-legend"><span>각 사건을 처리한 뒤의 상태</span><span>${tx("T1")} 주문 1 ${tx("T2")} 주문 2 <i class="waiting-sample"></i>대기</span></div><div class="timeline-wrap" id="timeline"></div></section><section id="record-log" role="tabpanel" aria-labelledby="tab-log" hidden><div id="sql-log" class="sql-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section></main>
 <footer><span><kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 사건 이동 <kbd>R</kbd> 처음으로</span><span>학습 근거 ${SOURCES.map((s) => `<a href="${s.url}" target="_blank" rel="noreferrer">${s.title} ↗</a>`).join(" · ")}</span></footer><dialog id="prediction-dialog" aria-labelledby="prediction-title"></dialog><dialog id="comparison-dialog" aria-labelledby="comparison-title"></dialog>`;
 
 const scene = createTransactionScene($("#transaction-scene"), {
   onPhase(phase) {
     $("#event-title").textContent = phase.title;
-    $("#event-body").textContent = phase.body;
+    if (phase.body) {
+      $("#event-body").textContent = phase.body;
+      if (busy) $("#explanation p").textContent = phase.body;
+    }
     $("#event-number").textContent = index ? `${index}번째 사건` : "시작 전";
+    if (phase.snapshot) {
+      renderChanges(run().steps[index], phase.snapshot);
+      renderSummary(phase.snapshot);
+    }
   },
 });
+function renderChanges(step, state) {
+  const values = (s) => [
+    ["확정 재고", s.committedStock + "개"],
+    [
+      "미확정 값",
+      s.uncommitted
+        ? s.uncommitted.client + " · " + s.uncommitted.stock
+        : "없음",
+    ],
+    ["잠금 보유", s.rowLock.owner || "없음"],
+    [
+      "대기 요청",
+      s.rowLock.waiting.length
+        ? s.rowLock.waiting.join(", ") +
+          (s.rowLock.owner ? " · 잠금 대기" : " · 재개 가능")
+        : "없음",
+    ],
+  ];
+  const before = values(step.before),
+    after = values(state);
+  $("#change-facts").hidden = !step.index;
+  $("#change-facts").innerHTML =
+    '<table class="change-table"><caption>직전 → 현재</caption><thead><tr><th scope="col">항목</th><th scope="col">직전</th><th scope="col">현재</th></tr></thead><tbody>' +
+    after
+      .map(
+        ([label, value], i) =>
+          '<tr data-changed="' +
+          (before[i][1] !== value) +
+          '"><th scope="row">' +
+          label +
+          "</th><td>" +
+          before[i][1] +
+          "</td><td>" +
+          value +
+          "</td></tr>",
+      )
+      .join("") +
+    "</tbody></table>";
+}
+function renderSummary(state) {
+  $("#state-summary").textContent =
+    !busy && committed === 11
+      ? "최종 확정 재고 " + state.committedStock + "개"
+      : state.uncommitted
+        ? "확정 " +
+          state.committedStock +
+          " · " +
+          state.uncommitted.client +
+          " 미확정 " +
+          state.uncommitted.stock
+        : "확정 재고 " + state.committedStock + "개";
+  $("#commit-summary").textContent =
+    "커밋 " + state.completedTransactions + " / 2" + (busy ? " · 처리 중" : "");
+}
 function controls() {
   const moving = playing || (busy && !motionPaused);
   $('[data-action="play"]').innerHTML =
@@ -82,6 +143,7 @@ function controls() {
   );
   $('[data-action="back"]').disabled = index === 0;
   $('[data-action="next"]').disabled = index === 11 || busy;
+  $('[data-action="replay"]').disabled = index === 0 || busy;
   $('[data-action="guided"]').setAttribute("aria-checked", String(guided));
   $("#transaction-scene").setAttribute("aria-busy", String(busy));
   $("#playback-hint").textContent = busy
@@ -114,19 +176,11 @@ function render() {
     mode === "naive"
       ? "<b>읽은 값은 앱에 남습니다.</b> 이후 UPDATE가 잠금을 기다려도 앱의 계산은 자동으로 바뀌지 않습니다."
       : "<b>값을 읽을 때부터 행을 보호합니다.</b> 다른 FOR UPDATE는 앞선 커밋 뒤의 값을 읽습니다.";
-  $("#state-summary").textContent = busy
-    ? "사건 처리 중"
-    : index === 11
-      ? `최종 확정 재고 ${state.committedStock}개`
-      : state.uncommitted
-        ? `확정 ${state.committedStock} · ${state.uncommitted.client} 미확정 ${state.uncommitted.stock}`
-        : `확정 재고 ${state.committedStock}개`;
-  $("#commit-summary").textContent =
-    `${busy ? "직전 완료 기준 · " : ""}커밋 ${state.completedTransactions} / 2`;
+  renderSummary(state);
   $("#lesson-mode").textContent =
     mode === "naive" ? "일반 SELECT" : "FOR UPDATE";
   $("#explanation").innerHTML =
-    `<span class="eyebrow">${busy ? `${index}번째 사건 · 처리 중` : lesson.eyebrow}</span><h3>${busy ? `${lessonStep.client} · ${actions[lessonStep.action]} 처리 중` : lesson.title}</h3><p>${busy && lessonStep.action === "commit" ? "요청이 DB에 도착하면 미확정 값을 확정하고 행 잠금을 해제합니다. 응답이 돌아온 뒤 이 사건의 처리를 마칩니다." : lesson.summary}</p>`;
+    `<span class="eyebrow">${busy ? `${index}번째 사건 · 처리 중` : lesson.eyebrow}</span><h3>${busy ? `${lessonStep.client} · ${actions[lessonStep.action]} 처리 중` : lesson.title}</h3><p>${busy ? "장면의 현재 상태를 보며 이번 사건을 따라가세요." : lesson.summary}</p>`;
   $("#event-title").textContent = step.index
     ? `${step.client} · ${actions[step.action]}`
     : "두 주문, 같은 목표";
@@ -137,6 +191,7 @@ function render() {
   const shownSql = busy ? run().steps[index].sql : step.sql;
   $("#current-sql").hidden = !shownSql;
   $("#current-sql").textContent = shownSql || "";
+  renderChanges(lessonStep, busy ? lessonStep.before : state);
   $("#lesson-details").innerHTML = lesson.details
     .slice(1)
     .map((t) => `<li>${t}</li>`)
@@ -230,6 +285,12 @@ function jump(next) {
   pause();
   move(next, false);
 }
+async function replayEvent() {
+  const target = index;
+  pause();
+  await move(target - 1, false);
+  await move(target, true);
+}
 function play() {
   if (playing || (busy && !motionPaused)) {
     pause();
@@ -309,6 +370,9 @@ document.addEventListener("click", (e) => {
   switch (button.dataset.action) {
     case "play":
       play();
+      break;
+    case "replay":
+      replayEvent();
       break;
     case "next":
       pause();

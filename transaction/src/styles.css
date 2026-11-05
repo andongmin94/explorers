@@ -185,6 +185,10 @@ button:active:not(:disabled) {
   background: var(--ink);
   color: var(--inverse);
 }
+.button.primary:hover:not(:disabled) {
+  background: var(--ink);
+  color: var(--inverse);
+}
 .icon-button {
   width: 36px;
   padding: 6px;
@@ -457,12 +461,12 @@ summary {
 }
 .client-card {
   position: absolute;
-  height: 64px;
+  height: 96px;
   border: 2px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
   box-shadow: 3px 3px 0 var(--shadow);
-  padding: 7px;
+  padding: 6px;
   z-index: 2;
 }
 .client-card-head {
@@ -474,37 +478,68 @@ summary {
   font-size: 12px;
   white-space: nowrap;
 }
-.client-card-head [data-status] {
-  margin-left: auto;
+.transaction-scene .tx-id {
+  font-size: 12px;
+  min-width: 25px;
+}
+.client-role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  margin-top: 5px;
+  border: 1.5px solid var(--rule);
+  background: var(--soft);
   color: var(--muted);
-  font-size: 10px;
-  white-space: nowrap;
-}
-.client-card[data-state="waiting"] {
-  border-style: dashed;
-  background: color-mix(in srgb, var(--warning) 7%, var(--surface));
-}
-.client-card[data-state="waiting"] [data-status] {
-  color: var(--warning);
+  font-size: 12px;
   font-weight: 800;
+  line-height: 1;
 }
-.client-card[data-state="committed"] [data-status] {
+.client-card[data-role="owner"] {
+  border-color: var(--client-color);
+}
+.client-card[data-role="owner"] .client-role {
+  border-color: var(--client-color);
+  background: color-mix(in srgb, var(--client-color) 12%, var(--surface));
+  color: var(--client-color);
+}
+.client-card[data-role="waiting"] .client-role {
+  border: 1.5px dashed var(--warning);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--warning) 10%, transparent) 6px 9px
+    ),
+    var(--surface);
+  color: var(--warning);
+}
+.client-card[data-role="ready"] .client-role,
+.client-card[data-role="committed"] .client-role {
+  border-color: var(--border);
   color: var(--ink);
-  font-weight: 750;
 }
 .local-values {
-  display: flex;
-  justify-content: space-between;
-  gap: 5px;
-  margin-top: 8px;
-  font-size: 11px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 12px;
   color: var(--muted);
   white-space: nowrap;
 }
+.local-values > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  line-height: 20px;
+}
 .local-values b {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--ink);
-  margin-left: 3px;
+  margin-left: 0;
   font-variant-numeric: tabular-nums;
 }
 .client-card[data-client="T1"][data-active] {
@@ -535,7 +570,7 @@ summary {
   font-size: 12px;
 }
 .stock-card-head span {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .stock-values {
@@ -547,11 +582,11 @@ summary {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 2px 4px;
-  padding: 5px 10px;
+  padding: 4px 7px;
   height: 52px;
 }
 .stock-values > div > span {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 .stock-values > div > b {
@@ -563,7 +598,8 @@ summary {
   font-variant-numeric: tabular-nums;
 }
 .stock-values small {
-  font-size: 9px;
+  font-size: 12px;
+  white-space: nowrap;
   color: var(--muted);
 }
 .stock-values .pending-value {
@@ -573,36 +609,128 @@ summary {
 .stock-values .pending-value > b {
   font-size: 24px;
 }
+.stock-card[data-owned="true"] {
+  border-color: var(--owner-color);
+  outline: 2px solid var(--owner-color);
+  outline-offset: 2px;
+}
+.stock-card[data-committing="true"] [data-version],
+.stock-card[data-committing="true"] .pending-value small {
+  color: var(--ink);
+  font-weight: 750;
+}
+.stock-card[data-committing="true"] {
+  outline: 2px solid var(--border);
+  outline-offset: 2px;
+}
 .row-lock {
   position: absolute;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   min-height: 28px;
-  padding: 5px 8px;
+  padding: 4px 7px;
   background: var(--soft);
   border: 1.5px solid var(--border);
   border-radius: 2px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.25;
 }
 .lock-icon {
-  font-size: 16px;
-  line-height: 1;
+  flex: none;
+  width: 20px;
+  height: 20px;
   color: var(--lock-color);
+  fill: var(--surface);
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: square;
+  stroke-linejoin: round;
+}
+.lock-shackle {
+  transform-origin: 6px 10px;
+}
+.row-lock[data-locked="false"] .lock-shackle {
+  transform: rotate(-28deg);
 }
 .row-lock strong {
-  font-size: 11px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 850;
+  color: var(--lock-color);
 }
 .row-lock [data-wait] {
   margin-left: auto;
   color: var(--warning);
   font-weight: 800;
+  font-size: 12px;
   white-space: nowrap;
 }
 .row-lock[data-locked="true"] {
   border-color: var(--lock-color);
+}
+.row-lock[data-ready="true"] [data-wait],
+.row-lock[data-locked="false"] strong {
+  color: var(--ink);
+}
+.parked-query {
+  position: absolute;
+  z-index: 4;
+  width: 88px;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 25px 1fr;
+  align-items: center;
+  gap: 3px 4px;
+  padding: 5px;
+  border: 2px dashed var(--warning);
+  background:
+    repeating-linear-gradient(
+      135deg,
+      transparent 0 6px,
+      color-mix(in srgb, var(--warning) 10%, transparent) 6px 9px
+    ),
+    var(--surface);
+  box-shadow: 2px 2px 0 var(--shadow);
+  font-size: 12px;
+  line-height: 15px;
+}
+.parked-query strong {
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.parked-query > span {
+  grid-column: 1/-1;
+  color: var(--warning);
+  font-weight: 800;
+  text-align: center;
+}
+.parked-query[data-ready="true"] {
+  border-style: solid;
+  border-color: var(--border);
+  background: var(--surface);
+}
+.parked-query[data-ready="true"] > span {
+  color: var(--ink);
+}
+.query-gate {
+  fill: var(--warning);
+  stroke: var(--warning);
+  stroke-width: 3;
+  stroke-linecap: square;
+}
+.query-gate .gate-arm {
+  transform-origin: 0 10px;
+}
+.query-gate[data-open="true"] {
+  fill: var(--muted);
+  stroke: var(--muted);
+}
+.query-gate[data-open="true"] .gate-arm {
+  transform: rotate(70deg);
+}
+.query-gate[data-open="true"] rect {
+  visibility: hidden;
 }
 .query-packet {
   position: absolute;
@@ -696,6 +824,16 @@ summary {
 .connection .return-lane {
   stroke-dasharray: 5 4;
 }
+.connection[data-owner="true"] .request-lane {
+  stroke: var(--lane-color);
+  stroke-width: 3;
+  opacity: 1;
+}
+.connection[data-waiting="true"] .request-lane {
+  stroke: var(--warning);
+  stroke-dasharray: 4 4;
+  opacity: 0.85;
+}
 .connection [data-active] {
   stroke: var(--lane-color);
   stroke-width: 2.8;
@@ -733,6 +871,56 @@ summary {
   color: var(--muted);
   font-size: 10px;
   white-space: nowrap;
+}
+.replay-event {
+  flex: none;
+  min-height: 28px;
+  padding: 4px 7px;
+  border: 1.5px solid var(--border);
+  border-radius: 2px;
+  background: var(--surface);
+  box-shadow: 1px 1px 0 var(--shadow);
+  font-size: 12px;
+  font-weight: 750;
+}
+.change-table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.change-table caption {
+  padding: 8px 0 5px;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  font-weight: 800;
+  color: var(--ink);
+}
+.change-table th,
+.change-table td {
+  padding: 5px 4px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.change-table th {
+  font-weight: 650;
+}
+.change-table thead,
+.change-table td:nth-child(2) {
+  color: var(--muted);
+}
+.change-table td:last-child {
+  color: var(--ink);
+  font-weight: 800;
+}
+.change-table tr[data-changed="true"] {
+  background: var(--surface);
+  outline: 1px solid var(--border);
+  outline-offset: -1px;
 }
 .transport {
   padding: 10px 13px 9px;
@@ -1380,7 +1568,7 @@ dialog::backdrop {
     gap: 4px;
   }
   .client-card-head > strong {
-    font-size: 11px;
+    font-size: 12px;
   }
   .client-card-head [data-status] {
     font-size: 9px;
@@ -1673,10 +1861,10 @@ dialog::backdrop {
     padding: 17px;
   }
   .row-lock strong {
-    font-size: 10px;
+    font-size: 12px;
   }
   .row-lock [data-wait] {
-    font-size: 10px;
+    font-size: 12px;
   }
   .client-card-head {
     gap: 4px;
@@ -1685,13 +1873,13 @@ dialog::backdrop {
     font-size: 9px;
   }
   .local-values {
-    font-size: 10px;
+    font-size: 12px;
   }
   .local-values b {
-    font-size: 13px;
+    font-size: 16px;
   }
   .scene-callout {
-    font-size: 11px;
+    font-size: 12px;
   }
   .scene-summary {
     gap: 3px;
