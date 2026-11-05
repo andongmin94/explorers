@@ -1,5 +1,6 @@
 import "./styles.css";
 import "./deadlock.css";
+import "./deadlock-controls.css";
 import { simulateDeadlock } from "./deadlock-engine.js";
 import {
   describeDeadlockStep,
@@ -55,9 +56,9 @@ $("#app").innerHTML = `
 <nav class="scenario-nav" aria-label="트랜잭션 시나리오"><a href="./"><b>01</b> 재고 갱신</a><a href="./deadlock.html" aria-current="page"><b>02</b> 교착 상태와 롤백</a></nav>
 <main class="workspace deadlock-workspace">
 <aside class="panel setup-panel"><button class="panel-head setup-toggle" data-action="setup" aria-expanded="true" aria-controls="setup-content"><h2>실험 조건</h2><span>두 행 · 두 주문 ⌄</span></button><div class="setup-content" id="setup-content"><div class="section-label">엇갈린 잠금 순서</div><div class="dl-orders"><div class="dl-order">${tx("T1")} <strong>A → B</strong><span>A를 먼저 수정</span></div><div class="dl-order">${tx("T2")} <strong>B → A</strong><span>B를 먼저 수정</span></div></div><p class="rule-summary">두 주문 모두 두 행을 1씩 줄이려 합니다. <b>첫 잠금을 놓지 않은 채</b> 상대가 잠근 행을 요청합니다.</p><div class="scenario-goal"><span>처음 확정 재고</span><strong>A <b>10</b> · B <b>20</b></strong><small>UPDATE는 각 행의 stock − 1</small></div><div class="section-label">이번 장면에서 볼 것</div><ol class="recipe"><li><b>보유</b><span>누가 어느 행을 잠갔나</span></li><li><b>대기</b><span>누구를 기다리고 있나</span></li><li><b>순환</b><span>서로 기다려 멈추는 순간</span></li><li><b>해소</b><span>롤백 → 잠금 해제 → 재개</span></li></ol><div class="isolation"><b>READ COMMITTED</b><span>PostgreSQL · 고정된 사건 순서</span></div><details class="model-notes"><summary>이 실험의 범위</summary><ul>${DEADLOCK_NOTES.map((text) => `<li>${text}</li>`).join("")}</ul></details></div></aside>
-<section class="panel scene-panel"><div class="panel-head"><h2>잠금과 대기의 연결</h2><b class="step-clock"><span id="step-count">0</span><small>/ ${last} 사건</small></b></div><div id="deadlock-scene"></div><div class="scene-summary"><strong id="state-summary"></strong><button class="replay-event" data-action="replay" disabled>↻ 이번 사건 다시 보기</button><span id="commit-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 사건">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 사건 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="${last}" value="0" step="1" aria-label="처리한 사건 수"/><span>${last}</span></div></div></section>
+<section class="panel scene-panel"><div class="panel-head"><h2>잠금과 대기의 연결</h2><b class="step-clock"><span id="step-count">0</span><small>/ ${last} 사건</small></b></div><div id="deadlock-scene"></div><div class="scene-summary"><div class="dl-summary-copy"><strong id="state-summary"></strong><span id="commit-summary"></span></div><button class="replay-event" data-action="replay" disabled>↻ 이번 사건 다시 보기</button></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 사건">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 사건 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="${last}" value="0" step="1" aria-label="처리한 사건 수"/><span>${last}</span></div></div></section>
 <aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span>교착 상태와 롤백</span></div><nav id="milestones" aria-label="핵심 학습 장면"></nav><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-number"></span></div><p id="event-body" aria-live="polite"></p><code id="current-sql"></code><div id="dl-facts"></div></div><ul id="lesson-details" class="lesson-details"></ul><div class="insight"><b>!</b><p id="takeaway"></p></div><button class="button prediction-button" data-action="predict" hidden>롤백으로 무엇이 취소될까? →</button></div></aside>
-<section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 순서</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">잠금 기록 <span id="log-count"></span></button><button id="tab-results" role="tab" aria-selected="false" aria-controls="record-results" data-record="results" tabindex="-1">재고 결과</button><span class="record-hint">기록을 눌러 그 사건으로 이동</span></div><section id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline"><div class="history-legend"><span>각 사건을 처리한 뒤의 상태</span><span>${tx("T1")} 주문 1 ${tx("T2")} 주문 2 <i class="waiting-sample"></i>대기</span></div><div class="timeline-wrap" id="timeline"></div></section><section id="record-log" role="tabpanel" aria-labelledby="tab-log" hidden><div id="sql-log" class="sql-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section></main>
+<section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 순서</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">잠금 기록 <span id="log-count"></span></button><button id="tab-results" role="tab" aria-selected="false" aria-controls="record-results" data-record="results" tabindex="-1">재고 결과</button><span class="record-hint">기록을 눌러 그 사건으로 이동</span></div><section id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline"><div class="history-legend"><span><strong>사건별 잠금과 재고</strong> 각 사건을 처리한 뒤의 상태</span><span><i class="waiting-sample"></i>잠금 대기 · 미확정 값은 확정 재고에 포함하지 않음</span></div><div class="timeline-wrap" id="timeline"></div></section><section id="record-log" role="tabpanel" aria-labelledby="tab-log" hidden><div id="sql-log" class="sql-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section></main>
 <footer><span><kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 사건 이동 <kbd>R</kbd> 처음으로</span><span>학습 근거 ${DEADLOCK_SOURCES.map((source) => `<a href="${source.url}" target="_blank" rel="noreferrer">${source.title} ↗</a>`).join(" · ")}</span></footer><dialog id="prediction-dialog" aria-labelledby="prediction-title"></dialog>`;
 
 const scene = createDeadlockScene($("#deadlock-scene"), {
@@ -172,21 +173,49 @@ function render() {
 function renderRecords() {
   const steps = run.steps.slice(1);
   const cell = (step, text, cls = "") =>
-    `<td class="${step.index === index ? "current" : ""}">${step.index <= completed ? `<button data-seek="${step.index}" class="trace-cell ${cls}">${text}</button>` : '<span class="future-cell">·</span>'}</td>`;
+    `<td class="${step.index === index ? "current" : ""}">${step.index <= completed ? `<button data-seek="${step.index}" class="trace-cell ${cls}">${text}</button>` : '<span class="future-cell" aria-label="아직 실행하지 않음">—</span>'}</td>`;
+  const actorText = (step, id) => {
+    if (step.action === "detect")
+      return id === step.state.victim ? "중단 대상" : "대기 유지";
+    if (step.client === id)
+      return `${actions[step.action]}${step.row && step.action !== "rollback" ? ` ${step.row}` : ""}`;
+    const client = step.state.clients[id];
+    if (client.waitingFor)
+      return `${client.waitingFor} ${step.state.rows[client.waitingFor].owner ? "잠금 대기" : "재개 가능"}`;
+    return {
+      idle: "—",
+      active: "진행 중",
+      committed: "커밋 완료",
+      aborted: "롤백 완료",
+    }[client.status];
+  };
   const actors = ["T1", "T2"]
     .map(
-      (id) =>
-        `<tr><th scope="row">${tx(id)}</th>${steps.map((s) => cell(s, s.client === id ? `${actions[s.action]}${s.row && s.action !== "rollback" ? ` ${s.row}` : ""}` : s.action === "detect" ? (id === s.state.victim ? "중단 대상" : "대기 유지") : "", s.client === id ? `${id.toLowerCase()} ${s.action === "wait" ? "waiting" : ""}` : "")).join("")}</tr>`,
+      (id, actorIndex) =>
+        `<tr class="dl-actor-history"><th scope="row">${tx(id)}<span>주문 ${actorIndex + 1}</span></th>${steps.map((s) => cell(s, actorText(s, id), s.state.clients[id].waitingFor && s.state.rows[s.state.clients[id].waitingFor].owner ? "waiting" : s.state.clients[id].status === "idle" ? "" : id.toLowerCase())).join("")}</tr>`,
     )
     .join("");
   const rows = ["A", "B"]
     .map(
       (row) =>
-        `<tr><th scope="row">${row} 잠금</th>${steps.map((s) => cell(s, s.state.rows[row].owner || "—", s.state.rows[row].owner?.toLowerCase() || "")).join("")}</tr><tr><th scope="row">${row} 확정</th>${steps.map((s) => cell(s, s.state.rows[row].committed)).join("")}</tr>`,
+        `<tr class="dl-row-history"><th scope="row"><b class="dl-row-id">${row}</b><span>행 상태</span></th>${steps
+          .map((s) => {
+            const state = s.state.rows[row];
+            return cell(
+              s,
+              `<b class="dl-history-owner ${state.owner?.toLowerCase() || ""}">${state.owner ? `${state.owner} 보유` : "잠금 없음"}</b><span>확정 <strong>${state.committed}</strong></span><small class="${state.pending ? "has-pending" : ""}">${state.pending ? `미확정 ${state.pending.value}` : "미확정 없음"}</small>`,
+              "dl-state-cell",
+            );
+          })
+          .join("")}</tr>`,
     )
     .join("");
+  const eventLabel = (step) =>
+    step.action === "detect"
+      ? "DB 감지"
+      : `${actions[step.action]}${step.row && step.action !== "rollback" ? ` ${step.row}` : ""}`;
   $("#timeline").innerHTML =
-    `<table class="trace-table"><thead><tr><th>사건</th>${steps.map((s) => `<th><button data-seek="${s.index}" aria-label="${s.index}번째 사건으로 이동">${s.index}</button></th>`).join("")}</tr></thead><tbody>${actors}${rows}</tbody></table>`;
+    `<table class="trace-table"><thead><tr class="dl-history-groups"><th>흐름</th><th colspan="4">01 · 잠금 확보</th><th colspan="3">02 · 교착 상태</th><th colspan="3">03 · 해소와 확정</th></tr><tr class="dl-history-events"><th>사건</th>${steps.map((s) => `<th class="${s.index === index ? "current" : ""}"><button data-seek="${s.index}" aria-label="${s.index}번째 사건으로 이동" ${s.index === index ? 'aria-current="step"' : ""}><b>${String(s.index).padStart(2, "0")}</b><span>${eventLabel(s)}</span></button></th>`).join("")}</tr></thead><tbody>${actors}${rows}</tbody></table>`;
   $("#log-count").textContent = completed;
   $("#sql-log").innerHTML = completed
     ? steps
@@ -387,10 +416,16 @@ document.documentElement.dataset.theme =
   localStorage.getItem("transaction-theme") || "light";
 if (document.documentElement.dataset.theme === "dark")
   $('[data-action="theme"]').setAttribute("aria-label", "밝은 테마로 전환");
-if (matchMedia("(max-width:1099px)").matches) {
-  $('[data-action="setup"]').setAttribute("aria-expanded", "false");
-  $("#setup-content").hidden = true;
+const compactLayout = matchMedia("(max-width:1099px)");
+function syncSetupLayout() {
+  $('[data-action="setup"]').setAttribute(
+    "aria-expanded",
+    String(!compactLayout.matches),
+  );
+  $("#setup-content").hidden = compactLayout.matches;
 }
+syncSetupLayout();
+compactLayout.addEventListener("change", syncSetupLayout);
 const observer = new ResizeObserver(() =>
   $(".workspace").style.setProperty(
     "--stage-height",

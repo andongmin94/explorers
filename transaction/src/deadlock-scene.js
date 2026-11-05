@@ -1,184 +1,26 @@
 import { getDeadlockPresentationState } from "./deadlock-engine.js";
 
-const COS = Math.sqrt(3) / 2;
-const point = (o, u, v, z = 0) => [o.x + (u - v) * COS, o.y + (u + v) / 2 - z];
-const polygon = (o, vertices, cls) =>
-  `<polygon class="${cls}" points="${vertices
-    .map((p) =>
-      point(o, ...p)
-        .map((v) => v.toFixed(2))
-        .join(","),
-    )
-    .join(" ")}"/>`;
-function box(o, u, v, low, high, prefix = "dl-device") {
-  return (
-    polygon(
-      o,
-      [
-        [-u, v, high],
-        [u, v, high],
-        [u, v, low],
-        [-u, v, low],
-      ],
-      `${prefix}-front`,
-    ) +
-    polygon(
-      o,
-      [
-        [u, -v, high],
-        [u, v, high],
-        [u, v, low],
-        [u, -v, low],
-      ],
-      `${prefix}-side`,
-    ) +
-    polygon(
-      o,
-      [
-        [-u, -v, high],
-        [u, -v, high],
-        [u, v, high],
-        [-u, v, high],
-      ],
-      `${prefix}-top`,
-    )
-  );
-}
-function laptop(x, y, width) {
-  const o = { x, y },
-    u = (width * 0.32) / COS,
-    v = (width * 0.18) / COS,
-    h = width * 0.39;
-  const panel = [
-    [-u, -v, 7],
-    [u, -v, 7],
-    [u, -v, h],
-    [-u, -v, h],
-  ];
-  return `<g>${polygon(
-    { x: x + 5, y: y + 5 },
-    [
-      [-u, -v, 0],
-      [u, -v, 0],
-      [u, v, 0],
-      [-u, v, 0],
-    ],
-    "dl-device-shadow",
-  )}
-  ${box(o, u, v, 0, 5)}${polygon(o, panel, "dl-device-screen-shell")}
-  ${polygon(
-    o,
-    [
-      [-u + 5, -v - 0.1, 12],
-      [u - 5, -v - 0.1, 12],
-      [u - 5, -v - 0.1, h - 5],
-      [-u + 5, -v - 0.1, h - 5],
-    ],
-    "dl-device-screen",
-  )}
-  ${[0, 1, 2]
-    .map((i) =>
-      polygon(
-        o,
-        [
-          [-u + 11, -v - 0.2, 22 + i * 7],
-          [u - 13, -v - 0.2, 22 + i * 7],
-          [u - 13, -v - 0.2, 24 + i * 7],
-          [-u + 11, -v - 0.2, 24 + i * 7],
-        ],
-        "dl-device-code",
-      ),
-    )
-    .join("")}
-  ${polygon(
-    o,
-    [
-      [-u * 0.8, -v * 0.7, 5.3],
-      [u * 0.8, -v * 0.7, 5.3],
-      [u * 0.8, v * 0.35, 5.3],
-      [-u * 0.8, v * 0.35, 5.3],
-    ],
-    "dl-device-keys",
-  )}
-  ${[0, 1, 2]
-    .map((i) => {
-      const a = point(o, -u * 0.72, -v * 0.45 + i * v * 0.3, 5.5),
-        b = point(o, u * 0.72, -v * 0.45 + i * v * 0.3, 5.5);
-      return `<path class="dl-device-detail" d="M${a.join(" ")}L${b.join(" ")}"/>`;
-    })
-    .join("")}
-  ${polygon(
-    o,
-    [
-      [-u * 0.25, v * 0.48, 5.3],
-      [u * 0.25, v * 0.48, 5.3],
-      [u * 0.25, v * 0.82, 5.3],
-      [-u * 0.25, v * 0.82, 5.3],
-    ],
-    "dl-device-trackpad",
-  )}</g>`;
-}
-function database(x, y, width) {
-  const o = { x, y },
-    u = width / (4 * COS),
-    v = u,
-    h = 57;
-  const [tx, ty] = point(o, 0, 0, h + 0.5);
-  return `<g>${polygon(
-    { x: x + 5, y: y + 6 },
-    [
-      [-u, -v, 0],
-      [u, -v, 0],
-      [u, v, 0],
-      [-u, v, 0],
-    ],
-    "dl-device-shadow",
-  )}
-  ${box(o, u, v, 0, h)}
-  ${[0, 1, 2]
-    .map((i) =>
-      polygon(
-        o,
-        [
-          [-u + 5, v + 0.1, 8 + i * 13],
-          [u - 5, v + 0.1, 8 + i * 13],
-          [u - 5, v + 0.1, 16 + i * 13],
-          [-u + 5, v + 0.1, 16 + i * 13],
-        ],
-        "dl-device-drawer",
-      ),
-    )
-    .join("")}
-  ${[0, 1, 2]
-    .map((i) =>
-      polygon(
-        o,
-        [
-          [u + 0.1, -v + 5, 9 + i * 13],
-          [u + 0.1, v - 5, 9 + i * 13],
-          [u + 0.1, v - 5, 11 + i * 13],
-          [u + 0.1, -v + 5, 11 + i * 13],
-        ],
-        "dl-device-vent",
-      ),
-    )
-    .join("")}
-  <text class="dl-device-engraving" transform="matrix(${COS} .5 ${-COS} .5 ${tx} ${ty})" text-anchor="middle" y="6">DB</text></g>`;
-}
-function housing(x, y, width, height, depth = 12) {
+function housing(x, y, width, height, depth = 14) {
   const rise = depth / Math.sqrt(3),
     bottom = y + height;
   return `<g>
-    <path class="dl-device-shadow" d="M${x + 4} ${bottom + 4}H${x + width + depth + 4}L${x + width + 4} ${bottom + 6}H${x + 4}Z"/>
+    <path class="dl-device-shadow" d="M${x + 5} ${y + 5}H${x + width + depth + 5}V${bottom + 6}H${x + 5}Z"/>
     <path class="dl-device-top" d="M${x} ${y}L${x + depth} ${y - rise}H${x + width + depth}L${x + width} ${y}Z"/>
     <path class="dl-device-side" d="M${x + width} ${y}L${x + width + depth} ${y - rise}V${bottom - rise}L${x + width} ${bottom}Z"/>
     <rect class="dl-device-front" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>
-    <path d="M${x + 4} ${y + 5}V${bottom - 4}H${x + width - 4}V${y + 5}" fill="none" stroke="var(--border)" stroke-width="1" opacity=".4"/>
-    ${[x + 4, x + width - 4].map((a) => `<circle cx="${a}" cy="${y + 5}" r="1.3" fill="var(--border)"/><circle cx="${a}" cy="${bottom - 5}" r="1.3" fill="var(--border)"/>`).join("")}
   </g>`;
 }
+function terminal(x, y, width) {
+  const bottom = y + 140;
+  return `${housing(x, y, width, 140)}
+    <path class="dl-device-top" d="M${x} ${bottom}H${x + width}L${x + width - 16} ${bottom + 23}H${x - 16}Z"/>
+    <path class="dl-device-side" d="M${x - 16} ${bottom + 23}H${x + width - 16}L${x + width} ${bottom}V${bottom + 5}L${x + width - 16} ${bottom + 28}H${x - 16}Z"/>
+    <path class="dl-device-keys" d="M${x + 10} ${bottom + 5}H${x + width - 20}L${x + width - 27} ${bottom + 16}H${x + 3}Z"/>
+    ${[0, 1].map((i) => `<path class="dl-device-detail" d="M${x + 9 - i * 3} ${bottom + 8 + i * 4}H${x + width - 23 - i * 3}"/>`).join("")}
+    ${[1, 2, 3, 4, 5].map((i) => `<path class="dl-device-detail" d="M${x + 10 + ((width - 30) * i) / 6} ${bottom + 5}l-7 11"/>`).join("")}`;
+}
 const socketPort = (x, y) =>
-  `<rect x="${x - 3}" y="${y - 4}" width="6" height="8" fill="var(--ink)" stroke="var(--surface)" stroke-width="1"/>`;
+  `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`;
 
 const ids = ["T1", "T2"],
   rowIds = ["A", "B"];
@@ -195,9 +37,10 @@ const statusLabel = {
 export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   host.className = "dl-scene";
   host.innerHTML = `<svg class="dl-map" aria-hidden="true"></svg><div class="dl-callout"></div>
-    ${ids.map((id) => `<div class="dl-client" data-client="${id}" style="--actor:${color(id)}"><div class="dl-client-head">${badge(id)}<strong data-status>시작 전</strong></div><div class="dl-client-line"><span>보유</span><b data-held>없음</b></div><div class="dl-client-line dl-client-wait"><span>대기</span><b data-waiting>없음</b></div></div>`).join("")}
-    <div class="dl-cycle"><strong data-cycle-title>대기 관계 없음</strong><div data-cycle-edges></div></div>
-    ${rowIds.map((row) => `<div class="dl-row" data-row="${row}"><div class="dl-row-head"><b>행 ${row}</b><span data-owner>잠금 없음</span></div><div class="dl-row-values"><span>확정 <strong data-stock></strong></span><span>미확정 <b data-pending>없음</b></span></div><div class="dl-row-note" data-note>변경 없음</div></div><div class="dl-queued" data-queue="${row}" hidden></div>`).join("")}
+    ${ids.map((id, i) => `<div class="dl-client" data-client="${id}" style="--actor:${color(id)}"><div class="dl-client-head"><span class="dl-client-name">${badge(id)}<span>주문 ${i + 1}</span></span><strong data-status>시작 전</strong></div><div class="dl-client-line"><span>보유 잠금</span><b data-held>없음</b></div><div class="dl-client-line dl-client-wait"><span>요청 대기</span><b data-waiting>없음</b></div></div>`).join("")}
+    <div class="dl-cycle"><div class="dl-cycle-heading"><span class="dl-cycle-mark" aria-hidden="true">⇄</span><strong data-cycle-title>대기 관계 없음</strong></div><div data-cycle-edges></div></div>
+    <div class="dl-db-heading"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5c0-4 16-4 16 0v14c0 4-16 4-16 0V5m0 0c0 4 16 4 16 0M4 12c0 4 16 4 16 0"/></svg>공유 데이터베이스</span><b>재고 테이블</b></div>
+    ${rowIds.map((row) => `<div class="dl-row" data-row="${row}"><div class="dl-row-head"><b>행 ${row}</b><span data-owner>잠금 없음</span></div><div class="dl-row-values"><span>확정 재고<strong data-stock></strong></span><span>미확정 변경<b data-pending>없음</b></span></div><div class="dl-row-note" data-note>변경 없음</div></div><div class="dl-queued" data-queue="${row}" hidden></div>`).join("")}
     <div class="dl-packet" hidden></div>`;
   const svg = host.querySelector(".dl-map"),
     packet = host.querySelector(".dl-packet"),
@@ -220,8 +63,8 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
 
   function requestPath(id, row, stop = false, returning = false) {
     const sx = layout.clients[id],
-      sy = 283,
-      bridge = id === "T1" ? 289 : 298,
+      sy = 246,
+      bridge = id === "T1" ? 259 : 269,
       px = layout.park[row].x,
       py = layout.park[row].y,
       ex = layout.ports[row].x,
@@ -229,33 +72,38 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     if (returning) return `M${ex} ${ey}L${px} ${py}V${bridge}H${sx}V${sy}`;
     return `M${sx} ${sy}V${bridge}H${px}V${py}${stop ? "" : `L${ex} ${ey}`}`;
   }
+  function ownershipPath(id, row) {
+    const outside =
+      row === "A" ? layout.dbLeft - 10 : layout.dbLeft + layout.dbWidth + 24;
+    return `M${layout.clients[id]} 246V${id === "T1" ? 259 : 269}H${outside}V${layout.ports[row].y}H${layout.ports[row].x}`;
+  }
   function resumePath(row) {
     return `M${layout.park[row].x} ${layout.park[row].y}L${layout.ports[row].x} ${layout.ports[row].y}`;
   }
   function draw() {
     const width = Math.round(host.clientWidth),
       compact = width < 560,
-      dbWidth = Math.min(470, width - 34),
-      dbLeft = (width - dbWidth) / 2,
-      rowWidth = (dbWidth - 30) / 2;
+      dbWidth = Math.min(580, width - 42),
+      dbLeft = (width - dbWidth) / 2 - 5,
+      rowWidth = (dbWidth - 36) / 2;
     layout = {
       width,
       compact,
       dbWidth,
       dbLeft,
       rowWidth,
-      height: 606,
-      cardWidth: Math.min(192, (width - 66) / 2),
-      clients: { T1: width * 0.24, T2: width * 0.76 - (compact ? 8 : 0) },
-      rowX: { A: dbLeft + 10, B: dbLeft + 20 + rowWidth },
-      rowY: 466,
+      height: 628,
+      cardWidth: Math.min(228, (width - 80) / 2),
+      clients: { T1: width * 0.25, T2: width * 0.75 - 6 },
+      rowX: { A: dbLeft + 12, B: dbLeft + 24 + rowWidth },
+      rowY: 456,
       park: {
-        A: { x: dbLeft + 30, y: 430 },
-        B: { x: dbLeft + dbWidth - 30, y: 430 },
+        A: { x: dbLeft + 53, y: 392 },
+        B: { x: dbLeft + dbWidth - 53, y: 392 },
       },
       ports: {
-        A: { x: dbLeft + 3, y: 500 },
-        B: { x: dbLeft + dbWidth - 3, y: 500 },
+        A: { x: dbLeft + 3, y: 508 },
+        B: { x: dbLeft + dbWidth - 3, y: 508 },
       },
     };
     host.style.height = `${layout.height}px`;
@@ -263,13 +111,13 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     svg.setAttribute("viewBox", `0 0 ${width} ${layout.height}`);
     svg.innerHTML = `<defs><marker id="dl-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
       ${ids.map((id) => rowIds.map((row) => `<path class="dl-route" data-route="${id}-${row}" d="${requestPath(id, row)}" style="--actor:${color(id)}" marker-end="url(#dl-arrow)"/>`).join("")).join("")}
-      ${ids.map((id, i) => `<g class="dl-device" data-device="${id}"><text class="dl-device-title" x="${layout.clients[id]}" y="61" text-anchor="middle">클라이언트 ${i + 1}</text>${housing(layout.clients[id] - layout.cardWidth / 2 - 5, 167, layout.cardWidth + 10, 114)}${laptop(layout.clients[id], 146, Math.min(compact ? 114 : 138, width * 0.32))}${socketPort(layout.clients[id], 283)}</g>`).join("")}
-      <g class="dl-database">${housing(dbLeft, 454, dbWidth, 136, 10)}${database(width / 2, 450, 112)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
+      ${ids.map((id) => `<g class="dl-device" data-device="${id}">${terminal(layout.clients[id] - layout.cardWidth / 2 - 7, 79, layout.cardWidth + 14)}${socketPort(layout.clients[id], 246)}</g>`).join("")}
+      <g class="dl-database">${housing(dbLeft, 419, dbWidth, 190, 16)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
       ${rowIds.map((row) => `<g class="dl-gate" data-gate="${row}" transform="translate(${layout.ports[row].x} ${layout.ports[row].y})"><path d="M-4 14H4"/><path class="dl-gate-arm" d="M0 13V-13"/></g>`).join("")}<path class="dl-motion-path"/>`;
     for (const id of ids)
       Object.assign(cards[id].style, {
         left: `${layout.clients[id] - layout.cardWidth / 2}px`,
-        top: "177px",
+        top: "86px",
         width: `${layout.cardWidth}px`,
       });
     for (const row of rowIds) {
@@ -279,14 +127,19 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         width: `${rowWidth}px`,
       });
       Object.assign(queues[row].style, {
-        left: `${layout.park[row].x - 39}px`,
-        top: `${layout.park[row].y - 22}px`,
+        left: `${layout.park[row].x - 53}px`,
+        top: `${layout.park[row].y - 17}px`,
       });
     }
+    Object.assign(host.querySelector(".dl-db-heading").style, {
+      left: `${dbLeft + 12}px`,
+      top: "424px",
+      width: `${dbWidth - 24}px`,
+    });
     Object.assign(cycle.style, {
-      left: `${(width - Math.min(320, width - 100)) / 2}px`,
-      width: `${Math.min(320, width - 100)}px`,
-      top: "307px",
+      left: `${(width - Math.min(356, width - 58)) / 2}px`,
+      width: `${Math.min(356, width - 58)}px`,
+      top: "272px",
     });
     if (lastStep) snap(lastStep.state);
   }
@@ -298,12 +151,15 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         waiting = client.waitingFor,
         waitingRow = waiting ? state.rows[waiting] : null,
         ready = !!waitingRow && !waitingRow.owner,
-        held = client.held.join(" · ") || "없음";
+        held = client.held.length
+          ? client.held.map((row) => `행 ${row}`).join(" · ")
+          : "없음";
       let label = statusLabel[client.status];
       if (ready) label = "재개 가능";
       if (state.detected && state.victim === id && client.status !== "aborted")
         label = "중단 대상";
       cards[id].dataset.status = client.status;
+      cards[id].dataset.ready = String(ready);
       cards[id].dataset.victim = String(
         state.detected && state.victim === id && client.status !== "aborted",
       );
@@ -338,7 +194,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
             : "none";
       card.querySelector("[data-stock]").textContent = data.committed;
       card.querySelector("[data-owner]").textContent = data.owner
-        ? `보유 ${data.owner}`
+        ? `${data.owner} 보유`
         : "잠금 없음";
       card.querySelector("[data-pending]").textContent = data.pending
         ? `${data.pending.client} · ${data.pending.value}`
@@ -362,7 +218,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       queues[row].hidden = !waiting;
       queues[row].dataset.ready = String(!!ready);
       queues[row].innerHTML = waiting
-        ? `${badge(waiting)}<b>${row} 요청</b><span>${ready ? "재개 가능" : "SQL 대기"}</span>`
+        ? `${badge(waiting)}<span>${row} ${ready ? "재개 가능" : "대기 중"}</span>`
         : "";
       const gate = svg.querySelector(`[data-gate="${row}"]`);
       gate.dataset.open = String(!data.owner);
@@ -376,7 +232,9 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         route.dataset.waiting = String(data.waiting.includes(id));
         route.setAttribute(
           "d",
-          requestPath(id, row, data.waiting.includes(id)),
+          data.owner === id
+            ? ownershipPath(id, row)
+            : requestPath(id, row, data.waiting.includes(id)),
         );
       }
     cycle.dataset.cycle = String(state.deadlocked);
@@ -384,19 +242,31 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       ? state.detected
         ? "교착 감지 · T2 중단 선택"
         : "순환 대기 · 서로 진행 불가"
-      : ids.some((id) => state.clients[id].waitingFor)
-        ? "남은 대기 관계"
-        : "대기 관계 없음";
-    cycle.querySelector("[data-cycle-edges]").innerHTML = state.deadlocked
-      ? `<div>${badge("T1")}<span>B →</span>${badge("T2")}<span>A →</span>${badge("T1")}</div>`
-      : ids
-          .filter((id) => state.clients[id].waitingFor)
-          .map((id) => {
-            const row = state.clients[id].waitingFor,
-              owner = state.rows[row].owner;
-            return `<div>${badge(id)}<span>${row} ${owner ? "기다림 →" : "요청 → 재개 가능"}</span>${owner ? badge(owner) : ""}</div>`;
-          })
-          .join("");
+      : ids.some(
+            (id) =>
+              state.clients[id].waitingFor &&
+              state.rows[state.clients[id].waitingFor].owner,
+          )
+        ? "잠금 해제를 기다리는 중"
+        : ids.some((id) => state.clients[id].waitingFor)
+          ? "교착 해소 · 요청 재개 가능"
+          : state.commits
+            ? "완료 · 모든 잠금 해제"
+            : state.rollbacks
+              ? "교착 해소 · T1 실행 중"
+              : "대기 관계 없음";
+    cycle.querySelector("[data-cycle-edges]").innerHTML =
+      ids
+        .filter((id) => state.clients[id].waitingFor)
+        .map((id) => {
+          const row = state.clients[id].waitingFor,
+            owner = state.rows[row].owner;
+          return id === "T2" && owner
+            ? `<div class="dl-reverse" aria-label="T2는 T1의 A 잠금을 기다림">${badge(owner)}<b class="dl-wait-arrow" aria-hidden="true">←</b><span>${row} 잠금 기다림</span>${badge(id)}</div>`
+            : `<div>${badge(id)}<span>${row} 잠금 ${owner ? "기다림" : "해제됨"}</span><b class="dl-wait-arrow" aria-hidden="true">→</b>${owner ? badge(owner) : '<b class="dl-free-label">재개</b>'}</div>`;
+        })
+        .join("") ||
+      `<p>${state.commits ? "커밋 완료 · 모든 잠금이 풀렸습니다" : state.rollbacks ? "순환이 풀리고 T1이 작업을 이어갑니다" : "실선은 잠금 보유 · 화살표는 대기 관계"}</p>`;
   }
   function phase(step, title, body, kind) {
     callout.innerHTML = `${step.client ? badge(step.client) : ""}<strong>${title}</strong>`;
