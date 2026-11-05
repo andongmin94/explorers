@@ -34,46 +34,60 @@ let sceneSerial = 0;
 function layoutFor(width) {
   const mobile = width < 540;
   const tokenWidth = mobile
-    ? Math.min(132, (width - 96) / 2)
-    : Math.min(152, (width - 150) / 3);
+    ? Math.min(142, (width - 96) / 2)
+    : Math.min(168, (width - 180) / 3);
   const readyX = mobile ? 34 : 26;
   const cpuX = mobile ? width - 24 - tokenWidth / 2 : width / 2;
   const ioX = mobile ? cpuX : width - 26 - tokenWidth / 2;
+  const cardY = mobile ? 250 : 238;
   return {
     width,
     mobile,
-    height: mobile ? 780 : 510,
+    height: mobile ? 766 : 488,
     tokenWidth,
-    tokenHeight: 44,
-    arrival: { x: 26, y: 55, gap: tokenWidth + 12 },
-    ready: { x: readyX, y: 252, gap: 52 },
-    running: { x: cpuX - tokenWidth / 2, y: 252 },
-    blocked: { x: ioX - tokenWidth / 2, y: mobile ? 575 : 252, gap: 52 },
+    tokenHeight: 50,
+    queueGap: 58,
+    arrival: {
+      x: mobile ? 26 : width - 200,
+      y: mobile ? 55 : 19,
+      gap: 90,
+      width: 82,
+    },
+    ready: { x: readyX, y: cardY, gap: 58 },
+    running: { x: cpuX - tokenWidth / 2, y: cardY },
+    blocked: { x: ioX - tokenWidth / 2, y: mobile ? 558 : cardY, gap: 58 },
     done: {
-      x: Math.max(26, width / 2 - 136),
-      y: mobile ? 740 : 466,
-      gap: mobile ? (width - 52) / 3 : 94,
+      x: mobile ? Math.max(26, width / 2 - 136) : width / 2 - 70,
+      y: mobile ? 726 : 448,
+      gap: mobile ? (width - 52) / 3 : 92,
       width: mobile ? Math.min(82, (width - 64) / 3) : 82,
     },
     cpu: {
       x: cpuX,
-      y: 177,
-      width: mobile ? Math.min(148, width * 0.42) : Math.min(190, width * 0.29),
+      y: mobile ? 171 : 151,
+      width: mobile ? Math.min(156, width * 0.43) : Math.min(218, width * 0.32),
     },
-    memory: { x: readyX - 2, y: 137, width: tokenWidth + 8, height: 128 },
+    memory: {
+      x: readyX - 2,
+      y: mobile ? 120 : 96,
+      width: tokenWidth + 10,
+      height: mobile ? 126 : 132,
+    },
     ssd: {
       x: ioX,
-      y: mobile ? 510 : 191,
-      width: mobile ? 134 : Math.min(148, width * 0.25),
+      y: mobile ? 493 : 153,
+      width: mobile ? 148 : Math.min(176, width * 0.26),
     },
     meter: {
-      x: cpuX - (mobile ? Math.min(142, tokenWidth + 20) / 2 : 80),
-      y: 344,
-      width: mobile ? Math.min(142, tokenWidth + 20) : 160,
+      x: cpuX - (mobile ? Math.min(146, tokenWidth + 16) / 2 : 86),
+      y: mobile ? 314 : 326,
+      width: mobile ? Math.min(146, tokenWidth + 16) : 172,
     },
-    callout: { x: 18, y: 6, width: width - 36 },
-    returnY: mobile ? 704 : 424,
-    ioTitleY: mobile ? 443 : 112,
+    callout: { x: 18, y: 6, width: mobile ? width - 36 : width - 242 },
+    returnY: mobile ? 688 : 418,
+    preemptY: mobile ? 308 : 306,
+    titleY: mobile ? 108 : 76,
+    ioTitleY: mobile ? 428 : 76,
   };
 }
 
@@ -100,8 +114,13 @@ function positionFor(id, view, layout) {
           view[key].includes(id),
         );
   const index = state === "running" ? 0 : view[state].indexOf(id);
-  const width = state === "done" ? layout.done.width : layout.tokenWidth,
-    height = state === "done" ? 28 : layout.tokenHeight;
+  const width =
+      state === "done"
+        ? layout.done.width
+        : state === "new"
+          ? layout.arrival.width
+          : layout.tokenWidth,
+    height = state === "done" ? 28 : state === "new" ? 32 : layout.tokenHeight;
   if (state === "running") return { ...layout.running, width, height, state };
   const zone = state === "new" ? layout.arrival : layout[state];
   const horizontal = state === "new" || (state === "done" && !zone.vertical);
@@ -188,7 +207,7 @@ export function createSchedulerScene(hostElement, processes) {
       right = layout.width - 18;
     const queueSide = layout.ready.x + layout.tokenWidth + 18;
     if (type === "preempt")
-      return `M${a.x} ${a.y}V312H${queueSide}V${b.y}H${b.x}`;
+      return `M${a.x} ${a.y}V${layout.preemptY}H${queueSide}V${b.y}H${b.x}`;
     if (type === "unblock")
       return layout.mobile
         ? `M${a.x} ${a.y}V${layout.returnY}H${left}V${b.y}H${b.x}`
@@ -210,7 +229,12 @@ export function createSchedulerScene(hostElement, processes) {
   }
 
   function slot(position, label, extra = "") {
-    return `<g class="scene-slot" ${extra}><rect x="${position.x}" y="${position.y}" width="${layout.tokenWidth}" height="44" rx="3"/><text x="${position.x + layout.tokenWidth / 2}" y="${position.y + 26}" text-anchor="middle">${label}</text></g>`;
+    return `<g class="scene-slot" ${extra}><rect x="${position.x}" y="${position.y}" width="${layout.tokenWidth}" height="${layout.tokenHeight}" rx="3"/><text x="${position.x + layout.tokenWidth / 2}" y="${position.y + layout.tokenHeight / 2 + 4}" text-anchor="middle">${label}</text></g>`;
+  }
+
+  function routeBadge(type, x, y, lines, width) {
+    const height = lines.length === 1 ? 26 : 38;
+    return `<g class="scene-route-badge" data-route-label="${type}" transform="translate(${x} ${y})"><rect class="route-badge-shadow" x="${-width / 2 + 2}" y="${-height / 2 + 2}" width="${width}" height="${height}" rx="2"/><rect x="${-width / 2}" y="${-height / 2}" width="${width}" height="${height}" rx="2"/><text text-anchor="middle">${lines.map((line, index) => `<tspan x="0" y="${lines.length === 1 ? 4 : index * 14 - 3}">${line}</tspan>`).join("")}</text></g>`;
   }
 
   function drawMap() {
@@ -233,34 +257,36 @@ export function createSchedulerScene(hostElement, processes) {
     </defs>
     <g class="scene-lanes">${["dispatch", "block", "preempt", "unblock"].map((type) => `<path class="scene-lane" data-route="${type}" marker-end="url(#scene-arrow-${serial})"/>`).join("")}<path class="scene-flow"/></g>
     <g class="scene-station" data-station="ready">
-      ${deviceTitle(readyCenter, 112, "준비 큐", "메모리 · 위에서부터 배정")}
+      ${deviceTitle(readyCenter, layout.titleY, "준비 큐", "메모리 · 위에서부터 배정")}
       ${memoryDrawing(layout.memory)}
-      <path class="scene-dock" d="M${readyCenter} 219V252M${layout.ready.x + 5} 248H${layout.ready.x + layout.tokenWidth - 5}"/>
-      ${[0, 1, 2].map((index) => slot({ x: layout.ready.x, y: layout.ready.y + index * 52 }, index ? "" : "CPU를 기다리는 자리", `data-slot="${index}"`)).join("")}
-      <g class="scene-queue-order">${[0, 1, 2].map((index) => `<text x="${layout.ready.x - 8}" y="${layout.ready.y + index * 52 + 27}" text-anchor="end" data-order="${index}">${index + 1}</text>`).join("")}</g>
+      <path class="scene-dock" d="M${readyCenter} ${layout.ready.y - 34}V${layout.ready.y}M${layout.ready.x + 5} ${layout.ready.y - 4}H${layout.ready.x + layout.tokenWidth - 5}"/>
+      ${[0, 1, 2].map((index) => slot({ x: layout.ready.x, y: layout.ready.y + index * layout.queueGap }, index ? "" : "CPU를 기다리는 자리", `data-slot="${index}"`)).join("")}
+      <g class="scene-queue-order">${[0, 1, 2].map((index) => `<text x="${layout.ready.x - 8}" y="${layout.ready.y + index * layout.queueGap + layout.tokenHeight / 2 + 4}" text-anchor="end" data-order="${index}">${index + 1}</text>`).join("")}</g>
     </g>
     <g class="scene-station" data-station="running">
-      ${deviceTitle(cpu.x, 112, "CPU", "한 번에 한 작업 실행")}
+      ${deviceTitle(cpu.x, layout.titleY, "CPU", "한 번에 한 작업 실행")}
       ${cpuDrawing(cpu)}
-      <path class="scene-dock" d="M${cpu.x} 236V252M${layout.running.x + 5} 248H${layout.running.x + layout.tokenWidth - 5}"/>
+      <path class="scene-dock" d="M${cpu.x} ${layout.running.y - 20}V${layout.running.y}M${layout.running.x + 5} ${layout.running.y - 4}H${layout.running.x + layout.tokenWidth - 5}"/>
       ${slot(layout.running, "CPU 대기")}
     </g>
     <g class="scene-station" data-station="blocked">
       ${deviceTitle(ssd.x, layout.ioTitleY, "입출력", "CPU와 동시에 진행")}
       ${ssdDrawing(ssd)}
-      <path class="scene-dock" d="M${ssd.x} ${layout.mobile ? 553 : 235}V${layout.blocked.y}M${layout.blocked.x + 5} ${layout.blocked.y - 4}H${layout.blocked.x + layout.tokenWidth - 5}"/>
-      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * 52 }, index ? "" : "입출력 요청 없음", `data-io-slot="${index}"`)).join("")}
+      <path class="scene-dock" d="M${ssd.x} ${layout.blocked.y - 23}V${layout.blocked.y}M${layout.blocked.x + 5} ${layout.blocked.y - 4}H${layout.blocked.x + layout.tokenWidth - 5}"/>
+      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * layout.queueGap }, index ? "" : "입출력 요청 없음", `data-io-slot="${index}"`)).join("")}
     </g>
     <g class="scene-route-labels">
-      <text data-route-label="dispatch" x="${labelX}" y="262" text-anchor="middle">CPU 배정</text>
-      <text data-route-label="block" x="${ioLabelX}" y="${layout.mobile ? 425 : 262}" text-anchor="${layout.mobile ? "end" : "middle"}">입출력 요청</text>
-      <text data-route-label="preempt" x="${labelX}" y="329" text-anchor="middle">${layout.mobile ? `<tspan x="${labelX}">할당량</tspan><tspan x="${labelX}" dy="10">만료</tspan>` : "할당량 만료"}</text>
-      <text data-route-label="unblock" x="${layout.width / 2}" y="${layout.returnY - 10}" text-anchor="middle">입출력 완료 → 큐 뒤로</text>
+      ${routeBadge("dispatch", labelX, layout.running.y - 21, ["CPU", "배정 →"], 58)}
+      ${routeBadge("block", layout.mobile ? cpu.x : ioLabelX, layout.mobile ? 392 : layout.running.y - 21, layout.mobile ? ["입출력 요청 ↓"] : ["입출력", "요청 →"], layout.mobile ? 110 : 58)}
+      ${routeBadge("preempt", labelX, layout.preemptY + (layout.mobile ? -18 : 14), layout.mobile ? ["시간", "만료"] : ["할당량", "만료"], layout.mobile ? 34 : 58)}
+      ${routeBadge("unblock", layout.width / 2, layout.returnY, ["입출력 완료 · 큐 뒤로"], 172)}
     </g>
-    <text class="scene-rail-label" x="${layout.arrival.x}" y="49">도착 예정</text>
-    <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="49"></text>
-    <text class="scene-rail-label" x="${layout.done.x}" y="${layout.done.y - 10}">완료한 작업</text>
-    <text class="scene-done-note" x="${layout.done.x + 71}" y="${layout.done.y - 10}"></text>
+    <text class="scene-rail-label" x="${layout.arrival.x}" y="${layout.arrival.y - 6}">도착 예정</text>
+    <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="${layout.arrival.y - 6}"></text>
+    <rect class="scene-completion-track" x="${layout.mobile ? 18 : layout.width / 2 - 215}" y="${layout.done.y - 4}" width="${layout.mobile ? layout.width - 36 : 430}" height="36" rx="3"/>
+    <text class="scene-completion-empty" x="${layout.mobile ? layout.width / 2 : layout.done.x + 8}" y="${layout.done.y + 19}" text-anchor="${layout.mobile ? "middle" : "start"}">아직 완료된 작업 없음</text>
+    <text class="scene-rail-label" x="${layout.mobile ? layout.done.x : layout.done.x - 120}" y="${layout.mobile ? layout.done.y - 10 : layout.done.y + 19}">완료</text>
+    <text class="scene-done-note" x="${layout.mobile ? layout.done.x + 36 : layout.done.x - 82}" y="${layout.mobile ? layout.done.y - 10 : layout.done.y + 19}"></text>
     <path class="scene-motion-measure"/>`;
     Object.assign(readout.style, {
       left: `${layout.meter.x}px`,
@@ -284,11 +310,15 @@ export function createSchedulerScene(hostElement, processes) {
       : "모두 도착";
     svg.querySelector(".scene-done-note").textContent =
       `${view.done.length} / ${processes.length}`;
+    svg.querySelector(".scene-completion-empty").style.display = view.done
+      .length
+      ? "none"
+      : "";
     const emptyPosition = (zone, index = 0) => ({
       ...zone,
       y: zone.y + (zone.gap || 0) * index,
       width: layout.tokenWidth,
-      height: 44,
+      height: layout.tokenHeight,
     });
     const queueTail = emptyPosition(
       layout.ready,
@@ -365,7 +395,7 @@ export function createSchedulerScene(hostElement, processes) {
     token.style.height = `${position.height}px`;
     token.querySelector("small").textContent =
       position.state === "new"
-        ? `${process.arrival} ms에 도착`
+        ? `${process.arrival} ms`
         : position.state === "blocked"
           ? `입출력 ${state.ioRemaining} ms 남음`
           : position.state === "done"

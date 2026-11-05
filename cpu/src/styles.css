@@ -1583,7 +1583,7 @@ kbd {
 }
 #scene {
   flex: none;
-  margin-block: auto;
+  margin-block: 0;
 }
 .workspace {
   padding: 0 18px;
@@ -1738,42 +1738,78 @@ kbd {
   min-height: 230px;
 }
 .record-tabs {
-  height: 41px;
+  min-height: 56px;
   display: flex;
-  align-items: stretch;
-  gap: 0;
-  padding: 0 11px;
-  border-bottom: 1px solid var(--border);
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 10px;
+  border-bottom: 2px solid var(--border);
   background: var(--soft);
 }
 .record-tabs button {
-  padding: 0 16px;
-  border-bottom: 3px solid transparent;
-  font-size: 12px;
-  font-weight: 750;
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 5px 13px;
+  border: 2px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  box-shadow: 2px 2px 0 var(--shadow);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.record-tabs button:hover {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--shadow);
 }
 .record-tabs button[aria-selected="true"] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-  background: var(--surface);
+  background: var(--ink);
+  color: var(--inverse);
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+.record-tabs button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
 }
 #log-count {
-  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 1px;
+  background: var(--surface);
+  color: var(--ink);
   font-size: 10px;
-  font-weight: 500;
+  line-height: 16px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
 }
 .record-hint {
   margin-left: auto;
   align-self: center;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
 }
 .timeline-subhead {
-  padding: 7px 14px 0;
+  padding: 8px 14px 2px;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
+}
+.timeline-subhead > .small-label {
+  display: none;
+}
+.timeline-subhead .state-legend {
+  gap: 16px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 650;
 }
 .timeline-wrap {
   padding-top: 3px;
@@ -1794,7 +1830,7 @@ kbd {
   padding-bottom: 6px;
 }
 .records-panel .log-scroll {
-  height: 187px;
+  height: 170px;
   max-height: none;
 }
 .records-panel .metrics-scroll {
@@ -1966,7 +2002,7 @@ kbd {
 }
 @media (min-width: 1100px) {
   .workspace {
-    grid-template-rows: clamp(720px, calc(100dvh - 390px), 960px) 230px;
+    grid-template-rows: 675px 250px;
   }
 }
 @media (min-width: 1500px) {
@@ -2029,12 +2065,15 @@ kbd {
     min-height: 240px;
   }
   .record-tabs {
-    padding: 0 4px;
-    height: 43px;
+    gap: 7px;
+    padding: 8px 9px 10px;
   }
   .record-tabs button {
-    padding: 0 10px;
-    font-size: 11px;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 35px;
+    padding: 5px 6px;
+    font-size: 12px;
   }
   #log-count,
   .record-hint,
