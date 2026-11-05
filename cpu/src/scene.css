@@ -1,0 +1,269 @@
+.scheduler-scene {
+  --scene-surface: var(--surface, #fff);
+  --scene-ink: var(--ink, #27282b);
+  --scene-border: var(--border, #3b3c40);
+  --scene-soft: var(--soft, #edeef1);
+  --scene-rule: var(--rule, #d6d7db);
+  --scene-muted: var(--muted, #6d6f75);
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  overflow: hidden;
+  background: var(--scene-surface);
+  color: var(--scene-ink);
+  font-family: inherit;
+}
+.scheduler-scene .scene-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.scheduler-scene svg text {
+  font-family: inherit;
+  fill: var(--scene-ink);
+}
+.scheduler-scene .scene-grid {
+  opacity: 0.3;
+}
+.scheduler-scene pattern path {
+  stroke: var(--scene-rule);
+  stroke-width: 0.7;
+}
+.scheduler-scene marker path {
+  fill: var(--scene-muted);
+}
+.scheduler-scene .scene-station-body {
+  fill: var(--scene-surface);
+  stroke: var(--scene-rule);
+  stroke-width: 1.5;
+}
+.scheduler-scene .scene-station-rule {
+  stroke: var(--scene-rule);
+  stroke-width: 1.5;
+}
+.scheduler-scene .scene-station-title {
+  font-size: 13px;
+  font-weight: 800;
+}
+.scheduler-scene .scene-station-sub {
+  fill: var(--scene-muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.scheduler-scene .scene-station-ready .scene-station-body {
+  stroke: var(--scene-border);
+  stroke-width: 2;
+}
+.scheduler-scene .scene-station-ready .scene-station-rule {
+  stroke: var(--scene-border);
+}
+.scheduler-scene .scene-empty-slot {
+  fill: var(--scene-soft);
+  fill-opacity: 0.4;
+  stroke: var(--scene-rule);
+  stroke-dasharray: 3 4;
+}
+.scheduler-scene .scene-slot-order {
+  fill: var(--scene-muted);
+  font-size: 9px;
+  font-weight: 700;
+}
+.scheduler-scene .scene-connector {
+  fill: none;
+  stroke: var(--scene-rule);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-dasharray: 4 4;
+}
+.scheduler-scene .scene-connector.is-active {
+  stroke: var(--scene-ink);
+  stroke-width: 2.5;
+}
+.scheduler-scene[data-algorithm="fcfs"] [data-route="preempt"] {
+  display: none;
+}
+.scheduler-scene .scene-route-label {
+  fill: var(--scene-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+.scheduler-scene .scene-chip-shadow {
+  fill: var(--scene-border);
+  opacity: 0.2;
+}
+.scheduler-scene .scene-chip-body {
+  fill: var(--scene-soft);
+  stroke: var(--scene-border);
+  stroke-width: 2.5;
+}
+.scheduler-scene .scene-chip-side {
+  fill: var(--scene-rule);
+  stroke: var(--scene-border);
+  stroke-width: 2;
+}
+.scheduler-scene .scene-chip-core {
+  fill: var(--scene-surface);
+  stroke: var(--scene-border);
+  stroke-width: 1.5;
+}
+.scheduler-scene .scene-chip-pin {
+  stroke: var(--scene-border);
+  stroke-width: 4;
+  stroke-linecap: square;
+}
+.scheduler-scene .scene-chip-name {
+  font-size: 13px;
+  font-weight: 850;
+}
+.scheduler-scene .scene-chip-lights rect {
+  fill: var(--scene-muted);
+  opacity: 0.35;
+}
+.scheduler-scene[data-running="P1"] .scene-chip-lights rect {
+  fill: var(--p1, #3971d9);
+  opacity: 1;
+}
+.scheduler-scene[data-running="P2"] .scene-chip-lights rect {
+  fill: var(--p2, #168264);
+  opacity: 1;
+}
+.scheduler-scene[data-running="P3"] .scene-chip-lights rect {
+  fill: var(--p3, #8055c6);
+  opacity: 1;
+}
+.scheduler-scene .scene-tokens {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scheduler-scene .scene-process {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 43px;
+  padding: 4px 5px;
+  border: 2px solid var(--scene-border);
+  border-radius: 3px;
+  background: var(--scene-surface);
+  color: var(--scene-ink);
+  box-shadow: 2px 2px 0 var(--scene-border);
+  box-sizing: border-box;
+  will-change: transform;
+}
+.scheduler-scene .scene-process > b {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 29px;
+  background: var(--process-color);
+  color: var(--inverse, #fff);
+  font-size: 12px;
+  font-weight: 850;
+  border: 1px solid var(--scene-border);
+  border-radius: 1px;
+}
+.scheduler-scene .scene-process > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.scheduler-scene .scene-process strong {
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 14px;
+}
+.scheduler-scene .scene-process small {
+  font-size: 10px;
+  line-height: 13px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--scene-muted);
+}
+.scheduler-scene .scene-process[data-state="running"] {
+  z-index: 4;
+  border-color: var(--process-color);
+  box-shadow: 2px 2px 0 var(--process-color);
+}
+.scheduler-scene .scene-process[data-state="done"] {
+  background: var(--scene-soft);
+  box-shadow: 1px 1px 0 var(--scene-border);
+}
+.scheduler-scene .scene-process[data-state="new"] {
+  box-shadow: none;
+  border-style: dashed;
+}
+.scheduler-scene .scene-cpu-readout {
+  position: absolute;
+  z-index: 3;
+  text-align: center;
+  box-sizing: border-box;
+}
+.scheduler-scene .scene-cpu-readout strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 15px;
+  margin-bottom: 6px;
+}
+.scheduler-scene .scene-cpu-readout span {
+  display: block;
+  margin-top: 6px;
+  font-size: 10px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--scene-muted);
+  white-space: nowrap;
+}
+.scheduler-scene .scene-slice-track {
+  height: 6px;
+  background: var(--scene-soft);
+  border: 1px solid var(--scene-border);
+  overflow: hidden;
+}
+.scheduler-scene .scene-slice-track i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--scene-ink);
+  transform-origin: left;
+}
+.scheduler-scene .scene-empty-note {
+  position: absolute;
+  z-index: 3;
+  text-align: center;
+  padding-top: 17px;
+}
+.scheduler-scene .scene-empty-note b {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 20px;
+}
+.scheduler-scene .scene-empty-note span {
+  display: block;
+  font-size: 10px;
+  color: var(--scene-muted);
+  line-height: 15px;
+  margin-top: 6px;
+}
+.scheduler-scene [hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scheduler-scene .scene-process {
+    will-change: auto;
+  }
+}
