@@ -58,7 +58,7 @@ function controls() {
 function render() {
   const step = current(),
     state = step.state,
-    target = busy ? run().steps[index] : step;
+    target = run().steps[index];
   $("#step-count").textContent = index;
   $("#seek").value = index;
   $("#seek").setAttribute(
