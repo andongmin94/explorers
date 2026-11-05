@@ -1,6 +1,6 @@
 # 트랜잭션 탐험가
 
-두 주문이 같은 재고를 각각 하나씩 감소시키는 과정을 따라가는 한국어 학습 앱입니다. 프로토콜·CPU·메모리 탐험가와 소스, 의존성, Git 저장소를 분리한 독립 Vite 프로젝트입니다.
+두 주문의 재고 갱신과 교착 상태를 따라가는 한국어 학습 앱입니다. 프로토콜·CPU·메모리 탐험가와 소스, 의존성, Git 저장소를 분리한 독립 Vite 프로젝트입니다.
 
 ## 실행
 
@@ -31,10 +31,20 @@ PostgreSQL의 `READ COMMITTED`에서 재고 한 행의 초기 값은 10입니다
 ## 모델의 범위
 
 - 실제 데이터베이스에 연결하지 않는 고정 사건 시뮬레이션입니다. 애니메이션 길이는 DB 지연이나 성능 측정값이 아닙니다.
-- 재고 한 행과 트랜잭션 두 개에 집중합니다. 교착 상태, 취소, 오류, 잠금 승격, 다른 격리 수준은 다루지 않습니다.
+- 재고 갱신 시나리오는 한 행과 트랜잭션 두 개에 집중합니다. 교착 상태 시나리오는 별도 화면에서 두 행을 다룹니다. 잠금 승격과 다른 격리 수준은 다루지 않습니다.
 - 일반 SELECT는 다른 트랜잭션의 미확정 값을 읽지 않습니다. 쓰기 잠금이 있다고 일반 SELECT까지 모두 막힌다는 뜻은 아닙니다.
 - `SET stock = stock - 1`처럼 DB에서 한 문장으로 감소시키는 방식은 이 실험의 앱 계산 후 리터럴 UPDATE와 다릅니다. FOR UPDATE가 모든 재고 변경에 필수라는 결론을 뜻하지 않습니다.
 - 화면의 버전 번호는 확정 이력을 설명하기 위한 번호이며 PostgreSQL의 실제 트랜잭션 ID가 아닙니다.
+
+## 교착 상태와 롤백
+
+상단 시나리오 메뉴 또는 `http://127.0.0.1:5176/deadlock.html`에서 엽니다. 두 페이지 모두 프로덕션 빌드에 포함됩니다.
+
+T1은 A→B, T2는 B→A 순서로 `stock = stock - 1`을 실행합니다. A의 초기 확정 값은 10, B는 20입니다. 첫 행을 각각 잠근 뒤 상대가 가진 행을 요청하면 T1→T2→T1의 순환 대기가 생깁니다.
+
+10개 사건으로 시작·첫 쓰기·대기·감지·롤백·재개·커밋을 관찰합니다. DB가 T2를 중단하면 T2의 B 미확정 19와 B 잠금, A에 걸린 대기가 함께 사라집니다. T1의 A 미확정 9와 A 잠금은 남습니다. B의 확정 값은 롤백 전후 모두 20이며, 다음 사건에서 T1이 대기하던 쓰기를 재개합니다. 마지막에 T1만 커밋하여 A 9·B 19가 됩니다.
+
+중단 대상을 T2로 고정하고 감지·정리·재개를 분리한 것은 관찰을 위한 구성입니다. 실제 PostgreSQL의 희생자 선택이나 감지 시간을 재현하지 않습니다. T2의 오류 처리·실패한 트랜잭션 블록 정리와 전체 트랜잭션 재시도는 앱의 몫이며, 이 시나리오에서는 재시도하지 않습니다.
 
 ## 구현과 근거
 
@@ -42,5 +52,9 @@ PostgreSQL의 `READ COMMITTED`에서 재고 한 행의 초기 값은 10입니다
 
 엔진과 학습 검사는 Node의 기본 테스트 러너로 실행합니다. 외부 브라우저 테스트 프레임워크는 포함하지 않습니다.
 
+교착 상태의 계산·시점별 표시 상태는 `src/deadlock-engine.js`, 해설은 `src/deadlock-lesson.js`, 장면과 재생 화면은 `src/deadlock-scene.js`와 `src/deadlock-main.js`에 분리되어 있습니다.
+
 - [PostgreSQL: Read Committed Isolation Level](https://www.postgresql.org/docs/current/transaction-iso.html#XACT-READ-COMMITTED)
 - [PostgreSQL: Row-Level Locks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS)
+- [PostgreSQL: Deadlocks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-DEADLOCKS)
+- [PostgreSQL: Transactions](https://www.postgresql.org/docs/current/tutorial-transactions.html)

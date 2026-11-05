@@ -202,6 +202,44 @@ button:active:not(:disabled) {
   margin: auto;
   align-items: start;
 }
+.scenario-nav {
+  display: flex;
+  gap: 8px;
+  max-width: 1800px;
+  margin: 0 auto 14px;
+  padding: 0 20px;
+}
+.scenario-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 2px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  box-shadow: 2px 2px 0 var(--shadow);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 750;
+}
+.scenario-nav a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--inverse);
+}
+.scenario-nav b {
+  font-size: 11px;
+  opacity: 0.75;
+}
+@media (max-width: 759px) {
+  .scenario-nav {
+    padding: 0 12px;
+    gap: 7px;
+  }
+  .scenario-nav a {
+    padding: 8px 9px;
+    font-size: 12px;
+  }
+}
 .panel {
   border: 2px solid var(--border);
   border-radius: 4px;
