@@ -12,29 +12,87 @@
   color: var(--switch-ink);
 }
 
+h1.explorer-brand {
+  --brand-width: 296px;
+  --brand-height: 56px;
+  --caption-height: 19px;
+  --brand-padding: 10px;
+  --name-size: 20px;
+  --caption-size: 12px;
+  --icon-size: 30px;
+  width: var(--brand-width);
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  line-height: 1;
+}
+
 button.explorer-trigger {
   --switch-depth: 3px;
   --plate-inset: -2px;
   --plate-border: 2px solid var(--switch-line);
-  --pad-y: 3px;
-  --pad-left: 9px;
-  --pad-right: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  vertical-align: top;
-  gap: 8px;
-  max-width: 100%;
-  min-height: 32px;
+  display: block;
+  width: 100%;
+  height: var(--brand-height);
+  padding: 0;
   border-color: transparent;
   background: transparent;
-  font: inherit;
-  line-height: 1.15;
-  letter-spacing: inherit;
+  font-family: Pretendard, "Malgun Gothic", sans-serif;
   text-align: left;
-  word-break: keep-all;
-  white-space: normal;
   cursor: pointer;
+}
+
+.explorer-brand-face {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  overflow: hidden;
+  transform: translate(var(--press), var(--press));
+  transition: transform 140ms ease;
+}
+.explorer-brand-mark {
+  height: 100%;
+  aspect-ratio: 1;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: var(--switch-ink);
+  color: var(--switch-paper);
+}
+.explorer-brand-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) var(--chevron-column, 26px);
+  grid-template-rows: 1fr var(--caption-height);
+}
+.explorer-trigger .explorer-brand-name,
+.explorer-trigger .explorer-brand-caption {
+  padding-inline-start: var(--brand-padding);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.035em;
+}
+.explorer-trigger .explorer-brand-name {
+  align-self: center;
+  font-size: var(--name-size);
+  line-height: 1.15;
+  font-weight: 800;
+}
+.explorer-trigger .explorer-brand-caption {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--neo-rule, var(--rule));
+  background: var(--switch-soft);
+  color: var(--neo-muted, var(--muted));
+  font-size: var(--caption-size);
+  font-weight: 570;
+  line-height: calc(var(--caption-height) - 1px);
+}
+.explorer-trigger .explorer-brand-mark svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .explorer-trigger svg,
@@ -50,7 +108,8 @@ button.explorer-trigger {
   height: 20px;
 }
 
-.explorer-trigger svg {
+.explorer-trigger .explorer-chevron {
+  align-self: center;
   width: 18px;
   height: 18px;
   stroke-width: 2.6;
@@ -61,7 +120,7 @@ button.explorer-trigger[aria-expanded="true"] {
   --plate-face: var(--switch-soft);
 }
 
-.explorer-trigger[aria-expanded="true"] svg {
+.explorer-trigger[aria-expanded="true"] .explorer-chevron {
   transform: rotate(180deg);
 }
 
@@ -123,6 +182,9 @@ button.explorer-trigger,
   position: relative;
   isolation: isolate;
   --press: var(--switch-press, 0px);
+}
+
+.explorer-menu a {
   padding: calc(var(--pad-y) + var(--press)) calc(var(--pad-right) - var(--press))
     calc(var(--pad-y) - var(--press)) calc(var(--pad-left) + var(--press));
   transition: padding 140ms ease;
@@ -151,6 +213,7 @@ button.explorer-trigger,
 }
 
 button.explorer-trigger:active,
+button.explorer-trigger:active .explorer-brand-face,
 .explorer-menu a:active {
   --switch-press: var(--switch-depth);
 }
@@ -168,14 +231,27 @@ button.explorer-trigger:active::before,
 }
 
 @media (max-width: 759px) {
-  button.explorer-trigger { gap: 4px; --pad-left: 5px; --pad-right: 5px; }
-  .explorer-trigger svg { width: 14px; height: 14px; }
+  h1.explorer-brand {
+    --brand-width: 230px;
+    --brand-height: 46px;
+    --caption-height: 16px;
+    --brand-padding: 7px;
+    --name-size: 16px;
+    --caption-size: 11px;
+    --icon-size: 24px;
+    --chevron-column: 20px;
+  }
+  .explorer-trigger .explorer-chevron { width: 14px; height: 14px; }
   .explorer-menu a { min-height: 44px; }
+}
+@media (max-width: 359px) {
+  h1.explorer-brand { --name-size: 14.5px; --brand-padding: 6px; --chevron-column: 17px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   button.explorer-trigger,
   .explorer-menu a { --press: 0px; transition: none; }
   .explorer-trigger::before,
+  .explorer-brand-face,
   .explorer-menu a::before { transition: none; }
 }
