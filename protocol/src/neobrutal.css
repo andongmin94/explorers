@@ -9,15 +9,16 @@
 /* Neobrutal presentation. Scene geometry, animation and semantic packet colors
    remain owned by the original drawing and playback modules. */
 :root {
-  /* Base colors from andongmin94/neobrutal-ui's default Mono theme. */
+  /* Neutral UI surfaces based on andongmin94/neobrutal-ui's Mono theme. */
   --neo-bg: #f4f5f7;
   --neo-surface: #ffffff;
   --neo-soft: #edeef1;
-  --neo-text: #27282b;
+  --neo-text: #34363b;
   --neo-muted: #6d6f75;
-  --neo-border: #3b3c40;
+  --neo-border: #65676d;
   --neo-rule: #d6d7db;
-  --neo-shadow: #3b3c40;
+  --neo-shadow: #787a80;
+  --selected: #d4d6db;
   --neo-accent: #27282b;
   --neo-on-accent: #f4f5f7;
   --neo-sans: Pretendard, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -33,6 +34,7 @@
   --neo-border: #8b8d94;
   --neo-rule: #45464d;
   --neo-shadow: #121316;
+  --selected: #4c4e56;
   --neo-accent: #e4e7ec;
   --neo-on-accent: #27282b;
 }
@@ -123,13 +125,13 @@ body {
 }
 
 .osi-marker {
-  background: var(--neo-accent);
+  background: var(--selected);
   border-radius: 3px;
   box-shadow: inset 0 0 0 1px var(--neo-border);
 }
 
 .osi-chips .is-active {
-  color: var(--neo-on-accent);
+  color: var(--neo-text);
   border-color: transparent;
 }
 
@@ -258,8 +260,8 @@ body {
 }
 
 .logo-frame {
-  color: var(--neo-on-accent);
-  background: var(--neo-accent);
+  color: var(--neo-text);
+  background: var(--selected);
   border-radius: 5px;
   box-shadow: inset 0 0 0 2px var(--neo-border), 3px 3px 0 var(--neo-shadow);
 }
@@ -269,7 +271,7 @@ body {
 }
 
 .logo-cube g {
-  stroke: var(--neo-accent);
+  stroke: var(--selected);
 }
 
 .brand-text p,
@@ -363,8 +365,8 @@ body {
 
 .tab.is-active,
 .theme-toggle .is-active {
-  color: var(--neo-on-accent);
-  background: var(--neo-accent);
+  color: var(--neo-text);
+  background: var(--selected);
 }
 
 .tab-indicator {
@@ -378,18 +380,18 @@ body {
 }
 
 .tab.is-active .tab-count {
-  background: var(--neo-on-accent);
-  color: var(--neo-accent);
+  background: var(--neo-surface);
+  color: var(--neo-text);
 }
 
 .view-indicator {
   border-radius: 3px;
-  background: var(--neo-accent);
+  background: var(--selected);
   box-shadow: inset 0 0 0 1px var(--neo-border);
 }
 
 .view-switch button.is-active {
-  color: var(--neo-on-accent);
+  color: var(--neo-text);
 }
 
 .proto.is-active .proto-row {
@@ -411,8 +413,8 @@ body {
 }
 
 .step.is-active .step-num {
-  background: var(--neo-accent);
-  color: var(--neo-on-accent);
+  background: var(--selected);
+  color: var(--neo-text);
   box-shadow: 2px 2px 0 var(--neo-shadow);
 }
 
@@ -460,9 +462,9 @@ body {
 }
 
 .btn.primary {
-  background: var(--neo-accent);
+  background: var(--selected);
   border-color: var(--neo-border);
-  color: var(--neo-on-accent);
+  color: var(--neo-text);
 }
 
 :is(.tab, .theme-toggle button, .view-switch button, .proto-row, .step-btn) {
