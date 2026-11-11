@@ -12,7 +12,13 @@
   --surface: #fff;
   --soft: #edeef1;
   --ink: #34363b;
-  --selected: #d4d6db;
+  --selected: #27282b;
+  --on-selected: #f4f5f7;
+  --control-card: #f4f5f7;
+  --control-neutral: #fff;
+  --control-ink: #000;
+  --control-border: #000;
+  --control-shadow: var(--control-border);
   --muted: #6d6f75;
   --border: #65676d;
   --rule: #d6d7db;
@@ -30,7 +36,11 @@
   --surface: #242528;
   --soft: #2e2f33;
   --ink: #e4e7ec;
-  --selected: #4c4e56;
+  --selected: #e4e7ec;
+  --on-selected: #000;
+  --control-card: #18191c;
+  --control-neutral: oklch(23.93% 0 0);
+  --control-ink: oklch(92.49% 0 0);
   --muted: #a5a7ae;
   --border: #8b8d94;
   --rule: #45464d;
@@ -137,11 +147,11 @@ input[type="range"] {
   place-items: center;
   width: 47px;
   height: 47px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 5px;
-  box-shadow: 3px 3px 0 var(--shadow);
+  box-shadow: 3px 3px 0 var(--control-shadow);
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .brand-icon svg {
   width: 30px;
@@ -192,9 +202,10 @@ input[type="range"] {
   gap: 7px;
   min-height: 34px;
   padding: 5px 11px;
-  border: 1.5px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-neutral);
+  color: var(--control-ink);
   --press-depth: 4px;
   font-size: 12px;
   font-weight: 750;
@@ -206,7 +217,7 @@ input[type="range"] {
 }
 .button.primary {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .icon-button {
   padding: 0;
@@ -223,10 +234,10 @@ input[type="range"] {
   align-items: stretch;
 }
 .panel {
-  background: var(--surface);
-  border: 2px solid var(--border);
+  background: var(--control-card);
+  border: 2px solid var(--control-border);
   border-radius: 5px;
-  box-shadow: 3px 3px 0 var(--shadow);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   min-width: 0;
   overflow: hidden;
 }
@@ -295,9 +306,9 @@ input[type="range"] {
 .segmented {
   display: flex;
   padding: 3px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--control-border);
   border-radius: 4px;
-  box-shadow: 2px 2px 0 var(--shadow);
+  box-shadow: 2px 2px 0 var(--control-shadow);
   gap: 3px;
 }
 .segmented button {
@@ -310,8 +321,8 @@ input[type="range"] {
 }
 .segmented button[aria-pressed="true"] {
   background: var(--selected);
-  color: var(--ink);
-  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--on-selected);
+  box-shadow: inset 0 0 0 1px var(--control-border);
 }
 .setting-help {
   font-size: 11.5px;
@@ -417,7 +428,7 @@ input[type="range"] {
   font-size: 10px;
 }
 .mini-id.neutral {
-  color: var(--ink);
+  color: var(--on-selected);
   background: var(--selected);
 }
 .burst-recipe {
@@ -619,9 +630,10 @@ input[type="range"] {
 }
 .event-card {
   margin: 16px 3px 0 0;
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 3px 3px 0 var(--shadow);
+  background: var(--control-card);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 var(--control-shadow);
   overflow: hidden;
 }
 .event-card-head {
@@ -715,11 +727,11 @@ input[type="range"] {
 }
 .milestone.is-active .milestone-num {
   background: var(--selected);
-  border-color: var(--border);
-  color: var(--ink);
+  border-color: var(--control-border);
+  color: var(--on-selected);
 }
 .milestone.is-done .milestone-num {
-  border-color: var(--border);
+  border-color: var(--control-border);
 }
 .timeline-panel {
   grid-column: 1/-1;
@@ -1023,11 +1035,11 @@ kbd {
   font-size: 9px;
 }
 .dialog {
-  color: var(--ink);
-  background: var(--surface);
-  border: 2px solid var(--border);
-  box-shadow: 6px 6px 0 var(--shadow);
-  border-radius: 6px;
+  color: var(--control-ink);
+  background: var(--control-card);
+  border: 2px solid var(--control-border);
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  border-radius: 5px;
   padding: 24px;
   width: min(680px, calc(100vw - 32px));
   max-height: calc(100dvh - 40px);
@@ -1078,9 +1090,10 @@ kbd {
   gap: 12px;
 }
 .quiz-choice {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 4px;
-  background: var(--surface);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   --press-depth: 3px;
   padding: 15px 8px;
   text-align: left;
@@ -1610,10 +1623,11 @@ kbd {
 .process-spec {
   width: 100%;
   text-align: left;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--control-border);
   --press-depth: 3px;
   border-radius: 3px;
-  background: var(--surface);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   padding: 9px;
 }
 .process-spec[aria-pressed="true"] {
@@ -1735,18 +1749,18 @@ kbd {
   gap: 7px;
   min-height: 34px;
   padding: 5px 13px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
-  background: var(--surface);
+  background: var(--control-card);
   --press-depth: 2px;
-  color: var(--ink);
+  color: var(--control-ink);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
 }
 .record-tabs button[aria-selected="true"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .record-tabs button:focus-visible {
   outline: 2px solid var(--ink);
@@ -1756,7 +1770,7 @@ kbd {
 /* The face travels into its existing hard shadow. */
 :is(.button, .process-spec, .quiz-choice, .record-tabs button):not(:disabled) {
   --remaining: calc(var(--press-depth) - var(--press, 0px));
-  box-shadow: var(--remaining) var(--remaining) 0 var(--shadow);
+  box-shadow: var(--remaining) var(--remaining) 0 var(--control-shadow);
 }
 @media (hover: hover) and (pointer: fine) {
   :is(.button, .process-spec, .quiz-choice, .record-tabs button):not(:disabled):hover {
@@ -1975,8 +1989,8 @@ kbd {
   background: var(--soft);
 }
 .quiz-context {
-  border: 2px solid var(--border);
-  box-shadow: 3px 3px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   margin: 20px 3px 24px 0;
 }
 .quiz-context > div {
