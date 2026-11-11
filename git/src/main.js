@@ -331,19 +331,18 @@ function reset() {
   completed = 0;
   move(0, false);
 }
+function showResolutionChoices() {
+  const panel = $("#resolution");
+  panel.scrollIntoView({ behavior: "instant", block: "center" });
+  panel.querySelector("button").focus({ preventScroll: true });
+}
 function play() {
   if (playing || (busy && !paused)) {
     pause();
     return;
   }
   if (index === 9 && !busy) {
-    $("#resolution").scrollIntoView({
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-      block: "center",
-    });
-    $("#resolution button").focus({ preventScroll: true });
+    showResolutionChoices();
     return;
   }
   if (completed === last && !busy) {
@@ -449,6 +448,7 @@ document.addEventListener("click", (e) => {
       choice = null;
       run = simulateGit();
       jump(9);
+      showResolutionChoices();
       break;
     case "setup": {
       const open = b.getAttribute("aria-expanded") === "true";
