@@ -37,7 +37,7 @@ await writeFile(resolve(output, "index.html"), `<!doctype html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <title>탐험가</title>
+  <title>탐색기</title>
   <script>location.replace("${firstPath}" + location.search + location.hash)</script>
   <meta http-equiv="refresh" content="0;url=${firstPath}">
 </head>

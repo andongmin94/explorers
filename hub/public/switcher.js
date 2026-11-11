@@ -29,7 +29,7 @@ function mountSwitcher() {
   menu.className = "explorer-menu";
   menu.id = "explorer-menu";
   menu.popover = "auto";
-  menu.setAttribute("aria-label", "탐험가 목록");
+  menu.setAttribute("aria-label", "탐색기 목록");
   const links = explorers.map((explorer) => {
     const link = document.createElement("a");
     link.href = `/${explorer.slug}/`;
@@ -46,7 +46,7 @@ function mountSwitcher() {
   const trigger = document.createElement("button");
   trigger.className = "explorer-trigger";
   trigger.type = "button";
-  trigger.setAttribute("aria-label", `탐험가 선택, 현재 ${current.label}`);
+  trigger.setAttribute("aria-label", `탐색기 선택, 현재 ${current.label}`);
   trigger.setAttribute("aria-controls", menu.id);
   const titleGroup = heading.parentElement;
   const face = document.createElement("span");
