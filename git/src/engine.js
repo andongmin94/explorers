@@ -32,6 +32,11 @@ export const RESOLUTIONS = [
 
 const copy = (value) => structuredClone(value);
 
+export function indexMatchesHead(state) {
+  const head = state.commits.find((commit) => commit.id === state.refs[state.currentBranch]);
+  return state.index.content === head.content;
+}
+
 const conflictContent = [
   "[산책 안내]",
   "<<<<<<< HEAD",

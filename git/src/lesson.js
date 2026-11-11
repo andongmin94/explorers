@@ -1,3 +1,5 @@
+import { indexMatchesHead } from "./engine.js";
+
 export const MILESTONES = [
   { index: 1, label: "분기" },
   { index: 4, label: "첫 커밋" },
@@ -168,7 +170,7 @@ const lessons = [
   },
   {
     title: "해결한 내용을 등록 · 커밋 대기",
-    body: "git add로 최종 문장을 index에 등록했습니다. 미해결 세 버전 대신 하나의 해결 내용이 준비됐습니다. 병합은 아직 진행 중입니다.",
+    body: "git add로 미해결 세 버전을 최종 파일 하나로 정리했습니다. git diff --cached에서 C2와 다른 제목 한 줄을 확인할 수 있습니다.",
     takeaway: "충돌 해결 등록이 끝나도 병합 커밋은 아직 만들어지지 않았습니다.",
     details: [
       "main은 C2, feature/title은 C1을 계속 가리킵니다.",
@@ -189,11 +191,17 @@ const lessons = [
 ];
 
 export function describeStep(step) {
-  return {
-    ...lessons[step.index],
-    eyebrow:
-      step.index === 0
-        ? "대표 시나리오 · 같은 제목, 두 변경"
-        : `${step.index}번째 사건`,
-  };
+  const lesson = lessons[step.index];
+  const eyebrow = step.index === 0
+    ? "대표 시나리오 · 같은 제목, 두 변경"
+    : `${step.index}번째 사건`;
+  if (step.index === 11 && indexMatchesHead(step.state)) {
+    return {
+      ...lesson,
+      eyebrow,
+      body: "main의 기존 문장을 골랐습니다. git add는 인덱스의 미해결 세 버전을 C2와 같은 파일 하나로 정리합니다. 그래서 git diff --cached에는 변경이 없습니다.",
+      takeaway: "파일 내용이 C2와 같아도 병합은 진행 중입니다. 다음 커밋은 C2와 C1을 부모로 기록합니다.",
+    };
+  }
+  return { ...lesson, eyebrow };
 }

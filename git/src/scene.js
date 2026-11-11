@@ -1,4 +1,5 @@
 import "./scene.css";
+import { indexMatchesHead } from "./engine.js";
 
 const escape = (value) =>
   String(value)
@@ -66,6 +67,15 @@ const headline = (content) =>
     .split("\n")
     .find((line) => line.startsWith("제목:"))
     ?.replace(/^제목:\s*/, "") || "";
+
+const indexStages = [
+  { key: "base", label: "공통 조상", branch: "main" },
+  { key: "ours", label: "현재 main", branch: "main" },
+  { key: "theirs", label: "병합 대상", branch: "feature/title" },
+];
+function indexVersion(state, { key, label }, number) {
+  return `<div class="gs-index-version ${key}"><span>${number + 1} · ${label}<b>${state.merge[key]}</b></span><strong>${escape(headline(state.index.stages[key]))}</strong></div>`;
+}
 
 export function createGitScene(host, { onPhase = () => {} } = {}) {
   host.classList.add("git-scene");
@@ -219,7 +229,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       : state.refs.main === "C3"
         ? "<b>부모 2개: C2 + C1</b><span>main → C3 · feature/title → C1 유지</span>"
         : `<b>HEAD → ${state.currentBranch}</b><span>연결선은 부모 관계 · 네모는 저장된 기록</span>`;
-    $(".gs-work-status").textContent = statusNames[state.status];
+    const registered = state.merge && state.index.status === "staged";
+    $(".gs-work-status").textContent = registered ? "해결 등록 완료" : statusNames[state.status];
     $(".gs-work-content").innerHTML = fileLines(
       state.working,
       state.status === "conflict",
@@ -235,28 +246,25 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     $(".gs-index-status").textContent =
       state.index.status === "unmerged"
         ? "미해결"
+        : registered ? "해결 등록 완료"
         : state.index.status === "staged"
           ? "커밋 준비"
           : "커밋과 동일";
     if (state.index.status === "unmerged") {
       $(".gs-index-content").innerHTML =
-        `<div class="gs-unmerged-heading">충돌 중에는 세 버전을 보관합니다</div>${[
-          ["base", "공통 조상", "C0"],
-          ["ours", "현재 main", "C2"],
-          ["theirs", "병합 대상", "C1"],
-        ]
-          .map(
-            ([key, label, id]) =>
-              `<div class="gs-index-version ${key}"><span>${label}<b>${id}</b></span><strong>${escape(headline(state.index.stages[key]))}</strong></div>`,
-          )
+        `<div class="gs-unmerged-heading">충돌 중에는 세 버전을 보관합니다</div>${indexStages
+          .map((stage, i) => indexVersion(state, stage, i))
           .join("")}`;
       $(".gs-index-note").textContent =
         state.status === "resolved"
           ? "git add로 해결 내용을 인덱스에 기록"
           : "아직 커밋할 한 가지 내용이 아님";
     } else {
+      const stamp = registered
+        ? `HEAD(C2)와 다른 파일 ${indexMatchesHead(state) ? 0 : 1}개`
+        : state.index.status === "staged" ? "이 내용으로 커밋합니다" : "새로 커밋할 변경 없음";
       $(".gs-index-content").innerHTML =
-        `<div class="gs-file-heading">${fileIcon}<b>welcome.txt</b><span>${state.index.status === "staged" ? "다음 커밋" : state.refs[state.currentBranch]}</span></div><div class="gs-staged-file">${fileLines(state.index.content, false, state.currentBranch)}</div><div class="gs-index-stamp">${state.index.status === "staged" ? (state.merge ? "병합 해결 내용 준비됨" : "이 내용으로 커밋합니다") : "새로 커밋할 변경 없음"}</div>`;
+        `<div class="gs-file-heading">${fileIcon}<b>welcome.txt</b><span>${state.index.status === "staged" ? "다음 커밋" : state.refs[state.currentBranch]}</span></div><div class="gs-staged-file">${fileLines(state.index.content, false, state.currentBranch)}</div><div class="gs-index-stamp">${stamp}</div>`;
       $(".gs-index-note").textContent =
         state.index.status === "staged"
           ? "git commit 전까지 브랜치 위치는 그대로"
@@ -389,24 +397,30 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         pace,
       );
     } else if (step.action === "merge") {
-      for (const [id, label, source] of [
-        ["C0", "공통 조상", "main"],
-        ["C2", "현재 내용", "main"],
-        ["C1", "병합 내용", "feature/title"],
-      ]) {
+      const content = $(".gs-index-content");
+      const comparing = { ...step.before, index: { status: "comparing" } };
+      content.innerHTML = '<div class="gs-unmerged-heading">같은 제목 줄의 세 버전</div>';
+      $(".gs-index-status").textContent = "세 버전 대조 중";
+      $(".gs-index-note").textContent = "저장소에서 각 버전의 제목을 가져옵니다";
+      for (const [i, stage] of indexStages.entries()) {
+        const id = step.state.merge[stage.key];
         const commit = $(`[data-commit="${id}"]`);
         commit.dataset.reading = "true";
+        phase("request", `${i + 1}/3 · ${stage.label} ${id} → 인덱스`, `${stage.label}의 제목을 인덱스에서 대조합니다.`, comparing);
         await travel(
           run,
           commitPoint(id),
-          regionPoint("work", "top"),
-          label,
-          source,
+          regionPoint("index", "top"),
+          `${id} · ${stage.label}`,
+          stage.branch,
           pace * 0.8,
         );
         if (run.cancelled) return;
         delete commit.dataset.reading;
+        content.insertAdjacentHTML("beforeend", indexVersion(step.state, stage, i));
       }
+      phase("request", "충돌 표식 → 작업 파일", "같은 줄의 변경이 겹칩니다. 두 문장과 충돌 표식을 작업 파일에서 확인하세요.", comparing);
+      await travel(run, regionPoint("index"), regionPoint("work"), "충돌 표식", branch, pace * 0.8);
     } else {
       const element =
         step.action === "branch" ? $(".gs-repository") : $(".gs-work-content");

@@ -47,7 +47,10 @@ const indexNames = {
   clean: "커밋과 동일",
   staged: "다음 커밋 준비",
   unmerged: "미해결 상태",
+  comparing: "세 버전 대조 중",
 };
+const indexLabel = (state) =>
+  state.merge && state.index.status === "staged" ? "해결 등록 완료" : indexNames[state.index.status];
 const stepNames = [
   "시작",
   "분기",
@@ -84,7 +87,9 @@ const scene = createGitScene($("#git-scene"), {
   },
 });
 function renderState(state) {
-  $("#state-summary").textContent = state.merge
+  $("#state-summary").textContent = state.index.status === "comparing"
+    ? "같은 줄의 세 버전을 대조하는 중"
+    : state.merge
     ? state.status === "conflict"
       ? "충돌 1개 · 병합 커밋은 아직 없습니다"
       : state.index.status === "unmerged"
@@ -104,8 +109,8 @@ function renderState(state) {
     ],
     [
       "스테이징",
-      indexNames[before.index.status],
-      indexNames[state.index.status],
+      indexLabel(before),
+      indexLabel(state),
     ],
     ["커밋 수", before.commits.length, state.commits.length],
   ];
@@ -177,7 +182,7 @@ function controls() {
   $('[data-action="guided"]').setAttribute("aria-checked", String(guided));
   $("#git-scene").setAttribute("aria-busy", String(busy));
   $("#playback-hint").textContent = gated
-    ? "오른쪽에서 남길 제목을 선택하세요."
+    ? "‘해결안 선택’을 눌러 파일에 남길 제목을 고르세요."
     : busy
       ? paused
         ? "이동과 상태를 함께 멈췄습니다."

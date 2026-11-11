@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CONTENTS, RESOLUTIONS, simulateGit } from "../src/engine.js";
+import { CONTENTS, RESOLUTIONS, indexMatchesHead, simulateGit } from "../src/engine.js";
+import { describeStep } from "../src/lesson.js";
 
 test("branch creation and staging move no commit pointers", () => {
   const { steps } = simulateGit();
@@ -107,6 +108,8 @@ test("all three resolutions preserve two-parent history, including an unchanged 
     assert.equal(steps[10].state.working, option.content);
     assert.equal(steps[10].state.index.status, "unmerged");
     assert.equal(steps[11].state.index.content, option.content);
+    assert.equal(indexMatchesHead(steps[11].state), option.id === "ours");
+    assert.match(describeStep(steps[11]).body, option.id === "ours" ? /변경이 없습니다/ : /다른 제목 한 줄/);
     assert.equal(steps[12].state.working, option.content);
     assert.equal(steps[12].state.commits.at(-1).content, option.content);
     assert.deepEqual(steps[12].state.commits.at(-1).parents, ["C2", "C1"]);
