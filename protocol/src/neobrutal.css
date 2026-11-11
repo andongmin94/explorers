@@ -963,3 +963,28 @@ body {
 .endpoint-row:is(.marked, .fresh) .endpoint-highlight { fill: var(--neo-soft); }
 .endpoint-row.marked .endpoint-value { text-decoration: underline dashed; }
 .endpoint-card.terminal .endpoint-key { font-family: var(--neo-mono); }
+.cache-badge text { font-size: 18px; font-weight: 800; }
+.network[data-cert-checks="1"] .certificate .endpoint-row:nth-last-child(-n + 2),
+.network[data-cert-checks="2"] .certificate .endpoint-row:last-child { visibility: hidden; }
+
+.dns-readout { display: none; }
+.compact-network[data-lesson="dns"] .packet-tag { display: none; }
+.simulation:not(.is-sequence) > .compact-network ~ .dns-readout:not([hidden]) {
+  display: block;
+  position: absolute;
+  inset-inline: 10px;
+  bottom: 10px;
+  width: fit-content;
+  max-width: calc(100% - 20px);
+  padding: 6px 10px;
+  color: var(--neo-text);
+  background: var(--neo-surface);
+  border: 1.5px solid var(--neo-text);
+  border-radius: 3px;
+  box-shadow: 2px 2px var(--neo-shadow);
+  font: 650 15px/1.25 var(--neo-sans);
+  pointer-events: none;
+}
+.dns-readout header { display: flex; align-items: center; gap: 7px; font-weight: 800; margin-bottom: 3px; }
+.dns-readout header b { display: inline-flex; align-items: center; gap: 4px; }
+.dns-readout header b::before { content: ""; width: 9px; height: 9px; background: var(--dns-color); border: 1px solid var(--neo-text); }

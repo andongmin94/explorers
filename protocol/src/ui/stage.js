@@ -24,6 +24,7 @@ function renderSimulationPanel() {
   return `
   <section class="panel simulation">
     ${renderNetworkDiagram()}
+    <div class="dns-readout" hidden></div>
     ${renderSequencePanel()}
     <div class="view-switch" role="tablist" data-t-label="View" aria-label="${translate("View")}" data-t-title="Switch view (V)" title="${translate("Switch view (V)")}">${viewButtons}<i class="view-indicator"></i></div>
     ${renderPacketInspector()}

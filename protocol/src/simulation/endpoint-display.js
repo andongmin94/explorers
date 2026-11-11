@@ -1,4 +1,5 @@
-import { escapeHtml } from "../i18n.js";
+import { escapeHtml, translate } from "../i18n.js";
+import { NETWORK_NODE_LABELS, PACKET_COLORS } from "./network-drawing.js";
 
 export function ftpServerPort(packet) {
   const tcp = packet?.row?.wire?.tcp;
@@ -9,9 +10,35 @@ const connectionText = { waiting: "연결 대기", connecting: "연결 중", ope
 const portIcon = '<path d="M1 2h16v9h-5v3H6v-3H1z M5 5v3m4-3v3m4-3v3"/>';
 const mailIcon = '<path d="M1 2h16v12H1z M2 3l7 6 7-6"/>';
 const terminalIcon = '<path d="m3 2 6 5-6 5m7 0h7"/>';
+const certificateIcon = '<path d="m9 1 7 3v4c0 4-4 6-7 8-3-2-7-4-7-8V4z m-3 7 2 2 5-5"/>';
+
+// Keep the readable message off the mobile DNS route as the marker moves.
+export function renderDnsReadout(element, state, event) {
+  const packet = event?.type === "packet" ? event : null;
+  const record = state?.client ?? state?.dns;
+  if (!packet && !record) {
+    element.hidden = true;
+    return;
+  }
+  const arrived = record && (!packet || packet.devicesAfter?.[packet.to] === record);
+  let route, lines;
+  if (arrived) {
+    const [name, type, ttl, address] = record;
+    const authoritative = packet?.row.wire.udp.data.dns.aa;
+    route = `${state.client ? "클라이언트" : "DNS 리졸버"} · 캐시 저장`;
+    lines = [`${name} · ${type} ${address}`, `TTL ${ttl}초${authoritative ? " · 권한 있는 응답(AA)" : ""}`];
+  } else {
+    route = [packet.from, packet.to].map(id => translate(NETWORK_NODE_LABELS[id][0])).join(" → ");
+    lines = packet.payload.map(line => translate(line));
+  }
+  element.style.setProperty("--dns-color", PACKET_COLORS[arrived ? "green" : packet.color]);
+  element.innerHTML = `<header><b>${escapeHtml(arrived ? "응답" : translate(packet.label))}</b>${escapeHtml(route)}</header>
+    ${lines.map(line => `<div>${escapeHtml(line)}</div>`).join("")}`;
+  element.hidden = false;
+}
 
 function panel(title, icon, rows, kind = "") {
-  const width = 212, header = 23, rowHeight = 25;
+  const width = kind === "certificate" ? 248 : 212, header = 23, rowHeight = 25;
   const height = header + rows.length * rowHeight + 3;
   return `<g class="endpoint-card ${kind}" data-height="${height}">
     <rect class="endpoint-shadow" x="3" y="3" width="${width}" height="${height}" rx="3"/>
@@ -31,6 +58,16 @@ function panel(title, icon, rows, kind = "") {
 
 function devicePanels(lessonId, state, port) {
   if (!state) return {};
+  if (lessonId === "dns") {
+    const cacheBadge = '<g class="endpoint-card cache-badge" data-height="30"><rect class="endpoint-case" width="87" height="30" rx="3"/><text x="43.5" y="21" text-anchor="middle">캐시 저장</text></g>';
+    return { dns: state.dns && cacheBadge, client: state.client && cacheBadge };
+  }
+  if (lessonId === "tls" && state.certificate) {
+    const verified = state.certificate === "verified";
+    return { client: panel("클라이언트 · 인증서 검증", certificateIcon,
+      verified ? [["서버 인증서", "www.example.com"], ["↓ 발급자", "중간 인증기관"], ["↓ 신뢰 루트", "기기 목록과 일치 ✓"]]
+        : [["암호화된 전송", "수신 완료"]], "certificate") };
+  }
   if (lessonId === "ftp") {
     const { control, data, dataPort } = state;
     return { web: panel("서버 포트", portIcon, [
@@ -71,10 +108,24 @@ export function createEndpointDisplay(nodes) {
   const readouts = new Map();
   let scale = 1;
   function place(id, group) {
+    const card = group.querySelector(".endpoint-card");
+    if (card.classList.contains("cache-badge")) {
+      const resolver = id === "dns";
+      const x = resolver ? 706 : 226, y = resolver ? 93 : 361;
+      group.firstElementChild.setAttribute("d", resolver ? "M706 130V93" : "M207 385l19-24");
+      group.lastElementChild.setAttribute("transform",
+        `translate(${x} ${y}) scale(${1.3 * scale}) translate(-43.5 -30)`);
+      return;
+    }
+    if (card.classList.contains("certificate") && scale > 1.35) {
+      group.firstElementChild.setAttribute("d", "M202 380l-25-37V246");
+      group.lastElementChild.setAttribute("transform",
+        `translate(100 246) scale(${1.35 * scale}) translate(0 ${-Number(card.dataset.height)})`);
+      return;
+    }
     const belowLaptop = id === "client" && scale > 1.35;
     const x = id === "web" ? 750 : 146;
     const y = id === "web" ? 165 : belowLaptop ? 565 : 305;
-    const card = group.querySelector(".endpoint-card");
     const dy = belowLaptop ? 0 : -Number(card.dataset.height);
     group.firstElementChild.setAttribute("d", id === "web" ? "M747 158h15l25 27" :
       belowLaptop ? "M253 478l23 25v62" : "M150 305v23l44 54");
@@ -88,7 +139,7 @@ export function createEndpointDisplay(nodes) {
     },
     update(lessonId, state, port) {
       const panels = devicePanels(lessonId, state, port);
-      for (const id of ["client", "web"]) {
+      for (const id of ["client", "web", "dns"]) {
         let group = readouts.get(id);
         if (!panels[id]) {
           group?.remove();

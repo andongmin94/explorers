@@ -4,15 +4,12 @@ const DNS_RESOLVER_IP = "8.8.8.8";
 const DNS_ROOT_IP = "198.41.0.4";
 const DNS_TLD_IP = "192.5.6.30";
 const DNS_AUTHORITATIVE_IP = "198.51.100.53";
-const dnsPacketEvent = (from, to, color, label, payload, row) => ({
-  type: "packet",
-  from,
-  to,
-  color,
-  label,
-  payload,
-  row,
-});
+function dnsPacketEvent(from, to, color, label, payload, row) {
+  const packet = { type: "packet", from, to, color, label, payload, row };
+  const answer = row.wire.udp.data.dns.an?.[0];
+  if (answer) packet.devicesAfter = { [to]: answer };
+  return packet;
+}
 const DNS_QUESTION = ["www.example.com", "A"];
 const DNS_EDNS_OPTIONS = {
   size: 1232,

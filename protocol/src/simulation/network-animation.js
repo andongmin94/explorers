@@ -1,6 +1,6 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { translate } from "../i18n.js";
-import { createEndpointDisplay, ftpServerPort } from "./endpoint-display.js";
+import { createEndpointDisplay, ftpServerPort, renderDnsReadout } from "./endpoint-display.js";
 import {
   NETWORK_FOCUS_GROUPS,
   NETWORK_LANES,
@@ -83,6 +83,7 @@ function createNetworkAnimation(networkSvg) {
     ]),
   );
   const endpointDisplay = createEndpointDisplay(nodeElements);
+  const dnsReadout = networkSvg.parentElement.querySelector(".dns-readout");
   let currentLessonId;
   const packetLayer = networkSvg.querySelector(".packet-layer");
   const pulseLayer = networkSvg.querySelector(".pulse-layer");
@@ -131,6 +132,7 @@ function createNetworkAnimation(networkSvg) {
   // Keep labels legible when the same SVG is shown in a narrow viewport.
   function updateResponsiveScale() {
     const viewportWidth = networkSvg.getBoundingClientRect().width;
+    networkSvg.classList.toggle("compact-network", viewportWidth > 0 && viewportWidth <= 540);
     const nextLabelScale = viewportWidth
       ? Math.min(
           NETWORK_MAX_LABEL_SCALE,
@@ -457,9 +459,20 @@ function createNetworkAnimation(networkSvg) {
     await waitWithClock(250, cancellation);
   }
   async function showNote(
-    { at: nodeId, text: text, tone = "navy" },
+    { at: nodeId, text: text, tone = "navy", devicesAfter },
     cancellation,
   ) {
+    if (devicesAfter?.certificate === "verified") {
+      bounceNode(nodeId, cancellation);
+      await animateWithClock(2200, cancellation, progress => {
+        networkSvg.dataset.certChecks = String(Math.min(3, 1 + Math.floor(progress * 4)));
+      });
+      return;
+    }
+    if (currentLessonId === "dns" && text === "CACHED · TTL 3600 S") {
+      await waitWithClock(NETWORK_NOTE_HOLD_MS, cancellation);
+      return;
+    }
     const {
       x: anchorX,
       y: anchorY,
@@ -968,10 +981,13 @@ function createNetworkAnimation(networkSvg) {
     retext() {
       updateNodeLabels(labelOverrides);
     },
-    setDevices(lessonId, state, event) {
+    setDevices(lessonId, state, event, running) {
       currentLessonId = lessonId;
+      networkSvg.dataset.lesson = lessonId;
       const packet = event?.type === "stream" ? event.packets[0] : event;
-      endpointDisplay.update(lessonId, state, lessonId === "ftp" ? ftpServerPort(packet) : null);
+      endpointDisplay.update(lessonId, state, lessonId === "ftp" && running ? ftpServerPort(packet) : null);
+      if (lessonId === "dns") renderDnsReadout(dnsReadout, state, event);
+      else dnsReadout.hidden = true;
     },
     setLabels(labels) {
       if (labels !== labelOverrides) updateNodeLabels(labels);
@@ -1071,6 +1087,7 @@ function createNetworkAnimation(networkSvg) {
       }
     },
     clear() {
+      delete networkSvg.dataset.certChecks;
       for (const element of [...packetLayer.children, ...noteLayer.children]) {
         element.animate(
           [

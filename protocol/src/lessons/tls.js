@@ -218,6 +218,7 @@ const tlsLesson = {
             "encrypted: http/1.1, certificates,",
             "signature, Finished",
           ],
+          devicesAfter: { certificate: "received" },
           packets: TLS_HANDSHAKE_SEGMENT_SIZES.slice(1).map(
             (segmentBytes, segmentIndex) =>
               packetEvent(
@@ -261,6 +262,7 @@ const tlsLesson = {
           at: "client",
           text: "CHAIN LEADS TO A TRUSTED ROOT",
           tone: "green",
+          devicesAfter: { certificate: "verified" },
         },
       ],
     },
@@ -291,7 +293,7 @@ const tlsLesson = {
             ),
             tcpWire(TLS_CONNECTION, CLIENT_IP, "PA", TLS_FINISHED_WIRE),
           ),
-          TLS_ENCRYPTED_EVENT,
+          { ...TLS_ENCRYPTED_EVENT, devicesAfter: { certificate: null } },
         ),
       ],
     },
