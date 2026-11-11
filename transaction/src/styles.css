@@ -107,10 +107,6 @@ button[hidden],
 [hidden] {
   display: none !important;
 }
-button:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: none !important;
-}
 .app-header {
   min-height: 90px;
   display: flex;
@@ -164,6 +160,8 @@ button:active:not(:disabled) {
   gap: 9px;
 }
 .button {
+  --press-depth: 4px;
+  --press-hover: 2px;
   display: inline-flex;
   justify-content: center;
   align-items: center;
@@ -174,7 +172,6 @@ button:active:not(:disabled) {
   background: var(--surface);
   font-size: 12px;
   font-weight: 750;
-  box-shadow: 2px 2px 0 var(--shadow);
   padding: 7px 12px;
   white-space: nowrap;
 }
@@ -217,7 +214,6 @@ button:active:not(:disabled) {
   border: 2px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
-  box-shadow: 2px 2px 0 var(--shadow);
   text-decoration: none;
   font-size: 13px;
   font-weight: 750;
@@ -296,7 +292,6 @@ button:active:not(:disabled) {
 .mode-toggle button {
   border: 2px solid var(--border);
   border-radius: 3px;
-  box-shadow: 2px 2px 0 var(--shadow);
   background: var(--surface);
   padding: 10px;
   text-align: left;
@@ -313,7 +308,6 @@ button:active:not(:disabled) {
 .mode-toggle button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--inverse);
-  box-shadow: 2px 2px 0 var(--shadow);
 }
 .mode-toggle button[aria-pressed="true"] span {
   color: inherit;
@@ -917,7 +911,6 @@ summary {
   border: 1.5px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
-  box-shadow: 1px 1px 0 var(--shadow);
   font-size: 12px;
   font-weight: 750;
 }
@@ -1156,7 +1149,6 @@ summary {
   padding: 4px 0;
   border: 1.5px solid var(--border);
   border-radius: 2px;
-  box-shadow: 1px 1px 0 var(--shadow);
   background: var(--surface);
   font-size: 11px;
   font-weight: 750;
@@ -1167,8 +1159,6 @@ summary {
 .milestone.current {
   background: var(--ink);
   color: var(--inverse);
-  box-shadow: none;
-  transform: translate(1px, 1px);
 }
 .milestone:hover {
   outline: 1px solid var(--border);
@@ -1190,7 +1180,6 @@ summary {
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 3px;
-  box-shadow: 2px 2px 0 var(--shadow);
   font-size: 12px;
   font-weight: 800;
   display: flex;
@@ -1201,8 +1190,6 @@ summary {
 .record-tabs > button[aria-selected="true"] {
   background: var(--ink);
   color: var(--inverse);
-  box-shadow: none;
-  transform: translate(2px, 2px);
 }
 #log-count {
   font-size: 10px;
@@ -1946,5 +1933,40 @@ dialog::backdrop {
   }
   .panel-head {
     flex: none;
+  }
+}
+
+:is(.button, .milestone, .replay-event):enabled,
+.mode-toggle button:enabled,
+.record-tabs > button:enabled,
+.scenario-nav a,
+.learning-mode button:enabled i {
+  --press-shadow: calc(var(--press-depth, 2px) - var(--press-offset, 0px));
+  box-shadow: var(--press-shadow) var(--press-shadow) 0 var(--shadow);
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(button:enabled:hover, .scenario-nav a:hover) {
+    --press-offset: var(--press-hover, 1px);
+  }
+}
+:where(
+  button:enabled:active,
+  button[aria-selected="true"],
+  button[aria-pressed="true"],
+  button[aria-current="step"],
+  .scenario-nav a[aria-current="page"],
+  .scenario-nav a:active
+) {
+  --press-offset: var(--press-depth, 2px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.button, .milestone, .replay-event):enabled,
+  .mode-toggle button:enabled,
+  .record-tabs > button:enabled,
+  .scenario-nav a,
+  .learning-mode button:enabled i,
+  .text-button {
+    transform: translate(var(--press-offset, 0px), var(--press-offset, 0px));
+    transition: transform 140ms ease, box-shadow 140ms ease;
   }
 }
