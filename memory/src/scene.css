@@ -248,6 +248,20 @@
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+.memory-scene[data-criterion="fifo"] .mem-loaded,
+.memory-scene[data-criterion="lru"] .mem-used {
+  padding: 1px 3px;
+  background: var(--soft);
+  color: var(--ink);
+  box-shadow: inset 0 -1.5px var(--ink);
+  font-weight: 800;
+}
+.memory-scene[data-criterion="fifo"] [data-selected] .mem-loaded,
+.memory-scene[data-criterion="lru"] [data-selected] .mem-used {
+  background: var(--selected);
+  color: var(--on-selected);
+  box-shadow: none;
+}
 .memory-scene .mem-frame[data-selected] {
   outline: 2px solid var(--ink);
   outline-offset: 2px;

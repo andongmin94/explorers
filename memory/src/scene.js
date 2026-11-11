@@ -272,6 +272,9 @@ const diskPosition = (layout, page) => {
   };
 };
 const cloneFrames = (frames) => frames.map((frame) => ({ ...frame }));
+const replacementReason = (policy, frame) => policy === "fifo"
+  ? `가장 먼저 적재된 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
+  : `마지막 사용이 가장 이른 ${frame.page} 교체 (사용 ${frame.lastUsedAt}번째)`;
 let serial = 0;
 
 export function createMemoryScene(host, { onPhase = () => {} } = {}) {
@@ -344,8 +347,8 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       card.querySelector(".mem-frame-content b").textContent = frame.page
         ? `페이지 ${frame.page}`
         : "빈 프레임";
-      card.querySelector(".mem-frame-content small").textContent = frame.page
-        ? `적재 ${frame.loadedAt} · ${frame.lastUsedAt === null ? "접근 전" : `사용 ${frame.lastUsedAt}`}`
+      card.querySelector(".mem-frame-content small").innerHTML = frame.page
+        ? `<span class="mem-loaded">적재 ${frame.loadedAt}</span> · <span class="mem-used">${frame.lastUsedAt === null ? "접근 전" : `사용 ${frame.lastUsedAt}`}</span>`
         : "페이지가 없습니다";
       card.setAttribute(
         "aria-label",
@@ -415,14 +418,20 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         "세 개의 RAM 프레임을 관찰하세요",
         "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.",
       );
-    else
+    else {
+      let outcome = step.hit ? "RAM 적중" : "페이지 부재 처리";
+      if (step.victim) {
+        const { reason } = step.events.find((event) => event.type === "select");
+        outcome = replacementReason(reason, step.before[step.frameIndex]);
+      }
       phase(
         "access",
-        `${step.page} 접근 완료 · ${step.hit ? "RAM 적중" : "페이지 부재 처리"}`,
+        `${step.page} 접근 완료 · ${outcome}`,
         step.hit
           ? "RAM에 있던 페이지를 그대로 사용했습니다."
           : "SSD에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
       );
+    }
   }
   function draw() {
     layout = layoutFor(Math.max(280, Math.round(host.clientWidth)));
@@ -487,6 +496,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     run?.updateRoute?.();
   }
   function clearEmphasis() {
+    delete host.dataset.criterion;
     cards.forEach((card) => {
       delete card.dataset.selected;
       delete card.dataset.hit;
@@ -601,6 +611,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         await hold(500 * pace, active);
       } else if (event.type === "select") {
         cards[slot].dataset.selected = "true";
+        host.dataset.criterion = event.reason;
         const reason =
           event.reason === "empty"
             ? "빈 프레임을 사용합니다"
@@ -611,10 +622,12 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           "select",
           event.reason === "empty"
             ? `빈 프레임 F${slot} 선택`
-            : `OS가 교체할 페이지 ${event.victim} 선택`,
+            : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
           reason,
         );
-        await hold(900 * pace, active);
+        await hold((event.victim ? 1500 : 900) * pace, active);
+        if (!alive(active)) return;
+        delete host.dataset.criterion;
       } else if (event.type === "evict") {
         phase(
           "evict",
