@@ -38,7 +38,7 @@ const icon = (name) =>
 const run = () => runs[algorithm];
 const current = () => run().steps[committed];
 $("#app").innerHTML = `
-<header class="app-header"><div class="brand-icon">${icon("memory")}</div><div><h1>메모리 탐험가</h1><p>보면서 이해하는 운영체제</p></div><div class="scenario-heading"><small>대표 시나리오 02</small><strong>같은 접근, 다른 교체</strong></div><div class="header-actions"><button class="button" data-action="compare">${icon("compare")}<span>FIFO · LRU 비교</span></button><button class="button icon-button" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button></div></header>
+<header class="app-header"><div class="brand-icon">${icon("memory")}</div><div><h1>메모리 탐색기</h1><p>보면서 이해하는 운영체제</p></div><div class="scenario-heading"><small>대표 시나리오 02</small><strong>같은 접근, 다른 교체</strong></div><div class="header-actions"><button class="button" data-action="compare">${icon("compare")}<span>FIFO · LRU 비교</span></button><button class="button icon-button" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button></div></header>
 <main class="workspace">
 <aside class="panel setup-panel"><button class="panel-head setup-toggle" data-action="setup" aria-expanded="true" aria-controls="setup-content"><h2>실험 조건</h2><span>3개의 프레임 ⌄</span></button><div id="setup-content" class="setup-content">
 <div class="section-label">페이지 교체 방식</div><div class="algorithm-toggle" role="group" aria-label="페이지 교체 방식"><button data-algorithm="fifo" aria-pressed="true">FIFO</button><button data-algorithm="lru" aria-pressed="false">LRU</button></div><p id="rule-summary" class="rule-summary"></p>
