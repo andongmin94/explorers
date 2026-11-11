@@ -243,7 +243,7 @@ function schedule() {
   if (playing && !busy)
     timer = setTimeout(() => navigate(index + 1, true), 700 / speed);
 }
-async function navigate(target, animate = false) {
+async function navigate(target, animate = false, startPaused = false) {
   clearTimeout(timer);
   const token = ++revision,
     previous = run().steps[committed];
@@ -251,13 +251,14 @@ async function navigate(target, animate = false) {
   const sequential = animate && target === committed + 1;
   index = target;
   busy = sequential;
-  resumeAutomatically = playing;
-  motionPaused = false;
+  if (!startPaused) resumeAutomatically = playing;
+  motionPaused = startPaused;
   if (!sequential) committed = target;
   render();
   await scene.update(run().steps[target], previous, {
     animate: sequential,
     speed,
+    paused: startPaused,
   });
   if (token !== revision) return;
   busy = false;
@@ -347,6 +348,15 @@ function changeTheme() {
     dark ? "밝은 테마로 전환" : "어두운 테마로 전환",
   );
 }
+function setSetupOpen(open) {
+  $('[data-action="setup"]').setAttribute("aria-expanded", String(open));
+  $("#setup-content").hidden = !open;
+}
+function focusScene(block = "center") {
+  const host = $("#memory-scene");
+  host.focus({ preventScroll: true });
+  host.scrollIntoView({ block, behavior: "instant" });
+}
 $("#app").addEventListener("click", async (event) => {
   const button = event.target.closest("button");
   if (!button) return;
@@ -368,9 +378,13 @@ $("#app").addEventListener("click", async (event) => {
     return;
   }
   if (button.dataset.algorithm) {
-    pause();
+    if (button.dataset.algorithm === algorithm) return;
     algorithm = button.dataset.algorithm;
-    await navigate(index);
+    if (busy && matchMedia("(max-width:1099px)").matches) {
+      setSetupOpen(false);
+      focusScene("start");
+    }
+    await navigate(index, busy, motionPaused);
     return;
   }
   switch (button.dataset.action) {
@@ -408,19 +422,15 @@ $("#app").addEventListener("click", async (event) => {
     case "theme":
       changeTheme();
       break;
-    case "setup": {
-      const open = button.getAttribute("aria-expanded") !== "true";
-      button.setAttribute("aria-expanded", String(open));
-      $("#setup-content").hidden = !open;
+    case "setup":
+      setSetupOpen(button.getAttribute("aria-expanded") !== "true");
       break;
-    }
     case "predict":
       showPrediction();
       break;
     case "reveal":
       $("#prediction-dialog").close();
-      $("#memory-scene").focus({ preventScroll: true });
-      $("#memory-scene").scrollIntoView({ block: "center", behavior: "instant" });
+      focusScene();
       await navigate(quiz.atIndex, true);
       break;
     case "compare":
@@ -477,10 +487,7 @@ for (const dialog of document.querySelectorAll("dialog"))
     if (e.target === dialog) dialog.close();
   });
 if (localStorage.getItem("memory-explorer-theme") === "dark") changeTheme();
-if (matchMedia("(max-width:1099px)").matches) {
-  $('[data-action="setup"]').setAttribute("aria-expanded", "false");
-  $("#setup-content").hidden = true;
-}
+if (matchMedia("(max-width:1099px)").matches) setSetupOpen(false);
 const panelObserver = new ResizeObserver(() =>
   $(".workspace").style.setProperty(
     "--stage-height",

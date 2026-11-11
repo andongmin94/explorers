@@ -477,7 +477,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       </g>
       <g class="mem-lane-labels">
         <text x="${layout.compact ? layout.ramHousing.x - 6 : leftGap}" y="${layout.compact ? 195 : 224}" text-anchor="${layout.compact ? "end" : "middle"}">${layout.compact ? "조회" : "조회 요청"}</text>
-        <text x="${layout.cpu.x}" y="${layout.compact ? 313 : 377}" text-anchor="middle">접근 완료</text>
+        <text x="${layout.cpu.x}" y="${layout.compact ? 313 : 377}" text-anchor="middle">값 반환</text>
         <text x="${layout.compact ? layout.width / 2 + 20 : layout.ssd.x}" y="${layout.compact ? 574 : 341}" text-anchor="middle">페이지 읽기</text>
       </g>`;
     cards.forEach((card, slot) =>
@@ -718,7 +718,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   function update(
     next,
     previous = null,
-    { animate = true, speed = 1 } = {},
+    { animate = true, speed = 1, paused = false } = {},
   ) {
     if (destroyed) return Promise.resolve();
     revision++;
@@ -741,7 +741,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       revision,
       speed,
       animations: new Set(),
-      paused: false,
+      paused,
       cancelled: false,
     };
     run = active;
