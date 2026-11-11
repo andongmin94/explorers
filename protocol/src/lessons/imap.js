@@ -219,7 +219,7 @@ const imapLesson = {
             "a2 SELECT INBOX",
             IMAP_SELECT_COMMAND,
           ),
-          IMAP_ENCRYPTED_EVENT,
+          { ...IMAP_ENCRYPTED_EVENT, devicesAfter: { count: 2, seen: false } },
         ),
         packetEvent(
           "web",
@@ -234,7 +234,7 @@ const imapLesson = {
             "* 2 EXISTS … a2 OK [READ-WRITE] SELECT completed",
             IMAP_SELECT_REPLY,
           ),
-          IMAP_ENCRYPTED_EVENT,
+          { ...IMAP_ENCRYPTED_EVENT, devicesAfter: { clientCount: 2 } },
         ),
       ],
     },
@@ -262,7 +262,7 @@ const imapLesson = {
             "a3 FETCH 2 BODY[]",
             IMAP_FETCH_COMMAND,
           ),
-          IMAP_ENCRYPTED_EVENT,
+          { ...IMAP_ENCRYPTED_EVENT, devicesAfter: { seen: true } },
         ),
         packetEvent(
           "web",
@@ -296,7 +296,7 @@ const imapLesson = {
               ],
             }),
           },
-          IMAP_ENCRYPTED_EVENT,
+          { ...IMAP_ENCRYPTED_EVENT, devicesAfter: { localCopy: true } },
         ),
         {
           type: "note",
@@ -351,6 +351,7 @@ const imapLesson = {
           type: "note",
           at: "web",
           text: "NEW MAIL ARRIVED",
+          devicesAfter: { count: 3 },
           tone: "navy",
         },
         packetEvent(
@@ -366,7 +367,7 @@ const imapLesson = {
             "* 3 EXISTS, * 1 RECENT",
             imapLines("* 3 EXISTS", "* 1 RECENT"),
           ),
-          IMAP_ENCRYPTED_EVENT,
+          { ...IMAP_ENCRYPTED_EVENT, devicesAfter: { clientCount: 3 } },
         ),
         packetEvent(
           "client",

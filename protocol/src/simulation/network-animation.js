@@ -1,5 +1,6 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { translate } from "../i18n.js";
+import { createEndpointDisplay, ftpServerPort } from "./endpoint-display.js";
 import {
   NETWORK_FOCUS_GROUPS,
   NETWORK_LANES,
@@ -81,6 +82,8 @@ function createNetworkAnimation(networkSvg) {
       nodeElement,
     ]),
   );
+  const endpointDisplay = createEndpointDisplay(nodeElements);
+  let currentLessonId;
   const packetLayer = networkSvg.querySelector(".packet-layer");
   const pulseLayer = networkSvg.querySelector(".pulse-layer");
   const noteLayer = networkSvg.querySelector(".note-layer");
@@ -141,6 +144,7 @@ function createNetworkAnimation(networkSvg) {
     annotationScale = 1 + (nextLabelScale - 1) * 0.6;
     networkSvg.classList.toggle("is-scaled", nextLabelScale > 1);
     nodeLabelElements.forEach(scaleNodeLabel);
+    endpointDisplay.setScale(nextLabelScale);
     const [originX, originY] = URL_BAR_SCALE_ORIGIN;
     urlHolder.setAttribute(
       "transform",
@@ -734,8 +738,10 @@ function createNetworkAnimation(networkSvg) {
       locked: locked,
       lost: lost,
       quick: quick,
+      row,
     },
     cancellation,
+    onArrival,
   ) {
     const route = NETWORK_ROUTES[`${fromNode}>${toNode}`];
     const pixelsPerMillisecond = quick
@@ -748,7 +754,8 @@ function createNetworkAnimation(networkSvg) {
       (laneId, index) => lossLaneIndex < 0 || index <= lossLaneIndex,
     );
     activeRoute.forEach((laneId) => acquireLane(laneId, color));
-    const visual = createPacketVisual(color, label, payload, locked);
+    const port = currentLessonId === "ftp" ? ftpServerPort({ from: fromNode, row }) : null;
+    const visual = createPacketVisual(color, port ? `${translate(label)} · ${port}` : label, payload, locked);
     const startPosition = interpolateLinePoint(NETWORK_LANES[route[0]], 0);
     await animateWithClock(quick ? 140 : 220, cancellation, (progress) =>
       positionPacket(visual.g, startPosition, easeOutBack(progress)),
@@ -795,6 +802,7 @@ function createNetworkAnimation(networkSvg) {
         await waitWithClock(quick ? 40 : PACKET_HOP_PAUSE_MS, cancellation);
       }
     }
+    onArrival?.();
     pulseNode(toNode, color, cancellation);
     await animateWithClock(180, cancellation, (progress) => {
       positionPacket(visual.g, currentPosition, 1 - easeInCubic(progress));
@@ -935,10 +943,10 @@ function createNetworkAnimation(networkSvg) {
   }
   Object.keys(laneElements).forEach((laneId) => setLaneProgress(laneId, 0));
   return {
-    run(event, cancellation) {
+    run(event, cancellation, onArrival) {
       switch (event.type) {
         case "packet":
-          return animatePacket(event, cancellation);
+          return animatePacket(event, cancellation, onArrival);
         case "stream":
           return animatePacketStream(event, cancellation);
         case "type-url":
@@ -959,6 +967,11 @@ function createNetworkAnimation(networkSvg) {
     },
     retext() {
       updateNodeLabels(labelOverrides);
+    },
+    setDevices(lessonId, state, event) {
+      currentLessonId = lessonId;
+      const packet = event?.type === "stream" ? event.packets[0] : event;
+      endpointDisplay.update(lessonId, state, lessonId === "ftp" ? ftpServerPort(packet) : null);
     },
     setLabels(labels) {
       if (labels !== labelOverrides) updateNodeLabels(labels);

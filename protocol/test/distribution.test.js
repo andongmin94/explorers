@@ -15,8 +15,10 @@ const baseline = JSON.parse(
     "utf8",
   ),
 );
-const digest = (value) =>
-  createHash("sha256").update(JSON.stringify(value)).digest("hex");
+// Endpoint readouts are additional network-diagram state, outside the original wire/lesson fixture.
+const digest = (value) => createHash("sha256").update(JSON.stringify(value, (key, item) =>
+  key === "devices" || key === "devicesAfter" ? undefined : item,
+)).digest("hex");
 // The fixture preserves the original distribution. The behavioral tests below
 // cover the reviewed lesson corrections and the shared LAN frame encoder.
 const reviewedCorrections = {

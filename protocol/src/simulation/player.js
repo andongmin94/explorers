@@ -48,6 +48,12 @@ function createLessonPlayer(
     const previous = labelsAtPosition.at(-1);
     labelsAtPosition.push(event.labelsAfter ? { ...previous, ...event.labelsAfter } : previous);
   }
+  const deviceStates = [lesson.devices];
+  for (const event of events) {
+    const previous = deviceStates.at(-1);
+    deviceStates.push(event.devicesAfter ? { ...previous, ...event.devicesAfter } : previous);
+  }
+  let packetArrived = false;
   const finishedSteps = new Set();
   let nextEventIndex = 0;
   let runningEventIndex = -1;
@@ -71,7 +77,11 @@ function createLessonPlayer(
       activeEventIndex >= 0 && isPacketEvent(events[activeEventIndex])
         ? activeEventIndex
         : -1;
+    // Endpoint changes become visible on arrival, or immediately for a local note.
+    const devicePosition = runningEventIndex !== -1 &&
+      (packetArrived || events[runningEventIndex].type === "note") ? nextEventIndex + 1 : nextEventIndex;
     return {
+      devices: deviceStates[devicePosition],
       playing,
       running: runningEventIndex !== -1,
       started,
@@ -147,13 +157,19 @@ function createLessonPlayer(
 
     const eventIndex = nextEventIndex;
     const token = eventToken;
+    packetArrived = false;
     runningEventIndex = eventIndex;
     notifyStateChange();
     if (currentMode === "sequence") {
       renderer.apply(events[eventIndex]);
       await waitWithClock(getSequenceEventDuration(events[eventIndex]), token);
     } else {
-      await renderer.run(events[eventIndex], token);
+      await renderer.run(events[eventIndex], token, () => {
+        if (token === eventToken && events[eventIndex].devicesAfter) {
+          packetArrived = true;
+          notifyStateChange();
+        }
+      });
     }
 
     // Reset/jump replaces the token. Switching to sequence view instead asks

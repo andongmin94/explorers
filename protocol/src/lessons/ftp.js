@@ -46,7 +46,7 @@ const ftpCommandEvent = (seconds, command) =>
     [command],
     ftpPacketRow(seconds, CLIENT_IP, FTP_SERVER_IP, command, command),
   );
-const ftpReplyEvent = (seconds, label, payload, reply) =>
+const ftpReplyEvent = (seconds, label, payload, reply, devicesAfter) =>
   packetEvent(
     "web",
     "client",
@@ -54,7 +54,14 @@ const ftpReplyEvent = (seconds, label, payload, reply) =>
     label,
     payload,
     ftpPacketRow(seconds, FTP_SERVER_IP, CLIENT_IP, reply, reply),
+    { devicesAfter },
   );
+function ftpHandshake(port, clientPort, times, channel) {
+  const events = tcpHandshakeEvents({ dst: FTP_SERVER_IP, sport: clientPort, dport: port, t: times });
+  events[0].devicesAfter = { [channel]: "connecting" };
+  events[2].devicesAfter = { [channel]: "open" };
+  return events;
+}
 const FTP_DATA_SEGMENT_SIZES = [];
 for (
   let remainingBytes = FTP_FILE_BYTES;
@@ -87,6 +94,7 @@ const ftpDataRow = (segmentBytes, segmentIndex) => {
 };
 const ftpLesson = {
   id: "ftp",
+  devices: { control: "waiting", data: "unset", dataPort: FTP_PASSIVE_PORT },
   name: "FTP",
   title: "Transferring Files",
   layer: 7,
@@ -152,12 +160,7 @@ const ftpLesson = {
           nodes: ["router", "internet", "web"],
           frame: "path",
         },
-        ...tcpHandshakeEvents({
-          dst: FTP_SERVER_IP,
-          sport: 52800,
-          dport: 21,
-          t: [0, 0.015, 0.03],
-        }),
+        ...ftpHandshake(21, 52800, [0, 0.015, 0.03], "control"),
         ftpReplyEvent(
           0.045,
           "220",
@@ -223,6 +226,7 @@ const ftpLesson = {
           "227",
           ["227 Entering Passive Mode", "(203,0,113,21,195,149)."],
           "227 Entering Passive Mode (203,0,113,21,195,149).",
+          { data: "waiting" },
         ),
       ],
     },
@@ -237,12 +241,7 @@ const ftpLesson = {
         ["Reply", "150 Opening BINARY …"],
       ],
       events: [
-        ...tcpHandshakeEvents({
-          dst: FTP_SERVER_IP,
-          sport: 52801,
-          dport: FTP_PASSIVE_PORT,
-          t: [0.18, 0.195, 0.21],
-        }),
+        ...ftpHandshake(FTP_PASSIVE_PORT, 52801, [0.18, 0.195, 0.21], "data"),
         ftpCommandEvent(0.21, "RETR report.pdf"),
         packetEvent(
           "web",
@@ -306,6 +305,7 @@ const ftpLesson = {
             len: `${tcpFrameBytes(0)} B`,
             wire: tcpWire(FTP_DATA_CONNECTION, FTP_SERVER_IP, "FA"),
           },
+          { devicesAfter: { data: "closed" } },
         ),
         ftpReplyEvent(
           0.255,
@@ -327,7 +327,7 @@ const ftpLesson = {
       ],
       events: [
         ftpCommandEvent(0.27, "QUIT"),
-        ftpReplyEvent(0.285, "221", ["221 Goodbye."], "221 Goodbye."),
+        ftpReplyEvent(0.285, "221", ["221 Goodbye."], "221 Goodbye.", { control: "closed" }),
       ],
     },
   ],

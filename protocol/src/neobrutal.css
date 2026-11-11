@@ -947,3 +947,19 @@ body {
     transition: none;
   }
 }
+.network .endpoint-display { pointer-events: none; font-family: var(--neo-sans); }
+.endpoint-leader { fill: none; stroke: var(--neo-border); stroke-width: 1.8; }
+.endpoint-case { fill: var(--neo-surface); stroke: var(--neo-text); stroke-width: 2.5; }
+.endpoint-shadow { fill: var(--neo-shadow); }
+.endpoint-rule { stroke: var(--neo-border); stroke-width: 1.5; }
+.endpoint-icon { fill: none; stroke: var(--neo-text); stroke-width: 1.8; stroke-linejoin: round; }
+.endpoint-display text { fill: var(--neo-text); font-family: var(--neo-sans); }
+.endpoint-heading { font-size: 14px; font-weight: 800; }
+.endpoint-key, .endpoint-value { font-size: 16px; font-weight: 750; }
+.endpoint-highlight { fill: none; }
+.endpoint-row.active .endpoint-highlight { fill: var(--neo-accent); }
+.endpoint-row.active text { fill: var(--neo-on-accent); }
+.endpoint-row:is(.closed, .unset) text { fill: var(--neo-muted); }
+.endpoint-row:is(.marked, .fresh) .endpoint-highlight { fill: var(--neo-soft); }
+.endpoint-row.marked .endpoint-value { text-decoration: underline dashed; }
+.endpoint-card.terminal .endpoint-key { font-family: var(--neo-mono); }

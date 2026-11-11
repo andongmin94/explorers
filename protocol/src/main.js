@@ -228,6 +228,7 @@ bindThemeToggle(topbarElement);
 
 function updateAppPlaybackState(state, lesson = currentLesson) {
   if (state.labels) networkAnimation.setLabels(state.labels);
+  networkAnimation.setDevices(lesson.id, state.devices, state.running ? state.event : null);
   updateTopbar(topbarElement, state, lesson);
   updateSidebar(sidebarElement, state, lesson);
   updateOverviewPanel(

@@ -232,7 +232,7 @@ const pop3Lesson = {
             "STAT",
             pop3Lines("STAT"),
           ),
-          POP3_ENCRYPTED_EVENT,
+          { ...POP3_ENCRYPTED_EVENT, devicesAfter: { mailbox: "stored" } },
         ),
         packetEvent(
           "web",
@@ -335,7 +335,7 @@ const pop3Lesson = {
               ],
             }),
           },
-          POP3_ENCRYPTED_EVENT,
+          { ...POP3_ENCRYPTED_EVENT, devicesAfter: { localCopy: true } },
         ),
       ],
     },
@@ -363,7 +363,7 @@ const pop3Lesson = {
             "DELE 1",
             pop3Lines("DELE 1"),
           ),
-          POP3_ENCRYPTED_EVENT,
+          { ...POP3_ENCRYPTED_EVENT, devicesAfter: { mailbox: "marked" } },
         ),
         packetEvent(
           "web",
@@ -393,7 +393,7 @@ const pop3Lesson = {
             "QUIT",
             pop3Lines("QUIT"),
           ),
-          POP3_ENCRYPTED_EVENT,
+          { ...POP3_ENCRYPTED_EVENT, devicesAfter: { mailbox: "deleted" } },
         ),
         packetEvent(
           "web",

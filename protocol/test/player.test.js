@@ -33,6 +33,39 @@ test("DHCP assigns the address on ACK completion and restores it when seeking", 
   }
 });
 
+test("a file close reaches the data port without closing FTP control; seeking restores both ports", async () => {
+  let finish, arrive, state;
+  const renderer = {
+    clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {},
+    run: (_event, _token, landed) => new Promise((resolve) => { finish = resolve; arrive = landed; }),
+  };
+  const player = createLessonPlayer(lessonsById.ftp, renderer, (snapshot) => { state = snapshot; });
+  try {
+    player.jump(4);
+    player.pause();
+    await Promise.resolve();
+    assert.equal(state.event.type, "stream");
+    assert.equal(state.devices.data, "open");
+    finish();
+    await new Promise(setImmediate);
+    player.step();
+    await Promise.resolve();
+    assert.equal(state.event.label, "FIN");
+    assert.equal(state.devices.data, "open");
+    arrive();
+    await Promise.resolve();
+    assert.equal(state.devices.data, "closed");
+    assert.equal(state.devices.control, "open");
+    player.jump(2);
+    player.pause();
+    await Promise.resolve();
+    assert.equal(state.devices.data, "unset");
+    player.reset();
+    await Promise.resolve();
+    assert.equal(state.devices.control, "waiting");
+  } finally { player.dispose(); }
+});
+
 test("jumping to the HTTP ending credits only the step that actually finishes", async (t) => {
   const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   const saved = new Map();

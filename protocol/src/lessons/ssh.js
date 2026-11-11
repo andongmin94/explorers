@@ -665,7 +665,7 @@ const sshLesson = {
           ["channel open"],
           "channel open confirmed",
           SSH_CHANNEL_CONFIRMATION_BYTES,
-          {},
+          { devicesAfter: { command: "" } },
           "SSH_MSG_CHANNEL_OPEN_CONFIRMATION (91): channel 0 is open",
         ),
       ],
@@ -696,7 +696,7 @@ const sshLesson = {
           [],
           "echo",
           SSH_KEYSTROKE_BYTES,
-          SSH_QUICK_EVENT,
+          { ...SSH_QUICK_EVENT, devicesAfter: { command: "p" } },
           `${SSH_CHANNEL_DATA_DESCRIPTION} 1 byte, “p”, sent back to be shown`,
         ),
         sshClientEvent(
@@ -714,7 +714,7 @@ const sshLesson = {
           [],
           "echo",
           SSH_KEYSTROKE_BYTES,
-          SSH_QUICK_EVENT,
+          { ...SSH_QUICK_EVENT, devicesAfter: { command: "pw" } },
           `${SSH_CHANNEL_DATA_DESCRIPTION} 1 byte, “w”, sent back to be shown`,
         ),
         sshClientEvent(
@@ -732,7 +732,7 @@ const sshLesson = {
           [],
           "echo",
           SSH_KEYSTROKE_BYTES,
-          SSH_QUICK_EVENT,
+          { ...SSH_QUICK_EVENT, devicesAfter: { command: "pwd" } },
           `${SSH_CHANNEL_DATA_DESCRIPTION} 1 byte, “d”, sent back to be shown`,
         ),
         sshClientEvent(
@@ -750,7 +750,7 @@ const sshLesson = {
           ["/home/alice", "alice@server:~$"],
           "output and a new prompt",
           SSH_COMMAND_OUTPUT_BYTES,
-          {},
+          { devicesAfter: { output: "/home/alice" } },
           `${SSH_CHANNEL_DATA_DESCRIPTION} ${SSH_COMMAND_OUTPUT.length} bytes: a new line, the shell’s terminal codes, “/home/alice”, and the coloured prompt`,
         ),
         {
