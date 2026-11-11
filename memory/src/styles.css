@@ -169,6 +169,8 @@ kbd {
   gap: 10px;
 }
 .button {
+  --press-depth: 4px;
+  --press-hover: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -176,20 +178,11 @@ kbd {
   border: 2px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
-  box-shadow: 2px 2px 0 var(--shadow);
   padding: 8px 12px;
   min-height: 36px;
   font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
-}
-.button:hover:not(:disabled) {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--shadow);
-}
-.button:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: none;
 }
 .button.primary {
   background: var(--ink);
@@ -297,7 +290,6 @@ kbd {
 .algorithm-toggle [aria-pressed="true"] {
   color: var(--inverse);
   background: var(--ink);
-  box-shadow: 1px 1px 0 var(--shadow);
 }
 .rule-summary {
   font-size: 12px;
@@ -563,15 +555,10 @@ kbd {
   padding: 3px 6px;
   border: 2px solid var(--border);
   border-radius: 2px;
-  box-shadow: 1px 1px 0 var(--shadow);
   background: var(--surface);
   font-size: 11px;
   font-weight: 750;
   white-space: nowrap;
-}
-.replay-access:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
 }
 .scene-summary {
   display: flex;
@@ -782,7 +769,6 @@ kbd {
   border: 1.5px solid var(--border);
   border-radius: 2px;
   background: var(--surface);
-  box-shadow: 1px 1px 0 var(--shadow);
 }
 .milestone > b {
   font-size: 12px;
@@ -794,8 +780,6 @@ kbd {
   background: var(--ink);
   color: var(--inverse);
   font-weight: 800;
-  box-shadow: none;
-  transform: translate(1px, 1px);
 }
 .milestone:hover {
   outline: 1px solid var(--border);
@@ -821,21 +805,14 @@ kbd {
   padding: 5px 13px;
   border: 2px solid var(--border);
   border-radius: 3px;
-  box-shadow: 2px 2px 0 var(--shadow);
   background: var(--surface);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
 }
 .record-tabs button[aria-selected="true"] {
-  transform: translate(2px, 2px);
-  box-shadow: none;
   background: var(--ink);
   color: var(--inverse);
-}
-.record-tabs button:hover {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--shadow);
 }
 #event-count {
   border: 1px solid var(--border);
@@ -1490,5 +1467,36 @@ dialog {
   *::after {
     scroll-behavior: auto !important;
     transition: none !important;
+  }
+}
+
+:is(.button, .reference, .milestone, .replay-access):enabled,
+.algorithm-toggle button:enabled,
+.record-tabs button:enabled,
+.learning-mode button:enabled i {
+  --press-shadow: calc(var(--press-depth, 2px) - var(--press-offset, 0px));
+  box-shadow: var(--press-shadow) var(--press-shadow) 0 var(--shadow);
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(button:enabled:hover) {
+    --press-offset: var(--press-hover, 1px);
+  }
+}
+:where(
+  button:enabled:active,
+  button[aria-current="step"],
+  button[aria-selected="true"],
+  button[aria-pressed="true"]
+) {
+  --press-offset: var(--press-depth, 2px);
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.button, .reference, .milestone, .replay-access):enabled,
+  .algorithm-toggle button:enabled,
+  .record-tabs button:enabled,
+  .learning-mode button:enabled i,
+  .setup-toggle > span {
+    transform: translate(var(--press-offset, 0px), var(--press-offset, 0px));
+    transition: transform 140ms ease, box-shadow 140ms ease;
   }
 }
