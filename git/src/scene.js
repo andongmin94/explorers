@@ -112,7 +112,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     const work = {
       x: left,
       y: compact ? 312 : 338,
-      width: zoneWidth,
+      // Leave a side lane between the index and the repository on phones.
+      width: compact ? zoneWidth - 20 : zoneWidth,
       height: 236,
     };
     const index = {
@@ -346,12 +347,29 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   }
   async function travel(run, source, destination, label, branch, pace, restoreBoth = false) {
     let top, bottom;
+    const indexCommit = source === "index" && destination in layout.nodes;
+    const graphToIndex = source in layout.nodes && destination === "index";
     run.updatePath = () => {
       const from = anchorPoint(source), to = anchorPoint(destination);
       const bend = from.y < 290 || to.y < 290 ? 303 : layout.compact ? 590 : from.y;
-      const path = from.y === to.y
+      const useLane = layout.compact && (indexCommit || graphToIndex);
+      let path = from.y === to.y
         ? `M${from.x} ${from.y}H${to.x}`
         : `M${from.x} ${from.y}V${bend}H${to.x}V${to.y}`;
+      if (useLane) {
+        const lane = layout.width - 15;
+        const port = layout.index.x + layout.index.width;
+        path = indexCommit
+          ? `M${port} ${from.y}H${lane}V${to.y}H${to.x}`
+          : `M${from.x} ${from.y}H${lane}V${to.y}H${port}`;
+      } else if (layout.compact && (source === "work" && destination === "index" || source === "index" && destination === "work")) {
+        const x = layout.work.x + layout.work.width * 0.68;
+        const filePort = layout.work.y + layout.work.height + 8;
+        const indexPort = layout.index.y - 5;
+        path = source === "work" ? `M${x} ${filePort}V${indexPort}` : `M${x} ${indexPort}V${filePort}`;
+      }
+      token.toggleAttribute("data-lane", Boolean(useLane));
+      token.querySelector("b").textContent = useLane ? (indexCommit ? destination : source) : label;
       wire.setAttribute("d", path);
       token.style.offsetPath = `path("${path}")`;
       top = Math.min(from.y, to.y) - 32;
@@ -371,7 +389,6 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     const color = branch === "feature/title" ? "var(--feature)" : "var(--main)";
     wire.style.setProperty("--traveler", color);
     token.style.setProperty("--traveler", color);
-    token.querySelector("b").textContent = label;
     token.hidden = false;
     if (restoreBoth) {
       restoreWire.dataset.active = "true";
@@ -423,9 +440,11 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   async function update(step, { animate: motion = false, speed = 1 } = {}) {
     cancel();
     const restoredFrom = step.action === "switch" ? step.state.refs[step.state.currentBranch] : null;
+    host.dataset.action = step.action;
     host.toggleAttribute("data-switching", Boolean(restoredFrom));
     if (!motion || step.index === 0 || reduced.matches) {
       snap(step.state, restoredFrom, motion);
+      if (motion && step.action === "commit") showSceneRange(layout.graph.y - 29, layout.graph.y + layout.graph.height + 20);
       if (motion && step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
       phase("complete", step.title, "", step.state);
       return;
@@ -525,6 +544,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       ]),
     );
     snap(step.state, restoredFrom, true);
+    if (step.action === "commit") showSceneRange(layout.graph.y - 29, layout.graph.y + layout.graph.height + 20);
     if (step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
     phase(
       "apply",

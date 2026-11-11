@@ -525,6 +525,15 @@
   font-weight: 850;
   white-space: nowrap;
 }
+.gs-token[data-lane] {
+  width: 25px;
+  height: 23px;
+  padding: 0;
+  box-shadow: 2px 2px 0 var(--shadow);
+}
+.gs-token[data-lane] svg {
+  display: none;
+}
 .git-scene[data-compact="true"] .gs-repository > header {
   font-size: 13px;
 }
@@ -558,11 +567,10 @@
 .git-scene[data-compact="true"] .gs-flow-guide {
   display: none;
 }
-.git-scene[data-compact="true"] .gs-index::before {
+.git-scene[data-compact="true"][data-action="stage"] .gs-index::before {
   content: "git add ↓";
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 6px;
   top: -29px;
   text-align: center;
   font-size: 13px;
