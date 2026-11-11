@@ -79,7 +79,7 @@ function layoutFor(width) {
       width: mobile ? 148 : Math.min(176, width * 0.26),
     },
     meter: {
-      x: cpuX - (mobile ? Math.min(146, tokenWidth + 16) / 2 : 86),
+      x: mobile ? cpuX - tokenWidth / 2 + 4 : cpuX - 86,
       y: mobile ? 314 : 326,
       width: mobile ? Math.min(146, tokenWidth + 16) : 172,
     },
@@ -171,7 +171,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     <div class="scene-tokens"></div>
     <div class="scene-cpu-readout" aria-hidden="true">
       <div class="scene-meter-row"><span>이번 CPU 구간</span><b data-value="burst"></b><div class="scene-meter"><i data-fill="burst"></i></div></div>
-      <div class="scene-meter-row" data-quantum-row><span>이번 차례 · 할당량</span><b data-value="quantum"></b><div class="scene-meter"><i data-fill="quantum"></i></div></div>
+      <div class="scene-meter-row" data-quantum-row><span>시간 할당량</span><b data-value="quantum"></b><div class="scene-meter"><i data-fill="quantum"></i></div></div>
       <p class="scene-cpu-idle"></p>
     </div>
     <div class="scene-callout" aria-hidden="true"><i></i><span></span></div>`;

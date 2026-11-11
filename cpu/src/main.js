@@ -295,6 +295,8 @@ function updateControls() {
 function seek(next, animate = false) {
   pause();
   moveTo(Math.max(0, Math.min(result.stats.makespan, next)), animate);
+  if (time === 0 && matchMedia("(max-width: 759px)").matches)
+    $(".scene-panel").scrollIntoView({ block: "start", behavior: "instant" });
 }
 function pause() {
   playing = false;
