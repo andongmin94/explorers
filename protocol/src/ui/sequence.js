@@ -571,8 +571,8 @@ function applySequenceState(panel, state, drawingBeforeResize) {
   svg.querySelectorAll(".seq-arrow").forEach((arrow) => {
     const packetIndex = Number(arrow.dataset.packet);
     const packetState = state.packets[packetIndex];
-    const lossMark = arrow.querySelector(".seq-cross");
-    if (lossMark) lossMark.style.visibility = !state.started || packetState === "lost" ? "visible" : "hidden";
+    const tip = arrow.querySelector(".seq-tip, .seq-cross");
+    tip.style.visibility = !state.started || packetState === "lost" || packetState === "past" ? "visible" : "hidden";
     const visible = !state.started || packetState !== "future";
     const current = state.started && packetState === "current";
     if (visible && !arrow.classList.contains("is-shown")) {

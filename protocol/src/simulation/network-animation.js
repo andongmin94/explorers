@@ -11,9 +11,12 @@ import {
   PACKET_COLORS,
 } from "./network-drawing.js";
 import { animateWithClock, waitWithClock } from "./clock.js";
+import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
 const NETWORK_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const PACKET_PIXELS_PER_MILLISECOND = 0.21;
 const PACKET_HOP_PAUSE_MS = 140;
+const PACKET_ARRIVAL = { fade: 180, hold: 150 };
+const PACKET_LOSS = { drop: 520, hold: 500, fade: 250 };
 const URL_TYPING_INTERVAL_MS = 55;
 const CAMERA_MOVE_DURATION_MS = 1100;
 const CAMERA_CONTENT_PADDING = 14;
@@ -756,6 +759,7 @@ function createNetworkAnimation(networkSvg) {
     cancellation,
     onArrival,
     onLoss,
+    mode,
   ) {
     const route = NETWORK_ROUTES[`${fromNode}>${toNode}`];
     const pixelsPerMillisecond = quick
@@ -767,23 +771,38 @@ function createNetworkAnimation(networkSvg) {
     const activeRoute = route.filter(
       (laneId, index) => lossLaneIndex < 0 || index <= lossLaneIndex,
     );
+    const appearTime = quick ? 140 : 220;
+    const hopPause = quick ? 40 : PACKET_HOP_PAUSE_MS;
+    const travelTimes = activeRoute.map((laneId, index) => {
+      const fraction = index === lossLaneIndex ? 0.55 : 1;
+      return getLineLength(NETWORK_LANES[laneId]) * fraction / pixelsPerMillisecond;
+    });
+    let flightScale = 1, endScale = 1;
+    if (mode === "sequence") {
+      const timing = SEQUENCE_ANIMATION_TIMINGS;
+      const drawTime = quick ? timing.quick : timing.draw;
+      const totalFlight = travelTimes.reduce((sum, ms) => sum + ms, appearTime) + (activeRoute.length - 1) * hopPause;
+      flightScale = drawTime * timing.tipFraction / totalFlight;
+      const ending = lost ? PACKET_LOSS : PACKET_ARRIVAL;
+      const endDuration = Object.values(ending).reduce((sum, ms) => sum + ms, 0);
+      endScale = drawTime * (1 - timing.tipFraction) / endDuration;
+    }
     activeRoute.forEach((laneId) => acquireLane(laneId, color));
     const port = currentLessonId === "ftp" ? ftpServerPort({ from: fromNode, row }) : null;
     const visual = createPacketVisual(color, port ? `${translate(label)} · ${port}` : label, payload, locked);
     const startPosition = interpolateLinePoint(NETWORK_LANES[route[0]], 0);
-    await animateWithClock(quick ? 140 : 220, cancellation, (progress) =>
+    await animateWithClock(appearTime * flightScale, cancellation, (progress) =>
       positionPacket(visual.g, startPosition, easeOutBack(progress)),
     );
     let currentPosition = startPosition;
-    for (const [laneIndex, laneId] of route.entries()) {
+    for (const [laneIndex, laneId] of activeRoute.entries()) {
       if (cancellation.cancelled) {
         return;
       }
       const laneCoordinates = NETWORK_LANES[laneId];
       const destinationFraction = laneIndex === lossLaneIndex ? 0.55 : 1;
       await animateWithClock(
-        (getLineLength(laneCoordinates) * destinationFraction) /
-          pixelsPerMillisecond,
+        travelTimes[laneIndex] * flightScale,
         cancellation,
         (progress) => {
           currentPosition = interpolateLinePoint(
@@ -810,30 +829,32 @@ function createNetworkAnimation(networkSvg) {
       }
       if (laneIndex === lossLaneIndex) {
         onLoss?.();
-        return dropPacket(visual, currentPosition, activeRoute, cancellation);
+        return dropPacket(visual, currentPosition, activeRoute, cancellation, endScale);
       }
       bounceNode(laneId.split(">")[1], cancellation);
       if (laneIndex < route.length - 1) {
-        await waitWithClock(quick ? 40 : PACKET_HOP_PAUSE_MS, cancellation);
+        await waitWithClock(hopPause * flightScale, cancellation);
       }
     }
     onArrival?.();
     pulseNode(toNode, color, cancellation);
-    await animateWithClock(180, cancellation, (progress) => {
+    await animateWithClock(PACKET_ARRIVAL.fade * endScale, cancellation, (progress) => {
       positionPacket(visual.g, currentPosition, 1 - easeInCubic(progress));
       visual.trail.forEach((trailElement) =>
         trailElement.setAttribute("opacity", 0.3 * (1 - progress)),
       );
     });
+    if (cancellation.cancelled) return;
     visual.g.remove();
     visual.trail.forEach((trailElement) => trailElement.remove());
     route.forEach(releaseLane);
-    await waitWithClock(150, cancellation);
+    await waitWithClock(PACKET_ARRIVAL.hold * endScale, cancellation);
   }
   async function animatePacketStream(
     { packets: packets, spacing = 480 },
     cancellation,
     onPacketState,
+    mode,
   ) {
     const packetAnimations = [];
     for (const [index, packet] of packets.entries()) {
@@ -844,14 +865,15 @@ function createNetworkAnimation(networkSvg) {
       packetAnimations.push(animatePacket(packet, cancellation,
         () => onPacketState(index, "past"),
         () => onPacketState(index, "lost"),
+        mode,
       ));
       if (index < packets.length - 1) {
-        await waitWithClock(spacing, cancellation);
+        await waitWithClock(mode === "sequence" ? SEQUENCE_ANIMATION_TIMINGS.stagger : spacing, cancellation);
       }
     }
     await Promise.all(packetAnimations);
   }
-  async function dropPacket(visual, position, activeRoute, cancellation) {
+  async function dropPacket(visual, position, activeRoute, cancellation, endScale) {
     const crossElement = createNetworkSvgElement(
       "path",
       {
@@ -861,7 +883,7 @@ function createNetworkAnimation(networkSvg) {
       },
       packetLayer,
     );
-    await animateWithClock(520, cancellation, (progress) => {
+    await animateWithClock(PACKET_LOSS.drop * endScale, cancellation, (progress) => {
       positionPacket(
         visual.g,
         {
@@ -879,12 +901,13 @@ function createNetworkAnimation(networkSvg) {
         `translate(${position.x} ${position.y}) scale(${easeOutBack(Math.min(1, progress * 2)).toFixed(3)})`,
       );
     });
+    if (cancellation.cancelled) return;
     visual.g.remove();
     visual.trail.forEach((trailElement) => trailElement.remove());
     activeRoute.forEach(releaseLane);
-    await waitWithClock(500, cancellation);
+    await waitWithClock(PACKET_LOSS.hold * endScale, cancellation);
     await animateWithClock(
-      250,
+      PACKET_LOSS.fade * endScale,
       cancellation,
       (progress) => (crossElement.style.opacity = 1 - progress),
     );
@@ -963,15 +986,15 @@ function createNetworkAnimation(networkSvg) {
   }
   Object.keys(laneElements).forEach((laneId) => setLaneProgress(laneId, 0));
   return {
-    run(event, cancellation, onArrival, onPacketState) {
+    run(event, cancellation, onArrival, onPacketState, mode) {
       switch (event.type) {
         case "packet":
           return animatePacket(event, cancellation, () => {
             onPacketState(0, "past");
             onArrival();
-          }, () => onPacketState(0, "lost"));
+          }, () => onPacketState(0, "lost"), mode);
         case "stream":
-          return animatePacketStream(event, cancellation, onPacketState);
+          return animatePacketStream(event, cancellation, onPacketState, mode);
         case "type-url":
           return typeUrl(event.text, event.secure, cancellation);
         case "focus":
@@ -1096,9 +1119,13 @@ function createNetworkAnimation(networkSvg) {
         );
       }
     },
-    clear() {
+    clear(immediate = false) {
       delete networkSvg.dataset.certChecks;
       for (const element of [...packetLayer.children, ...noteLayer.children]) {
+        if (immediate) {
+          element.remove();
+          continue;
+        }
         element.animate(
           [
             {

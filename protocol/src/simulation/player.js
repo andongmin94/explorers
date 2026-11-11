@@ -1,30 +1,15 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
-import { animateWithClock, playbackClock, waitWithClock } from "./clock.js";
+import { playbackClock, waitWithClock } from "./clock.js";
 
 const PLAYER_EVENT_DELAYS = {
   network: { event: 450, step: 1100, quick: 120 },
   sequence: { event: 260, step: 650, quick: 80 },
 };
 
-function getSequenceEventDuration(event) {
-  if (event.type === "packet") {
-    return event.quick
-      ? SEQUENCE_ANIMATION_TIMINGS.quick
-      : SEQUENCE_ANIMATION_TIMINGS.draw;
-  }
-  if (event.type === "stream") {
-    return (
-      (event.packets.length - 1) * SEQUENCE_ANIMATION_TIMINGS.stagger +
-      SEQUENCE_ANIMATION_TIMINGS.draw
-    );
-  }
-  return event.type === "note" ? SEQUENCE_ANIMATION_TIMINGS.note : 0;
-}
-
 /**
- * Play ordered lesson events through the network renderer. Sequence mode
- * applies each event immediately and lets its separate diagram animate it.
+ * Both diagrams use the same packet departures and arrivals. Sequence mode
+ * uses its shorter travel times and applies local scene changes immediately.
  * The callback drives the sidebar, explanation, packet table and diagram.
  */
 function createLessonPlayer(
@@ -164,33 +149,16 @@ function createLessonPlayer(
     packetArrived = false;
     runningEventIndex = eventIndex;
     notifyStateChange();
-    if (currentMode === "sequence") {
+    if (currentMode === "sequence" && !packets.length) {
       renderer.apply(event);
-      const duration = getSequenceEventDuration(event);
-      if (packets.length) {
-        const { stagger, draw, quick } = SEQUENCE_ANIMATION_TIMINGS;
-        await animateWithClock(duration, token, progress => {
-          packets.forEach((packet, index) => {
-            const elapsed = progress * duration - index * stagger;
-            if (elapsed < 0) return;
-            const drawTime = packet.quick ? quick : draw;
-            if (elapsed >= drawTime * SEQUENCE_ANIMATION_TIMINGS.tipFraction) {
-              setPacketState(index, packet.lost ? "lost" : "past");
-            } else {
-              setPacketState(index, "current");
-            }
-          });
-        });
-      } else {
-        await waitWithClock(duration, token);
-      }
+      await waitWithClock(event.type === "note" ? SEQUENCE_ANIMATION_TIMINGS.note : 0, token);
     } else {
       await renderer.run(event, token, () => {
         if (token === eventToken && event.devicesAfter) {
           packetArrived = true;
           notifyStateChange();
         }
-      }, setPacketState);
+      }, setPacketState, currentMode);
     }
 
     // A reset or jump may have replaced the event while it was in flight.
@@ -210,14 +178,14 @@ function createLessonPlayer(
     if (!waitToken.cancelled && playing) runNextEvent();
   }
 
-  function cancelPendingWork() {
+  function cancelPendingWork(immediate = false) {
     eventToken.cancelled = true;
     eventToken = { cancelled: false };
     if (delayToken) delayToken.cancelled = true;
     delayToken = null;
     runningEventIndex = -1;
     atStepStart = false;
-    renderer.clear();
+    renderer.clear(immediate);
     playbackClock.resume();
   }
 
@@ -269,7 +237,7 @@ function createLessonPlayer(
       currentMode = nextMode;
     },
     jump(stepIndex, { paused = false } = {}) {
-      cancelPendingWork();
+      cancelPendingWork(paused);
       nextEventIndex = events.findIndex((event) => event.step === stepIndex);
       atStepStart = paused;
       restoreScene(!paused);
