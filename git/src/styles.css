@@ -1191,6 +1191,29 @@ dialog::backdrop {
   }
 }
 @media (max-width: 780px) {
+  .scene-panel {
+    overflow: clip;
+  }
+  .transport {
+    display: contents;
+  }
+  .learning-mode {
+    margin: 12px 12px 8px;
+  }
+  .playback-buttons {
+    position: sticky;
+    bottom: 0;
+    z-index: 9;
+    max-width: none;
+    grid-template-columns: 40px 40px minmax(110px, 240px) 105px 44px;
+    justify-content: center;
+    padding: 6px 8px calc(7px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    background: var(--control-card);
+  }
+  .seek-row {
+    margin: 8px 12px 12px;
+  }
   .workspace {
     grid-template-columns: 1fr;
     padding: 0 10px;
@@ -1334,9 +1357,6 @@ dialog::backdrop {
   .replay {
     margin-left: auto;
   }
-  .transport {
-    padding: 12px 10px;
-  }
   .learning-mode {
     align-items: start;
     flex-wrap: wrap;
@@ -1349,8 +1369,8 @@ dialog::backdrop {
     text-align: left;
   }
   .playback-buttons {
-    grid-template-columns: 34px 34px minmax(85px, 1fr) 78px 34px;
-    gap: 6px;
+    grid-template-columns: 34px 34px minmax(0, 1fr) 74px 36px;
+    gap: 5px;
   }
   .playback-buttons .button {
     font-size: 11px;

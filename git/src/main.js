@@ -30,6 +30,7 @@ let choice = null,
   busy = false,
   paused = false,
   playing = false,
+  resumeAutomatically = false,
   guided = true,
   speed = 1,
   revision = 0,
@@ -171,11 +172,12 @@ function controls() {
   const moving = playing || (busy && !paused),
     gated = index === 9 && !busy;
   const play = $('[data-action="play"]');
-  play.innerHTML = `${icon(moving ? "pause" : "play")}<span>${moving ? "일시정지" : gated ? "해결안 선택" : index === 12 ? "처음부터 재생" : index ? "이어서 재생" : "학습 시작"}</span>`;
-  play.setAttribute(
-    "aria-label",
-    moving ? "일시정지" : gated ? "해결안 선택" : "재생",
-  );
+  let label = index ? "이어서 재생" : "학습 시작";
+  if (moving) label = "일시정지";
+  else if (gated) label = "해결안 선택";
+  else if (completed === last) label = "처음부터 재생";
+  play.innerHTML = `${icon(moving ? "pause" : "play")}<span>${label}</span>`;
+  play.setAttribute("aria-label", label);
   $('[data-action="next"]').disabled = index === last || busy || gated;
   $('[data-action="back"]').disabled = index === 0;
   $('[data-action="replay"]').disabled = index === 0 || busy;
@@ -300,6 +302,7 @@ async function move(next, motion = false) {
   index = target;
   if (!motion) completed = target;
   busy = motion;
+  resumeAutomatically = playing;
   paused = false;
   render();
   await scene.update(run.steps[index], { animate: motion, speed });
@@ -346,7 +349,7 @@ function play() {
   if (completed === last && !busy) {
     reset();
   }
-  playing = true;
+  playing = busy ? resumeAutomatically : true;
   paused = false;
   scene.resume();
   controls();
@@ -425,6 +428,7 @@ document.addEventListener("click", (e) => {
     case "speed":
       speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1;
       b.textContent = `${speed}×`;
+      scene.setSpeed(speed);
       schedule();
       break;
     case "guided":

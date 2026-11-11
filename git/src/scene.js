@@ -98,6 +98,9 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     restoreDot = $(".gs-restore-dot");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const stacked = matchMedia("(max-width: 1099px)");
+  const mobile = matchMedia("(max-width: 780px)");
+  const playbackBar = host.parentElement.querySelector(".playback-buttons");
+  const sceneViewportHeight = () => innerHeight - (mobile.matches ? playbackBar.offsetHeight : 0);
   let layout,
     paintedState = null,
     active = null;
@@ -328,6 +331,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   }
   async function animate(run, element, frames, options) {
     const animation = element.animate(frames, options);
+    animation.playbackRate = run.speed;
     run.animations.add(animation);
     if (run.paused) animation.pause();
     await animation.finished.catch(() => {});
@@ -342,10 +346,11 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   function showSceneRange(top, bottom) {
     if (!stacked.matches) return;
     const origin = host.getBoundingClientRect().top;
-    if (origin + top >= 12 && origin + bottom <= innerHeight - 12) return;
-    window.scrollBy({ top: origin + (top + bottom - innerHeight) / 2, behavior: "instant" });
+    const height = sceneViewportHeight();
+    if (origin + top >= 12 && origin + bottom <= height - 12) return;
+    window.scrollBy({ top: origin + (top + bottom - height) / 2, behavior: "instant" });
   }
-  async function travel(run, source, destination, label, branch, pace, restoreBoth = false) {
+  async function travel(run, source, destination, label, branch, durationScale = 1, restoreBoth = false) {
     let top, bottom;
     const indexCommit = source === "index" && destination in layout.nodes;
     const graphToIndex = source in layout.nodes && destination === "index";
@@ -398,16 +403,17 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     const follow = () => {
       if (run.paused || run.cancelled) return;
       const rect = token.getBoundingClientRect();
-      const delta = rect.top < 12 ? rect.top - 12 : Math.max(0, rect.bottom - innerHeight + 12);
+      const delta = rect.top < 12 ? rect.top - 12 : Math.max(0, rect.bottom - sceneViewportHeight() + 12);
       if (delta) window.scrollBy({ top: delta, behavior: "instant" });
       followFrame = requestAnimationFrame(follow);
     };
     run.frameTrip = () => {
       cancelAnimationFrame(followFrame);
       if (!stacked.matches) return;
-      if (layout.height - 74 <= innerHeight - 24) {
+      const available = sceneViewportHeight() - 24;
+      if (layout.height - 74 <= available) {
         showSceneRange(62, layout.height - 12);
-      } else if (bottom - top <= innerHeight - 24) {
+      } else if (bottom - top <= available) {
         showSceneRange(top, bottom);
       } else {
         followFrame = requestAnimationFrame(follow);
@@ -421,7 +427,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       { offsetDistance: "100%", opacity: 0 },
     ];
     const timing = {
-      duration: (430 + Math.min(wire.getTotalLength(), 550) * 0.95) * pace,
+      duration: (430 + Math.min(wire.getTotalLength(), 550) * 0.95) * durationScale,
       easing: "ease-in-out",
     };
     const flight = animate(run, token, frames, timing);
@@ -449,9 +455,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       phase("complete", step.title, "", step.state);
       return;
     }
-    const run = { before: step.before, cancelled: false, paused: false, animations: new Set() };
+    const run = { before: step.before, speed, cancelled: false, paused: false, animations: new Set() };
     active = run;
-    const pace = 1 / speed;
     snap(step.before);
     const branch = step.state.currentBranch;
     phase(
@@ -476,7 +481,6 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         "index",
         "파일 내용",
         branch,
-        pace,
       );
     } else if (step.action === "commit") {
       const id = step.state.refs[branch];
@@ -486,7 +490,6 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         id,
         "새 커밋",
         branch,
-        pace,
       );
     } else if (step.action === "switch") {
       $(`[data-commit="${restoredFrom}"]`).dataset.reading = "true";
@@ -496,7 +499,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         "work",
         `${restoredFrom} 복원`,
         branch,
-        pace,
+        1,
         true,
       );
     } else if (step.action === "merge") {
@@ -516,14 +519,14 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
           "index",
           `${id} · ${stage.label}`,
           stage.branch,
-          pace * 0.8,
+          0.8,
         );
         if (run.cancelled) return;
         delete commit.dataset.reading;
         content.insertAdjacentHTML("beforeend", indexVersion(step.state, stage, i));
       }
       phase("request", "충돌 표식 → 작업 파일", "같은 줄의 변경이 겹칩니다. 두 문장과 충돌 표식을 작업 파일에서 확인하세요.", comparing);
-      await travel(run, "index", "work", "충돌 표식", branch, pace * 0.8);
+      await travel(run, "index", "work", "충돌 표식", branch, 0.8);
     } else {
       const element =
         step.action === "branch" ? $(".gs-repository") : $(".gs-work-content");
@@ -533,7 +536,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         run,
         element,
         [{ opacity: 1 }, { opacity: 0.45 }, { opacity: 1 }],
-        { duration: 650 * pace, easing: "ease-in-out" },
+        { duration: 650, easing: "ease-in-out" },
       );
     }
     if (run.cancelled) return;
@@ -575,7 +578,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
               },
               { transform: "translate(0,0)" },
             ],
-            { duration: 500 * pace, easing: "ease-in-out" },
+            { duration: 500, easing: "ease-in-out" },
           ),
         );
     }
@@ -589,7 +592,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
             { opacity: 0.2, scale: 0.75 },
             { opacity: 1, scale: 1 },
           ],
-          { duration: 500 * pace, easing: "ease-out" },
+          { duration: 500, easing: "ease-out" },
         ),
       );
     }
@@ -599,7 +602,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
           run,
           step.action === "stage" ? $(".gs-index") : $(".gs-callout"),
           [{ opacity: 0.6 }, { opacity: 1 }],
-          { duration: 450 * pace },
+          { duration: 450 },
         ),
       );
     await Promise.all(flips);
@@ -615,6 +618,11 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   return {
     update,
     cancel,
+    setSpeed(speed) {
+      if (!active) return;
+      active.speed = speed;
+      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
     pause() {
       if (active) {
         active.paused = true;
