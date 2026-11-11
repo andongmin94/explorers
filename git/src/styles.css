@@ -14,7 +14,13 @@
   --bg: #f2f2f4;
   --surface: #fff;
   --soft: #edeef0;
-  --selected: #d4d6db;
+  --selected: #27282b;
+  --on-selected: #f4f5f7;
+  --control-card: #f4f5f7;
+  --control-neutral: #fff;
+  --control-ink: #000;
+  --control-border: #000;
+  --control-shadow: var(--control-border);
   --ink: #34363b;
   --border: #65676d;
   --muted: #656771;
@@ -34,7 +40,11 @@
   --bg: #191a1d;
   --surface: #24252a;
   --soft: #303138;
-  --selected: #4c4e56;
+  --selected: #e4e7ec;
+  --on-selected: #000;
+  --control-card: #18191c;
+  --control-neutral: oklch(23.93% 0 0);
+  --control-ink: oklch(92.49% 0 0);
   --ink: #ebecef;
   --border: #898c96;
   --muted: #b1b4bd;
@@ -93,7 +103,7 @@ a {
 button:is(.button, .resolution-options > button, .record-tabs > button):enabled {
   --travel: var(--rest, 0px);
   --edge: calc(var(--depth, 4px) - var(--travel));
-  box-shadow: var(--edge) var(--edge) 0 var(--shadow);
+  box-shadow: var(--edge) var(--edge) 0 var(--control-shadow);
 
   @media (prefers-reduced-motion: no-preference) {
     translate: var(--travel) var(--travel);
@@ -135,9 +145,10 @@ button svg {
   height: 48px;
   display: grid;
   place-items: center;
-  border: 2px solid var(--border);
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
+  box-shadow: 3px 3px 0 var(--control-shadow);
   border-radius: 3px;
   flex: none;
 }
@@ -179,21 +190,18 @@ button svg {
   gap: 7px;
   min-height: 40px;
   padding: 8px 12px;
-  border: 2px solid var(--border);
-  border-radius: 3px;
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-neutral);
+  color: var(--control-ink);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   font-size: 13px;
   font-weight: 750;
   line-height: 1.25;
 }
-@media (hover: hover) and (pointer: fine) {
-  .button:not(.primary):hover:enabled,
-  .resolution-options > button:hover:enabled { background: var(--soft); }
-}
 .button.primary {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .icon-button {
   width: 40px;
@@ -213,10 +221,10 @@ button svg {
   margin: auto;
 }
 .panel {
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 3px 3px 0 var(--shadow);
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  background: var(--control-card);
   min-width: 0;
   overflow: hidden;
 }
@@ -333,7 +341,7 @@ button svg {
   height: 25px;
   display: grid;
   place-items: center;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--control-border);
   background: var(--soft);
   font-size: 12px;
   flex: none;
@@ -345,11 +353,11 @@ button svg {
 }
 .milestone[aria-current="step"] {
   background: var(--soft);
-  border-color: var(--border);
-  box-shadow: 2px 2px 0 var(--shadow);
+  border-color: var(--control-border);
+  box-shadow: 2px 2px 0 var(--control-shadow);
 }
 .milestone[aria-current="step"] > b {
-  color: var(--ink);
+  color: var(--on-selected);
   background: var(--selected);
 }
 .setup-tip {
@@ -540,9 +548,10 @@ button svg {
 }
 .command-card {
   margin-top: 19px;
-  border: 2px solid var(--border);
-  box-shadow: 3px 3px 0 var(--shadow);
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  background: var(--control-card);
+  color: var(--control-ink);
 }
 .command-card > div {
   display: flex;
@@ -656,7 +665,7 @@ button svg {
   display: inline-block;
   border: 1.5px solid var(--border);
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 6px;
@@ -682,10 +691,11 @@ button svg {
   gap: 7px;
   text-align: left;
   padding: 11px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 2px;
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  background: var(--control-neutral);
+  color: var(--control-ink);
+  box-shadow: 3px 3px 0 var(--control-shadow);
 }
 .resolution-options b {
   font-size: 13px;
@@ -738,10 +748,11 @@ button svg {
 }
 .record-tabs > button {
   min-height: 39px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  background: var(--control-card);
+  color: var(--control-ink);
+  box-shadow: 3px 3px 0 var(--control-shadow);
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 750;
@@ -750,7 +761,7 @@ button svg {
   --rest: 2px;
   --hover-depth: 3px;
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .record-tabs > button > span {
   font-size: 11px;
@@ -772,7 +783,7 @@ button svg {
   border: 0;
   border-right: 1px solid var(--rule);
   padding: 11px 4px;
-  background: var(--surface);
+  background: var(--control-card);
   display: grid;
   gap: 6px;
   text-align: center;
@@ -792,7 +803,7 @@ button svg {
 }
 .step-strip button[aria-current="step"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .record-heading {
   display: flex;
@@ -1020,11 +1031,11 @@ dialog {
   max-width: 540px;
   width: calc(100% - 32px);
   padding: 24px;
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  box-shadow: 7px 7px 0 var(--shadow);
-  background: var(--surface);
-  color: var(--ink);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  background: var(--control-card);
+  color: var(--control-ink);
 }
 dialog::backdrop {
   background: #15161b88;
@@ -1063,7 +1074,7 @@ dialog::backdrop {
 }
 .prediction-choices .correct {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
   opacity: 1;
 }
 .prediction-choices .button:disabled:not(.correct) {

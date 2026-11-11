@@ -223,7 +223,7 @@
 .gs-head-tag {
   padding: 3px;
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
   font-size: 9px;
   font-weight: 850;
 }
