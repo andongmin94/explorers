@@ -416,6 +416,8 @@ $("#app").addEventListener("click", async (event) => {
       break;
     case "reveal":
       $("#prediction-dialog").close();
+      $("#memory-scene").focus({ preventScroll: true });
+      $("#memory-scene").scrollIntoView({ block: "center", behavior: "instant" });
       await navigate(quiz.atIndex, true);
       break;
     case "compare":

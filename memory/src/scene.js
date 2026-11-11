@@ -190,9 +190,9 @@ function layoutFor(width) {
     ? Math.min(158, width * 0.46)
     : Math.min(184, width * 0.275);
   const ramX = compact ? width - ramWidth - 26 : (width - ramWidth) / 2;
-  const cpuX = compact ? 69 : Math.max(92, width * 0.15);
+  const requestWidth = compact ? Math.min(112, ramX - 37) : 112;
+  const cpuX = compact ? 13 + requestWidth / 2 : Math.max(92, width * 0.15);
   const ssdX = compact ? 74 : width - Math.max(92, width * 0.15);
-  const requestWidth = 112;
   const request = {
     x: cpuX - requestWidth / 2,
     y: 220,
@@ -241,7 +241,7 @@ function layoutFor(width) {
     },
     ssd: {
       x: ssdX,
-      y: compact ? 393 : 165,
+      y: compact ? 400 : 165,
       width: compact ? 132 : Math.min(166, width * 0.25),
     },
     ramX,
@@ -282,6 +282,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     reduced = matchMedia("(prefers-reduced-motion: reduce)");
   host.classList.add("memory-scene");
   host.setAttribute("role", "group");
+  host.tabIndex = -1;
   host.innerHTML = `<svg class="mem-map" aria-hidden="true"></svg><div class="mem-frame-layer"></div>
     <div class="mem-request" aria-hidden="true"><span>CPU 요청</span><strong>—</strong><small>시작 전</small></div>
     <div class="mem-status" aria-live="off"><b>준비</b><strong>세 개의 RAM 프레임을 관찰하세요</strong></div>
@@ -297,7 +298,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     element.className = "mem-frame";
     element.dataset.frame = slot;
     element.setAttribute("role", "group");
-    element.innerHTML = `<span class="mem-frame-id">F${slot}</span><div class="mem-frame-content"><strong class="mem-page-letter">—</strong><span><b>빈 프레임</b><small>페이지가 없습니다</small></span></div>`;
+    element.innerHTML = `<span class="mem-frame-id">F${slot}</span><div class="mem-frame-content"><strong class="mem-page-letter">—</strong><span><b>빈 프레임</b><small></small></span></div>`;
     frameLayer.append(element);
     return element;
   });
@@ -323,8 +324,13 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     if (kind === "retry")
       return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}V${ram.y}H${ram.x}`;
     if (kind === "load") {
-      if (layout.compact)
-        return `M${disk.x} ${disk.y}H${layout.ssdHousing.x + layout.ssdHousing.width + 5}V552H${layout.width - 14}V${ram.y}H${ram.x}`;
+      if (layout.compact) {
+        // Leave each tray row vertically before moving past the other pages.
+        const upperRow = disk.y < layout.disk.y + layout.disk.gap;
+        const exitY = upperRow ? disk.y - 37 : disk.y + 37;
+        const traySide = layout.ssdHousing.x + layout.ssdHousing.width + 22;
+        return `M${disk.x} ${disk.y}V${exitY}H${traySide}V552H${layout.width - 18}V${ram.y}H${ram.x}`;
+      }
       const corridor =
         (layout.ramHousing.x +
           layout.ramHousing.width +
@@ -349,7 +355,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         : "빈 프레임";
       card.querySelector(".mem-frame-content small").innerHTML = frame.page
         ? `<span class="mem-loaded">적재 ${frame.loadedAt}</span> · <span class="mem-used">${frame.lastUsedAt === null ? "접근 전" : `사용 ${frame.lastUsedAt}`}</span>`
-        : "페이지가 없습니다";
+        : "";
       card.setAttribute(
         "aria-label",
         `프레임 F${frame.slot}: ${frame.page ? `페이지 ${frame.page}, ${frame.loadedAt}번째 적재, ${frame.lastUsedAt === null ? "접근 전" : `${frame.lastUsedAt}번째 사용`}` : "비어 있음"}`,
@@ -461,7 +467,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         <rect class="mem-controller-port" x="${layout.lookup.x - 2}" y="${layout.lookup.y - 6}" width="6" height="12"/>
         ${ports}
       </g>
-      <g class="mem-station" data-device="ssd">${title(layout.ssd.x, layout.compact ? 329 : layout.titleY, "SSD", "원본 페이지 보관")}
+      <g class="mem-station" data-device="ssd">${title(layout.ssd.x, layout.compact ? 336 : layout.titleY, "SSD", "원본 페이지 보관")}
         ${housingDrawing(layout.ssdHousing, "ssd")}${ssdDrawing(layout.ssd)}
         <g class="mem-disk-pages">${PAGES.map((page) => {
           const p = diskPosition(layout, page);
@@ -470,8 +476,8 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         <rect class="mem-physical-port" x="${layout.compact ? layout.ssdHousing.x + layout.ssdHousing.width - 2 : layout.ssdHousing.x - 4}" y="${layout.ssdHousing.y + 56}" width="6" height="10"/>
       </g>
       <g class="mem-lane-labels">
-        <text x="${leftGap}" y="${layout.compact ? 215 : 224}" text-anchor="middle">${layout.compact ? "조회" : "조회 요청"}</text>
-        <text x="${layout.compact ? 122 : layout.cpu.x}" y="${layout.compact ? 322 : 377}" text-anchor="middle">접근 완료</text>
+        <text x="${layout.compact ? layout.ramHousing.x - 6 : leftGap}" y="${layout.compact ? 195 : 224}" text-anchor="${layout.compact ? "end" : "middle"}">${layout.compact ? "조회" : "조회 요청"}</text>
+        <text x="${layout.cpu.x}" y="${layout.compact ? 313 : 377}" text-anchor="middle">접근 완료</text>
         <text x="${layout.compact ? layout.width / 2 + 20 : layout.ssd.x}" y="${layout.compact ? 574 : 341}" text-anchor="middle">페이지 읽기</text>
       </g>`;
     cards.forEach((card, slot) =>

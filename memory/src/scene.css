@@ -446,9 +446,6 @@
 .memory-scene[data-compact="true"] .mem-device-sub {
   font-size: 12px;
 }
-.memory-scene[data-compact="true"] .mem-request {
-  width: 112px;
-}
 .memory-scene[data-compact="true"] .mem-status {
   gap: 7px;
   padding: 7px 8px;
