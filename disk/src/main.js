@@ -210,7 +210,7 @@ function play() {
   if (committed === 8 && !busy) {
     committed = 0;
     index = 0;
-    scene.update(current());
+    scene.update(current(), { algorithm });
     render();
   }
   playing = true;
@@ -225,8 +225,17 @@ function changeAlgorithm(name) {
   algorithm = name;
   index = committed = 0;
   busy = paused = false;
-  scene.update(current());
+  scene.update(current(), { algorithm });
   render();
+  if (matchMedia("(max-width: 759px)").matches) {
+    setSetupOpen(false);
+    $("#disk-scene").focus({ preventScroll: true });
+    $("#disk-scene").scrollIntoView({ block: "start", behavior: "instant" });
+  }
+}
+function setSetupOpen(open) {
+  $('[data-action="setup"]').setAttribute("aria-expanded", String(open));
+  $("#setup-content").hidden = !open;
 }
 function selectRecord(name) {
   record = name;
@@ -266,8 +275,8 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.algorithm) {
-    changeAlgorithm(b.dataset.algorithm);
     if (b.dataset.close) b.closest("dialog").close();
+    changeAlgorithm(b.dataset.algorithm);
     return;
   }
   if (b.dataset.seek !== undefined) {
@@ -336,8 +345,7 @@ document.addEventListener("click", (e) => {
       break;
     case "setup": {
       const open = b.getAttribute("aria-expanded") === "true";
-      b.setAttribute("aria-expanded", String(!open));
-      $("#setup-content").hidden = open;
+      setSetupOpen(!open);
       break;
     }
     case "theme": {
@@ -390,8 +398,7 @@ document.documentElement.dataset.theme =
 if (document.documentElement.dataset.theme === "dark")
   $('[data-action="theme"]').setAttribute("aria-label", "밝은 테마로 전환");
 if (matchMedia("(max-width:1099px)").matches) {
-  $('[data-action="setup"]').setAttribute("aria-expanded", "false");
-  $("#setup-content").hidden = true;
+  setSetupOpen(false);
 }
 new ResizeObserver(() =>
   $(".workspace").style.setProperty(
@@ -399,6 +406,6 @@ new ResizeObserver(() =>
     $(".scene-panel").getBoundingClientRect().height + "px",
   ),
 ).observe($(".scene-panel"));
-scene.update(current());
+scene.update(current(), { algorithm });
 render();
 selectRecord(record);

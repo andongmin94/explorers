@@ -102,7 +102,9 @@ export function createDiskScene(host, onPhase) {
         "complete",
         step.index
           ? arrivalTitle(step, algorithm)
-          : "같은 8개 요청, 선택하는 순서가 달라집니다.",
+          : algorithm === "sstf"
+            ? `SSTF · 헤드 ${step.state.head}에서 가장 가까운 요청부터`
+            : "FCFS · 먼저 도착한 요청부터",
         "",
         step.state,
       );
