@@ -988,3 +988,6 @@ body {
 .dns-readout header { display: flex; align-items: center; gap: 7px; font-weight: 800; margin-bottom: 3px; }
 .dns-readout header b { display: inline-flex; align-items: center; gap: 4px; }
 .dns-readout header b::before { content: ""; width: 9px; height: 9px; background: var(--dns-color); border: 1px solid var(--neo-text); }
+.packet-table tr:not(.is-lost) .lost-chip {
+  display: none;
+}

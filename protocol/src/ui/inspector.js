@@ -126,12 +126,12 @@ function renderPacketLayerBar(frame) {
     .join("");
 }
 
-function updatePacketInspector(inspector, lesson, packetIndex) {
-  updateInspectorHeader(inspector, lesson, packetIndex);
+function updatePacketInspector(inspector, lesson, packetIndex, lost) {
+  updateInspectorHeader(inspector, lesson, packetIndex, lost);
   updateInspectorBody(inspector, lesson, packetIndex);
 }
 
-function updateInspectorHeader(inspector, lesson, packetIndex) {
+function updateInspectorHeader(inspector, lesson, packetIndex, lost) {
   const frame = getEncodedLessonPackets(lesson)[packetIndex];
   const packet = getLessonPackets(lesson)[packetIndex];
   const row = packet.row;
@@ -155,7 +155,7 @@ function updateInspectorHeader(inspector, lesson, packetIndex) {
       ),
     );
   }
-  if (packet.lost) {
+  if (lost) {
     notes.push(translate("This packet was lost on the way"));
   }
   inspector.querySelector(".ins-where").textContent = notes.join(" · ");
@@ -245,7 +245,7 @@ function bindInspectorEvents(inspector, actions) {
 
 function createPacketInspector(
   inspector,
-  { visible: getVisibleIndices, onChange },
+  { visible: getVisibleIndices, isLost, onChange },
 ) {
   let currentLesson = null;
   const isOpen = () =>
@@ -256,7 +256,7 @@ function createPacketInspector(
     inspector.getAnimations().forEach((animation) => animation.cancel());
     inspector.classList.remove("is-closing");
     inspector.hidden = false;
-    updatePacketInspector(inspector, lesson, packetIndex);
+    updatePacketInspector(inspector, lesson, packetIndex, isLost(packetIndex));
     if (!wasOpen && !prefersReducedMotion()) {
       inspector.animate(
         [
@@ -319,7 +319,7 @@ function createPacketInspector(
     const nextPacketIndex = visibleIndices[currentIndex + direction];
     if (nextPacketIndex !== undefined) {
       inspector.dataset.index = nextPacketIndex;
-      updateInspectorHeader(inspector, currentLesson, nextPacketIndex);
+      updateInspectorHeader(inspector, currentLesson, nextPacketIndex, isLost(nextPacketIndex));
       slideContent(
         inspector.querySelector(".ins-body"),
         () =>

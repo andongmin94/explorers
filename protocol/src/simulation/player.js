@@ -1,6 +1,6 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
-import { playbackClock, waitWithClock } from "./clock.js";
+import { animateWithClock, playbackClock, waitWithClock } from "./clock.js";
 
 const PLAYER_EVENT_DELAYS = {
   network: { event: 450, step: 1100, quick: 120 },
@@ -58,6 +58,9 @@ function createLessonPlayer(
   let nextEventIndex = 0;
   let runningEventIndex = -1;
   let playing = false;
+  let singleEvent = false;
+  let atStepStart = false;
+  let packetStates = [];
   let eventToken = { cancelled: false };
   let delayToken = null;
   let currentMode = mode;
@@ -66,17 +69,13 @@ function createLessonPlayer(
 
   function getState() {
     const done = nextEventIndex >= events.length && runningEventIndex === -1;
-    const started = nextEventIndex > 0 || runningEventIndex !== -1;
+    const started = atStepStart || nextEventIndex > 0 || runningEventIndex !== -1;
     const activeEventIndex =
-      runningEventIndex !== -1 ? runningEventIndex : nextEventIndex - 1;
+      atStepStart ? -1 : runningEventIndex !== -1 ? runningEventIndex : nextEventIndex - 1;
     const activeStep =
-      activeEventIndex >= 0 ? events[activeEventIndex].step : 0;
+      atStepStart ? events[nextEventIndex].step : activeEventIndex >= 0 ? events[activeEventIndex].step : 0;
     const isPacketEvent = (event) =>
       event.type === "packet" || event.type === "stream";
-    const currentPacketEvent =
-      activeEventIndex >= 0 && isPacketEvent(events[activeEventIndex])
-        ? activeEventIndex
-        : -1;
     // Endpoint changes become visible on arrival, or immediately for a local note.
     const devicePosition = runningEventIndex !== -1 &&
       (packetArrived || events[runningEventIndex].type === "note") ? nextEventIndex + 1 : nextEventIndex;
@@ -93,21 +92,16 @@ function createLessonPlayer(
         if (
           stepIndex === activeStep &&
           started &&
-          (runningEventIndex !== -1 || activeEventIndex < lastEventByStep[stepIndex])
+          (atStepStart || runningEventIndex !== -1 || activeEventIndex < lastEventByStep[stepIndex])
         ) return "active";
         return finishedSteps.has(stepIndex) ? "done" : "todo";
       }),
       packets: events.flatMap((event, eventIndex) => {
         if (!isPacketEvent(event)) return [];
-        const status =
-          eventIndex === currentPacketEvent
-            ? "current"
-            : eventIndex < nextEventIndex
-              ? "past"
-              : "future";
-        return event.type === "stream"
-          ? event.packets.map(() => status)
-          : [status];
+        if (eventIndex === runningEventIndex) return packetStates;
+        const packets = event.type === "stream" ? event.packets : [event];
+        if (eventIndex >= nextEventIndex) return packets.map(() => "future");
+        return packets.map(packet => packet.lost ? "lost" : "past");
       }),
       notes: events.flatMap((event, eventIndex) =>
         event.type === "note"
@@ -130,12 +124,13 @@ function createLessonPlayer(
     });
   }
 
-  function restoreScene() {
+  function restoreScene(animate = true) {
     const previousScene = renderer.snapshot();
-    if (nextEventIndex === 0) renderer.overview(lesson.nodes, lesson.labels);
+    if (atStepStart && nextEventIndex === 0) renderer.apply(events[0]);
+    else if (nextEventIndex === 0) renderer.overview(lesson.nodes, lesson.labels);
     else
       events.slice(0, nextEventIndex).forEach((event) => renderer.apply(event));
-    renderer.morph(previousScene, eventToken);
+    if (animate) renderer.morph(previousScene, eventToken);
   }
 
   function getDelayAfter(eventIndex) {
@@ -157,19 +152,45 @@ function createLessonPlayer(
 
     const eventIndex = nextEventIndex;
     const token = eventToken;
+    const event = events[eventIndex];
+    const packets = event.type === "stream" ? event.packets : event.type === "packet" ? [event] : [];
+    packetStates = packets.map(() => event.type === "stream" ? "future" : "current");
+    function setPacketState(index, state) {
+      if (token !== eventToken || token.cancelled || packetStates[index] === state) return;
+      packetStates[index] = state;
+      notifyStateChange();
+    }
+    atStepStart = false;
     packetArrived = false;
     runningEventIndex = eventIndex;
     notifyStateChange();
     if (currentMode === "sequence") {
-      renderer.apply(events[eventIndex]);
-      await waitWithClock(getSequenceEventDuration(events[eventIndex]), token);
+      renderer.apply(event);
+      const duration = getSequenceEventDuration(event);
+      if (packets.length) {
+        const { stagger, draw, quick } = SEQUENCE_ANIMATION_TIMINGS;
+        await animateWithClock(duration, token, progress => {
+          packets.forEach((packet, index) => {
+            const elapsed = progress * duration - index * stagger;
+            if (elapsed < 0) return;
+            const drawTime = packet.quick ? quick : draw;
+            if (elapsed >= drawTime * SEQUENCE_ANIMATION_TIMINGS.tipFraction) {
+              setPacketState(index, packet.lost ? "lost" : "past");
+            } else {
+              setPacketState(index, "current");
+            }
+          });
+        });
+      } else {
+        await waitWithClock(duration, token);
+      }
     } else {
-      await renderer.run(events[eventIndex], token, () => {
-        if (token === eventToken && events[eventIndex].devicesAfter) {
+      await renderer.run(event, token, () => {
+        if (token === eventToken && event.devicesAfter) {
           packetArrived = true;
           notifyStateChange();
         }
-      });
+      }, setPacketState);
     }
 
     // Reset/jump replaces the token. Switching to sequence view instead asks
@@ -184,7 +205,7 @@ function createLessonPlayer(
     nextEventIndex = eventIndex + 1;
     const stepIndex = events[eventIndex].step;
     if (lastEventByStep[stepIndex] === eventIndex) finishedSteps.add(stepIndex);
-    if (nextEventIndex >= events.length) playing = false;
+    if (singleEvent || nextEventIndex >= events.length) playing = false;
     notifyStateChange();
     if (!playing) return;
 
@@ -201,6 +222,7 @@ function createLessonPlayer(
     if (delayToken) delayToken.cancelled = true;
     delayToken = null;
     runningEventIndex = -1;
+    atStepStart = false;
     renderer.clear();
     playbackClock.resume();
   }
@@ -216,6 +238,7 @@ function createLessonPlayer(
 
   function play() {
     if (nextEventIndex >= events.length && runningEventIndex === -1) reset();
+    if (runningEventIndex === -1) singleEvent = false;
     playing = true;
     playbackClock.resume();
     notifyStateChange();
@@ -239,7 +262,8 @@ function createLessonPlayer(
     pause,
     play,
     step() {
-      playing = false;
+      playing = true;
+      singleEvent = true;
       if (delayToken) delayToken.cancelled = true;
       delayToken = null;
       playbackClock.resume();
@@ -254,11 +278,13 @@ function createLessonPlayer(
         eventToken.cancelled = true;
       }
     },
-    jump(stepIndex) {
+    jump(stepIndex, { paused = false } = {}) {
       cancelPendingWork();
       nextEventIndex = events.findIndex((event) => event.step === stepIndex);
-      restoreScene();
-      play();
+      atStepStart = paused;
+      restoreScene(!paused);
+      if (paused) pause();
+      else play();
     },
   };
 }

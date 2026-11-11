@@ -512,7 +512,7 @@ function revealSequenceElement(element, mode, delay) {
     ],
     {
       duration: 160,
-      delay: delay + duration * 0.7,
+      delay: delay + duration * SEQUENCE_ANIMATION_TIMINGS.tipFraction,
       easing: "ease-out",
     },
   );

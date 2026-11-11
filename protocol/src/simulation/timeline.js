@@ -3,6 +3,7 @@ const SEQUENCE_ANIMATION_TIMINGS = {
   draw: 620,
   quick: 320,
   stagger: 160,
+  tipFraction: 0.7,
   note: 700,
 };
 const DEFAULT_LIFELINE_ORDER = [

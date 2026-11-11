@@ -20,7 +20,7 @@ function renderPacketRows(lesson) {
   return getLessonPackets(lesson)
     .map(
       ({ color, row, lost }, index) => `
-      <tr data-packet="${index}" class="${lost ? "is-lost" : ""}" tabindex="0" hidden>
+      <tr data-packet="${index}" tabindex="0" hidden>
         <td><span class="step-badge ${color}">${index + 1}</span></td>
         <td><bdi dir="ltr">${escapeHtml(row.time)}</bdi></td>
         <td><bdi dir="ltr">${escapeHtml(row.src)}</bdi></td>
@@ -222,12 +222,13 @@ function updatePacketRows(panel, playback) {
         (enteringRows.length > 1 ? index * 35 : 0),
     ),
   );
-  rows.forEach((row, index) =>
+  rows.forEach((row, index) => {
     row.classList.toggle(
       "is-current",
       playback.started && playback.packets[index] === "current",
-    ),
-  );
+    );
+    row.classList.toggle("is-lost", playback.packets[index] === "lost");
+  });
   if (playback.started && enteringRows.length === 1) {
     const scrollContainer = panel.querySelector(".packet-scroll");
     requestAnimationFrame(() =>

@@ -85,13 +85,21 @@ function buildOverviewState(playback, lesson, lessonOrder) {
     !playback.done &&
     (activeEvent?.type === "packet" || activeEvent?.type === "stream") &&
     activeEvent.step === playback.activeStep;
-  const firstPacketNumber = showPacket
+  let firstPacketNumber = showPacket
     ? packets.indexOf(
         activeEvent.type === "stream"
           ? activeEvent.packets[0]
           : packets.find((packet) => packet.row === activeEvent.row),
       ) + 1
     : 0;
+  let displayedPacket = activeEvent;
+  if (showPacket && playback.running && activeEvent.type === "stream") {
+    const firstIndex = firstPacketNumber - 1;
+    const sent = activeEvent.packets.findLastIndex((_, i) =>
+      playback.packets[firstIndex + i] !== "future");
+    displayedPacket = activeEvent.packets[sent];
+    firstPacketNumber += sent;
+  }
   return {
     lesson,
     order: lessonOrder,
@@ -126,12 +134,13 @@ function buildOverviewState(playback, lesson, lessonOrder) {
           text: activeStep.detail,
           facts: activeStep.facts,
         },
-    packet: showPacket
+    packet: showPacket && displayedPacket
       ? {
           number: firstPacketNumber,
-          count: activeEvent.type === "stream" ? activeEvent.packets.length : 1,
+          count: displayedPacket.type === "stream" ? displayedPacket.packets.length : 1,
           total: packets.length,
-          event: activeEvent,
+          event: displayedPacket,
+          lost: playback.packets[firstPacketNumber - 1] === "lost",
         }
       : null,
   };
@@ -215,7 +224,7 @@ function updatePacketExplanation(panel, packetInfo, lesson) {
       },
     )} · ${isolateLtrText(sizeSummary)}${statusSuffix}`;
   } else {
-    const statusSuffix = event.lost
+    const statusSuffix = packetInfo.lost
       ? ` · ${translate("LOST ON THE WAY")}`
       : event.locked
         ? ` · ${translate("ENCRYPTED")}`
@@ -342,7 +351,9 @@ function updateOverviewPanel(panel, playback, lesson, lessonOrder = 0) {
     );
   } else if (
     nextState.view === "step" &&
-    nextState.packet?.number !== previousState.packet?.number
+    (nextState.packet?.number !== previousState.packet?.number ||
+      nextState.packet?.lost !== previousState.packet?.lost ||
+      nextState.packet?.count !== previousState.packet?.count)
   ) {
     const card = panel.querySelector(".explain-packet");
     const isReply =

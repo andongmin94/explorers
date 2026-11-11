@@ -164,6 +164,7 @@ const packetInspector = createPacketInspector(
   simulationElement.querySelector(".inspector"),
   {
     visible: getVisiblePacketIndices,
+    isLost: (index) => currentPlaybackState?.packets[index] === "lost",
     onChange: (packetIndex) => {
       for (const highlightedElement of appElement.querySelectorAll(
         ".is-inspected",
@@ -207,6 +208,7 @@ const packetInspector = createPacketInspector(
   },
 );
 const inspectPacket = (packetIndex) => {
+  if (!getVisiblePacketIndices().includes(packetIndex)) return;
   if (currentPlaybackState?.playing || currentPlaybackState?.running) {
     lessonPlayer.pause();
   }
@@ -277,9 +279,12 @@ function selectLesson(lessonId) {
 
 const closeDrawerAfterSelection = () =>
   isDrawerOpen() && setTimeout(() => setDrawerOpen(false), 220);
+function jumpToStep(index) {
+  lessonPlayer.jump(index, { paused: currentPlaybackState.started && !currentPlaybackState.playing });
+}
 bindSidebar(sidebarElement, {
   onStep: (stepIndex) => {
-    lessonPlayer.jump(stepIndex);
+    jumpToStep(stepIndex);
     closeDrawerAfterSelection();
   },
   onSelect: (lessonId) => {
@@ -329,20 +334,20 @@ bindPacketTable(packetsElement, {
 
 function jumpToNextStep() {
   if (!currentPlaybackState?.started) {
-    return lessonPlayer.jump(0);
+    return jumpToStep(0);
   }
   if (currentPlaybackState.activeStep < currentLesson.steps.length - 1) {
-    lessonPlayer.jump(currentPlaybackState.activeStep + 1);
+    jumpToStep(currentPlaybackState.activeStep + 1);
   }
 }
 
 function jumpToPreviousStep() {
   if (currentPlaybackState?.started) {
     if (currentPlaybackState.done) {
-      return lessonPlayer.jump(currentLesson.steps.length - 1);
+      return jumpToStep(currentLesson.steps.length - 1);
     }
     if (currentPlaybackState.activeStep > 0) {
-      lessonPlayer.jump(currentPlaybackState.activeStep - 1);
+      jumpToStep(currentPlaybackState.activeStep - 1);
     } else {
       lessonPlayer.reset();
     }

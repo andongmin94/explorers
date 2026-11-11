@@ -218,3 +218,63 @@ test("the playback clock respects pause, speed and cancellation", async () => {
     else delete globalThis.requestAnimationFrame;
   }
 });
+
+test("a UDP burst records each departure and loss, and a paused rewind removes the abandoned packets", async () => {
+  let state, report, finish;
+  const renderer = {
+    clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {},
+    run: (_event, _token, _landed, packetState) => new Promise(resolve => {
+      report = packetState;
+      finish = resolve;
+    }),
+  };
+  const player = createLessonPlayer(lessonsById.udp, renderer, s => { state = s; });
+  try {
+    player.jump(2);
+    report(0, "current");
+    await Promise.resolve();
+    assert.deepEqual(state.packets.slice(5, 8), ["current", "future", "future"]);
+    report(1, "current");
+    await Promise.resolve();
+    assert.deepEqual(state.packets.slice(5, 8), ["current", "current", "future"]);
+    report(1, "lost");
+    await Promise.resolve();
+    assert.equal(state.packets[6], "lost");
+
+    player.pause();
+    player.jump(1, { paused: true });
+    report(2, "current");
+    finish();
+    await new Promise(setImmediate);
+    assert.equal(state.activeStep, 1);
+    assert.equal(state.playing, false);
+    assert.equal(state.running, false);
+    assert.deepEqual(state.packets.slice(5, 8), ["future", "future", "future"]);
+  } finally { player.dispose(); }
+});
+
+test("one toggle pauses a single event and resuming it does not start a second event", async () => {
+  let state, finish, runs = 0;
+  const renderer = {
+    clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {},
+    run: () => new Promise(resolve => { runs++; finish = resolve; }),
+  };
+  const player = createLessonPlayer(lessonsById.icmp, renderer, s => { state = s; });
+  try {
+    player.jump(4, { paused: true });
+    player.step();
+    await Promise.resolve();
+    assert.equal(state.playing, true);
+    player.toggle();
+    await Promise.resolve();
+    assert.equal(state.playing, false);
+    assert.equal(playbackClock.paused, true);
+    player.toggle();
+    finish();
+    await new Promise(setImmediate);
+    assert.equal(state.playing, false);
+    assert.equal(state.running, false);
+    assert.equal(runs, 1);
+    assert.equal(state.packets[7], "future");
+  } finally { player.dispose(); }
+});

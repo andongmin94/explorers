@@ -755,6 +755,7 @@ function createNetworkAnimation(networkSvg) {
     },
     cancellation,
     onArrival,
+    onLoss,
   ) {
     const route = NETWORK_ROUTES[`${fromNode}>${toNode}`];
     const pixelsPerMillisecond = quick
@@ -808,6 +809,7 @@ function createNetworkAnimation(networkSvg) {
         return;
       }
       if (laneIndex === lossLaneIndex) {
+        onLoss?.();
         return dropPacket(visual, currentPosition, activeRoute, cancellation);
       }
       bounceNode(laneId.split(">")[1], cancellation);
@@ -831,13 +833,18 @@ function createNetworkAnimation(networkSvg) {
   async function animatePacketStream(
     { packets: packets, spacing = 480 },
     cancellation,
+    onPacketState,
   ) {
     const packetAnimations = [];
     for (const [index, packet] of packets.entries()) {
       if (cancellation.cancelled) {
         return;
       }
-      packetAnimations.push(animatePacket(packet, cancellation));
+      onPacketState(index, "current");
+      packetAnimations.push(animatePacket(packet, cancellation,
+        () => onPacketState(index, "past"),
+        () => onPacketState(index, "lost"),
+      ));
       if (index < packets.length - 1) {
         await waitWithClock(spacing, cancellation);
       }
@@ -956,12 +963,15 @@ function createNetworkAnimation(networkSvg) {
   }
   Object.keys(laneElements).forEach((laneId) => setLaneProgress(laneId, 0));
   return {
-    run(event, cancellation, onArrival) {
+    run(event, cancellation, onArrival, onPacketState) {
       switch (event.type) {
         case "packet":
-          return animatePacket(event, cancellation, onArrival);
+          return animatePacket(event, cancellation, () => {
+            onPacketState(0, "past");
+            onArrival();
+          }, () => onPacketState(0, "lost"));
         case "stream":
-          return animatePacketStream(event, cancellation);
+          return animatePacketStream(event, cancellation, onPacketState);
         case "type-url":
           return typeUrl(event.text, event.secure, cancellation);
         case "focus":
