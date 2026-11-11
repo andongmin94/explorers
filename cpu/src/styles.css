@@ -11,11 +11,12 @@
   --bg: #f4f5f7;
   --surface: #fff;
   --soft: #edeef1;
-  --ink: #27282b;
+  --ink: #34363b;
+  --selected: #d4d6db;
   --muted: #6d6f75;
-  --border: #3b3c40;
+  --border: #65676d;
   --rule: #d6d7db;
-  --shadow: #3b3c40;
+  --shadow: #787a80;
   --inverse: #f4f5f7;
   --p1: #3971d9;
   --p2: #168264;
@@ -29,6 +30,7 @@
   --surface: #242528;
   --soft: #2e2f33;
   --ink: #e4e7ec;
+  --selected: #4c4e56;
   --muted: #a5a7ae;
   --border: #8b8d94;
   --rule: #45464d;
@@ -138,8 +140,8 @@ input[type="range"] {
   border: 2px solid var(--border);
   border-radius: 5px;
   box-shadow: 3px 3px 0 var(--shadow);
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .brand-icon svg {
   width: 30px;
@@ -203,8 +205,8 @@ input[type="range"] {
   box-shadow: none;
 }
 .button.primary {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .icon-button {
   padding: 0;
@@ -307,8 +309,9 @@ input[type="range"] {
   white-space: nowrap;
 }
 .segmented button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 .setting-help {
   font-size: 11.5px;
@@ -414,8 +417,8 @@ input[type="range"] {
   font-size: 10px;
 }
 .mini-id.neutral {
-  color: var(--inverse);
-  background: var(--ink);
+  color: var(--ink);
+  background: var(--selected);
 }
 .burst-recipe {
   display: flex;
@@ -711,9 +714,9 @@ input[type="range"] {
   background: var(--soft);
 }
 .milestone.is-active .milestone-num {
-  background: var(--ink);
+  background: var(--selected);
   border-color: var(--border);
-  color: var(--inverse);
+  color: var(--ink);
 }
 .milestone.is-done .milestone-num {
   border-color: var(--border);
@@ -1742,8 +1745,8 @@ kbd {
   white-space: nowrap;
 }
 .record-tabs button[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .record-tabs button:focus-visible {
   outline: 2px solid var(--ink);
