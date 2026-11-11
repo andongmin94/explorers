@@ -1,6 +1,6 @@
 {
-  "name": "Protocol Explorer",
-  "short_name": "프로토콜",
+  "name": "프로토콜 탐색기",
+  "short_name": "프로토콜 탐색기",
   "description": "네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜.",
   "lang": "ko",
   "dir": "ltr",

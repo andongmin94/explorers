@@ -1,4 +1,4 @@
-# Protocol Explorer — 복원 소스
+# 프로토콜 탐색기 (Protocol Explorer) — 복원 소스
 
 원작 및 디자인: **Dilum Sanjaya**  
 원본 사이트: https://protocol-explorer-alpha.vercel.app/

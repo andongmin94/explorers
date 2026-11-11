@@ -163,7 +163,7 @@ function renderTopbar() {
         ${LOGO_SVG}
       </div>
       <div class="brand-text">
-        <h1>PROTOCOL <em>EXPLORER</em></h1>
+        <h1>프로토콜 <em>탐색기</em></h1>
         <p ${translatedElementContent("LEARN HOW THE INTERNET WORKS")}</p>
       </div>
     </div>
