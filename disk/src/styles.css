@@ -15,7 +15,13 @@
   --surface: #fff;
   --soft: #edeef0;
   --ink: #34363b;
-  --selected: #d4d6db;
+  --selected: #27282b;
+  --on-selected: #f4f5f7;
+  --control-card: #f4f5f7;
+  --control-neutral: #fff;
+  --control-ink: #000;
+  --control-border: #000;
+  --control-shadow: var(--control-border);
   --border: #65676d;
   --muted: #656771;
   --rule: #d4d5da;
@@ -34,7 +40,11 @@
   --surface: #24252a;
   --soft: #303138;
   --ink: #ebecef;
-  --selected: #4c4e56;
+  --selected: #e4e7ec;
+  --on-selected: #000;
+  --control-card: #18191c;
+  --control-neutral: oklch(23.93% 0 0);
+  --control-ink: oklch(92.49% 0 0);
   --border: #898c96;
   --muted: #b1b4bd;
   --rule: #454750;
@@ -92,7 +102,7 @@ a {
 button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enabled {
   --travel: 0px;
   --edge: calc(var(--depth, 4px) - var(--travel));
-  box-shadow: var(--edge) var(--edge) 0 var(--shadow);
+  box-shadow: var(--edge) var(--edge) 0 var(--control-shadow);
   @media (prefers-reduced-motion: no-preference) {
     translate: var(--travel) var(--travel);
     transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
@@ -126,11 +136,12 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
 .brand-icon {
   width: 45px;
   height: 45px;
-  border: 2px solid var(--border);
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   display: grid;
   place-items: center;
-  box-shadow: 3px 3px 0 var(--shadow);
+  box-shadow: 3px 3px 0 var(--control-shadow);
   border-radius: 4px;
   flex: none;
 }
@@ -173,21 +184,19 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   align-items: center;
   gap: 7px;
   min-height: 36px;
-  border: 2px solid var(--border);
-  border-radius: 3px;
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-neutral);
+  color: var(--control-ink);
   font-size: 12px;
   font-weight: 750;
-  box-shadow: 2px 2px 0 var(--shadow);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   padding: 7px 12px;
   white-space: nowrap;
 }
-@media (hover: hover) and (pointer: fine) {
-  .button:not(.primary):hover:enabled { background: var(--soft); }
-}
 .button.primary {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .icon-button {
   width: 36px;
@@ -204,10 +213,10 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   align-items: start;
 }
 .panel {
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-card);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   min-width: 0;
   overflow: hidden;
 }
@@ -254,12 +263,13 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   margin-top: 12px;
 }
 .mode-toggle button {
-  border: 2px solid var(--border);
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   padding: 10px;
   text-align: left;
   border-radius: 3px;
-  box-shadow: 2px 2px 0 var(--shadow);
+  box-shadow: 2px 2px 0 var(--control-shadow);
 }
 .mode-toggle strong {
   display: block;
@@ -273,7 +283,7 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
 }
 .mode-toggle button[aria-pressed="true"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .rule-summary {
   font-size: 12px;
@@ -711,7 +721,7 @@ button[data-seek] {
   min-height: 27px;
   padding: 3px 7px;
   border-width: 1.5px;
-  box-shadow: 1px 1px 0 var(--shadow);
+  box-shadow: 1px 1px 0 var(--control-shadow);
 }
 .transport {
   padding: 11px 13px;
@@ -795,15 +805,16 @@ button[data-seek] {
 #milestones button {
   display: grid;
   gap: 4px;
-  border: 1.5px solid var(--border);
-  background: var(--surface);
+  border: 1.5px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   border-radius: 2px;
   padding: 7px 2px;
   font-size: 11px;
 }
 #milestones button[aria-current="step"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 #milestones b {
   font-size: 13px;
@@ -825,10 +836,11 @@ button[data-seek] {
   word-break: keep-all;
 }
 .event-card {
-  background: var(--soft);
-  border: 2px solid var(--border);
-  border-radius: 3px;
-  box-shadow: 3px 3px 0 var(--shadow);
+  background: var(--control-card);
+  color: var(--control-ink);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 var(--control-shadow);
   padding: 11px;
   margin: 18px 0;
 }
@@ -934,10 +946,11 @@ button[data-seek] {
   border-bottom: 2px solid var(--border);
 }
 .record-tabs button {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
-  background: var(--surface);
-  box-shadow: 2px 2px 0 var(--shadow);
+  background: var(--control-card);
+  color: var(--control-ink);
+  box-shadow: 2px 2px 0 var(--control-shadow);
   padding: 8px 13px;
   font-size: 12px;
   font-weight: 750;
@@ -945,7 +958,7 @@ button[data-seek] {
 }
 .record-tabs button[aria-selected="true"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .record-tabs button > span {
   font-size: 10px;
@@ -1034,8 +1047,9 @@ td {
   border-bottom: 1px solid var(--rule);
 }
 td button {
-  border: 1.5px solid var(--border);
-  background: var(--surface);
+  border: 1.5px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   padding: 5px 8px;
   font-size: 12px;
 }
@@ -1100,11 +1114,11 @@ kbd {
 dialog {
   max-width: 750px;
   width: calc(100% - 32px);
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  color: var(--ink);
-  box-shadow: 6px 6px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-card);
+  color: var(--control-ink);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   padding: 25px;
 }
 dialog::backdrop {
@@ -1132,8 +1146,9 @@ dialog::backdrop {
   gap: 15px;
 }
 .comparison-grid article {
-  border: 2px solid var(--border);
-  background: var(--soft);
+  border: 2px solid var(--control-border);
+  background: var(--control-card);
+  color: var(--control-ink);
   padding: 16px;
 }
 .comparison-grid h3 {
