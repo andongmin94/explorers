@@ -192,7 +192,7 @@
 }
 .deadlock-workspace .trace-table thead button[aria-current="step"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .deadlock-workspace .trace-table td {
   padding: 7px 6px;

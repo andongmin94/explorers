@@ -14,7 +14,13 @@
   --bg: #f2f2f4;
   --surface: #fff;
   --soft: #edeef0;
-  --selected: #d4d6db;
+  --selected: #27282b;
+  --on-selected: #f4f5f7;
+  --control-card: #f4f5f7;
+  --control-neutral: #fff;
+  --control-ink: #000;
+  --control-border: #000;
+  --control-shadow: var(--control-border);
   --ink: #34363b;
   --border: #65676d;
   --muted: #656771;
@@ -37,7 +43,11 @@
   --bg: #191a1d;
   --surface: #24252a;
   --soft: #303138;
-  --selected: #4c4e56;
+  --selected: #e4e7ec;
+  --on-selected: #000;
+  --control-card: #18191c;
+  --control-neutral: oklch(23.93% 0 0);
+  --control-ink: oklch(92.49% 0 0);
   --ink: #ebecef;
   --border: #898c96;
   --muted: #b1b4bd;
@@ -119,11 +129,12 @@ button[hidden],
 .brand-icon {
   width: 45px;
   height: 45px;
-  border: 2px solid var(--border);
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   display: grid;
   place-items: center;
-  box-shadow: 3px 3px 0 var(--shadow);
+  box-shadow: 3px 3px 0 var(--control-shadow);
   border-radius: 4px;
 }
 .brand-icon svg {
@@ -167,21 +178,18 @@ button[hidden],
   align-items: center;
   gap: 7px;
   min-height: 36px;
-  border: 2px solid var(--border);
-  border-radius: 3px;
-  background: var(--surface);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-neutral);
+  color: var(--control-ink);
   font-size: 12px;
   font-weight: 750;
   padding: 7px 12px;
   white-space: nowrap;
 }
-.button:hover:not(:disabled) {
-  background: var(--soft);
-}
-.button.primary,
-.button.primary:hover:not(:disabled) {
+.button.primary {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .icon-button {
   width: 36px;
@@ -208,16 +216,17 @@ button[hidden],
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
-  background: var(--surface);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   text-decoration: none;
   font-size: 13px;
   font-weight: 750;
 }
 .scenario-nav a[aria-current="page"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .scenario-nav b {
   font-size: 11px;
@@ -234,10 +243,10 @@ button[hidden],
   }
 }
 .panel {
-  border: 2px solid var(--border);
-  border-radius: 4px;
-  background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--control-card);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   min-width: 0;
   overflow: hidden;
 }
@@ -287,9 +296,10 @@ button[hidden],
   gap: 9px;
 }
 .mode-toggle button {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
-  background: var(--surface);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   padding: 10px;
   text-align: left;
   display: grid;
@@ -304,7 +314,7 @@ button[hidden],
 }
 .mode-toggle button[aria-pressed="true"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .mode-toggle button[aria-pressed="true"] span {
   color: inherit;
@@ -905,9 +915,10 @@ summary {
   flex: none;
   min-height: 28px;
   padding: 4px 7px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--control-border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   font-size: 12px;
   font-weight: 750;
 }
@@ -1049,10 +1060,11 @@ summary {
 .event-card {
   margin: 14px 0 13px;
   padding: 10px;
-  background: var(--soft);
-  border: 2px solid var(--border);
-  box-shadow: 3px 3px 0 var(--shadow);
-  border-radius: 3px;
+  background: var(--control-card);
+  color: var(--control-ink);
+  border: 2px solid var(--control-border);
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  border-radius: 5px;
 }
 .event-card-head {
   display: flex;
@@ -1144,9 +1156,9 @@ summary {
   gap: 4px;
   min-height: 47px;
   padding: 4px 0;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--control-border);
   border-radius: 2px;
-  background: var(--surface);
+  background: var(--control-neutral);
   font-size: 11px;
   font-weight: 750;
 }
@@ -1155,7 +1167,7 @@ summary {
 }
 .milestone.current {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .milestone:hover {
   outline: 1px solid var(--border);
@@ -1174,8 +1186,9 @@ summary {
 .record-tabs > button {
   min-height: 35px;
   padding: 7px 14px;
-  background: var(--surface);
-  border: 2px solid var(--border);
+  background: var(--control-card);
+  color: var(--control-ink);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
   font-size: 12px;
   font-weight: 800;
@@ -1186,7 +1199,7 @@ summary {
 }
 .record-tabs > button[aria-selected="true"] {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 #log-count {
   font-size: 10px;
@@ -1361,15 +1374,16 @@ summary {
   padding: 18px;
 }
 .metrics > div {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   padding: 13px 15px;
-  background: var(--soft);
-  box-shadow: 3px 3px 0 var(--shadow);
-  border-radius: 3px;
+  background: var(--control-card);
+  color: var(--control-ink);
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  border-radius: 5px;
 }
 .metrics > div.important {
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 .metrics span {
   display: block;
@@ -1421,12 +1435,12 @@ dialog {
   width: min(720px, calc(100% - 32px));
   max-height: calc(100% - 40px);
   overflow: auto;
-  border: 2px solid var(--border);
-  background: var(--surface);
-  color: var(--ink);
-  border-radius: 4px;
+  border: 2px solid var(--control-border);
+  background: var(--control-card);
+  color: var(--control-ink);
+  border-radius: 5px;
   padding: 22px;
-  box-shadow: 6px 6px 0 var(--shadow);
+  box-shadow: 4px 4px 0 var(--control-shadow);
 }
 dialog::backdrop {
   background: #17181b88;
@@ -1459,11 +1473,12 @@ dialog::backdrop {
   gap: 15px;
 }
 .comparison-grid article {
-  border: 2px solid var(--border);
+  border: 2px solid var(--control-border);
   padding: 15px;
-  background: var(--soft);
-  box-shadow: 3px 3px 0 var(--shadow);
-  border-radius: 3px;
+  background: var(--control-card);
+  color: var(--control-ink);
+  box-shadow: 4px 4px 0 var(--control-shadow);
+  border-radius: 5px;
 }
 .comparison-grid h3 {
   font-size: 16px;
@@ -1549,7 +1564,7 @@ dialog::backdrop {
 .prediction-choices .button.correct {
   opacity: 1;
   background: var(--selected);
-  color: var(--ink);
+  color: var(--on-selected);
 }
 #prediction-feedback {
   font-size: 13px;
@@ -1939,7 +1954,7 @@ dialog::backdrop {
 .scenario-nav a,
 .learning-mode button:enabled i {
   --press-shadow: calc(var(--press-depth, 2px) - var(--press-offset, 0px));
-  box-shadow: var(--press-shadow) var(--press-shadow) 0 var(--shadow);
+  box-shadow: var(--press-shadow) var(--press-shadow) 0 var(--control-shadow);
 }
 @media (hover: hover) and (pointer: fine) {
   :where(button:enabled:hover, .scenario-nav a:hover) {
