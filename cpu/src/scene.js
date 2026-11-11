@@ -355,7 +355,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
       const index = Number(slot.dataset.slot);
       slot.style.opacity = index <= view.ready.length ? 1 : 0;
       slot.querySelector("text").textContent =
-        index === view.ready.length
+        index === view.ready.length && event?.from !== "ready"
           ? view.ready.length
             ? "큐 뒤 · 여기에 합류"
             : "CPU를 기다리는 자리"
@@ -541,12 +541,15 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     if (layout.mobile && matchMedia("(max-width: 759px)").matches) {
       const routeBounds = measure.getBoundingClientRect();
       const padding = layout.tokenHeight / 2 + 5;
-      if (routeBounds.top < padding || routeBounds.bottom > innerHeight - padding) {
-        // Keep the CPU in view when the entire trip fits below it.
-        const deviceTop = hostElement.getBoundingClientRect().top + layout.titleY - 18;
+      const deviceTop = hostElement.getBoundingClientRect().top + layout.titleY - 22;
+      const startsOrEndsAtCPU = event.from === "running" || event.to === "running";
+      const topOfTrip = startsOrEndsAtCPU
+        ? Math.min(deviceTop, routeBounds.top - padding)
+        : routeBounds.top - padding;
+      if (topOfTrip < 0 || routeBounds.bottom > innerHeight - padding) {
         const top = Math.max(
           routeBounds.bottom + padding - innerHeight,
-          Math.min(deviceTop, routeBounds.top - padding),
+          Math.min(deviceTop, topOfTrip),
         );
         window.scrollBy({ top, behavior: "instant" });
       }
