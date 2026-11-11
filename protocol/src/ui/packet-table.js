@@ -51,7 +51,7 @@ function renderPacketTable() {
           </span>
           <span class="toggle-label"></span>
         </button>
-        <button class="btn" type="button" data-action="step" data-t-title="One packet at a time" title="${translate("One packet at a time")}"><span ${translatedElementContent("STEP")}</span></button>
+        <button class="btn" type="button" data-action="step" data-t-title="Advance one event" title="${translate("Advance one event")}"><span ${translatedElementContent("STEP")}</span></button>
         <button class="btn" type="button" data-action="reset" data-t-title="Back to the overview (Esc)" title="${translate("Back to the overview (Esc)")}" data-t-label="Reset" aria-label="${translate("Reset")}">${icons.reset}<span class="btn-text" ${translatedElementContent("RESET")}</span></button>
       </div>
     </div>

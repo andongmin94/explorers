@@ -186,7 +186,7 @@ const httpsLesson = {
   },
   outro: {
     title: "Secure page delivered",
-    desc: "Encrypted, except the lookup",
+    desc: "HTTP requests and responses are encrypted",
     text: "The browser looked up the address in plain DNS, opened a TCP connection, checked the server’s certificate and agreed on keys in one round trip. Every HTTP byte after that travelled encrypted. Press REPLAY to watch it again.",
     facts: [
       ["Round trips", "4 (DNS, TCP, TLS, HTTP)"],
@@ -301,7 +301,7 @@ const httpsLesson = {
       title: "TLS Handshake",
       desc: "Agrees on keys, checks the certificate",
       detail:
-        "The browser offers ciphers and key shares, including a post-quantum hybrid. The server picks it and sends its own share, then its certificate, already encrypted. The browser checks it against authorities it trusts.",
+        "The browser and server exchange key shares in plaintext. The server then sends its certificate and Finished under the handshake keys. The browser verifies the certificate. The compatibility Change Cipher Spec (CCS) record between Server Hello and the encrypted handshake is plaintext.",
       facts: [
         ["Version", "TLS 1.3"],
         ["Key exchange", "X25519MLKEM768 (hybrid)"],

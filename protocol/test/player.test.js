@@ -2,6 +2,57 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createLessonPlayer } from "../src/simulation/player.js";
 import { animateWithClock, playbackClock } from "../src/simulation/clock.js";
+import { lessonsById } from "../src/lessons/index.js";
+
+test("jumping to the HTTP ending credits only the step that actually finishes", async (t) => {
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  const saved = new Map();
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: {
+      getItem: (key) => saved.get(key) ?? null,
+      setItem: (key, value) => saved.set(key, value),
+    },
+  });
+  t.after(() => {
+    if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+    else delete globalThis.localStorage;
+  });
+  const { getLessonCompletion, getLessonStatus, recordLessonProgress } =
+    await import("../src/progress.js");
+  const lesson = lessonsById.http;
+  let state;
+  const renderer = { clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {}, run() {} };
+  const player = createLessonPlayer(lesson, renderer, (snapshot) => {
+    state = snapshot;
+    recordLessonProgress(lesson, snapshot);
+  });
+  try {
+    player.jump(4);
+    player.pause();
+    await new Promise(setImmediate);
+    assert.equal(getLessonCompletion(lesson), 0);
+    player.step();
+    await new Promise(setImmediate);
+    assert.equal(state.done, true);
+    assert.deepEqual(state.steps, ["todo", "todo", "todo", "todo", "done"]);
+    assert.equal(getLessonCompletion(lesson), 1 / 5);
+    assert.equal(getLessonStatus(lesson), "progress");
+    assert.deepEqual(JSON.parse(saved.get("protocol-explorer:progress:v1")).http.seen, [4]);
+
+    player.reset();
+    await new Promise(setImmediate);
+    assert.equal(getLessonCompletion(lesson), 1 / 5);
+    do {
+      player.step();
+      await new Promise(setImmediate);
+    } while (!state.done);
+    assert.equal(getLessonCompletion(lesson), 1);
+    assert.equal(getLessonStatus(lesson), "done");
+  } finally {
+    player.dispose();
+  }
+});
 
 test("reset and disposal prevent a pending animation from advancing the lesson", async () => {
   const lesson = {

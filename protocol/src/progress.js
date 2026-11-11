@@ -19,25 +19,21 @@ function saveLessonProgress() {
   } catch {}
 }
 function recordLessonProgress(lesson, playback) {
+  if (!playback.started || lessonProgress[lesson.id]?.done) return false;
   const progress = (lessonProgress[lesson.id] ??= {
     seen: [],
     done: false,
   });
-  let changed = false;
-  if (
-    playback.started &&
-    !playback.done &&
-    !progress.seen.includes(playback.activeStep)
-  ) {
-    progress.seen.push(playback.activeStep);
-    changed = true;
-  }
-  if (playback.done && !progress.done) {
-    progress.done = true;
-    progress.seen = lesson.steps.map((step, index) => index);
-    changed = true;
-  }
+  let changed = !progress.started;
+  progress.started = true;
+  playback.steps.forEach((status, index) => {
+    if (status === "done" && !progress.seen.includes(index)) {
+      progress.seen.push(index);
+      changed = true;
+    }
+  });
   if (changed) {
+    progress.done = progress.seen.length === lesson.steps.length;
     saveLessonProgress();
   }
   return changed;
@@ -50,10 +46,8 @@ function getLessonCompletion(lesson) {
   if (progress.done) {
     return 1;
   }
-  // Visiting the last step is not completion until playback reaches the summary.
   return (
-    Math.min(progress.seen.length, lesson.steps.length - 1) /
-    lesson.steps.length
+    Math.min(progress.seen.length, lesson.steps.length - 1) / lesson.steps.length
   );
 }
 function getLessonStatus(lesson) {
@@ -61,6 +55,6 @@ function getLessonStatus(lesson) {
   if (progress?.done) {
     return "done";
   }
-  return progress?.seen.length ? "progress" : "new";
+  return progress?.started || progress?.seen.length ? "progress" : "new";
 }
 export { getLessonCompletion, getLessonStatus, recordLessonProgress };

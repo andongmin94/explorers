@@ -1278,7 +1278,7 @@ class LessonPacketEncoder {
             },
             {
               depth: 1,
-              note: "Bytes that arrived after the gap, so only the gap needs resending.",
+              note: "The receiver has these bytes buffered beyond the cumulative ACK.",
             },
           );
         }

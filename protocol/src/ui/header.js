@@ -247,7 +247,9 @@ function updateTopbar(topbar, playback, lesson) {
     .forEach((dot, index) => (dot.className = `is-${playback.steps[index]}`));
   const activeStep = lesson.steps[playback.activeStep];
   const stepLabel = playback.done
-    ? translate("LESSON COMPLETE")
+    ? translate(
+        getLessonStatus(lesson) === "done" ? "LESSON COMPLETE" : "END OF SCENARIO",
+      )
     : playback.started
       ? translate("STEP {n}/{total} · {title}", {
           n: playback.activeStep + 1,

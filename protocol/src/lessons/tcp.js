@@ -104,8 +104,8 @@ const tcpLesson = {
         "Bytes delivered",
         `${TCP_REQUEST_BYTES} up, ${TCP_RESPONSE_BYTES.toLocaleString("en-US")} down`,
       ],
-      ["Loss found by", "Duplicate ACK + SACK"],
-      ["Total time", "0.148 s"],
+      ["Retransmission trigger", "1 s timeout (RTO)"],
+      ["Total time", "1.105 s"],
     ],
   },
   start: {
@@ -270,15 +270,16 @@ const tcpLesson = {
     },
     {
       title: "Resend the Gap",
-      desc: "Only the missing bytes",
+      desc: "The retransmission timer expires",
       detail:
-        "The SACK tells the server exactly what is missing, so it resends just segment 1, and the laptop acknowledges everything. Had no ACK come back at all, timers would have stepped in: a probe after about two round trips, then a retransmission timeout (at least 200 ms on Linux).",
+        "The SACK reports that segment 2 arrived. With just one duplicate ACK, the server still cannot tell whether segment 1 was lost or delayed. In this example its retransmission timer is 1 second. At 1.052 s the timer expires and the server resends segment 1. The laptop now has both segments and advances its cumulative ACK to 2921.",
       facts: [
         ["Resent", `bytes 1–${TCP_MSS} only`],
         ["Next ACK", `${TCP_RESPONSE_BYTES + 1} (everything)`],
         ["curl saw", "Every byte, in order"],
       ],
       events: [
+        { type: "note", at: "web", text: "1 s RTO EXPIRED", tone: "amber" },
         packetEvent(
           "web",
           "client",
@@ -286,7 +287,7 @@ const tcpLesson = {
           "RESEND",
           ["seq=1  len=1460", "just the missing segment"],
           tcpServerRow(
-            0.095,
+            1.052,
             `[TCP Retransmission] Seq=1 Ack=${TCP_REQUEST_BYTES + 1} Len=${TCP_MSS}`,
             tcpFrameBytes(TCP_MSS),
             "A",
@@ -303,7 +304,7 @@ const tcpLesson = {
           "ACK",
           [`ack=${TCP_RESPONSE_BYTES + 1}`],
           tcpClientRow(
-            0.112,
+            1.069,
             `[ACK] Seq=${TCP_REQUEST_BYTES + 1} Ack=${TCP_RESPONSE_BYTES + 1}`,
             tcpFrameBytes(0),
             "A",
@@ -329,7 +330,7 @@ const tcpLesson = {
           "FIN",
           [`seq=${TCP_REQUEST_BYTES + 1}  ack=${TCP_RESPONSE_BYTES + 1}`],
           tcpClientRow(
-            0.113,
+            1.07,
             `[FIN, ACK] Seq=${TCP_REQUEST_BYTES + 1} Ack=${TCP_RESPONSE_BYTES + 1}`,
             tcpFrameBytes(0),
             "FA",
@@ -342,7 +343,7 @@ const tcpLesson = {
           "ACK",
           [`ack=${TCP_REQUEST_BYTES + 2}`],
           tcpServerRow(
-            0.13,
+            1.087,
             `[ACK] Seq=${TCP_RESPONSE_BYTES + 1} Ack=${TCP_REQUEST_BYTES + 2}`,
             tcpFrameBytes(0),
             "A",
@@ -355,7 +356,7 @@ const tcpLesson = {
           "FIN",
           [`seq=${TCP_RESPONSE_BYTES + 1}  ack=${TCP_REQUEST_BYTES + 2}`],
           tcpServerRow(
-            0.131,
+            1.088,
             `[FIN, ACK] Seq=${TCP_RESPONSE_BYTES + 1} Ack=${TCP_REQUEST_BYTES + 2}`,
             tcpFrameBytes(0),
             "FA",
@@ -368,7 +369,7 @@ const tcpLesson = {
           "ACK",
           [`ack=${TCP_RESPONSE_BYTES + 2}`],
           tcpClientRow(
-            0.148,
+            1.105,
             `[ACK] Seq=${TCP_REQUEST_BYTES + 2} Ack=${TCP_RESPONSE_BYTES + 2}`,
             tcpFrameBytes(0),
             "A",

@@ -42,6 +42,7 @@ function createLessonPlayer(
   const lastEventByStep = lesson.steps.map((step, stepIndex) =>
     events.findLastIndex((event) => event.step === stepIndex),
   );
+  const finishedSteps = new Set();
   let nextEventIndex = 0;
   let runningEventIndex = -1;
   let playing = false;
@@ -72,8 +73,12 @@ function createLessonPlayer(
       activeStep,
       event: activeEventIndex >= 0 ? events[activeEventIndex] : null,
       steps: lesson.steps.map((step, stepIndex) => {
-        if (stepIndex === activeStep && started && !done) return "active";
-        return lastEventByStep[stepIndex] < nextEventIndex ? "done" : "todo";
+        if (
+          stepIndex === activeStep &&
+          started &&
+          (runningEventIndex !== -1 || activeEventIndex < lastEventByStep[stepIndex])
+        ) return "active";
+        return finishedSteps.has(stepIndex) ? "done" : "todo";
       }),
       packets: events.flatMap((event, eventIndex) => {
         if (!isPacketEvent(event)) return [];
@@ -154,6 +159,8 @@ function createLessonPlayer(
     }
     runningEventIndex = -1;
     nextEventIndex = eventIndex + 1;
+    const stepIndex = events[eventIndex].step;
+    if (lastEventByStep[stepIndex] === eventIndex) finishedSteps.add(stepIndex);
     if (nextEventIndex >= events.length) playing = false;
     notifyStateChange();
     if (!playing) return;
@@ -177,6 +184,7 @@ function createLessonPlayer(
 
   function reset() {
     cancelPendingWork();
+    finishedSteps.clear();
     playing = false;
     nextEventIndex = 0;
     restoreScene();

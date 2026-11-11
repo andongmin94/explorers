@@ -16,6 +16,7 @@ import {
 } from "../i18n.js";
 import { NETWORK_SHORT_LABELS } from "../simulation/network-drawing.js";
 import { getLessonPackets } from "../packets/encode.js";
+import { getLessonStatus } from "../progress.js";
 
 const getLocalizedNodeName = (lesson, nodeId) =>
   translate(lesson.labels?.[nodeId]?.[0] ?? NETWORK_SHORT_LABELS[nodeId]);
@@ -109,7 +110,9 @@ function buildOverviewState(playback, lesson, lessonOrder) {
       : -1,
     content: playback.done
       ? {
-          label: translate("LESSON COMPLETE"),
+          label: translate(
+            getLessonStatus(lesson) === "done" ? "LESSON COMPLETE" : "END OF SCENARIO",
+          ),
           ...lesson.outro,
           done: true,
         }

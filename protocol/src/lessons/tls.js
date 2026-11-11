@@ -90,7 +90,7 @@ const tlsLesson = {
   overview: {
     full: "Transport Layer Security",
     description:
-      "TLS puts a secure channel on top of TCP. It proves the server’s identity with a certificate, agrees on fresh keys, then encrypts and authenticates everything sent. HTTPS, secure email and many other protocols run inside it. SSL was the name of its predecessor.",
+      "TLS puts a secure channel on top of TCP. In this connection the certificate authenticates the server, and the negotiated keys protect the application data. HTTPS and secure email use TLS. SSL was its predecessor.",
     facts: [
       ["Sits", "Between TCP and the app"],
       ["OSI layer", "Often placed at 6"],
@@ -103,7 +103,7 @@ const tlsLesson = {
   outro: {
     title: "Secure from start to finish",
     desc: "One round trip to set up",
-    text: "One round trip agreed on a version, a cipher and a post-quantum hybrid key. The certificate chain proved who the server was, and every byte after the Server Hello was encrypted and authenticated, right up to the close_notify. Press REPLAY to watch it again.",
+    text: "The hellos exchanged key shares in plaintext. The certificate and signature authenticated the server inside the encrypted handshake. TLS also protected the HTTP data and close_notify alert. The compatibility Change Cipher Spec (CCS) records travelled in plaintext.",
     facts: [
       ["Version", "TLS 1.3"],
       ["Cipher", "TLS_AES_128_GCM_SHA256"],
@@ -161,11 +161,11 @@ const tlsLesson = {
       title: "Server Hello",
       desc: "Choices made, keys computed",
       detail:
-        "The server picks TLS 1.3, the cipher suite and the hybrid group, and sends its own key share. From the two shares both sides compute the same secret without it ever crossing the network. Everything after this message is encrypted.",
+        "The server selects TLS 1.3 and sends its key share. Both sides derive handshake keys. The next handshake messages, including the certificate and Finished, are encrypted. This trace also includes a plaintext compatibility Change Cipher Spec (CCS) record, which does not change the keys.",
       facts: [
         ["Cipher", "TLS_AES_128_GCM_SHA256"],
         ["Group", "X25519MLKEM768"],
-        ["From here on", "Encrypted"],
+        ["Remaining handshake messages", "Encrypted"],
       ],
       events: [
         packetEvent(
@@ -272,7 +272,7 @@ const tlsLesson = {
       facts: [
         ["Round trips", "1 (TLS 1.2: 2)"],
         ["Covers", "The whole handshake"],
-        ["Change Cipher Spec", "For old middleboxes"],
+        ["Change Cipher Spec", "Plaintext compatibility record"],
       ],
       events: [
         packetEvent(

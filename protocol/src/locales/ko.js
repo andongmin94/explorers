@@ -19,6 +19,7 @@ const interfaceStrings = {
   "OVERVIEW · {n} STEPS": "개요 · {n}단계",
   "STEP {n}/{total} · {title}": "단계 {n}/{total} · {title}",
   "LESSON COMPLETE": "레슨 완료",
+  "END OF SCENARIO": "시나리오 끝",
   PROTOCOLS: "프로토콜",
   Protocols: "프로토콜",
   Language: "언어",
@@ -61,8 +62,8 @@ const interfaceStrings = {
   PLAY: "재생",
   PAUSE: "일시 정지",
   REPLAY: "다시 보기",
-  STEP: "한 단계",
-  "One packet at a time": "패킷을 하나씩",
+  STEP: "다음 장면",
+  "Advance one event": "다음 장면으로 이동",
   RESET: "초기화",
   Reset: "초기화",
   "Back to the overview (Esc)": "개요로 돌아가기(Esc)",
@@ -386,7 +387,7 @@ const lessonStrings = {
   Proves: "증명하는 것",
   "Server identity (certificate)": "서버 신원(인증서)",
   "Secure page delivered": "안전한 페이지 전달 완료",
-  "Encrypted, except the lookup": "조회만 빼고 모두 암호화",
+  "HTTP requests and responses are encrypted": "HTTP 요청과 응답 암호화",
   "The browser looked up the address in plain DNS, opened a TCP connection, checked the server’s certificate and agreed on keys in one round trip. Every HTTP byte after that travelled encrypted. Press REPLAY to watch it again.":
     "브라우저는 암호화되지 않은 DNS로 주소를 찾고, TCP 연결을 열고, 한 번의 왕복으로 서버 인증서를 확인하고 키를 합의했습니다. 그 뒤의 HTTP 바이트는 모두 암호화되어 오갔습니다. 다시 보려면 ‘다시 보기’를 누르세요.",
   Cipher: "암호",
@@ -409,8 +410,8 @@ const lessonStrings = {
     "TLS는 TCP 위에서 동작하므로 같은 3방향 핸드셰이크가 먼저 이루어집니다. 이번에는 443번 포트입니다. 아직 아무것도 암호화되지 않았습니다.",
   "TLS Handshake": "TLS 핸드셰이크",
   "Agrees on keys, checks the certificate": "키를 합의하고 인증서를 확인",
-  "The browser offers ciphers and key shares, including a post-quantum hybrid. The server picks it and sends its own share, then its certificate, already encrypted. The browser checks it against authorities it trusts.":
-    "브라우저는 암호 방식과 키 공유를 제시하는데, 여기에는 포스트 양자 하이브리드 방식도 들어 있습니다. 서버는 그것을 골라 자신의 키 공유를 보내고, 이어서 이미 암호화된 상태로 인증서를 보냅니다. 브라우저는 신뢰하는 인증 기관에 비추어 인증서를 확인합니다.",
+  "The browser and server exchange key shares in plaintext. The server then sends its certificate and Finished under the handshake keys. The browser verifies the certificate. The compatibility Change Cipher Spec (CCS) record between Server Hello and the encrypted handshake is plaintext.":
+    "브라우저와 서버가 평문으로 키 공유 값을 교환합니다. 이어 서버는 핸드셰이크 키로 인증서와 Finished 메시지를 암호화해 보냅니다. 브라우저는 인증서를 검증합니다. Server Hello와 암호화된 핸드셰이크 사이에 보이는 Change Cipher Spec(CCS)는 옛 장비와의 호환을 위한 평문 레코드입니다.",
   Version: "버전",
   "Key exchange": "키 교환",
   "X25519MLKEM768 (hybrid)": "X25519MLKEM768(하이브리드)",
@@ -440,7 +441,7 @@ const lessonStrings = {
   "Server Hello + encrypted handshake, 3 segments":
     "Server Hello + 암호화된 핸드셰이크, 세그먼트 3개",
   "Change Cipher Spec, Finished (encrypted)":
-    "Change Cipher Spec, Finished(암호화됨)",
+    "평문 CCS, 암호화된 Finished",
   "Application Data (HTTP request)": "Application Data(HTTP 요청)",
   "New Session Ticket ×2 (encrypted)": "New Session Ticket ×2(암호화됨)",
   "Application Data (HTTP response), 9 segments":
@@ -501,8 +502,10 @@ const lessonStrings = {
   "14 (1 lost, 1 resent)": "14(1개 손실, 1개 재전송)",
   "Bytes delivered": "전달된 바이트",
   "78 up, 2,920 down": "업로드 78, 다운로드 2,920",
-  "Loss found by": "손실을 찾은 방법",
-  "Duplicate ACK + SACK": "중복 ACK + SACK",
+  "Retransmission trigger": "재전송 계기",
+  "1 s RTO EXPIRED": "재전송 타이머 1초 만료",
+  "1.105 s": "1.105초",
+  "1 s timeout (RTO)": "재전송 타이머 1초 만료",
   "Open Connection": "연결 열기",
   "curl already knows the server’s address. Before any data moves, both sides choose a starting sequence number and confirm it: SYN, SYN-ACK, ACK. The numbers here are relative; real ones start at a random value.":
     "curl은 이미 서버의 주소를 알고 있습니다. 데이터가 오가기 전에 양쪽은 시작 시퀀스 번호를 골라 확인합니다. SYN, SYN-ACK, ACK. 여기 나온 번호는 상대값이며, 실제 번호는 무작위 값에서 시작합니다.",
@@ -533,9 +536,9 @@ const lessonStrings = {
   "At once, not delayed": "지연 없이 즉시",
   "sack: has 1461–2920": "sack: 1461–2920 보유",
   "Resend the Gap": "빈틈 재전송",
-  "Only the missing bytes": "사라진 바이트만",
-  "The SACK tells the server exactly what is missing, so it resends just segment 1, and the laptop acknowledges everything. Had no ACK come back at all, timers would have stepped in: a probe after about two round trips, then a retransmission timeout (at least 200 ms on Linux).":
-    "SACK가 무엇이 빠졌는지 정확히 알려 주므로 서버는 세그먼트 1만 재전송하고, 노트북은 전부에 확인 응답을 보냅니다. ACK가 아예 돌아오지 않았다면 타이머가 나섰을 것입니다. 먼저 왕복 약 두 번 뒤에 프로브를 보내고, 그다음은 재전송 타임아웃입니다(Linux에서는 최소 200 ms).",
+  "The retransmission timer expires": "재전송 타이머 만료",
+  "The SACK reports that segment 2 arrived. With just one duplicate ACK, the server still cannot tell whether segment 1 was lost or delayed. In this example its retransmission timer is 1 second. At 1.052 s the timer expires and the server resends segment 1. The laptop now has both segments and advances its cumulative ACK to 2921.":
+    "SACK는 두 번째 세그먼트를 받았다는 뜻입니다. 서버는 중복 ACK 하나만으로 첫 세그먼트가 사라졌는지 늦게 오는지 구별할 수 없습니다. 이 예시의 재전송 타이머는 1초입니다. 1.052초에 타이머가 만료되면 서버는 첫 세그먼트를 다시 보냅니다. 이제 노트북은 두 세그먼트를 모두 받았으므로 누적 ACK를 2921로 올립니다.",
   Resent: "재전송한 것",
   "bytes 1–1460 only": "바이트 1–1460만",
   "Next ACK": "다음 ACK",
@@ -558,8 +561,8 @@ const lessonStrings = {
   "1,460 bytes: the HTTP response, bytes 1461–2920":
     "1,460바이트: HTTP 응답의 바이트 1461–2920",
   "has 1461–2920": "1461–2920 보유",
-  "Bytes that arrived after the gap, so only the gap needs resending.":
-    "빈틈 뒤에 도착한 바이트이므로 빈틈만 재전송하면 됩니다.",
+  "The receiver has these bytes buffered beyond the cumulative ACK.":
+    "수신 측이 누적 ACK 뒤에서 미리 받아 보관 중인 바이트 범위입니다.",
   "Fast Datagrams": "빠른 데이터그램",
   "Your voice": "내 목소리",
   "Their voice": "상대방 목소리",
@@ -1437,8 +1440,8 @@ const lessonStrings = {
     "SSH_MSG_CHANNEL_DATA (94), 채널 0: 94바이트: 줄 바꿈, 셸의 터미널 제어 코드, “/home/alice”, 색이 들어간 프롬프트",
   "Encryption Explained": "암호화의 원리",
   "From browser": "브라우저에서",
-  "TLS puts a secure channel on top of TCP. It proves the server’s identity with a certificate, agrees on fresh keys, then encrypts and authenticates everything sent. HTTPS, secure email and many other protocols run inside it. SSL was the name of its predecessor.":
-    "TLS는 TCP 위에 안전한 통로를 놓습니다. 인증서로 서버의 신원을 증명하고, 새 키를 합의한 뒤, 보내는 모든 것을 암호화하고 인증합니다. HTTPS, 보안 이메일을 비롯한 많은 프로토콜이 그 안에서 동작합니다. SSL은 그 전신의 이름입니다.",
+  "TLS puts a secure channel on top of TCP. In this connection the certificate authenticates the server, and the negotiated keys protect the application data. HTTPS and secure email use TLS. SSL was its predecessor.":
+    "TLS는 TCP 위에 보안 채널을 만듭니다. 이 연결에서 브라우저는 인증서로 서버의 신원을 확인하고, 양쪽은 합의한 키로 애플리케이션 데이터를 보호합니다. HTTPS와 보안 메일이 TLS를 사용합니다. SSL은 TLS의 전신입니다.",
   Sits: "위치",
   "Between TCP and the app": "TCP와 앱 사이",
   "OSI layer": "OSI 계층",
@@ -1449,8 +1452,8 @@ const lessonStrings = {
   "The app’s own (443, 993 …)": "앱 자체의 포트(443, 993 …)",
   "Secure from start to finish": "처음부터 끝까지 안전",
   "One round trip to set up": "준비는 한 번의 왕복으로",
-  "One round trip agreed on a version, a cipher and a post-quantum hybrid key. The certificate chain proved who the server was, and every byte after the Server Hello was encrypted and authenticated, right up to the close_notify. Press REPLAY to watch it again.":
-    "한 번의 왕복으로 버전, 암호, 포스트 양자 하이브리드 키를 합의했습니다. 인증서 체인이 서버가 누구인지 증명했고, Server Hello 뒤의 모든 바이트는 close_notify까지 암호화되고 인증되었습니다. 다시 보려면 ‘다시 보기’를 누르세요.",
+  "The hellos exchanged key shares in plaintext. The certificate and signature authenticated the server inside the encrypted handshake. TLS also protected the HTTP data and close_notify alert. The compatibility Change Cipher Spec (CCS) records travelled in plaintext.":
+    "양쪽은 평문 Hello 메시지로 키 공유 값을 교환했습니다. 브라우저는 암호화된 핸드셰이크 안의 인증서와 서명을 검증해 서버의 신원을 확인했습니다. TLS는 HTTP 데이터와 종료 경고(close_notify)도 보호했습니다. 호환용 Change Cipher Spec(CCS) 레코드는 평문으로 오갔습니다.",
   "1 round trip": "왕복 1번",
   "Everything the browser supports": "브라우저가 지원하는 모든 것",
   "After the TCP handshake the browser lists what it can do: TLS versions, cipher suites, and key shares for the groups it expects, including the post-quantum hybrid X25519MLKEM768. It also names the site (SNI) and the protocols it speaks (ALPN).":
@@ -1458,10 +1461,10 @@ const lessonStrings = {
   Versions: "버전",
   "versions, ciphers, key shares": "버전, 암호, 키 공유",
   "Choices made, keys computed": "선택 완료, 키 계산",
-  "The server picks TLS 1.3, the cipher suite and the hybrid group, and sends its own key share. From the two shares both sides compute the same secret without it ever crossing the network. Everything after this message is encrypted.":
-    "서버는 TLS 1.3, 암호 스위트, 하이브리드 그룹을 고르고 자신의 키 공유를 보냅니다. 두 키 공유로 양쪽은 네트워크를 한 번도 지나지 않는 같은 비밀을 계산합니다. 이 메시지 뒤의 모든 것은 암호화됩니다.",
+  "The server selects TLS 1.3 and sends its key share. Both sides derive handshake keys. The next handshake messages, including the certificate and Finished, are encrypted. This trace also includes a plaintext compatibility Change Cipher Spec (CCS) record, which does not change the keys.":
+    "서버가 TLS 1.3을 선택하고 키 공유 값을 보냅니다. 양쪽이 핸드셰이크 키를 계산하면 이어지는 인증서와 Finished를 포함한 핸드셰이크 메시지가 암호화됩니다. 이 예시의 Change Cipher Spec(CCS)는 평문 호환용 레코드이며 키를 바꾸지 않습니다.",
   Group: "그룹",
-  "From here on": "여기서부터",
+  "Remaining handshake messages": "남은 핸드셰이크 메시지",
   "its key share": "자신의 키 공유",
   Certificate: "인증서",
   "Who the server is, proven": "서버가 누구인지 증명",
@@ -1479,7 +1482,7 @@ const lessonStrings = {
     "브라우저는 자신의 Finished를 보냅니다. 양쪽이 주고받은 모든 것에 대한 검증 값으로, 새 비밀을 키로 써서 계산하므로 hello가 조작되었다면 드러납니다. TLS 1.3은 데이터가 흐르기 전에 왕복 한 번이면 되지만, TLS 1.2는 두 번이 필요했습니다.",
   Covers: "다루는 범위",
   "The whole handshake": "핸드셰이크 전체",
-  "For old middleboxes": "오래된 중간 장비를 위해",
+  "Plaintext compatibility record": "호환을 위한 평문 레코드",
   "check value over": "검증 값의 대상:",
   "the whole handshake": "핸드셰이크 전체",
   "Encrypted Data": "암호화된 데이터",
@@ -1503,7 +1506,7 @@ const lessonStrings = {
   "alert: close_notify": "경고: close_notify",
   encrypted: "암호화됨",
   "Server Hello, Change Cipher Spec (+ encrypted)":
-    "Server Hello, Change Cipher Spec(+ 암호화됨)",
+    "Server Hello와 평문 CCS, 이어서 암호화된 핸드셰이크",
   "Encrypted handshake (continued)": "암호화된 핸드셰이크(계속)",
   "Encrypted handshake (certificate, verify, Finished)":
     "암호화된 핸드셰이크(인증서, 검증, Finished)",
