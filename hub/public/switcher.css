@@ -1,15 +1,11 @@
 .explorer-trigger,
 .explorer-menu {
-  --switch-ink: var(--neo-text, var(--ink));
-  --switch-paper: var(--neo-surface, var(--surface));
-  --switch-soft: var(--neo-soft, var(--soft));
-  --switch-line: var(--neo-border, var(--border));
-  --switch-shadow: var(--neo-shadow, var(--shadow));
+  --switch-paper: var(--control-card, var(--neo-bg));
   box-sizing: border-box;
-  border: 2px solid var(--switch-line);
-  border-radius: 4px;
-  background: var(--switch-paper);
-  color: var(--switch-ink);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--selected);
+  color: var(--on-selected);
 }
 
 h1.explorer-brand {
@@ -28,9 +24,9 @@ h1.explorer-brand {
 }
 
 button.explorer-trigger {
-  --switch-depth: 3px;
+  --switch-depth: 4px;
   --plate-inset: -2px;
-  --plate-border: 2px solid var(--switch-line);
+  --plate-border: 2px solid var(--control-border);
   display: block;
   width: 100%;
   height: var(--brand-height);
@@ -57,8 +53,9 @@ button.explorer-trigger {
   flex: none;
   display: grid;
   place-items: center;
-  background: var(--selected);
-  box-shadow: inset -1px 0 var(--neo-rule, var(--rule));
+  background: var(--switch-paper);
+  color: var(--control-ink);
+  border-inline-end: 2px solid var(--control-border);
 }
 .explorer-brand-copy {
   display: grid;
@@ -83,9 +80,9 @@ button.explorer-trigger {
 }
 .explorer-trigger .explorer-brand-caption {
   grid-column: 1 / -1;
-  border-top: 1px solid var(--neo-rule, var(--rule));
-  background: var(--switch-soft);
-  color: var(--neo-muted, var(--muted));
+  border-top: 1px solid var(--control-border);
+  background: var(--switch-paper);
+  color: var(--control-ink);
   font-size: var(--caption-size);
   font-weight: 570;
   line-height: calc(var(--caption-height) - 1px);
@@ -116,8 +113,7 @@ button.explorer-trigger {
 }
 
 button.explorer-trigger[aria-expanded="true"] {
-  --switch-press: 2px;
-  --plate-face: var(--switch-soft);
+  --switch-press: 3px;
 }
 
 .explorer-trigger[aria-expanded="true"] .explorer-chevron {
@@ -125,7 +121,7 @@ button.explorer-trigger[aria-expanded="true"] {
 }
 
 .explorer-trigger:focus-visible {
-  outline: 2px solid var(--switch-ink);
+  outline: 2px solid var(--control-ink);
   outline-offset: 4px;
 }
 
@@ -141,14 +137,15 @@ nav.explorer-menu {
   overscroll-behavior: contain;
   padding: 4px;
   margin: 0;
-  box-shadow: 4px 4px 0 var(--switch-shadow);
+  box-shadow: 4px 4px 0 var(--control-shadow);
   font: 680 15px/1.3 Pretendard, "Malgun Gothic", sans-serif;
   letter-spacing: -0.02em;
 }
 
 .explorer-menu a {
   --switch-depth: 2px;
-  --plate-shadow: var(--neo-rule, var(--rule));
+  --plate-border: 2px solid transparent;
+  --plate-shadow: transparent;
   --pad-y: 8px;
   --pad-left: 10px;
   --pad-right: 10px;
@@ -159,13 +156,12 @@ nav.explorer-menu {
   min-height: 40px;
   margin-bottom: 2px;
   border-radius: 2px;
-  color: var(--switch-ink);
+  color: var(--on-selected);
   text-decoration: none;
 }
 
 .explorer-menu a[aria-current] {
-  --plate-face: var(--selected);
-  --plate-shadow: var(--switch-shadow);
+  --plate-border: 2px solid currentColor;
   font-weight: 800;
 }
 
@@ -198,17 +194,16 @@ button.explorer-trigger,
   pointer-events: none;
   border: var(--plate-border, 0);
   border-radius: inherit;
-  background: var(--plate-face, var(--switch-paper));
+  background: var(--selected);
   --shadow-offset: calc(var(--switch-depth) - var(--switch-press, 0px));
-  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--plate-shadow, var(--switch-shadow));
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--plate-shadow, var(--control-shadow));
   transform: translate(var(--press), var(--press));
   transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  button.explorer-trigger:hover { --switch-press: 2px; --plate-face: var(--switch-soft); }
-  .explorer-menu a:hover { --switch-press: 1px; }
-  .explorer-menu a:not([aria-current]):hover { --plate-face: var(--switch-soft); }
+  button.explorer-trigger:hover { --switch-press: 3px; }
+  .explorer-menu a:hover { --switch-press: 1px; --plate-border: 2px solid currentColor; }
 }
 
 button.explorer-trigger:active,
