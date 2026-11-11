@@ -14,11 +14,12 @@
   --bg: #f2f2f4;
   --surface: #fff;
   --soft: #edeef0;
-  --ink: #292a2e;
-  --border: #3d3e43;
+  --selected: #d4d6db;
+  --ink: #34363b;
+  --border: #65676d;
   --muted: #656771;
   --rule: #d4d5da;
-  --shadow: #34353b;
+  --shadow: #787a80;
   --inverse: #fff;
   --main: #3971d9;
   --feature: #168264;
@@ -33,6 +34,7 @@
   --bg: #191a1d;
   --surface: #24252a;
   --soft: #303138;
+  --selected: #4c4e56;
   --ink: #ebecef;
   --border: #898c96;
   --muted: #b1b4bd;
@@ -190,8 +192,8 @@ button svg {
   .resolution-options > button:hover:enabled { background: var(--soft); }
 }
 .button.primary {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .icon-button {
   width: 40px;
@@ -347,8 +349,8 @@ button svg {
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .milestone[aria-current="step"] > b {
-  color: var(--inverse);
-  background: var(--ink);
+  color: var(--ink);
+  background: var(--selected);
 }
 .setup-tip {
   margin-top: 22px;
@@ -503,7 +505,7 @@ button svg {
   height: 20px;
   border: 2px solid var(--border);
   border-radius: 2px;
-  background: var(--ink);
+  background: var(--border);
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .seek-row input::-moz-range-thumb {
@@ -511,7 +513,7 @@ button svg {
   height: 17px;
   border: 2px solid var(--border);
   border-radius: 2px;
-  background: var(--ink);
+  background: var(--border);
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .lesson-content {
@@ -653,8 +655,8 @@ button svg {
 .resolution-heading > span {
   display: inline-block;
   border: 1.5px solid var(--border);
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 6px;
@@ -747,8 +749,8 @@ button svg {
 .record-tabs > button[aria-selected="true"] {
   --rest: 2px;
   --hover-depth: 3px;
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .record-tabs > button > span {
   font-size: 11px;
@@ -789,8 +791,8 @@ button svg {
   color: var(--ink);
 }
 .step-strip button[aria-current="step"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .record-heading {
   display: flex;
@@ -1060,8 +1062,8 @@ dialog::backdrop {
   line-height: 1.5;
 }
 .prediction-choices .correct {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
   opacity: 1;
 }
 .prediction-choices .button:disabled:not(.correct) {
