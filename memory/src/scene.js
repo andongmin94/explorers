@@ -733,9 +733,12 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     return animateStep(active, duration / 1000);
   }
   draw();
+  let layoutFrame;
   const observer = new ResizeObserver((entries) => {
+    cancelAnimationFrame(layoutFrame);
     if (Math.abs(entries[0].contentRect.width - layout.width) <= 1) return;
-    draw();
+    // Crossing the width breakpoint also changes the observed scene's height.
+    layoutFrame = requestAnimationFrame(draw);
   });
   observer.observe(host);
   return {
@@ -757,6 +760,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       revision++;
       cancel();
       observer.disconnect();
+      cancelAnimationFrame(layoutFrame);
       host.replaceChildren();
     },
   };
