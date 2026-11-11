@@ -486,6 +486,7 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
 }
 .request-slot > span {
   font-size: 10px;
+  word-break: keep-all;
 }
 .request-slot[data-state="selected"] {
   outline: 2px solid var(--accent);
