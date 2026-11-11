@@ -87,9 +87,30 @@ a {
   color: inherit;
   text-underline-offset: 3px;
 }
-button:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: none !important;
+button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enabled {
+  --travel: 0px;
+  --edge: calc(var(--depth, 4px) - var(--travel));
+  box-shadow: var(--edge) var(--edge) 0 var(--shadow);
+  @media (prefers-reduced-motion: no-preference) {
+    translate: var(--travel) var(--travel);
+    transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { --travel: var(--hover-depth, 2px); }
+  }
+  &:active {
+    --travel: var(--depth, 4px);
+    transition-duration: 65ms;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.learning-mode button, .setup-toggle):enabled {
+    transition: translate 140ms ease;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { translate: 1px 1px; }
+    }
+    &:active { translate: 2px 2px; transition-duration: 65ms; }
+  }
 }
 .app-header {
   min-height: 90px;
@@ -159,11 +180,10 @@ button:active:not(:disabled) {
   padding: 7px 12px;
   white-space: nowrap;
 }
-.button:hover:not(:disabled) {
-  background: var(--soft);
+@media (hover: hover) and (pointer: fine) {
+  .button:not(.primary):hover:enabled { background: var(--soft); }
 }
-.button.primary,
-.button.primary:hover:not(:disabled) {
+.button.primary {
   background: var(--ink);
   color: var(--inverse);
 }
@@ -679,6 +699,11 @@ button:active:not(:disabled) {
   font-size: 10px;
   color: var(--muted);
 }
+.replay-button,
+button[data-seek] {
+  --depth: 2px;
+  --hover-depth: 1px;
+}
 .replay-button {
   font-size: 11px;
   min-height: 27px;
@@ -773,7 +798,6 @@ button:active:not(:disabled) {
   border-radius: 2px;
   padding: 7px 2px;
   font-size: 11px;
-  box-shadow: 1px 1px 0 var(--shadow);
 }
 #milestones button[aria-current="step"] {
   background: var(--ink);
