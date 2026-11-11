@@ -7,18 +7,19 @@
 }
 :root {
   font-family: Pretendard, sans-serif;
-  color: #292a2e;
-  background: #f2f2f4;
+  color: var(--ink);
+  background: var(--bg);
   font-synthesis: none;
   font-weight: 450;
   --bg: #f2f2f4;
   --surface: #fff;
   --soft: #edeef0;
-  --ink: #292a2e;
-  --border: #3d3e43;
+  --selected: #d4d6db;
+  --ink: #34363b;
+  --border: #65676d;
   --muted: #656771;
   --rule: #d4d5da;
-  --shadow: #34353b;
+  --shadow: #787a80;
   --inverse: #fff;
   --t1: #3971d9;
   --t2: #168264;
@@ -36,6 +37,7 @@
   --bg: #191a1d;
   --surface: #24252a;
   --soft: #303138;
+  --selected: #4c4e56;
   --ink: #ebecef;
   --border: #898c96;
   --muted: #b1b4bd;
@@ -52,8 +54,6 @@
   --device-code: #cdd0d8;
   --device-key: #8a8d97;
   --grid: #3d3f46;
-  background: var(--bg);
-  color: var(--ink);
 }
 * {
   box-sizing: border-box;
@@ -178,13 +178,10 @@ button[hidden],
 .button:hover:not(:disabled) {
   background: var(--soft);
 }
-.button.primary {
-  background: var(--ink);
-  color: var(--inverse);
-}
+.button.primary,
 .button.primary:hover:not(:disabled) {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .icon-button {
   width: 36px;
@@ -219,8 +216,8 @@ button[hidden],
   font-weight: 750;
 }
 .scenario-nav a[aria-current="page"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .scenario-nav b {
   font-size: 11px;
@@ -306,8 +303,8 @@ button[hidden],
   color: var(--muted);
 }
 .mode-toggle button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .mode-toggle button[aria-pressed="true"] span {
   color: inherit;
@@ -1026,7 +1023,7 @@ summary {
   min-width: 0;
   width: 100%;
   height: 5px;
-  accent-color: var(--ink);
+  accent-color: var(--border);
   cursor: pointer;
 }
 .lesson-content {
@@ -1157,8 +1154,8 @@ summary {
   font-size: 12px;
 }
 .milestone.current {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .milestone:hover {
   outline: 1px solid var(--border);
@@ -1188,8 +1185,8 @@ summary {
   white-space: nowrap;
 }
 .record-tabs > button[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 #log-count {
   font-size: 10px;
@@ -1371,8 +1368,8 @@ summary {
   border-radius: 3px;
 }
 .metrics > div.important {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .metrics span {
   display: block;
@@ -1551,8 +1548,8 @@ dialog::backdrop {
 }
 .prediction-choices .button.correct {
   opacity: 1;
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 #prediction-feedback {
   font-size: 13px;

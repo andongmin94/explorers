@@ -93,7 +93,7 @@
   height: 20px;
   border: 2px solid var(--border);
   border-radius: 2px;
-  background: var(--ink);
+  background: var(--border);
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .deadlock-workspace .seek-row input::-moz-range-thumb {
@@ -101,7 +101,7 @@
   height: 17px;
   border: 2px solid var(--border);
   border-radius: 2px;
-  background: var(--ink);
+  background: var(--border);
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .deadlock-workspace .record-tabs {
@@ -191,8 +191,8 @@
   font-variant-numeric: tabular-nums;
 }
 .deadlock-workspace .trace-table thead button[aria-current="step"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .deadlock-workspace .trace-table td {
   padding: 7px 6px;

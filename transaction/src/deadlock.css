@@ -163,8 +163,8 @@
 }
 .dl-client[data-status="aborted"] .dl-client-head strong {
   padding: 2px 4px;
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .dl-cycle {
   position: absolute;
