@@ -328,12 +328,13 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   }
   async function animate(run, element, keyframes, options) {
     const animation = element.animate(keyframes, options);
+    animation.playbackRate = run.speed;
     run.animations.add(animation);
     if (run.paused) animation.pause();
     await animation.finished.catch(() => {});
     run.animations.delete(animation);
   }
-  async function travel(run, id, label, route, pace) {
+  async function travel(run, id, label, route) {
     if (run.cancelled) return;
     run.updateRoute = () => {
       const data = route();
@@ -355,7 +356,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       { opacity: 1, offset: 0.96 },
       { offsetDistance: "100%", opacity: 0 },
     ], {
-      duration: (320 + length * 1.1) * pace,
+      duration: 320 + length * 1.1,
       easing: "linear",
     });
     if (!run.cancelled) {
@@ -371,14 +372,17 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   ) {
     cancel();
     lastStep = step;
+    if (motion && matchMedia("(max-width: 759px)").matches) {
+      host.scrollIntoView({ block: "end", behavior: "instant" });
+    }
     if (!motion || !previous || reduced.matches || step.index === 0) {
       snap(getDeadlockPresentationState(step, "complete"));
       phase(step, completeTitle(step), "", "complete");
       return;
     }
-    const run = { cancelled: false, paused: false, animations: new Set() };
+    const run = { cancelled: false, paused: false, speed, animations: new Set() };
     active = run;
-    const pace = 1 / speed, row = step.row;
+    const row = step.row;
     snap(getDeadlockPresentationState(step, "request"));
     if (step.action === "detect") {
       phase(
@@ -394,7 +398,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           { outlineColor: "var(--warning)" },
           { outlineColor: "var(--warning)" },
         ],
-        { duration: 1100 * pace },
+        { duration: 1100 },
       );
       if (run.cancelled) return;
       snap(getDeadlockPresentationState(step, "database"));
@@ -408,7 +412,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         run,
         cards.T2,
         [{ transform: "translateY(-3px)" }, { transform: "translateY(0)" }],
-        { duration: 650 * pace },
+        { duration: 650 },
       );
     } else if (step.action === "rollback") {
       phase(
@@ -424,7 +428,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           { outlineColor: "var(--warning)" },
           { outlineColor: "var(--warning)" },
         ],
-        { duration: 650 * pace },
+        { duration: 650 },
       );
       if (run.cancelled) return;
       snap(getDeadlockPresentationState(step, "database"));
@@ -442,7 +446,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           { opacity: 1, transform: "translateY(0)" },
           { opacity: 1 },
         ],
-        { duration: 1300 * pace },
+        { duration: 1300 },
       );
     } else {
       if (step.action === "resume") {
@@ -453,7 +457,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           "request",
         );
         queues[row].hidden = true;
-        await travel(run, step.client, "B 재개", () => resumePath(row), pace);
+        await travel(run, step.client, "B 재개", () => resumePath(row));
       } else {
         phase(
           step,
@@ -480,7 +484,6 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
               ? "커밋"
               : `${row} 쓰기`,
           () => requestPath(step.client, row, step.action === "wait"),
-          pace,
         );
       }
       if (run.cancelled) return;
@@ -500,7 +503,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           run,
           queues[row],
           [{ transform: "translateY(-4px)" }, { transform: "translateY(0)" }],
-          { duration: 450 * pace },
+          { duration: 450 },
         );
       } else {
         if (step.action === "commit") {
@@ -520,7 +523,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
                   { backgroundColor: "var(--selected)", color: "var(--on-selected)", offset: 0.6 },
                   { backgroundColor: "transparent", color: "var(--ink)" },
                 ],
-                { duration: 1200 * pace },
+                { duration: 1200 },
               ),
             ),
           );
@@ -543,7 +546,6 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           step.client,
           step.action === "commit" ? "확정" : "확인",
           () => requestPath(step.client, row, false, true),
-          pace,
         );
       }
     }
@@ -559,6 +561,11 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   observer.observe(host);
   return {
     update,
+    setSpeed(speed) {
+      if (!active) return;
+      active.speed = speed;
+      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
     pause() {
       if (active) {
         active.paused = true;

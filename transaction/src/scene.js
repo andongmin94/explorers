@@ -318,6 +318,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       connection.dataset.owner = String(owner === id);
       connection.dataset.waiting = String(waiting.includes(id) && !ready);
       connection.querySelector(".request-lane").setAttribute("d", path(id, false, waiting.includes(id)));
+      connection.querySelector(".return-lane").setAttribute("d", path(id, true));
     }
     const gate = svg.querySelector("[data-gate]");
     gate.toggleAttribute("hidden", !waiting.length);
@@ -446,12 +447,13 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   }
   async function animate(run, element, keyframes, options) {
     const animation = element.animate(keyframes, options);
+    animation.playbackRate = run.speed;
     run.animations.add(animation);
     if (run.paused) animation.pause();
     await animation.finished.catch(() => {});
     run.animations.delete(animation);
   }
-  async function travel(run, id, label, returning, pace, route = () => path(id, returning)) {
+  async function travel(run, id, label, returning, route = () => path(id, returning)) {
     if (run.cancelled) return;
     const laneSelector = `[data-connection="${id}"] ${returning ? ".return-lane" : ".request-lane"}`;
     run.updateRoute = () => {
@@ -474,7 +476,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       { opacity: 1, offset: 0.96 },
       { offsetDistance: "100%", opacity: 0 },
     ], {
-      duration: (350 + distance * 1.1) * pace,
+      duration: 350 + distance * 1.1,
       easing: "linear",
     });
     if (run.cancelled) return;
@@ -505,6 +507,9 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   ) {
     cancel();
     lastStep = step;
+    if (motion && matchMedia("(max-width: 759px)").matches) {
+      host.scrollIntoView({ block: "end", behavior: "instant" });
+    }
     if (!motion || !previous || reduced.matches || step.index === 0) {
       snap(getPresentationState(step, "complete"));
       phase(step.client, completedTitle(step), "", "complete");
@@ -514,11 +519,11 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       animations: new Set(),
       cancelled: false,
       paused: false,
+      speed,
     };
     active = run;
     const id = step.client,
-      client = step.state.clients[id],
-      pace = 1 / speed;
+      client = step.state.clients[id];
     const sqlPath = (returning) => step.action === "begin" || step.action === "commit"
       ? databasePath(id, returning)
       : path(id, returning, step.action === "wait");
@@ -539,7 +544,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           { transform: "translateY(-4px)", offset: 0.45 },
           { transform: "translateY(0)" },
         ],
-        { duration: 650 * pace, easing: "ease-in-out" },
+        { duration: 650, easing: "ease-in-out" },
       );
       if (run.cancelled) return;
       snap(getPresentationState(step, "complete"));
@@ -581,7 +586,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
                 ? "읽기"
                 : `재고 ← ${client.localWrite}`,
           false,
-          pace,
           () => sqlPath(false),
         );
         if (run.cancelled) return;
@@ -598,7 +602,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           id,
           step.action === "resume-read" ? "읽기 재개" : `재고 ← ${client.localWrite}`,
           false,
-          pace,
           resumePath,
         );
         if (run.cancelled) return;
@@ -617,7 +620,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           run,
           parked,
           [{ transform: "translateY(-4px)" }, { transform: "translateY(0)" }],
-          { duration: 320 * pace, easing: "ease-out" },
+          { duration: 320, easing: "ease-out" },
         );
       } else {
         const reading = step.action === "read" || step.action === "resume-read";
@@ -639,25 +642,25 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
                 { transform: "translateY(6px)", opacity: 0.3 },
                 { transform: "translateY(0)", opacity: 1 },
               ],
-              { duration: 300 * pace, easing: "ease-out" },
+              { duration: 300, easing: "ease-out" },
             ),
             animate(
               run,
               lock.querySelector(".lock-shackle"),
               [{ transform: "rotate(0deg)" }, { transform: "rotate(-28deg)" }],
-              { duration: 300 * pace, easing: "ease-out" },
+              { duration: 300, easing: "ease-out" },
             ),
             animate(
               run,
               svg.querySelector(".gate-arm"),
               [{ transform: "rotate(0deg)" }, { transform: "rotate(70deg)" }],
-              { duration: 300 * pace, easing: "ease-out" },
+              { duration: 300, easing: "ease-out" },
             ),
             animate(
               run,
               stock,
               [{ outlineColor: "var(--ink)" }, { outlineColor: "var(--ink)" }],
-              { duration: 1200 * pace },
+              { duration: 1200 },
             ),
           ]);
           if (run.cancelled) return;
@@ -689,7 +692,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
               ? "확정"
               : "확인",
           true,
-          pace,
           () => sqlPath(true),
         );
       }
@@ -706,6 +708,11 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   observer.observe(host);
   return {
     update,
+    setSpeed(speed) {
+      if (!active) return;
+      active.speed = speed;
+      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
     pause() {
       if (active) {
         active.paused = true;

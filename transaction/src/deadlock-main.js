@@ -18,6 +18,7 @@ let index = 0,
   busy = false,
   playing = false,
   paused = false,
+  autoAdvance = false,
   guided = true,
   speed = 1,
   revision = 0,
@@ -249,6 +250,7 @@ async function move(next, motion = false) {
   clearTimeout(timer);
   index = Math.max(0, Math.min(last, next));
   busy = motion;
+  autoAdvance = playing;
   paused = false;
   render();
   await scene.update(run.steps[index], current(), { animate: motion, speed });
@@ -279,7 +281,7 @@ function play() {
     scene.update(run.steps[0], null, { animate: false });
     render();
   }
-  playing = true;
+  playing = !busy || autoAdvance;
   paused = false;
   scene.resume();
   controls();
@@ -345,6 +347,7 @@ document.addEventListener("click", (event) => {
       break;
     case "speed":
       speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1;
+      scene.setSpeed(speed);
       button.textContent = `${speed}×`;
       schedule();
       break;

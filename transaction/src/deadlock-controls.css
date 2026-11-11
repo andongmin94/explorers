@@ -55,10 +55,14 @@
 }
 .deadlock-workspace .playback-buttons {
   display: grid;
-  grid-template-columns: 42px 42px minmax(114px, 1fr) 112px 45px;
-  gap: 9px;
   max-width: 490px;
   margin: 0 auto;
+}
+@media (min-width: 760px) {
+  .deadlock-workspace .playback-buttons {
+    grid-template-columns: 42px 42px minmax(114px, 1fr) 112px 45px;
+    gap: 9px;
+  }
 }
 .deadlock-workspace .playback-buttons .button {
   width: auto;
@@ -327,8 +331,7 @@
     padding: 13px 10px 11px;
   }
   .deadlock-workspace .playback-buttons {
-    grid-template-columns: 33px 33px minmax(86px, 1fr) 85px 34px;
-    gap: 6px;
+    max-width: none;
   }
   .deadlock-workspace .playback-buttons .button {
     font-size: 11px;

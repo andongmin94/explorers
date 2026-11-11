@@ -22,6 +22,7 @@ let mode = "naive",
   playing = false,
   busy = false,
   motionPaused = false,
+  autoAdvance = false,
   guided = true,
   revision = 0,
   timer = null,
@@ -266,6 +267,7 @@ async function move(next, motion = false) {
   clearTimeout(timer);
   index = Math.max(0, Math.min(11, next));
   busy = motion;
+  autoAdvance = playing;
   motionPaused = false;
   render();
   await scene.update(run().steps[index], current(), { animate: motion, speed });
@@ -306,7 +308,7 @@ function play() {
     scene.update(run().steps[0], null, { animate: false });
     render();
   }
-  playing = true;
+  playing = !busy || autoAdvance;
   motionPaused = false;
   scene.resume();
   controls();
@@ -395,6 +397,7 @@ document.addEventListener("click", async (e) => {
       break;
     case "speed":
       speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1;
+      scene.setSpeed(speed);
       button.textContent = `${speed}×`;
       schedule();
       break;
