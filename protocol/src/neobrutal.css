@@ -396,7 +396,8 @@ body {
   border-color: var(--neo-border);
   border-radius: 5px;
   background: var(--neo-soft);
-  box-shadow: 2px 2px 0 var(--neo-shadow);
+  --row-edge: calc(2px - var(--press, 0px));
+  box-shadow: var(--row-edge) var(--row-edge) 0 var(--neo-shadow);
 }
 
 /* The filled square marks the current step; keep the number/check transitions. */
@@ -433,17 +434,14 @@ body {
   border-inline-start-color: var(--neo-muted);
 }
 
-.step-btn:hover .step-num {
-  box-shadow: 2px 2px 0 var(--neo-shadow);
+.step-btn:hover .step-num,
+.step-btn:active .step-num {
+  --step-edge: max(0px, calc(1px - var(--press, 0px)));
+  box-shadow: var(--step-edge) var(--step-edge) 0 var(--neo-shadow);
 }
 
 .step-btn:focus-visible {
   outline-color: var(--neo-text);
-}
-
-.tab:not(.is-active):hover,
-.proto.has-lesson:not(.is-active) .proto-row:hover {
-  background-color: var(--neo-soft);
 }
 
 .btn,
@@ -455,7 +453,8 @@ body {
   border-radius: 5px;
   background: var(--neo-surface);
   color: var(--neo-text);
-  box-shadow: 2px 2px 0 var(--neo-shadow);
+  --remaining: calc(4px - var(--press, 0px));
+  box-shadow: var(--remaining) var(--remaining) 0 var(--neo-shadow);
   outline: 1px solid var(--neo-border);
   transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
@@ -466,28 +465,36 @@ body {
   color: var(--neo-on-accent);
 }
 
-.btn:not(:disabled):hover,
-.back-btn:hover,
-.ins-nav button:not(:disabled):hover,
-.drawer-btn:hover,
-.drawer-close:hover {
-  translate: 1px 1px;
-  box-shadow: 1px 1px 0 var(--neo-shadow);
+:is(.tab, .theme-toggle button, .view-switch button, .proto-row, .step-btn) {
+  transition: translate 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background-color 140ms ease, color 140ms ease;
 }
 
-.btn:not(.primary):not(:disabled):hover,
-.back-btn:hover,
-.ins-nav button:not(:disabled):hover {
-  background: var(--neo-soft);
+@media (hover: hover) and (pointer: fine) {
+  :is(.btn, .back-btn, .ins-nav button, .drawer-btn, .drawer-close):not(:disabled):hover {
+    --press: 2px;
+  }
+  :is(.tab, .theme-toggle button, .view-switch button, .proto.has-lesson .proto-row, .step-btn):not(:disabled):hover {
+    --press: 1px;
+  }
+  .tab:not(.is-active):hover,
+  .proto.has-lesson:not(.is-active) .proto-row:hover,
+  .btn:not(.primary):not(:disabled):hover,
+  .back-btn:hover,
+  .ins-nav button:not(:disabled):hover {
+    background: var(--neo-soft);
+  }
 }
 
-.btn:not(:disabled):active,
-.back-btn:active,
-.ins-nav button:not(:disabled):active,
-.drawer-btn:active,
-.drawer-close:active {
-  translate: 2px 2px;
-  box-shadow: none;
+:is(.btn, .back-btn, .ins-nav button, .drawer-btn, .drawer-close):not(:disabled):active {
+  --press: 4px;
+}
+:is(.tab, .theme-toggle button, .view-switch button, .proto.has-lesson .proto-row, .step-btn):not(:disabled):active {
+  --press: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.btn, .back-btn, .ins-nav button, .drawer-btn, .drawer-close, .tab, .theme-toggle button, .view-switch button, .proto.has-lesson .proto-row, .step-btn):not(:disabled) {
+    translate: var(--press, 0px) var(--press, 0px);
+  }
 }
 
 .btn:disabled,
@@ -923,7 +930,9 @@ body {
   .back-btn,
   .ins-nav button,
   .drawer-btn,
-  .drawer-close {
+  .drawer-close,
+  :is(.tab, .theme-toggle button, .view-switch button, .proto-row, .step-btn),
+  .step-btn .step-num {
     transition: none;
   }
 }
