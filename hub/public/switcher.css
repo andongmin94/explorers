@@ -1,74 +1,124 @@
-.explorer-switcher {
-  position: relative;
-  display: flex;
+.explorer-trigger,
+.explorer-menu {
+  --switch-ink: var(--neo-text, var(--ink));
+  --switch-paper: var(--neo-surface, var(--surface));
+  --switch-soft: var(--neo-soft, var(--soft));
+  --switch-line: var(--neo-border, var(--border));
+  --switch-shadow: var(--neo-shadow, var(--shadow));
+  box-sizing: border-box;
+  border: 2px solid var(--switch-line);
+  border-radius: 4px;
+  background: var(--switch-paper);
+  color: var(--switch-ink);
+}
+
+button.explorer-trigger {
+  display: inline-flex;
   align-items: center;
-  width: fit-content;
+  justify-content: space-between;
+  vertical-align: top;
+  gap: 8px;
+  padding: 3px 6px 3px 9px;
   max-width: 100%;
   min-height: 32px;
-  gap: 8px;
-  border-radius: 2px;
-  color: var(--ink);
-}
-
-.explorer-switcher > h1 {
-  min-width: 0;
-  margin: 0;
+  box-shadow: 2px 2px 0 var(--switch-shadow);
+  font: inherit;
   line-height: 1.15;
+  letter-spacing: inherit;
+  text-align: left;
   word-break: keep-all;
-}
-
-.explorer-switcher-arrow {
-  display: grid;
-  place-items: center;
-  width: 23px;
-  height: 23px;
-  flex: none;
-  box-sizing: border-box;
-  border: 1.5px solid var(--neo-border, var(--border));
-  border-radius: 3px;
-  background: var(--neo-surface, var(--surface));
-  box-shadow: 1px 2px 0 var(--neo-shadow, var(--shadow));
-}
-
-.explorer-switcher-arrow::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-right: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-  transform: translateY(-2px) rotate(45deg);
-}
-
-.explorer-switcher > select {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  opacity: 0;
+  white-space: normal;
   cursor: pointer;
-  font: 600 16px Pretendard, sans-serif;
 }
 
-.explorer-switcher:has(select:focus-visible) {
-  outline: 2px solid currentColor;
-  outline-offset: 3px;
+.explorer-trigger svg,
+.explorer-menu svg {
+  display: block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  width: 20px;
+  height: 20px;
+}
+
+.explorer-trigger svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.6;
+}
+
+.explorer-trigger[aria-expanded="true"] {
+  background: var(--switch-soft);
+  box-shadow: 1px 1px 0 var(--switch-shadow);
+}
+
+.explorer-trigger[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.explorer-trigger:focus-visible {
+  outline: 2px solid var(--switch-ink);
+  outline-offset: 4px;
+}
+
+nav.explorer-menu {
+  --menu-width: min(248px, calc(100vw - 20px));
+  position: fixed;
+  inset: auto;
+  top: calc(var(--trigger-bottom) + 7px);
+  left: clamp(8px, var(--trigger-left), calc(100vw - var(--menu-width) - 12px));
+  width: var(--menu-width);
+  max-height: calc(100dvh - var(--trigger-bottom) - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  margin: 0;
+  box-shadow: 4px 4px 0 var(--switch-shadow);
+  font: 680 15px/1.3 Pretendard, "Malgun Gothic", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.explorer-menu a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 2px;
+  color: var(--switch-ink);
+  text-decoration: none;
+}
+
+.explorer-menu a[aria-current] {
+  background: var(--switch-ink);
+  color: var(--switch-paper);
+  font-weight: 800;
+}
+
+.explorer-menu a[aria-current] svg:last-child {
+  margin-left: auto;
+  width: 17px;
+  stroke-width: 2.6;
 }
 
 @media (hover: hover) {
-  .explorer-switcher:hover .explorer-switcher-arrow {
-    background: var(--neo-soft, var(--soft));
-    box-shadow: 0 0 0 transparent;
-    transform: translate(1px, 1px);
+  .explorer-menu a:not([aria-current]):hover,
+  .explorer-trigger:hover {
+    background: var(--switch-soft);
   }
 }
 
+.explorer-menu a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+
 @media (max-width: 759px) {
-  .explorer-switcher {
-    gap: 5px;
-  }
-  .explorer-switcher-arrow {
-    width: 19px;
-    height: 19px;
-  }
+  button.explorer-trigger { gap: 4px; padding-inline: 5px; }
+  .explorer-trigger svg { width: 14px; height: 14px; }
+  .explorer-menu a { min-height: 44px; }
 }
