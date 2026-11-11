@@ -88,9 +88,31 @@ a {
   color: inherit;
   text-underline-offset: 3px;
 }
-button:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: none !important;
+button:is(.button, .resolution-options > button, .record-tabs > button):enabled {
+  --travel: var(--rest, 0px);
+  --edge: calc(var(--depth, 4px) - var(--travel));
+  box-shadow: var(--edge) var(--edge) 0 var(--shadow);
+
+  @media (prefers-reduced-motion: no-preference) {
+    translate: var(--travel) var(--travel);
+    transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    &:hover { --travel: var(--hover-depth, 2px); }
+  }
+  &:active {
+    --travel: var(--depth, 4px);
+    transition-duration: 65ms;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(button.milestone, .learning-mode button, .setup-toggle, .text-button, .log-entry):enabled {
+    transition: translate 140ms ease;
+    @media (hover: hover) and (pointer: fine) {
+      &:hover { translate: 1px 1px; }
+    }
+    &:active { translate: 2px 2px; transition-duration: 65ms; }
+  }
 }
 button svg {
   width: 19px;
@@ -163,8 +185,9 @@ button svg {
   font-weight: 750;
   line-height: 1.25;
 }
-.button:hover:not(:disabled) {
-  background: var(--soft);
+@media (hover: hover) and (pointer: fine) {
+  .button:not(.primary):hover:enabled,
+  .resolution-options > button:hover:enabled { background: var(--soft); }
 }
 .button.primary {
   background: var(--ink);
@@ -662,9 +685,6 @@ button svg {
   background: var(--surface);
   box-shadow: 3px 3px 0 var(--shadow);
 }
-.resolution-options > button:hover {
-  background: var(--soft);
-}
 .resolution-options b {
   font-size: 13px;
 }
@@ -725,10 +745,10 @@ button svg {
   font-weight: 750;
 }
 .record-tabs > button[aria-selected="true"] {
+  --rest: 2px;
+  --hover-depth: 3px;
   background: var(--ink);
   color: var(--inverse);
-  box-shadow: none;
-  transform: translate(2px, 2px);
 }
 .record-tabs > button > span {
   font-size: 11px;
