@@ -90,20 +90,26 @@ export function createDiskScene(host, onPhase) {
     );
     token.textContent = request.cylinder;
     token.hidden = false;
-    const outer = host.getBoundingClientRect();
-    const start = $(`[data-request="${request.id}"]`).getBoundingClientRect();
-    const matrix = $(".drive-map").getScreenCTM();
-    const points = [
-      new DOMPoint(start.left + start.width / 2, start.bottom),
-      ...requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix)),
-    ];
-    const path = points.map(({ x, y }, i) =>
-      `${i ? "L" : "M"}${x - outer.left - host.clientLeft} ${y - outer.top - host.clientTop}`
-    ).join(" ");
-    token.style.offsetPath = `path("${path}")`;
+    const positionRoute = () => {
+      const outer = host.getBoundingClientRect();
+      const start = $(`[data-request="${request.id}"]`).getBoundingClientRect();
+      const matrix = $(".drive-map").getScreenCTM();
+      const points = [
+        new DOMPoint(start.left + start.width / 2, start.bottom),
+        ...requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix)),
+      ];
+      const path = points.map(({ x, y }, i) =>
+        `${i ? "L" : "M"}${x - outer.left - host.clientLeft} ${y - outer.top - host.clientTop}`
+      ).join(" ");
+      token.style.offsetPath = `path("${path}")`;
+    };
+    positionRoute();
+    const observer = new ResizeObserver(positionRoute);
+    observer.observe(host);
     token.style.offsetRotate = "0deg";
     await animate(run, token, [{ offsetDistance: "0%" }, { offsetDistance: "100%" }],
       { duration: 850, easing: "linear" });
+    observer.disconnect();
     if (run.cancelled) return;
     token.hidden = true;
     $("[data-head]").textContent = `${step.before.head} → ${request.cylinder}`;
