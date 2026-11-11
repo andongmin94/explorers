@@ -4,6 +4,7 @@ import { simulate } from "../src/engine.js";
 import {
   buildMilestones,
   describeChapter,
+  describeComparison,
   processDetails,
 } from "../src/lesson.js";
 
@@ -13,6 +14,14 @@ const scenarios = [
 ];
 const metric = (details, label) =>
   details.metrics.find((entry) => entry.label === label).value;
+
+test("the comparison explains matching traces at 5ms and actual CPU idle times at 2ms", () => {
+  const fcfs = simulate({ algorithm: "fcfs" });
+  const unsliced = simulate({ quantum: 5 });
+  assert.deepEqual(unsliced.segments, fcfs.segments);
+  assert.match(describeComparison(unsliced, fcfs), /선점이 일어나지 않습니다.*순서가 같습니다/);
+  assert.match(describeComparison(simulate({ quantum: 2 }), fcfs), /라운드 로빈 4ms, FCFS 0ms/);
+});
 
 test("process details account for every elapsed millisecond without treating I/O as ready waiting", () => {
   for (const options of scenarios) {

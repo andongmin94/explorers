@@ -49,7 +49,7 @@ function layoutFor(width) {
     queueGap: 58,
     arrival: {
       x: mobile ? 26 : width - 200,
-      y: mobile ? 55 : 19,
+      y: mobile ? 59 : 19,
       gap: 90,
       width: 82,
     },

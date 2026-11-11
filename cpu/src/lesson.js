@@ -1,6 +1,13 @@
 const formatTime = (value) => Number(value.toFixed(2)).toString();
 const idsText = (events) => events.map((event) => event.id).join("·");
 
+export function describeComparison(rr, fcfs) {
+  if (rr.segments.some((segment) => segment.reason === "quantum")) {
+    return `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle}ms, FCFS ${fcfs.stats.idle}ms입니다.`;
+  }
+  return `모든 CPU 구간이 ${rr.quantum}ms 안에 끝나 라운드 로빈에서도 선점이 일어나지 않습니다. 두 방식의 실행 순서와 완료 순서가 같습니다.`;
+}
+
 /** Explain the same boundary snapshot used by the scene and execution trace. */
 export function describeFrame(frame, result) {
   const { events, running, states } = frame;

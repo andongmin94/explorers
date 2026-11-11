@@ -3,6 +3,7 @@ import { DEFAULT_PROCESSES, simulate } from "./engine.js";
 import { createSchedulerScene } from "./scene.js";
 import {
   describeChapter,
+  describeComparison,
   buildMilestones,
   eventLabel,
   processDetails,
@@ -73,7 +74,7 @@ app.innerHTML = `
     </section>
     <aside class="panel lesson-panel">
       <div class="panel-head"><h2>지금 일어나는 일</h2><span class="small-label" id="lesson-progress"></span></div>
-      <div class="lesson-content"><div id="chapter-content"><div id="explanation" aria-live="polite" aria-atomic="true"></div><div class="event-card"><div class="event-card-head">이번 시각의 사건 <span id="event-time"></span></div><ul id="current-events"></ul></div><div class="insight" id="insight"></div><button class="button primary conclusion-button" data-action="compare" hidden>같은 작업, 다른 방식으로 비교 →</button><button class="button prediction-button" data-action="predict">다음 실행, 먼저 맞혀보기 ${icon("arrow")}</button><div class="section-caption">핵심 장면으로 이동</div><nav id="milestones" aria-label="핵심 학습 장면"></nav></div><div id="process-detail" hidden></div></div>
+      <div class="lesson-content"><div id="chapter-content"><div id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></div><div class="event-card"><div class="event-card-head">이번 시각의 사건 <span id="event-time"></span></div><ul id="current-events"></ul></div><div class="insight" id="insight"></div><button class="button primary conclusion-button" data-action="compare" hidden>같은 작업, 다른 방식으로 비교 →</button><button class="button prediction-button" data-action="predict">다음 실행, 먼저 맞혀보기 ${icon("arrow")}</button><div class="section-caption">핵심 장면으로 이동</div><nav id="milestones" aria-label="핵심 학습 장면"></nav></div><div id="process-detail" hidden></div></div>
     </aside>
     <section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 시간표</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">사건 기록 <span id="log-count"></span></button><button id="tab-metrics" role="tab" aria-selected="false" aria-controls="record-metrics" data-record="metrics" tabindex="-1">작업별 지표</button><span class="record-hint">기록을 눌러 그 순간으로 이동</span></div><section id="record-timeline" class="timeline-panel" role="tabpanel" aria-labelledby="tab-timeline">
       <div class="timeline-subhead"><span class="small-label">지나온 시간이 쌓이는 기록</span><div class="state-legend"><span><i class="sample running"></i>CPU 실행</span><span><i class="sample waiting"></i>준비 큐 대기</span><span><i class="sample blocked"></i>입출력 대기</span></div></div>
@@ -385,7 +386,10 @@ function renderMetrics() {
   const frame = result.frames[time];
   $("#metrics").innerHTML = DEFAULT_PROCESSES.map((p) => {
     const s = frame.states[p.id];
-    return `<tr><td><b class="mini-id ${colors[p.id]}">${p.id}</b></td><td>${s.firstRun === null ? "아직 실행 전" : `${number(s.firstRun - p.arrival)}ms`}</td><td>${s.readyWait}ms</td><td>${s.finishedAt === null ? "진행 중" : `${s.finishedAt - p.arrival}ms`}</td></tr>`;
+    const turnaround = s.finishedAt === null
+      ? (s.status === "new" ? "도착 전" : "진행 중")
+      : `${s.finishedAt - p.arrival}ms`;
+    return `<tr><td><b class="mini-id ${colors[p.id]}">${p.id}</b></td><td>${s.firstRun === null ? "아직 실행 전" : `${number(s.firstRun - p.arrival)}ms`}</td><td>${s.readyWait}ms</td><td>${turnaround}</td></tr>`;
   }).join("");
 }
 
@@ -446,6 +450,7 @@ function openComparison() {
       : endDiff < 0
         ? `전체 완료도 라운드 로빈이 ${-endDiff}ms 빠릅니다.`
         : "전체 완료 시각은 같습니다.";
+  const explanation = describeComparison(rr, fcfs);
   const rows = [
     ["평균 최초 응답", "도착 → 첫 CPU 실행", "averageResponse", "ms"],
     ["평균 CPU 대기", "준비 큐에서 기다린 시간", "averageWaiting", "ms"],
@@ -455,7 +460,7 @@ function openComparison() {
     ["작업 전환", "서로 다른 작업 사이의 전환", "contextSwitches", "회"],
   ];
   $("#comparison-body").innerHTML =
-    `<h2 id="comparison-title">빠른 응답과 빠른 완료는<br>같은 뜻일까요?</h2><p class="dialog-intro">작업과 도착 시각은 그대로 두고, CPU 배정 방식만 바꿨습니다. 아래는 끝까지 실행한 결과입니다.</p><div class="comparison-timelines"><div><b>라운드 로빈 <small>${quantum}ms씩</small></b>${comparisonTimeline(rr)}<span>${rr.stats.makespan}ms 완료</span></div><div><b>FCFS <small>먼저 온 순서</small></b>${comparisonTimeline(fcfs)}<span>${fcfs.stats.makespan}ms 완료</span></div></div><div class="comparison-table-wrap"><table class="comparison-table"><thead><tr><th>지표</th><th>RR · ${quantum}ms</th><th>FCFS</th></tr></thead><tbody>${rows.map(([title, description, key, unit]) => `<tr><th>${title}<small>${description}</small></th><td>${number(rr.stats[key])}<small>${unit}</small></td><td>${number(fcfs.stats[key])}<small>${unit}</small></td></tr>`).join("")}</tbody></table></div><div class="comparison-takeaway"><b>${responseMessage}</b><p>${finishMessage} ${rr.stats.idle > fcfs.stats.idle ? "이 입력에서는 라운드 로빈의 입출력 시작이 늦어져 CPU가 쉬는 구간이 더 길어집니다." : "작업을 나누는 방식에 따라 대기 순서와 완료 순서가 달라집니다."}</p><p class="muted">특정 방식이 항상 더 좋다는 뜻은 아닙니다. 실제 운영체제에서는 문맥 교환 비용도 발생합니다.</p></div><div class="dialog-actions"><button class="button" data-action="try-other">${algorithm === "rr" ? "FCFS" : "라운드 로빈"}으로 직접 실행 ${icon("arrow")}</button><button class="button primary" data-action="close-dialog">계속 살펴보기</button></div>`;
+    `<h2 id="comparison-title">빠른 응답과 빠른 완료는<br>같은 뜻일까요?</h2><p class="dialog-intro">작업과 도착 시각은 그대로 두고, CPU 배정 방식만 바꿨습니다. 아래는 끝까지 실행한 결과입니다.</p><div class="comparison-timelines"><div><b>라운드 로빈 <small>${quantum}ms씩</small></b>${comparisonTimeline(rr)}<span>${rr.stats.makespan}ms 완료</span></div><div><b>FCFS <small>먼저 온 순서</small></b>${comparisonTimeline(fcfs)}<span>${fcfs.stats.makespan}ms 완료</span></div></div><div class="comparison-table-wrap"><table class="comparison-table"><thead><tr><th>지표</th><th>RR · ${quantum}ms</th><th>FCFS</th></tr></thead><tbody>${rows.map(([title, description, key, unit]) => `<tr><th>${title}<small>${description}</small></th><td>${number(rr.stats[key])}<small>${unit}</small></td><td>${number(fcfs.stats[key])}<small>${unit}</small></td></tr>`).join("")}</tbody></table></div><div class="comparison-takeaway"><b>${responseMessage}</b><p>${finishMessage} ${explanation}</p><p class="muted">특정 방식이 항상 더 좋다는 뜻은 아닙니다. 실제 운영체제에서는 문맥 교환 비용도 발생합니다.</p></div><div class="dialog-actions"><button class="button" data-action="try-other">${algorithm === "rr" ? "FCFS" : "라운드 로빈"}으로 직접 실행 ${icon("arrow")}</button><button class="button primary" data-action="close-dialog">계속 살펴보기</button></div>`;
   $("#comparison-dialog").showModal();
 }
 
@@ -486,6 +491,11 @@ app.addEventListener("click", (event) => {
   }
   if (button.dataset.time !== undefined) {
     seek(Number(button.dataset.time));
+    if (button.classList.contains("milestone")) {
+      $(".lesson-content").scrollTop = 0;
+      $("#explanation").focus({ preventScroll: true });
+      $("#explanation").scrollIntoView({ block: "nearest" });
+    }
     return;
   }
   if (button.dataset.answer) {

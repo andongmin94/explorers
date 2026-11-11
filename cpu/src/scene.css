@@ -472,6 +472,7 @@
 }
 .scheduler-scene[data-compact="true"] .scene-callout {
   font-size: 11px;
+  padding-block: 5px;
 }
 .scheduler-scene [hidden] {
   display: none !important;
