@@ -410,6 +410,7 @@ document.addEventListener("click", async (e) => {
       break;
     case "verify":
       $("#prediction-dialog").close();
+      $("#transaction-scene").scrollIntoView({ block: "nearest", behavior: "instant" });
       move(index + 1, true);
       break;
     case "close":

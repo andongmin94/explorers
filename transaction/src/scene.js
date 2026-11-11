@@ -229,6 +229,15 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     const lane = layout.mobile ? layout.width - 31 : layout.clients.T2.x + 11;
     return `M${layout.park.x} ${layout.park.y}H${lane}V${layout.rowY + 28}H${layout.dbX + layout.rowWidth / 2 + 9}`;
   }
+  function databasePath(id, returning) {
+    const offset = id === "T1" ? -11 : 11;
+    const clientX = layout.clients[id].x + (returning ? -offset : offset);
+    const clientY = layout.cardY + layout.cardHeight + 7;
+    const portY = layout.dbY + 10;
+    return returning
+      ? `M${layout.dbX} ${portY}H${clientX}V${clientY}`
+      : `M${clientX} ${clientY}V${portY}H${layout.dbX}`;
+  }
   function draw() {
     const previousArm = svg.querySelector(".gate-arm");
     const width = Math.round(host.clientWidth),
@@ -272,6 +281,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       <g class="database-device">
         ${housing(layout.dbX - layout.rowWidth / 2 - 16, layout.rowY - 10, layout.rowWidth + 32, 128)}
         ${database(layout.dbX, layout.dbY, mobile ? 139 : 156)}
+        ${socketPort(layout.dbX, layout.dbY + 10)}
         ${[-1, 1].map((side) => [28, 53].map((offset) => socketPort(layout.dbX + side * (layout.rowWidth / 2 + 9), layout.rowY + offset)).join("")).join("")}
       </g><g class="query-gate" data-gate hidden transform="translate(${layout.dbX + layout.rowWidth / 2 + 13} ${layout.rowY + 28})"><path class="gate-post" d="M-3 13H3M0 10V15"/><path class="gate-arm" d="M0 10V-12"/><rect x="-3" y="-15" width="6" height="6"/></g><path class="motion-path"/>`;
     for (const [id, card] of Object.entries(cards))
@@ -509,6 +519,9 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     const id = step.client,
       client = step.state.clients[id],
       pace = 1 / speed;
+    const sqlPath = (returning) => step.action === "begin" || step.action === "commit"
+      ? databasePath(id, returning)
+      : path(id, returning, step.action === "wait");
     snap(getPresentationState(step, "request"));
     if (step.action === "calculate") {
       phase(
@@ -569,7 +582,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
                 : `재고 ← ${client.localWrite}`,
           false,
           pace,
-          () => path(id, false, step.action === "wait"),
+          () => sqlPath(false),
         );
         if (run.cancelled) return;
       } else {
@@ -677,6 +690,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
               : "확인",
           true,
           pace,
+          () => sqlPath(true),
         );
       }
     }

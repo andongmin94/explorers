@@ -360,6 +360,7 @@ document.addEventListener("click", (event) => {
       break;
     case "verify":
       $("#prediction-dialog").close();
+      $("#deadlock-scene").scrollIntoView({ block: "nearest", behavior: "instant" });
       move(index + 1, true);
       break;
     case "setup": {

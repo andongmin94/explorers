@@ -63,14 +63,18 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
 
   function requestPath(id, row, stop = false, returning = false) {
     const sx = layout.clients[id],
-      sy = 246,
-      bridge = id === "T1" ? 259 : 269,
-      px = layout.park[row].x,
-      py = layout.park[row].y,
-      ex = layout.ports[row].x,
-      ey = layout.ports[row].y;
-    if (returning) return `M${ex} ${ey}L${px} ${py}V${bridge}H${sx}V${sy}`;
-    return `M${sx} ${sy}V${bridge}H${px}V${py}${stop ? "" : `L${ex} ${ey}`}`;
+      bridge = id === "T1" ? 257 : 266,
+      lane = layout.lanes[row || (id === "T1" ? "A" : "B")];
+    const points = [[sx, 246], [sx, bridge], [lane, bridge]];
+    if (row) {
+      const target = stop ? layout.park[row] : layout.ports[row];
+      points.push([lane, target.y], [target.x, target.y]);
+    } else {
+      const port = layout.databasePort;
+      points.push([lane, port.y - 16], [port.x, port.y - 16], [port.x, port.y]);
+    }
+    if (returning) points.reverse();
+    return "M" + points.map(([x, y]) => `${x} ${y}`).join("L");
   }
   function ownershipPath(id, row) {
     const outside =
@@ -78,11 +82,14 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     return `M${layout.clients[id]} 246V${id === "T1" ? 259 : 269}H${outside}V${layout.ports[row].y}H${layout.ports[row].x}`;
   }
   function resumePath(row) {
-    return `M${layout.park[row].x} ${layout.park[row].y}L${layout.ports[row].x} ${layout.ports[row].y}`;
+    const park = layout.park[row], port = layout.ports[row];
+    return `M${park.x} ${park.y}H${layout.lanes[row]}V${port.y}H${port.x}`;
   }
   function draw() {
     const width = Math.round(host.clientWidth),
       compact = width < 560,
+      cycleWidth = Math.min(356, width - 108),
+      cycleLeft = (width - cycleWidth) / 2,
       dbWidth = Math.min(580, width - 42),
       dbLeft = (width - dbWidth) / 2 - 5,
       rowWidth = (dbWidth - 36) / 2;
@@ -97,13 +104,18 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       clients: { T1: width * 0.25, T2: width * 0.75 - 6 },
       rowX: { A: dbLeft + 12, B: dbLeft + 24 + rowWidth },
       rowY: 456,
+      databasePort: { x: dbLeft + dbWidth / 2, y: 413 },
+      lanes: {
+        A: Math.max(compact ? 25 : 36, dbLeft - 36),
+        B: Math.min(width - (compact ? 25 : 36), dbLeft + dbWidth + 36),
+      },
       park: {
-        A: { x: dbLeft + 53, y: 392 },
-        B: { x: dbLeft + dbWidth - 53, y: 392 },
+        A: { x: dbLeft + 53, y: 398 },
+        B: { x: dbLeft + dbWidth - 53, y: 398 },
       },
       ports: {
-        A: { x: dbLeft + 3, y: 508 },
-        B: { x: dbLeft + dbWidth - 3, y: 508 },
+        A: { x: dbLeft + 6, y: 456 },
+        B: { x: dbLeft + dbWidth - 6, y: 456 },
       },
     };
     host.style.height = `${layout.height}px`;
@@ -112,7 +124,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     svg.innerHTML = `<defs><marker id="dl-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
       ${ids.map((id) => rowIds.map((row) => `<path class="dl-route" data-route="${id}-${row}" d="${requestPath(id, row)}" style="--actor:${color(id)}" marker-end="url(#dl-arrow)"/>`).join("")).join("")}
       ${ids.map((id) => `<g class="dl-device" data-device="${id}">${terminal(layout.clients[id] - layout.cardWidth / 2 - 7, 79, layout.cardWidth + 14)}${socketPort(layout.clients[id], 246)}</g>`).join("")}
-      <g class="dl-database">${housing(dbLeft, 419, dbWidth, 190, 16)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
+      <g class="dl-database">${housing(dbLeft, 419, dbWidth, 190, 16)}${socketPort(layout.databasePort.x, layout.databasePort.y)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
       ${rowIds.map((row) => `<g class="dl-gate" data-gate="${row}" transform="translate(${layout.ports[row].x} ${layout.ports[row].y})"><path d="M-4 14H4"/><path class="dl-gate-arm" d="M0 13V-13"/></g>`).join("")}<path class="dl-motion-path"/>`;
     for (const id of ids)
       Object.assign(cards[id].style, {
@@ -137,9 +149,9 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       width: `${dbWidth - 24}px`,
     });
     Object.assign(cycle.style, {
-      left: `${(width - Math.min(356, width - 58)) / 2}px`,
-      width: `${Math.min(356, width - 58)}px`,
-      top: "272px",
+      left: `${cycleLeft}px`,
+      width: `${cycleWidth}px`,
+      top: "285px",
     });
     if (paintedState) paintRoutes(paintedState);
     active?.updateRoute?.();
@@ -366,8 +378,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     }
     const run = { cancelled: false, paused: false, animations: new Set() };
     active = run;
-    const pace = 1 / speed,
-      row = step.row || (step.client === "T2" ? "B" : "A");
+    const pace = 1 / speed, row = step.row;
     snap(getDeadlockPresentationState(step, "request"));
     if (step.action === "detect") {
       phase(
@@ -503,10 +514,11 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
             rowIds.map((r) =>
               animate(
                 run,
-                rows[r],
+                rows[r].querySelector("[data-stock]"),
                 [
-                  { outlineColor: "var(--ink)" },
-                  { outlineColor: "var(--ink)" },
+                  { backgroundColor: "var(--selected)", color: "var(--on-selected)" },
+                  { backgroundColor: "var(--selected)", color: "var(--on-selected)", offset: 0.6 },
+                  { backgroundColor: "transparent", color: "var(--ink)" },
                 ],
                 { duration: 1200 * pace },
               ),
