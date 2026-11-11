@@ -6,16 +6,17 @@
 }
 :root {
   font-family: Pretendard, system-ui, sans-serif;
-  color: #292a2e;
+  color: var(--ink);
   background: #f4f4f6;
   font-synthesis: none;
-  --ink: #292a2e;
+  --ink: #34363b;
+  --selected: #d4d6db;
   --surface: #fff;
   --soft: #edeef0;
-  --border: #3d3e43;
+  --border: #65676d;
   --muted: #656771;
   --rule: #d4d5da;
-  --shadow: #34353b;
+  --shadow: #787a80;
   --inverse: #fff;
   --a: #3971d9;
   --b: #168264;
@@ -27,8 +28,8 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   background: #191a1d;
-  color: #ebecef;
   --ink: #ebecef;
+  --selected: #4c4e56;
   --surface: #24252a;
   --soft: #303138;
   --border: #898c96;
@@ -125,8 +126,8 @@ kbd {
 .brand-icon {
   width: 48px;
   height: 48px;
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
   border: 2px solid var(--border);
   border-radius: 4px;
   box-shadow: 3px 3px 0 var(--shadow);
@@ -185,8 +186,8 @@ kbd {
   white-space: nowrap;
 }
 .button.primary {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .icon-button {
   width: 36px;
@@ -282,14 +283,16 @@ kbd {
 }
 .algorithm-toggle button {
   width: 50%;
-  padding: 7px 5px;
+  padding: 6px 4px;
+  border: 1px solid transparent;
   font-size: 13px;
   font-weight: 850;
   border-radius: 1px;
 }
 .algorithm-toggle [aria-pressed="true"] {
-  color: var(--inverse);
-  background: var(--ink);
+  color: var(--ink);
+  background: var(--selected);
+  border-color: var(--border);
 }
 .rule-summary {
   font-size: 12px;
@@ -535,8 +538,8 @@ kbd {
 }
 .process-strip .active {
   border: 2px solid var(--border);
-  color: var(--inverse);
-  background: var(--ink);
+  color: var(--ink);
+  background: var(--selected);
   box-shadow: 2px 2px 0 var(--shadow);
 }
 .process-strip .done {
@@ -777,8 +780,8 @@ kbd {
   line-height: 1.2;
 }
 .milestone.active {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
   font-weight: 800;
 }
 .milestone:hover {
@@ -811,8 +814,8 @@ kbd {
   white-space: nowrap;
 }
 .record-tabs button[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 #event-count {
   border: 1px solid var(--border);
@@ -851,7 +854,7 @@ kbd {
   margin-left: 6px;
 }
 .hit-mark {
-  background: var(--ink);
+  background: var(--selected);
 }
 .fault-mark {
   background: repeating-linear-gradient(
@@ -924,8 +927,8 @@ kbd {
   white-space: nowrap;
 }
 .result-tag.hit {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .result-tag.fault {
   border-style: dashed;
@@ -1157,8 +1160,8 @@ dialog {
   font-weight: 650;
 }
 .comparison-trace .hit {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .comparison-trace .fault {
   border-style: dashed;

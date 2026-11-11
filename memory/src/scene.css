@@ -319,8 +319,8 @@
 }
 .memory-scene .mem-status > b {
   flex: none;
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
   border: 1px solid var(--border);
   padding: 2px 6px;
   font-size: 12px;
