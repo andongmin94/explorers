@@ -159,7 +159,7 @@ function ioLength(process, cpuDone) {
   return process.io.at(-1) || 1;
 }
 
-export function createSchedulerScene(hostElement, processes) {
+export function createSchedulerScene(hostElement, processes, onMove) {
   const serial = ++sceneSerial,
     reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   const processById = new Map(
@@ -516,13 +516,14 @@ export function createSchedulerScene(hostElement, processes) {
     activeRun = null;
   }
 
-  async function animateEvent(event, pace, run) {
+  async function animateEvent(event, run) {
     const previousPositions = new Map(
       processes.map((process) => [
         process.id,
         positionFor(process.id, view, layout),
       ]),
     );
+    onMove(currentFrame, view, event);
     mutateView(view, event);
     showCallout(event);
     paintPresence();
@@ -536,7 +537,7 @@ export function createSchedulerScene(hostElement, processes) {
     measure.setAttribute("d", pathData);
     const length = measure.getTotalLength(),
       waits = [];
-    const milliseconds = (510 + length * 0.75) * pace;
+    const milliseconds = 510 + length * 0.75;
     const lane = svg.querySelector(`[data-route="${event.type}"]`);
     if (lane) {
       const entersFromLeft =
@@ -572,6 +573,7 @@ export function createSchedulerScene(hostElement, processes) {
     }
     function track(animation) {
       run.animations.add(animation);
+      animation.playbackRate = run.speed;
       if (run.paused) animation.pause();
       waits.push(
         animation.finished
@@ -688,7 +690,7 @@ export function createSchedulerScene(hostElement, processes) {
   function update(
     frame,
     previousFrame = null,
-    { animate = true, duration = 1000, quantum: configuredQuantum } = {},
+    { animate = true, speed = 1, quantum: configuredQuantum } = {},
   ) {
     if (destroyed) return Promise.resolve();
     revision += 1;
@@ -699,10 +701,6 @@ export function createSchedulerScene(hostElement, processes) {
     if (configuredQuantum !== undefined) quantum = configuredQuantum;
     else if (frame.t === 0) quantum = frame.quantumLeft;
     hostElement.dataset.algorithm = quantum == null ? "fcfs" : "rr";
-    hostElement.setAttribute(
-      "aria-label",
-      `${frame.t}밀리초. CPU ${frame.running || "대기"}, 준비 큐 ${frame.ready.join(", ") || "없음"}. 작업을 선택하면 상세 정보를 볼 수 있습니다.`,
-    );
     const events = frame.events.filter((event) => MOVES.has(event.type));
     const canAnimate =
       animate &&
@@ -721,6 +719,7 @@ export function createSchedulerScene(hostElement, processes) {
     }
     const run = {
       revision,
+      speed,
       animations: new Set(),
       paused: false,
       cancelled: false,
@@ -731,7 +730,7 @@ export function createSchedulerScene(hostElement, processes) {
     return (async () => {
       for (const event of events) {
         if (run.cancelled || run.revision !== revision) return;
-        await animateEvent(event, duration / 1100, run);
+        await animateEvent(event, run);
       }
       if (run.cancelled || run.revision !== revision) return;
       activeRun = null;
@@ -755,6 +754,11 @@ export function createSchedulerScene(hostElement, processes) {
   observer.observe(hostElement);
   return {
     update,
+    setSpeed(speed) {
+      if (!activeRun) return;
+      activeRun.speed = speed;
+      for (const animation of activeRun.animations) animation.updatePlaybackRate(speed);
+    },
     setProgress(progress) {
       intervalProgress = Math.max(0, Math.min(1, progress));
       renderProgress();

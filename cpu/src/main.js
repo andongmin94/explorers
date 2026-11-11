@@ -6,6 +6,7 @@ import {
   describeComparison,
   buildMilestones,
   eventLabel,
+  frameAtMove,
   processDetails,
 } from "./lesson.js";
 
@@ -39,6 +40,9 @@ let accumulator = 0,
 let guided = true,
   transitioning = false,
   motionPaused = false,
+  resumeAutomatically = false,
+  movingEvent = null,
+  displayedFrame = result.frames[0],
   transitionId = 0,
   selectedProcess = null;
 const STEP_DURATION = 1600;
@@ -65,7 +69,7 @@ app.innerHTML = `
     </aside>
     <section class="panel scene-panel">
       <div class="panel-head"><h2>CPU 스케줄러</h2><div class="scene-head-status"><span class="tag">단일 코어</span><b class="clock"><span id="clock">0</span><small>ms</small></b></div></div>
-      <div id="scene"></div>
+      <div id="scene" tabindex="-1"></div>
       <div class="scene-summary"><span id="running-summary"></span><span id="queue-summary"></span></div>
       <div class="transport"><div class="learning-mode"><button data-action="guided" role="switch" aria-checked="true"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint">재생하면 첫 장면부터 따라갑니다.</span></div>
         <div class="playback-buttons"><button class="button icon-button" data-action="reset" title="처음으로 (R)" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" title="1ms 이전 (←)" aria-label="1ms 이전">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>재생</span></button><button class="button icon-button" data-action="step" title="1ms 다음 (→)" aria-label="1ms 다음">${icon("next")}</button><button class="button next-event" data-action="event">다음 사건 ${icon("arrow")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div>
@@ -93,6 +97,7 @@ await document.fonts.ready;
 const scene = createSchedulerScene(
   document.querySelector("#scene"),
   DEFAULT_PROCESSES,
+  (frame, view, move) => presentFrame(frameAtMove(frame, view, move), move),
 );
 const $ = (selector) => document.querySelector(selector);
 if (innerWidth < 1100) {
@@ -145,13 +150,23 @@ const stateNames = {
   blocked: "입출력 대기",
   done: "완료",
 };
+const stateNamesForMove = { ready: "준비 큐로", running: "CPU로", blocked: "입출력 장치로", done: "완료 칸으로" };
 function render(animate = false, previous = null) {
   const frame = result.frames[time];
+  movingEvent = null;
   const motion = scene.update(frame, previous, {
     animate: animate && !reducedMotion.matches,
-    duration: 1100 / speed,
+    speed,
     quantum: algorithm === "rr" ? quantum : null,
   });
+  if (!movingEvent) presentFrame(frame);
+  return motion;
+}
+
+function presentFrame(frame, move = null) {
+  displayedFrame = frame;
+  movingEvent = move;
+  $("#scene").setAttribute("aria-label", `${time}밀리초. ${move ? eventLabel(move) + " 이동 중" : "CPU " + (frame.running || "대기")}. 준비 큐 ${frame.ready.join(", ") || "없음"}. 작업을 선택하면 상세 정보를 볼 수 있습니다.`);
   $("#clock").textContent = time;
   $("#seek").value = time;
   $("#seek").setAttribute(
@@ -161,20 +176,37 @@ function render(animate = false, previous = null) {
   $("#seek-time").textContent = `${time}ms`;
   DEFAULT_PROCESSES.forEach((p) => {
     const state = frame.states[p.id];
+    const label = move?.id === p.id ? `${stateNamesForMove[move.to]} 이동 중` : stateNames[state.status];
     $(`#status-${p.id}`).innerHTML =
-      `<span class="state-name ${state.status}">${stateNames[state.status]}</span><span>남은 CPU <b>${state.cpuRemaining}ms</b></span>`;
+      `<span class="state-name ${state.status}">${label}</span><span>남은 CPU <b>${state.cpuRemaining}ms</b></span>`;
   });
   const description = describeChapter(frame, result);
+  if (move) {
+    const order = frame.events.length + 1;
+    const explanations = {
+      arrive: "도착한 작업이 준비 큐 뒤에 합류합니다.",
+      unblock: "입출력이 끝난 작업이 준비 큐 뒤에 합류합니다.",
+      preempt: "시간 할당량을 다 쓴 작업이 진행한 계산을 보존한 채 준비 큐 뒤로 이동합니다.",
+      dispatch: "준비 큐에서 가장 오래 기다린 맨 앞 작업이 CPU로 이동합니다.",
+      block: "현재 CPU 구간을 마친 작업이 입출력 장치로 이동합니다.",
+      complete: "마지막 CPU 구간을 마친 작업이 완료 칸으로 이동합니다.",
+    };
+    description.eyebrow = `${time} ms · 이번 시각의 사건 ${order}/${result.frames[time].events.length}`;
+    description.title = eventLabel(move);
+    description.body = explanations[move.type];
+    description.insight = `이동 직전 준비 큐 · ${frame.ready.join(" → ") || "비어 있음"}`;
+  }
   $("#explanation").innerHTML =
     `<span class="eyebrow">${description.eyebrow}</span><h3>${description.title}</h3><p>${description.body}</p>`;
   $("#insight").innerHTML =
     `<span class="insight-mark">!</span><p>${description.insight}</p>`;
   $("#event-time").textContent = `${time}ms`;
-  $("#current-events").innerHTML = frame.events.length
-    ? frame.events
+  const visibleEvents = move ? [...frame.events, move] : frame.events;
+  $("#current-events").innerHTML = visibleEvents.length
+    ? visibleEvents
         .map(
           (e) =>
-            `<li>${e.id ? `<b class="mini-id ${colors[e.id]}">${e.id}</b>` : '<b class="mini-id neutral">CPU</b>'}<span>${eventLabel(e).replace(`${e.id} `, "")}</span></li>`,
+            `<li>${e.id ? `<b class="mini-id ${colors[e.id]}">${e.id}</b>` : '<b class="mini-id neutral">CPU</b>'}<span>${eventLabel(e).replace(`${e.id} `, "")}${e === move ? " · 이동 중" : ""}</span></li>`,
         )
         .join("")
     : `<li><b class="mini-id ${colors[frame.running] || "neutral"}">${frame.running || "CPU"}</b><span>${frame.running ? "다음 사건까지 실행을 이어갑니다." : "입출력이 끝나기를 기다립니다."}</span></li>`;
@@ -202,7 +234,6 @@ function render(animate = false, previous = null) {
   renderMetrics();
   renderProcessDetail();
   updateControls();
-  return Promise.resolve(motion);
 }
 
 function renderProcessDetail() {
@@ -218,27 +249,29 @@ function renderProcessDetail() {
     );
   });
   if (!selectedProcess) return;
-  const detail = processDetails(result.frames[time], result, selectedProcess);
+  const detail = processDetails(displayedFrame, result, selectedProcess);
+  if (movingEvent?.id === selectedProcess) detail.body = `${eventLabel(movingEvent)} 이동 중입니다.`;
   $("#process-detail").innerHTML =
     `<button class="text-button detail-back" data-action="chapter">← 단계 해설로 돌아가기</button><div class="detail-heading"><span class="process-id ${colors[selectedProcess]}">${selectedProcess}</span><h3>${detail.title.replace(`${selectedProcess} · `, "")}</h3></div><p class="detail-body">${detail.body}</p><div class="section-caption">작업이 끝나기까지의 순서</div><div class="phase-list">${detail.phases.map((p, i) => `<div class="phase ${p.status}"><span class="phase-order">${i + 1}</span><div><strong>${p.kind === "cpu" ? "CPU 실행" : "입출력"}</strong><span>${p.used} / ${p.total}ms</span><div class="phase-meter"><i style="width:${(p.used / p.total) * 100}%"></i></div></div><small>${p.status === "past" ? "완료" : p.status === "current" ? "현재 구간" : "예정"}</small></div>`).join("")}</div><dl class="detail-metrics">${detail.metrics.map((m) => `<div><dt>${m.label}<small>${m.help}</small></dt><dd>${m.value}</dd></div>`).join("")}</dl><p class="detail-insight">${detail.insight}</p>`;
 }
 
 function updateControls() {
-  const frame = result.frames[time];
+  const frame = displayedFrame;
+  const canPause = playing || (transitioning && !motionPaused);
   $("#running-summary").innerHTML = transitioning
     ? `<i class="status-square idle"></i><b>작업 이동 중</b>`
     : frame.running
       ? `<i class="status-square ${colors[frame.running]}"></i><b>${frame.running} 실행 중</b><span>${algorithm === "rr" ? `남은 할당량 ${frame.quantumLeft}ms` : "입출력 요청 또는 완료까지"}</span>`
       : `<i class="status-square idle"></i><b>${time === result.stats.makespan ? "모든 작업 완료" : "CPU 유휴"}</b>`;
   $("#queue-summary").textContent =
-    `${transitioning ? "이동 후 · " : ""}준비 ${frame.ready.length} · 입출력 ${frame.blocked.length} · 완료 ${frame.completed.length}`;
+    `${movingEvent ? "이동 직전 · " : ""}준비 ${frame.ready.length} · 입출력 ${frame.blocked.length} · 완료 ${frame.completed.length}`;
 
   $("#scene").setAttribute("aria-busy", String(transitioning));
   $('[data-action="play"]').innerHTML =
-    `${icon(playing ? "pause" : time === result.stats.makespan && !transitioning ? "reset" : "play")}<span>${playing ? "일시정지" : time === result.stats.makespan && !transitioning ? "다시 재생" : time === 0 ? "학습 시작" : "이어서 재생"}</span>`;
+    `${icon(canPause ? "pause" : time === result.stats.makespan && !transitioning ? "reset" : "play")}<span>${canPause ? "일시정지" : time === result.stats.makespan && !transitioning ? "다시 재생" : time === 0 ? "학습 시작" : "이어서 재생"}</span>`;
   $('[data-action="play"]').setAttribute(
     "aria-label",
-    playing ? "일시정지" : "재생",
+    canPause ? "일시정지" : "재생",
   );
   $('[data-action="back"]').disabled = time === 0;
   $('[data-action="step"]').disabled = $('[data-action="event"]').disabled =
@@ -273,6 +306,7 @@ function pause() {
 function moveTo(next, animate) {
   const previous = result.frames[time];
   const autoAdvance = playing;
+  resumeAutomatically = autoAdvance;
   const token = ++transitionId;
   time = next;
   accumulator = 0;
@@ -284,6 +318,7 @@ function moveTo(next, animate) {
   motion.then(() => {
     if (token !== transitionId) return;
     transitioning = false;
+    if (movingEvent) presentFrame(result.frames[time]);
     lastTick = performance.now();
     if (
       autoAdvance &&
@@ -297,16 +332,22 @@ function moveTo(next, animate) {
 }
 function tick(now) {
   if (!playing) return;
-  if (!transitioning) accumulator += Math.min(now - lastTick, 250);
+  if (!transitioning) accumulator += Math.min(now - lastTick, 250) * speed;
   lastTick = now;
-  const duration = STEP_DURATION / speed;
+  const duration = STEP_DURATION;
   if (!transitioning && accumulator >= duration && time < result.stats.makespan)
     moveTo(time + 1, true);
   if (!transitioning) scene.setProgress(accumulator / duration);
   animationId = requestAnimationFrame(tick);
 }
 function togglePlay() {
-  if (playing) return pause();
+  if (playing || (transitioning && !motionPaused)) return pause();
+  if (transitioning && motionPaused && !resumeAutomatically) {
+    motionPaused = false;
+    scene.resume();
+    updateControls();
+    return;
+  }
   if (time === result.stats.makespan && !transitioning) seek(0);
   playing = true;
   motionPaused = false;
@@ -371,7 +412,8 @@ function renderTimeline() {
 }
 function renderLog() {
   const entries = result.frames
-    .slice(0, time + 1)
+    .slice(0, time)
+    .concat(displayedFrame)
     .reverse()
     .flatMap((f) => f.events.map((e) => ({ t: f.t, e })));
   $("#event-log").innerHTML = entries
@@ -383,11 +425,11 @@ function renderLog() {
   $("#log-count").textContent = `${entries.length}개 사건`;
 }
 function renderMetrics() {
-  const frame = result.frames[time];
+  const frame = displayedFrame;
   $("#metrics").innerHTML = DEFAULT_PROCESSES.map((p) => {
     const s = frame.states[p.id];
     const turnaround = s.finishedAt === null
-      ? (s.status === "new" ? "도착 전" : "진행 중")
+      ? (s.arriving ? "도착 중" : s.status === "new" ? "도착 전" : "진행 중")
       : `${s.finishedAt - p.arrival}ms`;
     return `<tr><td><b class="mini-id ${colors[p.id]}">${p.id}</b></td><td>${s.firstRun === null ? "아직 실행 전" : `${number(s.firstRun - p.arrival)}ms`}</td><td>${s.readyWait}ms</td><td>${turnaround}</td></tr>`;
   }).join("");
@@ -533,7 +575,7 @@ app.addEventListener("click", (event) => {
     case "speed":
       speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1;
       button.textContent = `${speed}×`;
-      accumulator = 0;
+      scene.setSpeed(speed);
       break;
     case "theme": {
       const next =
@@ -557,6 +599,8 @@ app.addEventListener("click", (event) => {
       break;
     case "quiz-continue":
       $("#prediction-dialog").close();
+      $("#scene").focus({ preventScroll: true });
+      $("#scene").scrollIntoView({ block: "nearest", behavior: "instant" });
       seek(quiz.decision.time, true);
       break;
     case "close-dialog":

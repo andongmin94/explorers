@@ -1,6 +1,26 @@
 const formatTime = (value) => Number(value.toFixed(2)).toString();
 const idsText = (events) => events.map((event) => event.id).join("·");
 
+/** At a simultaneous boundary the elapsed CPU and I/O are known, but a later
+ * dispatch or completion must not appear before its card makes that move. */
+export function frameAtMove(frame, view, move) {
+  const states = Object.fromEntries(Object.entries(frame.states).map(([id, state]) => {
+    const status = view.running === id ? "running" :
+      ["new", "ready", "blocked", "done"].find((zone) => view[zone].includes(id));
+    return [id, {
+      ...state, status,
+      arriving: move.type === "arrive" && move.id === id,
+      firstRun: state.firstRun === frame.t && status !== "running" ? null : state.firstRun,
+      finishedAt: status === "done" ? state.finishedAt : null,
+    }];
+  }));
+  return {
+    ...frame, states, running: view.running, ready: [...view.ready], completed: [...view.done],
+    blocked: view.blocked.map((id) => ({ id, remaining: states[id].ioRemaining })),
+    events: frame.events.slice(0, frame.events.indexOf(move)),
+  };
+}
+
 export function describeComparison(rr, fcfs) {
   if (rr.segments.some((segment) => segment.reason === "quantum")) {
     return `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle}ms, FCFS ${fcfs.stats.idle}ms입니다.`;
@@ -381,7 +401,9 @@ export function processDetails(frame, result, id) {
         value:
           state.status === "done"
             ? `${elapsed} ms`
-            : state.status === "new"
+            : state.arriving
+              ? "도착 중"
+              : state.status === "new"
               ? "도착 전"
               : "진행 중",
         help:

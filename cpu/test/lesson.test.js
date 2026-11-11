@@ -5,6 +5,7 @@ import {
   buildMilestones,
   describeChapter,
   describeComparison,
+  frameAtMove,
   processDetails,
 } from "../src/lesson.js";
 
@@ -14,6 +15,21 @@ const scenarios = [
 ];
 const metric = (details, label) =>
   details.metrics.find((entry) => entry.label === label).value;
+
+test("the 2ms arrival and preemption do not prematurely announce P2's first dispatch", () => {
+  const frame = simulate().frames[2];
+  const beforeArrival = { new: ["P3"], running: "P1", ready: ["P2"], blocked: [], done: [] };
+  const first = frameAtMove(frame, beforeArrival, frame.events[0]);
+  assert.deepEqual(first.events, []);
+  assert.equal(first.states.P1.status, "running");
+  assert.equal(first.states.P2.firstRun, null);
+  assert.equal(metric(processDetails(first, simulate(), "P3"), "반환 시간"), "도착 중");
+  const beforeDispatch = { new: [], running: null, ready: ["P2", "P3", "P1"], blocked: [], done: [] };
+  const last = frameAtMove(frame, beforeDispatch, frame.events[2]);
+  assert.deepEqual(last.events.map((e) => e.type), ["arrive", "preempt"]);
+  assert.equal(last.states.P2.status, "ready");
+  assert.equal(frame.states.P2.firstRun, 2);
+});
 
 test("the comparison explains matching traces at 5ms and actual CPU idle times at 2ms", () => {
   const fcfs = simulate({ algorithm: "fcfs" });
