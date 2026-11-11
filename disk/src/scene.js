@@ -6,8 +6,11 @@ const angle = (cylinder) =>
     180) /
   Math.PI;
 
+const requestRoute = [[300, 0], [300, 30], [575, 30], [575, 351], [506, 351]];
+const wirePath = requestRoute.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join("");
+
 export function createDiskScene(host, onPhase) {
-  host.innerHTML = `<div class="scene-callout">같은 8개 요청, 선택하는 순서가 달라집니다.</div><div class="queue-dock"><div class="dock-title"><strong>대기 큐</strong><span>처음 도착한 순서 · 전부 시작 전에 도착</span></div><div class="request-queue">${REQUESTS.map((n, i) => `<div class="request-slot" data-request="${i + 1}"><small>요청 ${i + 1}</small><b>${n}</b><span>대기</span></div>`).join("")}</div></div><div class="drive"><svg class="drive-map" viewBox="0 0 600 450" aria-hidden="true"><defs><marker id="disk-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z"/></marker></defs><path class="request-wire" d="M300 0V30H575V351H505" marker-end="url(#disk-arrow)"/><text class="wire-label" x="548" y="55" text-anchor="end">선택한 요청 ↓</text><polygon class="device-shadow" points="87,221 327,341 572,219 332,99"/><polygon class="case-front" points="80,185 320,305 320,340 80,220"/><polygon class="case-side" points="320,305 560,185 560,220 320,340"/><polygon class="case-top" points="80,185 320,65 560,185 320,305"/><ellipse class="platter" cx="320" cy="185" rx="150" ry="72"/>${[0, 25, 50, 75, 100, 125, 150, 175, 199].map((n) => `<ellipse class="guide-track" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}${REQUESTS.map((n, i) => `<ellipse class="request-track" data-track="${i + 1}" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}<ellipse class="spindle" cx="320" cy="185" rx="23" ry="11"/><ellipse class="spindle-top" cx="320" cy="181" rx="23" ry="11"/><g transform="translate(505 185) scale(1 .48)"><g class="arm"><path class="arm-shadow" d="M0 -16L-195 -7L-204 5L0 16Z"/><path class="arm-body" d="M0 -12L-195 -4L-195 4L0 12Z"/><circle class="head-tip" cx="-195" cy="0" r="9"/><circle class="arm-pivot" cx="0" cy="0" r="19"/></g></g><text class="geometry-label" x="202" y="118">0 · 바깥쪽</text><text class="geometry-label" x="287" y="214">199 · 안쪽</text><polygon class="dock-top" points="100,317 116,307 516,307 500,317"/><polygon class="dock-side" points="500,317 516,307 516,414 500,424"/><rect class="dock-front" x="100" y="317" width="400" height="107"/><rect class="port" x="502" y="344" width="8" height="14"/><path class="screw" d="M107 325h5m-2.5-2.5v5M487 413h5m-2.5-2.5v5"/></svg><div class="controller"><div><span>헤드 위치</span><b data-head>53</b></div><div><span>누적 이동</span><b data-total>0<small>칸</small></b></div></div><div class="drive-label"><strong>하드 디스크</strong><span>실린더 0–199 · 헤드가 목표 트랙으로 이동</span></div></div><div class="motion-token" hidden></div>`;
+  host.innerHTML = `<div class="scene-callout">같은 8개 요청, 선택하는 순서가 달라집니다.</div><div class="queue-dock"><div class="dock-title"><strong>대기 큐</strong><span>처음 도착한 순서 · 전부 시작 전에 도착</span></div><div class="request-queue">${REQUESTS.map((n, i) => `<div class="request-slot" data-request="${i + 1}"><small>요청 ${i + 1}</small><b>${n}</b><span>대기</span></div>`).join("")}</div></div><div class="drive"><svg class="drive-map" viewBox="0 0 600 450" aria-hidden="true"><defs><marker id="disk-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z"/></marker></defs><path class="request-wire" d="${wirePath}" marker-end="url(#disk-arrow)"/><text class="wire-label" x="548" y="55" text-anchor="end">선택한 요청 ↓</text><polygon class="device-shadow" points="87,221 327,341 572,219 332,99"/><polygon class="case-front" points="80,185 320,305 320,340 80,220"/><polygon class="case-side" points="320,305 560,185 560,220 320,340"/><polygon class="case-top" points="80,185 320,65 560,185 320,305"/><ellipse class="platter" cx="320" cy="185" rx="150" ry="72"/>${[0, 25, 50, 75, 100, 125, 150, 175, 199].map((n) => `<ellipse class="guide-track" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}${REQUESTS.map((n, i) => `<ellipse class="request-track" data-track="${i + 1}" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}<ellipse class="spindle" cx="320" cy="185" rx="23" ry="11"/><ellipse class="spindle-top" cx="320" cy="181" rx="23" ry="11"/><g transform="translate(505 185) scale(1 .48)"><g class="arm"><path class="arm-shadow" d="M0 -16L-195 -7L-204 5L0 16Z"/><path class="arm-body" d="M0 -12L-195 -4L-195 4L0 12Z"/><circle class="head-tip" cx="-195" cy="0" r="9"/><circle class="arm-pivot" cx="0" cy="0" r="19"/></g></g><text class="geometry-label" x="202" y="118">0 · 바깥쪽</text><text class="geometry-label" x="287" y="214">199 · 안쪽</text><polygon class="dock-top" points="100,317 116,307 516,307 500,317"/><polygon class="dock-side" points="500,317 516,307 516,414 500,424"/><rect class="dock-front" x="100" y="317" width="400" height="107"/><rect class="port" x="502" y="344" width="8" height="14"/><path class="screw" d="M107 325h5m-2.5-2.5v5M487 413h5m-2.5-2.5v5"/></svg><div class="controller"><div><span>헤드 위치</span><b data-head>53</b></div><div><span>누적 이동</span><b data-total>0<small>칸</small></b></div></div><div class="drive-label"><strong>하드 디스크</strong><span>실린더 0–199 · 헤드가 목표 트랙으로 이동</span></div></div><div class="motion-token" hidden></div>`;
   const $ = (s) => host.querySelector(s),
     arm = $(".arm"),
     token = $(".motion-token");
@@ -49,6 +52,7 @@ export function createDiskScene(host, onPhase) {
   }
   async function animate(run, element, frames, options) {
     const a = element.animate(frames, options);
+    a.playbackRate = run.speed;
     run.animations.add(a);
     if (run.paused) a.pause();
     await a.finished.catch(() => {});
@@ -71,10 +75,9 @@ export function createDiskScene(host, onPhase) {
       );
       return;
     }
-    const run = { cancelled: false, paused: false, animations: new Set() };
+    const run = { cancelled: false, paused: false, speed, animations: new Set() };
     active = run;
-    const pace = 1 / speed,
-      request = step.request;
+    const request = step.request;
     snap(step.before, request.id);
     host.dataset.moving = "true";
     phase(
@@ -85,36 +88,22 @@ export function createDiskScene(host, onPhase) {
         : `현재 헤드 ${step.before.head}에서 가장 가까운 요청을 선택합니다. 거리는 |${request.cylinder} − ${step.before.head}| = ${step.distance}입니다.`,
       step.before,
     );
-    const outer = host.getBoundingClientRect(),
-      start = $(`[data-request="${request.id}"]`).getBoundingClientRect(),
-      end = $(".controller").getBoundingClientRect();
-    const sx = start.left - outer.left + start.width / 2 - 29,
-      sy = start.bottom - outer.top - 12,
-      ex = end.right - outer.left - 29,
-      ey = end.top - outer.top + end.height / 2 - 14,
-      lane = outer.width - 60;
     token.textContent = request.cylinder;
     token.hidden = false;
-    await animate(
-      run,
-      token,
-      [
-        { transform: `translate(${sx}px,${sy}px)`, opacity: 0 },
-        {
-          transform: `translate(${sx}px,${sy + 23}px)`,
-          opacity: 1,
-          offset: 0.16,
-        },
-        {
-          transform: `translate(${lane}px,${sy + 23}px)`,
-          opacity: 1,
-          offset: 0.38,
-        },
-        { transform: `translate(${lane}px,${ey}px)`, opacity: 1, offset: 0.88 },
-        { transform: `translate(${ex}px,${ey}px)`, opacity: 0 },
-      ],
-      { duration: 850 * pace, easing: "linear" },
-    );
+    const outer = host.getBoundingClientRect();
+    const start = $(`[data-request="${request.id}"]`).getBoundingClientRect();
+    const matrix = $(".drive-map").getScreenCTM();
+    const points = [
+      new DOMPoint(start.left + start.width / 2, start.bottom),
+      ...requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix)),
+    ];
+    const path = points.map(({ x, y }, i) =>
+      `${i ? "L" : "M"}${x - outer.left - host.clientLeft} ${y - outer.top - host.clientTop}`
+    ).join(" ");
+    token.style.offsetPath = `path("${path}")`;
+    token.style.offsetRotate = "0deg";
+    await animate(run, token, [{ offsetDistance: "0%" }, { offsetDistance: "100%" }],
+      { duration: 850, easing: "linear" });
     if (run.cancelled) return;
     token.hidden = true;
     $("[data-head]").textContent = `${step.before.head} → ${request.cylinder}`;
@@ -131,7 +120,7 @@ export function createDiskScene(host, onPhase) {
         { transform: `rotate(${angle(step.before.head)}deg)` },
         { transform: `rotate(${angle(request.cylinder)}deg)` },
       ],
-      { duration: (1050 + step.distance * 4) * pace, easing: "ease-in-out" },
+      { duration: 1050 + step.distance * 4, easing: "ease-in-out" },
     );
     if (run.cancelled) return;
     snap(step.state);
@@ -146,6 +135,11 @@ export function createDiskScene(host, onPhase) {
   }
   return {
     update,
+    setSpeed(speed) {
+      if (!active) return;
+      active.speed = speed;
+      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
     pause() {
       if (active) {
         active.paused = true;
