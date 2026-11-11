@@ -115,7 +115,7 @@ export function createDiskScene(host, onPhase) {
     const runnerUp = algorithm === "sstf" ? step.candidates[1] : null;
     snap(step.before, chosen, runnerUp);
     if (matchMedia("(max-width: 759px)").matches) {
-      host.scrollIntoView({ block: "nearest", behavior: "instant" });
+      host.scrollIntoView({ block: "end", behavior: "instant" });
     }
     labels.innerHTML = runnerUp
       ? trackLabel(chosen.cylinder, `${chosen.cylinder}번 · ${chosen.distance}칸`) +
