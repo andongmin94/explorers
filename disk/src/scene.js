@@ -141,13 +141,6 @@ export function createDiskScene(host, onPhase) {
       `|${request.cylinder} − ${step.before.head}| = ${step.distance}칸. ${step.before.total} + ${step.distance} = ${step.state.total}칸으로 누적됩니다.`,
       step.state,
     );
-    await animate(
-      run,
-      $(".controller"),
-      [{ outlineColor: "var(--accent)" }, { outlineColor: "var(--accent)" }],
-      { duration: 450 * pace },
-    );
-    if (run.cancelled) return;
     host.dataset.moving = "false";
     active = null;
   }

@@ -99,7 +99,7 @@ function render() {
           ? `요청 ${step.request.id}는 남은 요청 중 가장 먼저 도착했습니다. 이동 거리가 ${step.distance}칸이어도 도착 순서를 따릅니다.`
           : `직전 헤드 ${step.before.head}에서 가장 가까운 요청이 ${state.head}번이었습니다. 다음 선택은 새 위치 ${state.head}를 기준으로 합니다.`;
   $("#event-title").textContent = index
-    ? `요청 ${step.request?.id || target.request.id} · ${names[algorithm].split(" · ")[0]}`
+    ? `요청 ${target.request.id} · ${names[algorithm].split(" · ")[0]}`
     : "헤드 53 · 요청 8개 대기";
   $("#event-number").textContent = index ? `${index} / 8` : "시작 전";
   $("#event-body").textContent = index
@@ -173,7 +173,7 @@ async function move(next, motion = false) {
   index = Math.max(0, Math.min(8, next));
   busy = motion;
   paused = false;
-  render();
+  if (motion) render();
   await scene.update(run().steps[index], { motion, speed, algorithm });
   if (token !== revision) return;
   committed = index;
