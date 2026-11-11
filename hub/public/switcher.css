@@ -57,8 +57,8 @@ button.explorer-trigger {
   flex: none;
   display: grid;
   place-items: center;
-  background: var(--switch-ink);
-  color: var(--switch-paper);
+  background: var(--selected);
+  box-shadow: inset -1px 0 var(--neo-rule, var(--rule));
 }
 .explorer-brand-copy {
   display: grid;
@@ -164,9 +164,8 @@ nav.explorer-menu {
 }
 
 .explorer-menu a[aria-current] {
-  --plate-face: var(--switch-ink);
+  --plate-face: var(--selected);
   --plate-shadow: var(--switch-shadow);
-  color: var(--switch-paper);
   font-weight: 800;
 }
 
