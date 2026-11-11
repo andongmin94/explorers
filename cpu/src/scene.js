@@ -273,7 +273,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
       ${deviceTitle(ssd.x, layout.ioTitleY, "입출력", "CPU와 동시에 진행")}
       ${ssdDrawing(ssd)}
       <path class="scene-dock" d="M${ssd.x} ${layout.blocked.y - 23}V${layout.blocked.y}M${layout.blocked.x + 5} ${layout.blocked.y - 4}H${layout.blocked.x + layout.tokenWidth - 5}"/>
-      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * layout.queueGap }, index ? "" : "입출력 요청 없음", `data-io-slot="${index}"`)).join("")}
+      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * layout.queueGap }, "", `data-io-slot="${index}"`)).join("")}
     </g>
     <g class="scene-route-labels">
       ${routeBadge("dispatch", labelX, layout.running.y - 21, ["CPU", "배정 →"], 58)}
@@ -305,6 +305,8 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     if (!view) return;
     hostElement.dataset.running = view.running || "";
     hostElement.dataset.io = view.blocked.length ? "active" : "idle";
+    svg.querySelector('[data-io-slot="0"] text').textContent =
+      view.blocked.length ? "" : "입출력 요청 없음";
     const arriving = event?.type === "arrive";
     svg.querySelector(".scene-arrival-label").textContent =
       arriving ? "도착 중" : view.new.length ? "도착 예정" : "도착 완료";
