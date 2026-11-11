@@ -193,22 +193,11 @@ input[type="range"] {
   border: 1.5px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  box-shadow: 2px 2px 0 var(--shadow);
+  --press-depth: 4px;
   font-size: 12px;
   font-weight: 750;
   line-height: 1.4;
   white-space: nowrap;
-  transition:
-    transform 0.13s,
-    box-shadow 0.13s;
-}
-.button:hover:not(:disabled) {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--shadow);
-}
-.button:active:not(:disabled) {
-  transform: translate(2px, 2px);
-  box-shadow: 0 0 0 var(--shadow);
 }
 .button:disabled {
   box-shadow: none;
@@ -320,9 +309,6 @@ input[type="range"] {
 .segmented button[aria-pressed="true"] {
   background: var(--ink);
   color: var(--inverse);
-}
-.segmented button:not([aria-pressed="true"]):hover {
-  background: var(--soft);
 }
 .setting-help {
   font-size: 11.5px;
@@ -732,9 +718,6 @@ input[type="range"] {
 .milestone.is-done .milestone-num {
   border-color: var(--border);
 }
-.milestone:hover {
-  background: var(--soft);
-}
 .timeline-panel {
   grid-column: 1/-1;
 }
@@ -1095,7 +1078,7 @@ kbd {
   border: 2px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  box-shadow: 3px 3px 0 var(--shadow);
+  --press-depth: 3px;
   padding: 15px 8px;
   text-align: left;
   display: grid;
@@ -1107,9 +1090,6 @@ kbd {
 }
 .quiz-choice > span {
   font-size: 11px;
-}
-.quiz-choice:hover {
-  background: var(--soft);
 }
 .quiz-choice.correct {
   background: color-mix(in srgb, var(--process) 15%, var(--surface));
@@ -1628,12 +1608,11 @@ kbd {
   width: 100%;
   text-align: left;
   border: 1.5px solid var(--border);
-  box-shadow: 2px 2px 0 var(--shadow);
+  --press-depth: 3px;
   border-radius: 3px;
   background: var(--surface);
   padding: 9px;
 }
-.process-spec:hover,
 .process-spec[aria-pressed="true"] {
   background: var(--soft);
 }
@@ -1756,25 +1735,52 @@ kbd {
   border: 2px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
-  box-shadow: 2px 2px 0 var(--shadow);
+  --press-depth: 2px;
   color: var(--ink);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
 }
-.record-tabs button:hover {
-  transform: translate(1px, 1px);
-  box-shadow: 1px 1px 0 var(--shadow);
-}
 .record-tabs button[aria-selected="true"] {
   background: var(--ink);
   color: var(--inverse);
-  transform: translate(2px, 2px);
-  box-shadow: none;
 }
 .record-tabs button:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 3px;
+}
+
+/* The face travels into its existing hard shadow. */
+:is(.button, .process-spec, .quiz-choice, .record-tabs button):not(:disabled) {
+  --remaining: calc(var(--press-depth) - var(--press, 0px));
+  box-shadow: var(--remaining) var(--remaining) 0 var(--shadow);
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.button, .process-spec, .quiz-choice, .record-tabs button):not(:disabled):hover {
+    --press: calc(var(--press-depth) / 2);
+  }
+  :is(.segmented button:not([aria-pressed="true"]), .milestone, .process-spec, .quiz-choice):not(:disabled):hover {
+    background: var(--soft);
+  }
+  :is(.segmented button, .milestone, .learning-mode button, .detail-back, .time-link, .model-notes summary):not(:disabled):hover,
+  .setup-toggle:hover > * {
+    --press: 1px;
+  }
+}
+:is(.button, .process-spec, .quiz-choice, .record-tabs button):not(:disabled):active,
+.record-tabs button[aria-selected="true"]:not(:disabled) {
+  --press: var(--press-depth);
+}
+:is(.segmented button, .milestone, .learning-mode button, .detail-back, .time-link, .model-notes summary):not(:disabled):active,
+.setup-toggle:active > * {
+  --press: 2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :is(.button, .process-spec, .quiz-choice, .record-tabs button, .segmented button, .milestone, .learning-mode button, .detail-back, .time-link, .model-notes summary):not(:disabled),
+  .setup-toggle > * {
+    translate: var(--press, 0px) var(--press, 0px);
+    transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+  }
 }
 #log-count {
   display: inline-flex;
