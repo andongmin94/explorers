@@ -365,6 +365,28 @@
 .gs-file-line.feature-line {
   background: color-mix(in srgb, var(--feature) 8%, var(--surface));
 }
+.gs-file-line:has(.gs-restore-source) {
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  box-shadow: inset 3px 0 var(--main);
+  background: color-mix(in srgb, var(--main) 14%, var(--surface));
+}
+.gs-restore-source {
+  padding: 1px 5px;
+  border: 1px solid var(--main);
+  background: var(--surface);
+  color: var(--main);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.git-scene[data-switching] .gs-commit[data-reading] {
+  outline-color: var(--main);
+}
+.git-scene[data-switching] .gs-flow-guide,
+.git-scene[data-switching] .gs-index::before {
+  display: none;
+}
 .gs-file-line.marker {
   color: var(--warning);
   background: color-mix(in srgb, var(--warning) 8%, var(--surface));
@@ -448,7 +470,8 @@
 .gs-index-version.theirs > strong {
   color: var(--feature);
 }
-.gs-motion-wire {
+.gs-motion-wire,
+.gs-restore-wire {
   fill: none;
   stroke: none;
 }
@@ -456,6 +479,23 @@
   stroke: var(--traveler);
   stroke-width: 3;
   marker-end: url(#gs-moving-arrow);
+}
+.gs-restore-wire[data-active] {
+  stroke: var(--main);
+  stroke-width: 2;
+  marker-end: url(#gs-moving-arrow);
+}
+.gs-restore-dot {
+  position: absolute;
+  z-index: 6;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  offset-anchor: center;
+  offset-rotate: 0deg;
+  border: 2px solid var(--border);
+  background: var(--main);
 }
 .gs-token {
   offset-rotate: 0deg;

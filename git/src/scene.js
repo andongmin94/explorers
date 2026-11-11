@@ -88,12 +88,14 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     <section class="gs-work gs-device-card" aria-label="작업 파일"><header><span class="gs-zone-number">01</span><strong>작업 파일</strong><b class="gs-work-status"></b></header>
       <div class="gs-file-heading">${fileIcon}<b>welcome.txt</b><span>직접 편집</span></div><div class="gs-work-content"></div><p class="gs-work-note"></p></section>
     <section class="gs-index gs-device-card" aria-label="스테이징 영역"><header><span class="gs-zone-number">02</span><strong>스테이징</strong><b class="gs-index-status"></b></header><div class="gs-index-content"></div><p class="gs-index-note"></p></section>
-    <svg class="gs-motion-layer" aria-hidden="true"><defs><marker id="gs-moving-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs><path class="gs-motion-wire"/></svg><div class="gs-token" hidden>${fileIcon}<b></b></div>`;
+    <svg class="gs-motion-layer" aria-hidden="true"><defs><marker id="gs-moving-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs><path class="gs-motion-wire"/><path class="gs-restore-wire"/></svg><div class="gs-restore-dot" aria-hidden="true" hidden></div><div class="gs-token" hidden>${fileIcon}<b></b></div>`;
   const $ = (selector) => host.querySelector(selector);
   const decoration = $(".gs-decoration"),
     edges = $(".gs-graph-edges"),
     token = $(".gs-token"),
-    wire = $(".gs-motion-wire");
+    wire = $(".gs-motion-wire"),
+    restoreWire = $(".gs-restore-wire"),
+    restoreDot = $(".gs-restore-dot");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const stacked = matchMedia("(max-width: 1099px)");
   let layout,
@@ -227,7 +229,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       });
     }
   }
-  function snap(state) {
+  function snap(state, restoredFrom, frameRestore = false) {
     paintedState = state;
     host.dataset.status = state.status;
     $(".gs-commit-count").textContent = `${state.commits.length}개 커밋`;
@@ -291,6 +293,18 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     }
     $(".gs-index").dataset.status = state.index.status;
     $(".gs-work").dataset.status = state.status;
+    if (restoredFrom) {
+      $(`[data-commit="${restoredFrom}"]`).dataset.reading = "true";
+      for (const row of host.querySelectorAll(".gs-file-line.main-line, .gs-file-line.feature-line")) {
+        row.insertAdjacentHTML("beforeend", `<small class="gs-restore-source">${escape(restoredFrom)} 복원</small>`);
+      }
+      if (frameRestore && stacked.matches) {
+        const origin = host.getBoundingClientRect().top;
+        const first = $(".gs-work .gs-restore-source").getBoundingClientRect().top - origin;
+        const last = $(".gs-index .gs-restore-source").getBoundingClientRect().bottom - origin;
+        showSceneRange(first - 12, last + 12);
+      }
+    }
   }
   function phase(kind, title, body, state) {
     $(".gs-callout strong").textContent = title;
@@ -305,6 +319,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     active = null;
     token.hidden = true;
     wire.removeAttribute("data-active");
+    restoreWire.removeAttribute("data-active");
+    restoreDot.hidden = true;
     host
       .querySelectorAll("[data-reading]")
       .forEach((element) => delete element.dataset.reading);
@@ -328,7 +344,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     if (origin + top >= 12 && origin + bottom <= innerHeight - 12) return;
     window.scrollBy({ top: origin + (top + bottom - innerHeight) / 2, behavior: "instant" });
   }
-  async function travel(run, source, destination, label, branch, pace) {
+  async function travel(run, source, destination, label, branch, pace, restoreBoth = false) {
     let top, bottom;
     run.updatePath = () => {
       const from = anchorPoint(source), to = anchorPoint(destination);
@@ -340,6 +356,15 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       token.style.offsetPath = `path("${path}")`;
       top = Math.min(from.y, to.y) - 32;
       bottom = Math.max(from.y, to.y) + 32;
+      if (restoreBoth) {
+        const index = anchorPoint("index");
+        const side = layout.index.x + layout.index.width;
+        const route = layout.compact
+          ? `M${from.x} ${from.y}V${bend}H${side + 13}V${index.y}H${side}`
+          : `M${from.x} ${from.y}V${bend}H${index.x}V${index.y}`;
+        restoreWire.setAttribute("d", route);
+        restoreDot.style.offsetPath = `path("${route}")`;
+      }
     };
     run.updatePath();
     wire.dataset.active = "true";
@@ -348,6 +373,10 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     token.style.setProperty("--traveler", color);
     token.querySelector("b").textContent = label;
     token.hidden = false;
+    if (restoreBoth) {
+      restoreWire.dataset.active = "true";
+      restoreDot.hidden = false;
+    }
     let followFrame;
     const follow = () => {
       if (run.paused || run.cancelled) return;
@@ -374,22 +403,29 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       { offset: 0.975, offsetDistance: "97.5%", opacity: 1 },
       { offsetDistance: "100%", opacity: 0 },
     ];
-    await animate(run, token, frames, {
+    const timing = {
       duration: (430 + Math.min(wire.getTotalLength(), 550) * 0.95) * pace,
       easing: "ease-in-out",
-    });
+    };
+    const flight = animate(run, token, frames, timing);
+    if (restoreBoth) await Promise.all([flight, animate(run, restoreDot, frames, timing)]);
+    else await flight;
     cancelAnimationFrame(followFrame);
     run.frameTrip = null;
     run.updatePath = null;
     if (!run.cancelled) {
       token.hidden = true;
       wire.removeAttribute("data-active");
+      restoreWire.removeAttribute("data-active");
+      restoreDot.hidden = true;
     }
   }
   async function update(step, { animate: motion = false, speed = 1 } = {}) {
     cancel();
+    const restoredFrom = step.action === "switch" ? step.state.refs[step.state.currentBranch] : null;
+    host.toggleAttribute("data-switching", Boolean(restoredFrom));
     if (!motion || step.index === 0 || reduced.matches) {
-      snap(step.state);
+      snap(step.state, restoredFrom, motion);
       if (motion && step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
       phase("complete", step.title, "", step.state);
       return;
@@ -407,7 +443,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         edit: "작업 파일을 고칩니다. 저장된 커밋과 인덱스는 아직 바뀌지 않습니다.",
         stage: "작업 파일의 현재 내용을 인덱스에 기록합니다.",
         commit: "인덱스의 내용으로 새 커밋을 만들고 현재 브랜치를 옮깁니다.",
-        switch: "main이 가리키는 커밋의 파일을 작업 공간에 펼칩니다.",
+        switch: `${branch}이 가리키는 ${restoredFrom}에서 작업 파일과 스테이징을 함께 복원합니다.`,
         merge: "공통 조상 C0, 현재 C2, 병합 대상 C1을 함께 비교합니다.",
         resolve:
           "선택한 최종 문장으로 충돌 표시를 교체합니다. 아직 git add 전입니다.",
@@ -434,13 +470,15 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         pace,
       );
     } else if (step.action === "switch") {
+      $(`[data-commit="${restoredFrom}"]`).dataset.reading = "true";
       await travel(
         run,
-        step.state.refs[branch],
+        restoredFrom,
         "work",
-        "파일 복원",
+        `${restoredFrom} 복원`,
         branch,
         pace,
+        true,
       );
     } else if (step.action === "merge") {
       const content = $(".gs-index-content");
@@ -486,7 +524,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         referencePosition(name, step.before),
       ]),
     );
-    snap(step.state);
+    snap(step.state, restoredFrom, true);
     if (step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
     phase(
       "apply",
