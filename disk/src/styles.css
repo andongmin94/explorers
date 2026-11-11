@@ -7,18 +7,19 @@
 }
 :root {
   font-family: Pretendard, sans-serif;
-  color: #292a2e;
+  color: var(--ink);
   background: #f2f2f4;
   font-synthesis: none;
   font-weight: 450;
   --bg: #f2f2f4;
   --surface: #fff;
   --soft: #edeef0;
-  --ink: #292a2e;
-  --border: #3d3e43;
+  --ink: #34363b;
+  --selected: #d4d6db;
+  --border: #65676d;
   --muted: #656771;
   --rule: #d4d5da;
-  --shadow: #34353b;
+  --shadow: #787a80;
   --inverse: #fff;
   --accent: #3971d9;
   --done: #168264;
@@ -33,6 +34,7 @@
   --surface: #24252a;
   --soft: #303138;
   --ink: #ebecef;
+  --selected: #4c4e56;
   --border: #898c96;
   --muted: #b1b4bd;
   --rule: #454750;
@@ -184,8 +186,8 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   .button:not(.primary):hover:enabled { background: var(--soft); }
 }
 .button.primary {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .icon-button {
   width: 36px;
@@ -270,8 +272,8 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   margin-top: 3px;
 }
 .mode-toggle button[aria-pressed="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .rule-summary {
   font-size: 12px;
@@ -800,8 +802,8 @@ button[data-seek] {
   font-size: 11px;
 }
 #milestones button[aria-current="step"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 #milestones b {
   font-size: 13px;
@@ -942,8 +944,8 @@ button[data-seek] {
   white-space: nowrap;
 }
 .record-tabs button[aria-selected="true"] {
-  background: var(--ink);
-  color: var(--inverse);
+  background: var(--selected);
+  color: var(--ink);
 }
 .record-tabs button > span {
   font-size: 10px;
