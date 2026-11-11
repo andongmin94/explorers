@@ -429,16 +429,6 @@ kbd {
   color: var(--ink);
   font-size: 11px;
 }
-.order-item em {
-  margin-left: auto;
-  font-size: 9px;
-  font-style: normal;
-  font-weight: 800;
-  white-space: nowrap;
-}
-.order-item:first-child {
-  box-shadow: 2px 2px 0 var(--shadow);
-}
 .concept-pair {
   border-block: 1px solid var(--rule);
   padding-block: 10px;
@@ -1327,9 +1317,6 @@ dialog {
   .order-item {
     flex: 1;
     flex-wrap: wrap;
-  }
-  .order-item em {
-    display: none;
   }
   .reference {
     padding-inline: 0;

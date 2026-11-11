@@ -256,7 +256,7 @@ function layoutFor(width) {
     disk: { x: ssdX - 50, y: compact ? 457 : 229, gap: 36 },
     lookup: { x: ramHousing.x - 2, y: ramHousing.y + 20 },
     accessY: compact ? 306 : 355,
-    order: { x: 18, y: compact ? 586 : 450, width: width - 36 },
+    table: { x: 18, y: compact ? 586 : 450, width: width - 36 },
     titleY: 79,
   };
 }
@@ -282,12 +282,12 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   host.innerHTML = `<svg class="mem-map" aria-hidden="true"></svg><div class="mem-frame-layer"></div>
     <div class="mem-request" aria-hidden="true"><span>CPU 요청</span><strong>—</strong><small>시작 전</small></div>
     <div class="mem-status" aria-live="off"><b>준비</b><strong>세 개의 RAM 프레임을 관찰하세요</strong></div>
-    <div class="mem-order" aria-hidden="true"></div><div class="mem-transfer" hidden aria-hidden="true"></div>`;
+    <div class="mem-page-table" role="group" aria-label="페이지 테이블"></div><div class="mem-transfer" hidden aria-hidden="true"></div>`;
   const svg = host.querySelector(".mem-map"),
     frameLayer = host.querySelector(".mem-frame-layer"),
     request = host.querySelector(".mem-request"),
     status = host.querySelector(".mem-status"),
-    order = host.querySelector(".mem-order"),
+    pageTable = host.querySelector(".mem-page-table"),
     transfer = host.querySelector(".mem-transfer");
   const cards = Array.from({ length: 3 }, (_, slot) => {
     const element = document.createElement("div");
@@ -300,14 +300,12 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   });
   let layout,
     step = null,
-    algorithm = "fifo",
     frames = Array.from({ length: 3 }, (_, slot) => ({
       slot,
       page: null,
       loadedAt: null,
       lastUsedAt: null,
     })),
-    pageOrder = [],
     run = null,
     revision = 0,
     destroyed = false;
@@ -320,7 +318,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     if (kind === "lookup")
       return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}`;
     if (kind === "retry")
-      return `M${cpu.x} ${cpu.y}H${leftGap}V${ram.y}H${ram.x}`;
+      return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}V${ram.y}H${ram.x}`;
     if (kind === "load") {
       if (layout.compact)
         return `M${disk.x} ${disk.y}H${layout.ssdHousing.x + layout.ssdHousing.width + 5}V552H${layout.width - 14}V${ram.y}H${ram.x}`;
@@ -354,7 +352,11 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         `프레임 F${frame.slot}: ${frame.page ? `페이지 ${frame.page}, ${frame.loadedAt}번째 적재, ${frame.lastUsedAt === null ? "접근 전" : `${frame.lastUsedAt}번째 사용`}` : "비어 있음"}`,
       );
     });
-    order.innerHTML = `<span>${algorithm === "fifo" ? "먼저 들어온 순서" : "오래 사용하지 않은 순서"}</span><div>${pageOrder.length ? pageOrder.map((page, index) => `<b style="--page-color:${COLOR[page]}">${page}</b>${index < pageOrder.length - 1 ? "<i>→</i>" : ""}`).join("") : "<small>아직 적재된 페이지가 없습니다</small>"}</div><small>${pageOrder.length ? "왼쪽 페이지가 다음 교체 후보입니다" : "RAM은 빈 프레임부터 사용합니다"}</small>`;
+    const entries = PAGES.map((page) => {
+      const frame = frames.find((f) => f.page === page);
+      return `<span class="mem-entry" data-requested="${step?.page === page}" aria-label="${page} · ${frame ? "프레임 " + frame.slot : "미상주"}"><b style="--page-color:${COLOR[page]}">${page}</b><small>${frame ? "F" + frame.slot : "—"}</small></span>`;
+    });
+    pageTable.innerHTML = `<span>페이지 테이블 <small>— 미상주</small></span><div>${entries.join("")}</div>`;
     host.setAttribute(
       "aria-label",
       `${step?.index || 0}번째 접근. ${frames.map((f) => `프레임 F${f.slot} ${f.page || "비어 있음"}`).join(", ")}.`,
@@ -379,7 +381,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   function phase(kind, title, body) {
     request.querySelector("small").textContent = {
       ready: "시작 전",
-      lookup: "주소 조회",
+      lookup: "상주 확인",
       hit: "RAM 적중",
       miss: "부재 대기",
       select: "부재 대기",
@@ -409,7 +411,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       phase(
         "ready",
         "세 개의 RAM 프레임을 관찰하세요",
-        "CPU가 요청하는 페이지가 RAM에 있는지 확인합니다.",
+        "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.",
       );
     else
       phase(
@@ -444,7 +446,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       </g>
       <g class="mem-station" data-device="ram">${housingDrawing(layout.ramHousing, "ram")}${ramDrawing(layout.ram)}
         <rect class="mem-controller" x="${layout.ramX}" y="${layout.ramHousing.y + 8}" width="${layout.ramWidth}" height="23"/>
-        <text class="mem-controller-label" x="${ramCenter}" y="${layout.ramHousing.y + 24}" text-anchor="middle">RAM · 프레임 3개</text>
+        <text class="mem-controller-label" x="${ramCenter}" y="${layout.ramHousing.y + 24}" text-anchor="middle">RAM · 페이지 테이블</text>
         <rect class="mem-controller-port" x="${layout.lookup.x - 2}" y="${layout.lookup.y - 6}" width="6" height="12"/>
         ${ports}
       </g>
@@ -475,10 +477,10 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       width: `${layout.request.width}px`,
       height: "62px",
     });
-    Object.assign(order.style, {
-      left: `${layout.order.x}px`,
-      top: `${layout.order.y}px`,
-      width: `${layout.order.width}px`,
+    Object.assign(pageTable.style, {
+      left: `${layout.table.x}px`,
+      top: `${layout.table.y}px`,
+      width: `${layout.table.width}px`,
     });
     paintFrames();
     paintRequest(!!step?.index);
@@ -579,8 +581,8 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       slot = step.frameIndex;
     phase(
       "lookup",
-      `CPU가 페이지 ${page}를 요청합니다`,
-      "먼저 RAM의 세 프레임에 이 페이지가 있는지 확인합니다.",
+      `페이지 테이블에서 ${page} 항목을 조회합니다`,
+      "CPU의 주소 변환 장치가 요청한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.",
     );
     await travel("lookup", page, slot, active, pace);
     if (!alive(active)) return;
@@ -591,14 +593,14 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         phase(
           "hit",
           `적중 · ${page}가 F${slot}에 있습니다`,
-          "RAM의 페이지를 그대로 사용합니다. SSD에서 새로 가져오지 않습니다.",
+          `페이지 테이블의 ${page} 항목이 F${slot}을 가리킵니다. 이 프레임을 바로 읽습니다.`,
         );
         await hold(350 * pace, active);
       } else if (event.type === "miss") {
         phase(
           "miss",
           `페이지 부재 · ${page}가 RAM에 없습니다`,
-          "페이지를 SSD에서 읽어올 프레임이 필요합니다.",
+          `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`,
         );
         await hold(500 * pace, active);
       } else if (event.type === "select") {
@@ -621,7 +623,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         phase(
           "evict",
           `F${slot}의 ${event.page} 복사본만 제거합니다`,
-          "수정되지 않은 페이지이므로 SSD에 다시 쓰지 않습니다. 디스크의 원본은 그대로 남습니다.",
+          `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 SSD에 다시 쓸 필요는 없습니다.`,
         );
         await track(
           cards[slot].querySelector(".mem-frame-content").animate(
@@ -635,21 +637,19 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         );
         if (!alive(active)) return;
         frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null };
-        pageOrder = pageOrder.filter((p) => p !== event.page);
         paintFrames();
         await hold(110 * pace, active);
       } else if (event.type === "load") {
         phase(
           "load",
           `SSD에서 ${page}를 읽어 F${slot}에 적재합니다`,
-          "화살표는 SSD에서 RAM으로 페이지를 읽어오는 방향입니다. 디스크 원본은 유지됩니다.",
+          `SSD에 있는 원본을 F${slot}으로 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → F${slot}을 기록합니다.`,
         );
         cards[slot].dataset.receiving = "true";
         cards[slot].style.setProperty("--page-color", COLOR[page]);
         await travel("load", page, slot, active, pace);
         if (!alive(active)) return;
         frames[slot] = { ...step.frames[slot], lastUsedAt: null };
-        pageOrder = [...step.order];
         paintFrames();
         delete cards[slot].dataset.receiving;
         delete cards[slot].dataset.selected;
@@ -670,7 +670,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           phase(
             "retry",
             `CPU가 ${page} 접근을 다시 시도합니다`,
-            "필요한 페이지가 이제 RAM에 있으므로 CPU의 요청을 다시 처리합니다.",
+            `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 F${slot}을 가리킵니다.`,
           );
           await travel("retry", page, slot, active, pace);
           if (!alive(active)) return;
@@ -683,7 +683,6 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         await travel("access", page, slot, active, pace);
         if (!alive(active)) return;
         frames = cloneFrames(step.frames);
-        pageOrder = [...step.order];
         paintFrames();
         paintRequest(true);
       }
@@ -696,13 +695,12 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   function update(
     next,
     previous = null,
-    { animate = true, duration = 1000, algorithm: nextAlgorithm = "fifo" } = {},
+    { animate = true, duration = 1000 } = {},
   ) {
     if (destroyed) return Promise.resolve();
     revision++;
     cancel();
     step = next;
-    algorithm = nextAlgorithm;
     const moving =
       animate &&
       !reduced.matches &&
@@ -710,7 +708,6 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       next.index === previous.index + 1 &&
       next.events.length;
     frames = cloneFrames(moving ? next.before : next.frames);
-    pageOrder = [...(moving ? next.beforeOrder : next.order)];
     paintFrames();
     paintRequest(!moving);
     if (!moving) {
@@ -733,7 +730,6 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     cancel();
     if (step) {
       frames = cloneFrames(step.frames);
-      pageOrder = [...step.order];
     }
     draw();
     finalPhase();

@@ -43,7 +43,7 @@ $("#app").innerHTML = `
 <aside class="panel setup-panel"><button class="panel-head setup-toggle" data-action="setup" aria-expanded="true" aria-controls="setup-content"><h2>실험 조건</h2><span>3개의 프레임 ⌄</span></button><div id="setup-content" class="setup-content">
 <div class="section-label">페이지 교체 방식</div><div class="algorithm-toggle" role="group" aria-label="페이지 교체 방식"><button data-algorithm="fifo" aria-pressed="true">FIFO</button><button data-algorithm="lru" aria-pressed="false">LRU</button></div><p id="rule-summary" class="rule-summary"></p>
 <div class="section-label">고정된 접근 순서 <b>10회</b></div><div class="reference-sequence" id="reference-sequence"></div><p class="help">번호를 누르면 그 접근까지 처리한 상태를 봅니다.</p>
-<div class="order-heading"><h3>교체 우선순위</h3><span>맨 앞부터 내보냄</span></div><div id="replacement-order" class="replacement-order"></div><p id="order-help" class="help"></p>
+<div class="order-heading"><h3>프레임별 접근 기록</h3><span>프레임 번호순</span></div><div id="replacement-order" class="replacement-order"></div><p id="order-help" class="help"></p>
 <div class="concept-pair"><div><b>페이지</b><span>프로그램이 사용하는 메모리 단위</span></div><div><b>프레임</b><span>페이지 한 개가 들어가는 RAM 자리</span></div></div>
 <details class="model-notes"><summary>이 실험의 규칙</summary><ul><li>RAM 프레임은 3개이며 처음에는 모두 비어 있습니다.</li><li>A~E는 디스크에 원본이 있는 읽기 전용 페이지입니다.</li><li>빈 프레임이 있으면 교체 없이 적재합니다.</li><li>내보내는 RAM 사본은 수정되지 않았으므로 디스크에 다시 쓰지 않습니다.</li><li>TLB·수정 페이지·실제 지연 시간은 다루지 않습니다. 1단계는 1번의 페이지 접근입니다.</li></ul></details>
 </div></aside>
@@ -100,7 +100,7 @@ function renderControls() {
     moving ? "일시정지" : "재생",
   );
   $('[data-action="back"]').disabled = index === 0;
-  $('[data-action="next"]').disabled = index === 10;
+  $('[data-action="next"]').disabled = busy || index === REFERENCE_STRING.length;
   $('[data-action="replay"]').disabled = index === 0 || busy;
   $('[data-action="guided"]').setAttribute("aria-checked", String(guided));
   $("#memory-scene").setAttribute("aria-busy", String(busy));
@@ -141,19 +141,17 @@ function render() {
     (page, i) =>
       `<button data-seek="${i + 1}" class="reference ${i < committed ? "visited" : ""} ${i + 1 === index ? "current" : ""}" aria-label="${i + 1}번째, 페이지 ${page} 접근 후로 이동"><small>${i + 1}</small>${badge(page)}</button>`,
   ).join("");
-  $("#replacement-order").innerHTML = step.order.length
-    ? step.order
-        .map((page, i) => {
-          const f = step.frames.find((f) => f.page === page);
-          return `<div class="order-item"><small>${i + 1}</small>${badge(page)}<span>${algorithm === "fifo" ? "적재" : "최근 접근"} <b>${algorithm === "fifo" ? f.loadedAt : f.lastUsedAt}번째</b></span>${i === 0 ? "<em>다음 후보</em>" : ""}</div>`;
-        })
+  const occupied = step.frames.filter((frame) => frame.page !== null);
+  $("#replacement-order").innerHTML = occupied.length
+    ? occupied
+        .map((f) => `<div class="order-item"><small>F${f.slot}</small>${badge(f.page)}<span>적재 <b>${f.loadedAt}번째</b></span><span>최근 접근 <b>${f.lastUsedAt}번째</b></span></div>`)
         .join("")
     : '<p class="empty-note">RAM이 비어 있습니다.</p>';
   $("#order-help").textContent = busy
     ? "직전 접근 완료 기준입니다. 이번 접근을 마치면 갱신됩니다."
     : algorithm === "fifo"
-      ? "페이지가 적재된 차례가 기준입니다."
-      : "가장 마지막으로 접근한 차례가 기준입니다.";
+      ? "FIFO는 적재 차례를 비교합니다. 가장 작은 수를 찾아보세요."
+      : "LRU는 최근 접근 차례를 비교합니다. 가장 작은 수를 찾아보세요.";
   $("#access-summary").innerHTML = busy
     ? "접근 처리 중"
     : step.index === 0
@@ -205,11 +203,11 @@ function renderRecords() {
     `<table class="history-table"><thead><tr><th>접근</th>${REFERENCE_STRING.map((_, i) => `<th class="${i + 1 === committed ? "selected" : ""}"><button data-seek="${i + 1}" aria-label="${i + 1}번째 접근으로 이동">${i + 1}</button></th>`).join("")}</tr></thead><tbody>${rows.map(([label, cell]) => `<tr><th>${label}</th>${REFERENCE_STRING.map((_, i) => `<td class="${i + 1 === committed ? "selected" : ""} ${i >= committed ? "future" : ""}">${cell(i < committed ? run().steps[i + 1] : null, i)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
   $("#event-count").textContent = `${committed}회`;
   $("#access-log").innerHTML = committed
-    ? `<table class="log-table"><thead><tr><th>접근</th><th>페이지</th><th>판정</th><th>프레임</th><th>교체</th><th>교체 우선순위</th></tr></thead><tbody>${run()
+    ? `<table class="log-table"><thead><tr><th>접근</th><th>페이지</th><th>판정</th><th>프레임</th><th>교체</th><th>이번 접근의 근거</th></tr></thead><tbody>${run()
         .steps.slice(1, committed + 1)
         .map(
           (s) =>
-            `<tr><td><button data-seek="${s.index}">${s.index}번째 ↗</button></td><td>${badge(s.page)}</td><td><span class="result-tag ${s.hit ? "hit" : "fault"}">${s.hit ? "적중" : "부재"}</span></td><td>F${s.frameIndex}</td><td>${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${s.order.join(" → ")}</td></tr>`,
+            `<tr><td><button data-seek="${s.index}">${s.index}번째 ↗</button></td><td>${badge(s.page)}</td><td><span class="result-tag ${s.hit ? "hit" : "fault"}">${s.hit ? "적중" : "부재"}</span></td><td>F${s.frameIndex}</td><td>${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${s.hit ? "이미 상주" : !s.victim ? "빈 프레임" : algorithm === "fifo" ? `가장 이른 적재 · ${s.before[s.frameIndex].loadedAt}번째` : `가장 오래된 접근 · ${s.before[s.frameIndex].lastUsedAt}번째`}</td></tr>`,
         )
         .join("")}</tbody></table>`
     : '<p class="empty-note">페이지에 접근하면 판정과 교체 근거가 기록됩니다.</p>';
@@ -254,7 +252,6 @@ async function navigate(target, animate = false) {
   await scene.update(run().steps[target], previous, {
     animate: sequential,
     duration: 1000 / speed,
-    algorithm,
   });
   if (token !== revision) return;
   busy = false;
@@ -277,6 +274,11 @@ async function togglePlay() {
   scene.resume();
   renderControls();
   if (!busy) schedule();
+}
+function nextAccess() {
+  if (busy || index === REFERENCE_STRING.length) return;
+  pause();
+  return navigate(index + 1, true);
 }
 function selectRecord(name, focus = false) {
   selectedRecord = name;
@@ -385,8 +387,7 @@ $("#app").addEventListener("click", async (event) => {
       break;
     }
     case "next":
-      pause();
-      await navigate(index + 1, true);
+      await nextAccess();
       break;
     case "guided":
       guided = !guided;
@@ -452,8 +453,7 @@ document.addEventListener("keydown", (event) => {
     togglePlay();
   } else if (event.key === "ArrowRight") {
     event.preventDefault();
-    pause();
-    navigate(index + 1, true);
+    if (!event.repeat) nextAccess();
   } else if (event.key === "ArrowLeft") {
     event.preventDefault();
     pause();
@@ -480,4 +480,4 @@ const panelObserver = new ResizeObserver(() =>
 );
 panelObserver.observe($(".scene-panel"));
 render();
-scene.update(current(), null, { animate: false, algorithm });
+scene.update(current(), null, { animate: false });
