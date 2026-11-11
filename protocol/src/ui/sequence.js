@@ -370,16 +370,22 @@ function refreshSequenceDiagram(panel) {
   }
   const scrollArea = panel.querySelector(".seq-scroll");
   const scrollTop = scrollArea.scrollTop;
+  const svg = panel.querySelector(".seq-svg");
+  const drawing = new Map();
+  for (const arrow of svg.querySelectorAll(".seq-arrow.is-current")) {
+    const animation = arrow.querySelector(".seq-line").getAnimations()[0];
+    if (animation) {
+      drawing.set(arrow.dataset.packet, {
+        time: animation.currentTime ?? 0,
+        delay: animation.effect.getTiming().delay,
+      });
+    }
+  }
+  svg.getAnimations({ subtree: true }).forEach((animation) => animation.cancel());
   drawSequenceDiagram(panel, panel._lesson);
   if (panel._state) {
-    applySequenceState(panel, panel._state, panel._lesson);
+    applySequenceState(panel, panel._state, drawing);
   }
-  panel
-    .querySelector(".seq-svg")
-    .getAnimations({
-      subtree: true,
-    })
-    .forEach((animation) => animation.finish());
   scrollArea.scrollTop = scrollTop;
 }
 function bindSequenceScrolling(panel) {
@@ -552,7 +558,7 @@ function hideSequenceElement(element) {
     );
   }
 }
-function applySequenceState(panel, state) {
+function applySequenceState(panel, state, drawingBeforeResize) {
   const svg = panel.querySelector(".seq-svg");
   const layout = panel._layout;
   for (const [nodeId, [, address]] of Object.entries(state.labels ?? {})) {
@@ -583,15 +589,26 @@ function applySequenceState(panel, state) {
     newlyVisible.length && newlyVisible.every((entry) => entry.current);
   // Current packets draw in send order. Seeking or replaying past packets uses a fade.
   newlyVisible.forEach((entry, index) => {
+    const previous = drawingBeforeResize?.get(entry.element.dataset.packet);
+    if (drawingBeforeResize && !previous) {
+      entry.element.classList.add("is-shown");
+      return;
+    }
     const quick = layout.packets.find(
       (packet) => packet.index === Number(entry.element.dataset.packet),
     )?.p.quick;
-    if (onlyCurrentPackets) {
+    if (onlyCurrentPackets || previous) {
       revealSequenceElement(
         entry.element,
         quick ? "quick" : "draw",
-        index * SEQUENCE_ANIMATION_TIMINGS.stagger,
+        previous?.delay ?? index * SEQUENCE_ANIMATION_TIMINGS.stagger,
       );
+      if (previous) {
+        // Recreate the draw at its original playback time using the new line length.
+        entry.element.getAnimations({ subtree: true }).forEach((animation) => {
+          animation.currentTime = previous.time;
+        });
+      }
     } else {
       revealSequenceElement(
         entry.element,
@@ -604,7 +621,8 @@ function applySequenceState(panel, state) {
     const visible =
       !state.started || state.notes[Number(note.dataset.note)] !== "future";
     if (visible && !note.classList.contains("is-shown")) {
-      revealSequenceElement(note, "fade", 0);
+      if (drawingBeforeResize) note.classList.add("is-shown");
+      else revealSequenceElement(note, "fade", 0);
       newlyVisible.push({
         element: note,
         y: layout.notes[Number(note.dataset.note)].y,
