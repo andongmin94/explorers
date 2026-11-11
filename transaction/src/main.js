@@ -200,6 +200,7 @@ function render() {
     .join("");
   $("#lesson-details").hidden = busy;
   $("#takeaway").textContent = lesson.takeaway;
+  $("#takeaway").parentElement.hidden = busy;
   $('[data-action="predict"]').hidden = busy || !predictionFor(step, run());
   $(".conclusion-button").hidden = committed !== 11;
   const milestones = buildMilestones(run());

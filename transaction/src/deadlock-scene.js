@@ -141,10 +141,28 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       width: `${Math.min(356, width - 58)}px`,
       top: "272px",
     });
-    if (lastStep) snap(lastStep.state);
+    if (paintedState) paintRoutes(paintedState);
+    active?.updateRoute?.();
+  }
+  function paintRoutes(state) {
+    for (const row of rowIds) {
+      const data = state.rows[row];
+      const gate = svg.querySelector(`[data-gate="${row}"]`);
+      gate.dataset.open = String(!data.owner);
+      gate.dataset.waiting = String(data.waiting.length > 0);
+      for (const id of ids) {
+        const route = svg.querySelector(`[data-route="${id}-${row}"]`);
+        route.dataset.owned = String(data.owner === id);
+        route.dataset.waiting = String(data.waiting.includes(id));
+        route.setAttribute("d", data.owner === id
+          ? ownershipPath(id, row)
+          : requestPath(id, row, data.waiting.includes(id)));
+      }
+    }
   }
   function snap(state) {
     paintedState = state;
+    paintRoutes(state);
     host.dataset.deadlocked = String(state.deadlocked);
     for (const id of ids) {
       const client = state.clients[id],
@@ -220,23 +238,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       queues[row].innerHTML = waiting
         ? `${badge(waiting)}<span>${row} ${ready ? "재개 가능" : "대기 중"}</span>`
         : "";
-      const gate = svg.querySelector(`[data-gate="${row}"]`);
-      gate.dataset.open = String(!data.owner);
-      gate.dataset.waiting = String(!!waiting);
     }
-    for (const id of ids)
-      for (const row of rowIds) {
-        const route = svg.querySelector(`[data-route="${id}-${row}"]`),
-          data = state.rows[row];
-        route.dataset.owned = String(data.owner === id);
-        route.dataset.waiting = String(data.waiting.includes(id));
-        route.setAttribute(
-          "d",
-          data.owner === id
-            ? ownershipPath(id, row)
-            : requestPath(id, row, data.waiting.includes(id)),
-        );
-      }
     cycle.dataset.cycle = String(state.deadlocked);
     cycle.querySelector("[data-cycle-title]").textContent = state.deadlocked
       ? state.detected
@@ -319,32 +321,35 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
     await animation.finished.catch(() => {});
     run.animations.delete(animation);
   }
-  async function travel(run, id, label, path, pace) {
+  async function travel(run, id, label, route, pace) {
     if (run.cancelled) return;
-    const line = svg.querySelector(".dl-motion-path");
-    line.setAttribute("d", path);
-    line.dataset.active = "true";
-    line.dataset.response = String(["확인", "확정"].includes(label));
-    line.style.setProperty("--actor", color(id));
-    const length = line.getTotalLength();
+    run.updateRoute = () => {
+      const data = route();
+      const line = svg.querySelector(".dl-motion-path");
+      line.setAttribute("d", data);
+      line.dataset.active = "true";
+      line.dataset.response = String(["확인", "확정"].includes(label));
+      line.style.setProperty("--actor", color(id));
+      packet.style.offsetPath = `path("${data}")`;
+      return line.getTotalLength();
+    };
+    const length = run.updateRoute();
     packet.textContent = label;
     packet.style.setProperty("--actor", color(id));
     packet.hidden = false;
-    const frames = Array.from({ length: 41 }, (_, i) => {
-      const p = line.getPointAtLength((length * i) / 40);
-      return {
-        transform: `translate(${p.x - 32}px,${p.y - 14}px)`,
-        opacity: i === 0 || i === 40 ? 0 : 1,
-        offset: i / 40,
-      };
-    });
-    await animate(run, packet, frames, {
+    await animate(run, packet, [
+      { offsetDistance: "0%", opacity: 0 },
+      { opacity: 1, offset: 0.04 },
+      { opacity: 1, offset: 0.96 },
+      { offsetDistance: "100%", opacity: 0 },
+    ], {
       duration: (320 + length * 1.1) * pace,
       easing: "linear",
     });
     if (!run.cancelled) {
       packet.hidden = true;
-      delete line.dataset.active;
+      run.updateRoute = null;
+      delete svg.querySelector(".dl-motion-path").dataset.active;
     }
   }
   async function update(
@@ -437,7 +442,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           "request",
         );
         queues[row].hidden = true;
-        await travel(run, step.client, "B 재개", resumePath(row), pace);
+        await travel(run, step.client, "B 재개", () => resumePath(row), pace);
       } else {
         phase(
           step,
@@ -463,7 +468,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
             : step.action === "commit"
               ? "커밋"
               : `${row} 쓰기`,
-          requestPath(step.client, row, step.action === "wait"),
+          () => requestPath(step.client, row, step.action === "wait"),
           pace,
         );
       }
@@ -525,7 +530,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           run,
           step.client,
           step.action === "commit" ? "확정" : "확인",
-          requestPath(step.client, row, false, true),
+          () => requestPath(step.client, row, false, true),
           pace,
         );
       }
@@ -537,11 +542,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   }
   draw();
   const observer = new ResizeObserver(() => {
-    if (Math.abs(host.clientWidth - layout.width) > 1) {
-      cancel();
-      draw();
-      if (lastStep) phase(lastStep, completeTitle(lastStep), "", "complete");
-    }
+    if (Math.abs(host.clientWidth - layout.width) > 1) draw();
   });
   observer.observe(host);
   return {

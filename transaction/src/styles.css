@@ -773,6 +773,7 @@ summary {
 }
 .query-packet {
   position: absolute;
+  offset-rotate: 0deg;
   left: 0;
   top: 0;
   width: 62px;

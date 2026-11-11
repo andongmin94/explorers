@@ -160,6 +160,7 @@ function render() {
     .join("");
   $("#lesson-details").hidden = busy;
   $("#takeaway").textContent = lesson.takeaway;
+  $("#takeaway").parentElement.hidden = busy;
   $('[data-action="predict"]').hidden = busy || step.action !== "detect";
   const active = DEADLOCK_MILESTONES.findLastIndex((m) => m.index <= index);
   $("#milestones").innerHTML = DEADLOCK_MILESTONES.map(

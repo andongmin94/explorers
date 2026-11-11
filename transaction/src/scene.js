@@ -206,7 +206,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let layout,
     active = null,
-    revision = 0,
     lastStep = null,
     paintedState = null;
 
@@ -231,6 +230,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     return `M${layout.park.x} ${layout.park.y}H${lane}V${layout.rowY + 28}H${layout.dbX + layout.rowWidth / 2 + 9}`;
   }
   function draw() {
+    const previousArm = svg.querySelector(".gate-arm");
     const width = Math.round(host.clientWidth),
       mobile = width < 560;
     layout = {
@@ -297,10 +297,26 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       left: `${layout.park.x - 44}px`,
       top: `${layout.park.y - 24}px`,
     });
-    if (lastStep) snap(lastStep.state);
+    if (previousArm) svg.querySelector(".gate-arm").replaceWith(previousArm);
+    if (paintedState) paintConnections(paintedState.rowLock);
+    active?.updateRoute?.();
+  }
+  function paintConnections({ owner, waiting }) {
+    const ready = !owner && waiting.length > 0;
+    for (const id of ["T1", "T2"]) {
+      const connection = svg.querySelector(`[data-connection="${id}"]`);
+      connection.dataset.owner = String(owner === id);
+      connection.dataset.waiting = String(waiting.includes(id) && !ready);
+      connection.querySelector(".request-lane").setAttribute("d", path(id, false, waiting.includes(id)));
+    }
+    const gate = svg.querySelector("[data-gate]");
+    gate.toggleAttribute("hidden", !waiting.length);
+    gate.setAttribute("visibility", waiting.length ? "visible" : "hidden");
+    gate.dataset.open = String(ready);
   }
   function snap(state) {
     paintedState = state;
+    paintConnections(state.rowLock);
     const owner = state.rowLock.owner,
       waiting = state.rowLock.waiting,
       ready = !owner && waiting.length > 0,
@@ -333,9 +349,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         "aria-label",
         `${id} ${roleLabel}. 읽은 값 ${client.localRead ?? "없음"}, 앱 계산 ${client.localWrite ?? "없음"}`,
       );
-      const connection = svg.querySelector(`[data-connection="${id}"]`);
-      connection.dataset.owner = String(owner === id);
-      connection.dataset.waiting = String(waiting.includes(id) && !ready);
     }
     stock.querySelector("[data-stock]").textContent = state.committedStock;
     stock.querySelector("[data-version]").textContent =
@@ -376,10 +389,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     parked.querySelector("strong").textContent =
       lastStep?.mode === "locked" ? "읽기" : "쓰기";
     parked.querySelector("span").textContent = ready ? "재개 가능" : "SQL 대기";
-    const gate = svg.querySelector("[data-gate]");
-    gate.toggleAttribute("hidden", !waiting.length);
-    gate.setAttribute("visibility", waiting.length ? "visible" : "hidden");
-    gate.dataset.open = String(ready);
     stock.querySelector(".pending-value small").textContent = "커밋 전";
     stock.dataset.committing = String(committed);
     if (committed) {
@@ -404,7 +413,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     onPhase({ title, body, kind, snapshot: paintedState });
   }
   function cancel() {
-    revision++;
     if (active) {
       active.cancelled = true;
       for (const a of active.animations) a.cancel();
@@ -422,34 +430,38 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     await animation.finished.catch(() => {});
     run.animations.delete(animation);
   }
-  async function travel(run, id, label, returning, pace, route = null) {
+  async function travel(run, id, label, returning, pace, route = () => path(id, returning)) {
     if (run.cancelled) return;
-    const measurement = svg.querySelector(".motion-path");
-    measurement.setAttribute("d", route || path(id, returning));
-    const distance = measurement.getTotalLength();
+    const laneSelector = `[data-connection="${id}"] ${returning ? ".return-lane" : ".request-lane"}`;
+    run.updateRoute = () => {
+      const data = route();
+      const measurement = svg.querySelector(".motion-path");
+      measurement.setAttribute("d", data);
+      packet.style.offsetPath = `path("${data}")`;
+      const lane = svg.querySelector(laneSelector);
+      lane.dataset.active = "true";
+      lane.setAttribute("d", data);
+      return measurement.getTotalLength();
+    };
+    const distance = run.updateRoute();
     packet.hidden = false;
     packet.textContent = label;
     packet.style.setProperty("--packet-color", color(id));
-    const lane = svg.querySelector(
-      `[data-connection="${id}"] ${returning ? ".return-lane" : ".request-lane"}`,
-    );
-    lane.dataset.active = "true";
-    lane.style.setProperty("--lane-color", color(id));
-    const frames = Array.from({ length: 31 }, (_, i) => {
-      const p = measurement.getPointAtLength((distance * i) / 30);
-      return {
-        transform: `translate(${p.x - 31}px,${p.y - 14}px)`,
-        opacity: i === 0 || i === 30 ? 0 : 1,
-        offset: i / 30,
-      };
-    });
-    await animate(run, packet, frames, {
+    await animate(run, packet, [
+      { offsetDistance: "0%", opacity: 0 },
+      { opacity: 1, offset: 0.04 },
+      { opacity: 1, offset: 0.96 },
+      { offsetDistance: "100%", opacity: 0 },
+    ], {
       duration: (350 + distance * 1.1) * pace,
       easing: "linear",
     });
     if (run.cancelled) return;
     packet.hidden = true;
+    run.updateRoute = null;
+    const lane = svg.querySelector(laneSelector);
     delete lane.dataset.active;
+    lane.setAttribute("d", path(id, returning));
   }
   function completedTitle(step) {
     const client = step.state.clients[step.client];
@@ -478,7 +490,6 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       return;
     }
     const run = {
-      revision,
       animations: new Set(),
       cancelled: false,
       paused: false,
@@ -547,7 +558,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
                 : "쓰기",
           false,
           pace,
-          step.action === "wait" ? path(id, false, true) : null,
+          () => path(id, false, step.action === "wait"),
         );
         if (run.cancelled) return;
       } else {
@@ -564,7 +575,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           step.action === "resume-read" ? "읽기 재개" : "쓰기 재개",
           false,
           pace,
-          resumePath(),
+          resumePath,
         );
         if (run.cancelled) return;
       }
@@ -664,12 +675,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   }
   draw();
   const observer = new ResizeObserver(() => {
-    if (Math.abs(host.clientWidth - layout.width) > 1) {
-      cancel();
-      draw();
-      if (lastStep)
-        phase(lastStep.client, completedTitle(lastStep), "", "complete");
-    }
+    if (Math.abs(host.clientWidth - layout.width) > 1) draw();
   });
   observer.observe(host);
   return {
