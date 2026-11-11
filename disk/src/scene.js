@@ -114,6 +114,9 @@ export function createDiskScene(host, onPhase) {
     const chosen = step.candidates[0];
     const runnerUp = algorithm === "sstf" ? step.candidates[1] : null;
     snap(step.before, chosen, runnerUp);
+    if (matchMedia("(max-width: 759px)").matches) {
+      host.scrollIntoView({ block: "nearest", behavior: "instant" });
+    }
     labels.innerHTML = runnerUp
       ? trackLabel(chosen.cylinder, `${chosen.cylinder}번 · ${chosen.distance}칸`) +
         trackLabel(runnerUp.cylinder, `${runnerUp.cylinder}번 · ${runnerUp.distance}칸`, true)
@@ -133,10 +136,25 @@ export function createDiskScene(host, onPhase) {
       const outer = host.getBoundingClientRect();
       const start = $(`[data-request="${request.id}"]`).getBoundingClientRect();
       const matrix = $(".drive-map").getScreenCTM();
-      const points = [
-        new DOMPoint(start.left + start.width / 2, start.bottom),
-        ...requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix)),
-      ];
+      const points = [new DOMPoint(start.left + start.width / 2, start.bottom)];
+      const drive = requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
+      const lower = $('[data-request="5"]').getBoundingClientRect();
+      const upper = $('[data-request="1"]').getBoundingClientRect();
+      if (lower.top > upper.bottom) {
+        const x = points[0].x;
+        if (start.bottom < lower.top) {
+          const second = $('[data-request="2"]').getBoundingClientRect();
+          const third = $('[data-request="3"]').getBoundingClientRect();
+          const lane = (second.right + third.left) / 2;
+          const between = (start.bottom + lower.top) / 2;
+          points.push(new DOMPoint(x, between), new DOMPoint(lane, between), new DOMPoint(lane, drive[0].y));
+        } else {
+          points.push(new DOMPoint(x, drive[0].y + token.offsetHeight / 2));
+        }
+        points.push(new DOMPoint(drive[0].x, points.at(-1).y), ...drive.slice(1));
+      } else {
+        points.push(...drive);
+      }
       const path = points.map(({ x, y }, i) =>
         `${i ? "L" : "M"}${x - outer.left - host.clientLeft} ${y - outer.top - host.clientTop}`
       ).join(" ");
