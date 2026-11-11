@@ -220,10 +220,11 @@ test("the playback clock respects pause, speed and cancellation", async () => {
 });
 
 test("a UDP burst records each departure and loss, and a paused rewind removes the abandoned packets", async () => {
-  let state, report, finish;
+  let state, report, finish, flight;
   const renderer = {
     clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {},
-    run: (_event, _token, _landed, packetState) => new Promise(resolve => {
+    run: (_event, token, _landed, packetState) => new Promise(resolve => {
+      flight = token;
       report = packetState;
       finish = resolve;
     }),
@@ -234,6 +235,15 @@ test("a UDP burst records each departure and loss, and a paused rewind removes t
     report(0, "current");
     await Promise.resolve();
     assert.deepEqual(state.packets.slice(5, 8), ["current", "future", "future"]);
+    player.pause();
+    player.setMode("sequence");
+    await Promise.resolve();
+    assert.equal(flight.cancelled, false);
+    assert.equal(state.running, true);
+    assert.equal(state.playing, false);
+    assert.deepEqual(state.packets.slice(5, 8), ["current", "future", "future"]);
+    player.setMode("network");
+    player.play();
     report(1, "current");
     await Promise.resolve();
     assert.deepEqual(state.packets.slice(5, 8), ["current", "current", "future"]);

@@ -193,14 +193,8 @@ function createLessonPlayer(
       }, setPacketState);
     }
 
-    // Reset/jump replaces the token. Switching to sequence view instead asks
-    // this event to finish instantly while retaining its playback position.
+    // A reset or jump may have replaced the event while it was in flight.
     if (token !== eventToken) return;
-    if (token.finish) {
-      eventToken = { cancelled: false };
-      renderer.clear();
-      renderer.apply(events[eventIndex]);
-    }
     runningEventIndex = -1;
     nextEventIndex = eventIndex + 1;
     const stepIndex = events[eventIndex].step;
@@ -271,12 +265,8 @@ function createLessonPlayer(
       if (runningEventIndex === -1) runNextEvent();
     },
     setMode(nextMode) {
-      if (nextMode === currentMode) return;
+      // The current flight keeps its clock when the other view is opened.
       currentMode = nextMode;
-      if (nextMode === "sequence" && runningEventIndex !== -1) {
-        eventToken.finish = true;
-        eventToken.cancelled = true;
-      }
     },
     jump(stepIndex, { paused = false } = {}) {
       cancelPendingWork();
