@@ -45,7 +45,7 @@ const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 app.innerHTML = `
   <header class="topbar">
-    <div class="brand"><span class="brand-icon">${icon("chip")}</span><div><h1>CPU 스케줄링 <span>탐험가</span></h1><p>보면서 이해하는 운영체제</p></div></div>
+    <div class="brand"><span class="brand-icon">${icon("chip")}</span><div><h1>CPU 스케줄링 <span>탐색기</span></h1><p>보면서 이해하는 운영체제</p></div></div>
     <div class="lesson-context"><span class="eyebrow">대표 시나리오 01</span><b>하나의 CPU, 세 개의 작업</b></div>
     <div class="top-actions"><button class="button compare-button" data-action="compare" aria-label="실행 결과 비교">${icon("compare")}<span>결과 비교</span></button><button class="button icon-button" data-action="theme" aria-label="어두운 테마로 전환"></button></div>
   </header>
