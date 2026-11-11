@@ -9,7 +9,7 @@
 /* Neobrutal presentation. Scene geometry, animation and semantic packet colors
    remain owned by the original drawing and playback modules. */
 :root {
-  /* Neutral UI surfaces based on andongmin94/neobrutal-ui's Mono theme. */
+  /* Control colors from andongmin94/neobrutal-ui's Mono theme. */
   --neo-bg: #f4f5f7;
   --neo-surface: #ffffff;
   --neo-soft: #edeef1;
@@ -18,7 +18,12 @@
   --neo-border: #65676d;
   --neo-rule: #d6d7db;
   --neo-shadow: #787a80;
-  --selected: #d4d6db;
+  --selected: var(--neo-accent);
+  --on-selected: #f4f5f7;
+  --control-ink: #000;
+  --control-neutral: #fff;
+  --control-border: #000;
+  --control-shadow: var(--control-border);
   --neo-accent: #27282b;
   --neo-on-accent: #f4f5f7;
   --neo-sans: Pretendard, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
@@ -34,7 +39,9 @@
   --neo-border: #8b8d94;
   --neo-rule: #45464d;
   --neo-shadow: #121316;
-  --selected: #4c4e56;
+  --on-selected: #000;
+  --control-ink: oklch(92.49% 0 0);
+  --control-neutral: oklch(23.93% 0 0);
   --neo-accent: #e4e7ec;
   --neo-on-accent: #27282b;
 }
@@ -69,22 +76,16 @@ body {
   color: var(--neo-text);
 }
 
-/* Outlines add weight without shrinking the original simulation viewport. */
+/* Use the Mono card edge on panel shells; keep thin rules inside each lesson. */
 .panel {
-  border-color: var(--neo-border);
+  border: 2px solid var(--control-border);
   border-radius: 5px;
-  outline: 1px solid var(--neo-border);
-  box-shadow: 3px 3px 0 var(--neo-shadow);
-}
-
-.sidebar,
-.overview,
-.packets {
-  background: var(--neo-surface);
+  background: var(--neo-bg);
+  box-shadow: 4px 4px 0 var(--control-shadow);
 }
 
 .panel-head.bar {
-  border-bottom-color: var(--neo-border);
+  border-bottom-color: var(--control-border);
   background: var(--neo-soft);
 }
 
@@ -127,11 +128,11 @@ body {
 .osi-marker {
   background: var(--selected);
   border-radius: 3px;
-  box-shadow: inset 0 0 0 1px var(--neo-border);
+  box-shadow: inset 0 0 0 1px var(--control-border);
 }
 
 .osi-chips .is-active {
-  color: var(--neo-text);
+  color: var(--on-selected);
   border-color: transparent;
 }
 
@@ -260,10 +261,10 @@ body {
 }
 
 .logo-frame {
-  color: var(--neo-text);
+  color: var(--on-selected);
   background: var(--selected);
   border-radius: 5px;
-  box-shadow: inset 0 0 0 2px var(--neo-border), 3px 3px 0 var(--neo-shadow);
+  box-shadow: inset 0 0 0 2px var(--control-border), 3px 3px 0 var(--control-shadow);
 }
 
 .logo-frame .corner {
@@ -343,10 +344,10 @@ body {
 .tabs,
 .theme-toggle,
 .view-switch {
-  border-color: var(--neo-border);
+  border-color: var(--control-border);
   border-radius: 5px;
-  background: var(--neo-surface);
-  box-shadow: 2px 2px 0 var(--neo-shadow);
+  background: var(--neo-bg);
+  box-shadow: 2px 2px 0 var(--control-shadow);
 }
 
 .tab,
@@ -355,22 +356,22 @@ body {
 .more,
 .proto-chev,
 .proto.is-active .proto-chev {
-  color: var(--neo-text);
+  color: var(--control-ink);
 }
 
 .tab,
 .theme-toggle button + button {
-  border-inline-start-color: var(--neo-border);
+  border-inline-start-color: var(--control-border);
 }
 
 .tab.is-active,
 .theme-toggle .is-active {
-  color: var(--neo-text);
+  color: var(--on-selected);
   background: var(--selected);
 }
 
 .tab-indicator {
-  background: var(--neo-text);
+  background: var(--selected);
 }
 
 .tab-count {
@@ -380,42 +381,42 @@ body {
 }
 
 .tab.is-active .tab-count {
-  background: var(--neo-surface);
-  color: var(--neo-text);
+  background: var(--control-neutral);
+  color: var(--control-ink);
 }
 
 .view-indicator {
   border-radius: 3px;
   background: var(--selected);
-  box-shadow: inset 0 0 0 1px var(--neo-border);
+  box-shadow: inset 0 0 0 1px var(--control-border);
 }
 
 .view-switch button.is-active {
-  color: var(--neo-text);
+  color: var(--on-selected);
 }
 
 .proto.is-active .proto-row {
-  border-color: var(--neo-border);
+  border-color: var(--control-border);
   border-radius: 5px;
   background: var(--neo-soft);
   --row-edge: calc(2px - var(--press, 0px));
-  box-shadow: var(--row-edge) var(--row-edge) 0 var(--neo-shadow);
+  box-shadow: var(--row-edge) var(--row-edge) 0 var(--control-shadow);
 }
 
 /* The filled square marks the current step; keep the number/check transitions. */
 .step-num {
-  border: 2px solid var(--neo-border);
+  border: 2px solid var(--control-border);
   border-radius: 3px;
   background: var(--neo-soft);
   color: var(--neo-muted);
-  box-shadow: 1px 1px 0 var(--neo-shadow);
+  box-shadow: 1px 1px 0 var(--control-shadow);
   font-weight: 850;
 }
 
 .step.is-active .step-num {
   background: var(--selected);
-  color: var(--neo-text);
-  box-shadow: 2px 2px 0 var(--neo-shadow);
+  color: var(--on-selected);
+  box-shadow: 2px 2px 0 var(--control-shadow);
 }
 
 .step-num:after {
@@ -424,7 +425,7 @@ body {
 
 .step.is-done .step-num {
   background: var(--neo-soft);
-  color: var(--neo-text);
+  color: var(--control-ink);
 }
 
 .step:not(:last-child):before {
@@ -439,7 +440,7 @@ body {
 .step-btn:hover .step-num,
 .step-btn:active .step-num {
   --step-edge: max(0px, calc(1px - var(--press, 0px)));
-  box-shadow: var(--step-edge) var(--step-edge) 0 var(--neo-shadow);
+  box-shadow: var(--step-edge) var(--step-edge) 0 var(--control-shadow);
 }
 
 .step-btn:focus-visible {
@@ -451,20 +452,28 @@ body {
 .ins-nav button,
 .drawer-btn,
 .drawer-close {
-  border-color: var(--neo-border);
+  border: 2px solid var(--control-border);
   border-radius: 5px;
-  background: var(--neo-surface);
-  color: var(--neo-text);
+  background: var(--control-neutral);
+  color: var(--control-ink);
   --remaining: calc(4px - var(--press, 0px));
-  box-shadow: var(--remaining) var(--remaining) 0 var(--neo-shadow);
-  outline: 1px solid var(--neo-border);
+  box-shadow: var(--remaining) var(--remaining) 0 var(--control-shadow);
   transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.back-btn,
+.back-btn:hover {
+  background: var(--neo-bg);
+}
+
+.ins-nav button:not(:disabled):hover {
+  background: var(--control-neutral);
 }
 
 .btn.primary {
   background: var(--selected);
-  border-color: var(--neo-border);
-  color: var(--neo-text);
+  border-color: var(--control-border);
+  color: var(--on-selected);
 }
 
 :is(.tab, .theme-toggle button, .view-switch button, .proto-row, .step-btn) {
@@ -473,16 +482,13 @@ body {
 
 @media (hover: hover) and (pointer: fine) {
   :is(.btn, .back-btn, .ins-nav button, .drawer-btn, .drawer-close):not(:disabled):hover {
-    --press: 2px;
+    --press: 3px;
   }
   :is(.tab, .theme-toggle button, .view-switch button, .proto.has-lesson .proto-row, .step-btn):not(:disabled):hover {
     --press: 1px;
   }
   .tab:not(.is-active):hover,
-  .proto.has-lesson:not(.is-active) .proto-row:hover,
-  .btn:not(.primary):not(:disabled):hover,
-  .back-btn:hover,
-  .ins-nav button:not(:disabled):hover {
+  .proto.has-lesson:not(.is-active) .proto-row:hover {
     background: var(--neo-soft);
   }
 }
@@ -773,10 +779,13 @@ body {
   border-radius: 2px;
 }
 
+.explain-packet-head span,
+.explain-payload {
+  color: var(--control-ink);
+}
+
 .explain-label,
 .explain.is-done .explain-label,
-.explain-packet-head span,
-.explain-payload,
 .ins-name,
 .ins-value,
 .ins-foot b,
@@ -803,10 +812,10 @@ body {
 .explain-packet-card {
   margin-block: 10px 4px;
   padding: 0;
-  border: 2px solid var(--neo-border);
-  border-radius: 4px;
-  background: var(--neo-surface);
-  box-shadow: 3px 3px 0 var(--neo-shadow);
+  border: 2px solid var(--control-border);
+  border-radius: 5px;
+  background: var(--neo-bg);
+  box-shadow: 4px 4px 0 var(--control-shadow);
 }
 
 .explain-packet-head {
@@ -814,16 +823,16 @@ body {
   align-items: flex-start;
   gap: 6px;
   padding: 8px 10px;
-  border-bottom: 2px solid var(--neo-border);
+  border-bottom: 2px solid var(--control-border);
   background: var(--neo-soft);
   font-family: var(--neo-sans);
 }
 
 .explain-packet-head b {
   max-width: 100%;
-  border: 1px solid var(--neo-border);
+  border: 1px solid var(--control-border);
   border-radius: 3px;
-  box-shadow: 1px 1px 0 var(--neo-shadow);
+  box-shadow: 1px 1px 0 var(--control-shadow);
   white-space: normal;
   letter-spacing: 0;
 }
@@ -847,7 +856,7 @@ body {
 .explain-meta {
   margin: 0;
   padding: 6px 10px;
-  border-top: 1px solid var(--neo-border);
+  border-top: 1px solid var(--control-border);
   background: var(--neo-soft);
 }
 
@@ -916,15 +925,15 @@ body {
 
 .is-stacked .drawer-btn,
 .is-stacked .drawer-close {
-  color: var(--neo-text);
-  background: var(--neo-surface);
-  border-color: var(--neo-border);
+  color: var(--control-ink);
+  background: var(--control-neutral);
+  border-color: var(--control-border);
 }
 
 .is-stacked .drawer-btn:hover,
 .is-stacked .drawer-close:hover {
-  color: var(--neo-text);
-  background: var(--neo-soft);
+  color: var(--control-ink);
+  background: var(--control-neutral);
 }
 
 @media (prefers-reduced-motion: reduce) {
