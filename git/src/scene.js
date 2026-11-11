@@ -95,9 +95,9 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     token = $(".gs-token"),
     wire = $(".gs-motion-wire");
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const stacked = matchMedia("(max-width: 1099px)");
   let layout,
     paintedState = null,
-    lastStep = null,
     active = null;
 
   function draw() {
@@ -158,7 +158,9 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         width: `${box.width}px`,
         height: `${box.height}px`,
       });
-    if (paintedState) snap(paintedState);
+    if (paintedState) positionGraph(paintedState);
+    active?.updatePath?.();
+    if (active && !active.paused) active.frameTrip?.();
   }
   function referencePosition(branch, state) {
     const id = state.refs[branch],
@@ -186,10 +188,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       width,
     };
   }
-  function snap(state) {
-    paintedState = state;
-    host.dataset.status = state.status;
-    $(".gs-commit-count").textContent = `${state.commits.length}개 커밋`;
+  function positionGraph(state) {
     edges.innerHTML = state.commits
       .flatMap((commit) =>
         commit.parents.map((parent) => {
@@ -199,20 +198,23 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         }),
       )
       .join("");
-    $(".gs-commits").innerHTML = state.commits
-      .map((commit) => {
-        const point = layout.nodes[commit.id],
-          selected = state.refs[state.currentBranch] === commit.id;
-        return `<div class="gs-commit ${commit.id === "C0" ? "base" : branchClass(commit.branch)}" data-commit="${commit.id}" data-current="${selected}" style="left:${point.x}px;top:${point.y}px" title="${escape(commit.message)} · ${commit.parents.length ? `부모 ${commit.parents.join(", ")}` : "최초 커밋"}"><strong>${commit.id}</strong><span>${commitNames[commit.id]}</span></div>`;
-      })
-      .join("");
+    for (const commit of state.commits) {
+      const point = layout.nodes[commit.id];
+      Object.assign($(`[data-commit="${commit.id}"]`).style, {
+        left: `${point.x}px`,
+        top: `${point.y}px`,
+      });
+    }
     for (const branch of ["main", "feature/title"]) {
       const ref = $(`[data-ref="${branch}"]`),
         position = referencePosition(branch, state);
       ref.hidden = !position;
       if (!position) continue;
-      ref.innerHTML = `${state.currentBranch === branch ? '<b class="gs-head-tag">HEAD</b><span class="gs-head-arrow">→</span>' : ""}<strong>${branch}</strong>`;
-      ref.dataset.current = String(state.currentBranch === branch);
+      const before = active && referencePosition(branch, active.before);
+      if (before) {
+        ref.style.setProperty("--ref-from-x", `${before.x - position.x}px`);
+        ref.style.setProperty("--ref-from-y", `${before.y - position.y}px`);
+      }
       ref.style.setProperty("--connector-height", `${position.connector}px`);
       ref.style.setProperty(
         "--anchor-x",
@@ -224,6 +226,23 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         width: `${position.width}px`,
       });
     }
+  }
+  function snap(state) {
+    paintedState = state;
+    host.dataset.status = state.status;
+    $(".gs-commit-count").textContent = `${state.commits.length}개 커밋`;
+    $(".gs-commits").innerHTML = state.commits
+      .map((commit) => {
+        const selected = state.refs[state.currentBranch] === commit.id;
+        return `<div class="gs-commit ${commit.id === "C0" ? "base" : branchClass(commit.branch)}" data-commit="${commit.id}" data-current="${selected}" title="${escape(commit.message)} · ${commit.parents.length ? `부모 ${commit.parents.join(", ")}` : "최초 커밋"}"><strong>${commit.id}</strong><span>${commitNames[commit.id]}</span></div>`;
+      })
+      .join("");
+    for (const branch of ["main", "feature/title"]) {
+      const ref = $(`[data-ref="${branch}"]`);
+      ref.innerHTML = `${state.currentBranch === branch ? '<b class="gs-head-tag">HEAD</b><span class="gs-head-arrow">→</span>' : ""}<strong>${branch}</strong>`;
+      ref.dataset.current = String(state.currentBranch === branch);
+    }
+    positionGraph(state);
     $(".gs-graph-caption").innerHTML = state.merge
       ? '<b class="gs-warning-text">병합 진행 중</b><span>main은 C2 그대로 · 아직 새 커밋 없음</span>'
       : state.refs.main === "C3"
@@ -297,44 +316,71 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     await animation.finished.catch(() => {});
     run.animations.delete(animation);
   }
-  function commitPoint(id) {
+  function anchorPoint(id) {
     const p = layout.nodes[id];
-    return { x: layout.graph.x + p.x, y: layout.graph.y + p.y };
+    if (p) return { x: layout.graph.x + p.x, y: layout.graph.y + p.y };
+    const box = layout[id];
+    return { x: box.x + box.width / 2, y: box.y + 18 };
   }
-  function regionPoint(name, edge = "center") {
-    const box = layout[name];
-    return {
-      x: box.x + box.width / 2,
-      y: edge === "top" ? box.y : box.y + 100,
-    };
+  function showSceneRange(top, bottom) {
+    if (!stacked.matches) return;
+    const origin = host.getBoundingClientRect().top;
+    if (origin + top >= 12 && origin + bottom <= innerHeight - 12) return;
+    window.scrollBy({ top: origin + (top + bottom - innerHeight) / 2, behavior: "instant" });
   }
-  async function travel(run, from, to, label, branch, pace) {
-    const bend =
-      from.y < 290 || to.y < 290 ? 303 : layout.compact ? 590 : from.y;
-    const path =
-      from.y === to.y
+  async function travel(run, source, destination, label, branch, pace) {
+    let top, bottom;
+    run.updatePath = () => {
+      const from = anchorPoint(source), to = anchorPoint(destination);
+      const bend = from.y < 290 || to.y < 290 ? 303 : layout.compact ? 590 : from.y;
+      const path = from.y === to.y
         ? `M${from.x} ${from.y}H${to.x}`
         : `M${from.x} ${from.y}V${bend}H${to.x}V${to.y}`;
-    wire.setAttribute("d", path);
+      wire.setAttribute("d", path);
+      token.style.offsetPath = `path("${path}")`;
+      top = Math.min(from.y, to.y) - 32;
+      bottom = Math.max(from.y, to.y) + 32;
+    };
+    run.updatePath();
     wire.dataset.active = "true";
     const color = branch === "feature/title" ? "var(--feature)" : "var(--main)";
     wire.style.setProperty("--traveler", color);
     token.style.setProperty("--traveler", color);
     token.querySelector("b").textContent = label;
     token.hidden = false;
-    const length = wire.getTotalLength();
-    const frames = Array.from({ length: 41 }, (_, i) => {
-      const point = wire.getPointAtLength((length * i) / 40);
-      return {
-        transform: `translate(${point.x - 44}px,${point.y - 16}px)`,
-        opacity: i === 0 || i === 40 ? 0 : 1,
-        offset: i / 40,
-      };
-    });
+    let followFrame;
+    const follow = () => {
+      if (run.paused || run.cancelled) return;
+      const rect = token.getBoundingClientRect();
+      const delta = rect.top < 12 ? rect.top - 12 : Math.max(0, rect.bottom - innerHeight + 12);
+      if (delta) window.scrollBy({ top: delta, behavior: "instant" });
+      followFrame = requestAnimationFrame(follow);
+    };
+    run.frameTrip = () => {
+      cancelAnimationFrame(followFrame);
+      if (!stacked.matches) return;
+      if (layout.height - 74 <= innerHeight - 24) {
+        showSceneRange(62, layout.height - 12);
+      } else if (bottom - top <= innerHeight - 24) {
+        showSceneRange(top, bottom);
+      } else {
+        followFrame = requestAnimationFrame(follow);
+      }
+    };
+    run.frameTrip();
+    const frames = [
+      { offsetDistance: "0%", opacity: 0 },
+      { offset: 0.025, offsetDistance: "2.5%", opacity: 1 },
+      { offset: 0.975, offsetDistance: "97.5%", opacity: 1 },
+      { offsetDistance: "100%", opacity: 0 },
+    ];
     await animate(run, token, frames, {
-      duration: (430 + Math.min(length, 550) * 0.95) * pace,
+      duration: (430 + Math.min(wire.getTotalLength(), 550) * 0.95) * pace,
       easing: "ease-in-out",
     });
+    cancelAnimationFrame(followFrame);
+    run.frameTrip = null;
+    run.updatePath = null;
     if (!run.cancelled) {
       token.hidden = true;
       wire.removeAttribute("data-active");
@@ -342,13 +388,13 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   }
   async function update(step, { animate: motion = false, speed = 1 } = {}) {
     cancel();
-    lastStep = step;
     if (!motion || step.index === 0 || reduced.matches) {
       snap(step.state);
+      if (motion && step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
       phase("complete", step.title, "", step.state);
       return;
     }
-    const run = { cancelled: false, paused: false, animations: new Set() };
+    const run = { before: step.before, cancelled: false, paused: false, animations: new Set() };
     active = run;
     const pace = 1 / speed;
     snap(step.before);
@@ -371,8 +417,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     if (step.action === "stage") {
       await travel(
         run,
-        regionPoint("work"),
-        regionPoint("index"),
+        "work",
+        "index",
         "파일 내용",
         branch,
         pace,
@@ -381,8 +427,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       const id = step.state.refs[branch];
       await travel(
         run,
-        regionPoint("index", "top"),
-        commitPoint(id),
+        "index",
+        id,
         "새 커밋",
         branch,
         pace,
@@ -390,8 +436,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     } else if (step.action === "switch") {
       await travel(
         run,
-        commitPoint(step.state.refs[branch]),
-        regionPoint("work", "top"),
+        step.state.refs[branch],
+        "work",
         "파일 복원",
         branch,
         pace,
@@ -409,8 +455,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         phase("request", `${i + 1}/3 · ${stage.label} ${id} → 인덱스`, `${stage.label}의 제목을 인덱스에서 대조합니다.`, comparing);
         await travel(
           run,
-          commitPoint(id),
-          regionPoint("index", "top"),
+          id,
+          "index",
           `${id} · ${stage.label}`,
           stage.branch,
           pace * 0.8,
@@ -420,10 +466,12 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         content.insertAdjacentHTML("beforeend", indexVersion(step.state, stage, i));
       }
       phase("request", "충돌 표식 → 작업 파일", "같은 줄의 변경이 겹칩니다. 두 문장과 충돌 표식을 작업 파일에서 확인하세요.", comparing);
-      await travel(run, regionPoint("index"), regionPoint("work"), "충돌 표식", branch, pace * 0.8);
+      await travel(run, "index", "work", "충돌 표식", branch, pace * 0.8);
     } else {
       const element =
         step.action === "branch" ? $(".gs-repository") : $(".gs-work-content");
+      const focusBox = step.action === "branch" ? layout.graph : layout.work;
+      showSceneRange(focusBox.y, focusBox.y + focusBox.height);
       await animate(
         run,
         element,
@@ -439,6 +487,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       ]),
     );
     snap(step.state);
+    if (step.action === "merge") showSceneRange(layout.work.y, layout.work.y + layout.work.height);
     phase(
       "apply",
       step.title,
@@ -464,7 +513,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
             $(`[data-ref="${name}"]`),
             [
               {
-                transform: `translate(${before.x - after.x}px,${before.y - after.y}px)`,
+                transform: "translate(var(--ref-from-x), var(--ref-from-y))",
               },
               { transform: "translate(0,0)" },
             ],
@@ -503,12 +552,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
   draw();
   new ResizeObserver(() => {
     if (Math.abs(host.clientWidth - layout.width) < 1) return;
-    cancel();
     draw();
-    if (lastStep) {
-      snap(lastStep.state);
-      phase("complete", lastStep.title, "", lastStep.state);
-    }
   }).observe(host);
   return {
     update,
@@ -522,6 +566,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     resume() {
       if (active) {
         active.paused = false;
+        active.frameTrip?.();
         active.animations.forEach((animation) => animation.play());
       }
     },

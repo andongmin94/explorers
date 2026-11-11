@@ -458,6 +458,8 @@
   marker-end: url(#gs-moving-arrow);
 }
 .gs-token {
+  offset-rotate: 0deg;
+  offset-anchor: center;
   position: absolute;
   z-index: 7;
   left: 0;
