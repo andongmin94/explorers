@@ -13,15 +13,21 @@
 }
 
 button.explorer-trigger {
+  --switch-depth: 3px;
+  --plate-inset: -2px;
+  --plate-border: 2px solid var(--switch-line);
+  --pad-y: 3px;
+  --pad-left: 9px;
+  --pad-right: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   vertical-align: top;
   gap: 8px;
-  padding: 3px 6px 3px 9px;
   max-width: 100%;
   min-height: 32px;
-  box-shadow: 2px 2px 0 var(--switch-shadow);
+  border-color: transparent;
+  background: transparent;
   font: inherit;
   line-height: 1.15;
   letter-spacing: inherit;
@@ -50,9 +56,9 @@ button.explorer-trigger {
   stroke-width: 2.6;
 }
 
-.explorer-trigger[aria-expanded="true"] {
-  background: var(--switch-soft);
-  box-shadow: 1px 1px 0 var(--switch-shadow);
+button.explorer-trigger[aria-expanded="true"] {
+  --switch-press: 2px;
+  --plate-face: var(--switch-soft);
 }
 
 .explorer-trigger[aria-expanded="true"] svg {
@@ -82,19 +88,25 @@ nav.explorer-menu {
 }
 
 .explorer-menu a {
+  --switch-depth: 2px;
+  --plate-shadow: var(--neo-rule, var(--rule));
+  --pad-y: 8px;
+  --pad-left: 10px;
+  --pad-right: 10px;
   display: flex;
   align-items: center;
   gap: 12px;
   box-sizing: border-box;
   min-height: 40px;
-  padding: 8px 10px;
+  margin-bottom: 2px;
   border-radius: 2px;
   color: var(--switch-ink);
   text-decoration: none;
 }
 
 .explorer-menu a[aria-current] {
-  background: var(--switch-ink);
+  --plate-face: var(--switch-ink);
+  --plate-shadow: var(--switch-shadow);
   color: var(--switch-paper);
   font-weight: 800;
 }
@@ -105,11 +117,49 @@ nav.explorer-menu {
   stroke-width: 2.6;
 }
 
-@media (hover: hover) {
-  .explorer-menu a:not([aria-current]):hover,
-  .explorer-trigger:hover {
-    background: var(--switch-soft);
-  }
+/* Keep the clickable rectangle and popover anchor still as the face sinks. */
+button.explorer-trigger,
+.explorer-menu a {
+  position: relative;
+  isolation: isolate;
+  --press: var(--switch-press, 0px);
+  padding: calc(var(--pad-y) + var(--press)) calc(var(--pad-right) - var(--press))
+    calc(var(--pad-y) - var(--press)) calc(var(--pad-left) + var(--press));
+  transition: padding 140ms ease;
+}
+
+.explorer-trigger::before,
+.explorer-menu a::before {
+  content: "";
+  position: absolute;
+  inset: var(--plate-inset, 0);
+  z-index: -1;
+  pointer-events: none;
+  border: var(--plate-border, 0);
+  border-radius: inherit;
+  background: var(--plate-face, var(--switch-paper));
+  --shadow-offset: calc(var(--switch-depth) - var(--switch-press, 0px));
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--plate-shadow, var(--switch-shadow));
+  transform: translate(var(--press), var(--press));
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  button.explorer-trigger:hover { --switch-press: 2px; --plate-face: var(--switch-soft); }
+  .explorer-menu a:hover { --switch-press: 1px; }
+  .explorer-menu a:not([aria-current]):hover { --plate-face: var(--switch-soft); }
+}
+
+button.explorer-trigger:active,
+.explorer-menu a:active {
+  --switch-press: var(--switch-depth);
+}
+
+button.explorer-trigger:active,
+button.explorer-trigger:active::before,
+.explorer-menu a:active,
+.explorer-menu a:active::before {
+  transition-duration: 65ms;
 }
 
 .explorer-menu a:focus-visible {
@@ -118,7 +168,14 @@ nav.explorer-menu {
 }
 
 @media (max-width: 759px) {
-  button.explorer-trigger { gap: 4px; padding-inline: 5px; }
+  button.explorer-trigger { gap: 4px; --pad-left: 5px; --pad-right: 5px; }
   .explorer-trigger svg { width: 14px; height: 14px; }
   .explorer-menu a { min-height: 44px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.explorer-trigger,
+  .explorer-menu a { --press: 0px; transition: none; }
+  .explorer-trigger::before,
+  .explorer-menu a::before { transition: none; }
 }
