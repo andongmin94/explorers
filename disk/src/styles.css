@@ -502,6 +502,10 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
 .request-slot[data-state="done"] > span:before {
   content: "✓ ";
 }
+.request-slot[data-state="alternate"] {
+  border-style: dashed;
+  color: var(--ink);
+}
 .drive {
   position: relative;
   max-width: 660px;
@@ -559,6 +563,38 @@ button:is(.button, .mode-toggle button, .record-tabs button, [data-seek]):enable
   stroke: var(--accent) !important;
   stroke-width: 3 !important;
   opacity: 1;
+}
+.request-track[data-state="alternate"] {
+  stroke: var(--ink) !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: 4 3;
+  opacity: 1;
+}
+.track-label {
+  color: var(--accent);
+}
+.track-label.alternate {
+  color: var(--ink);
+}
+.track-label path,
+.drive-map .track-label rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+}
+.track-label.alternate path,
+.track-label.alternate rect {
+  stroke-dasharray: 4 2;
+}
+.drive-map .track-label rect {
+  fill: var(--surface);
+}
+.track-label circle {
+  fill: currentColor;
+}
+.track-label text {
+  fill: currentColor;
+  font: 800 19px Pretendard, sans-serif;
 }
 .request-track[data-state="done"] {
   stroke: var(--done) !important;
