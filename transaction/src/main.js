@@ -1,6 +1,7 @@
 import "./styles.css";
 import { simulate } from "./engine.js";
 import {
+  describeEventLog,
   describeStep,
   buildMilestones,
   predictionFor,
@@ -63,7 +64,7 @@ $("#app").innerHTML =
 <main class="workspace"><aside class="panel setup-panel"><button class="panel-head setup-toggle" data-action="setup" aria-expanded="true" aria-controls="setup-content"><h2>실험 조건</h2><span>재고 한 행 ⌄</span></button><div class="setup-content" id="setup-content"><div class="section-label">값을 읽는 방법</div><div class="mode-toggle" role="group" aria-label="읽기 잠금 방식"><button data-mode="naive" aria-pressed="true"><strong>일반 SELECT</strong><span>읽은 뒤 앱에서 계산</span></button><button data-mode="locked" aria-pressed="false"><strong>읽기부터 잠금</strong><span>SELECT FOR UPDATE</span></button></div><p class="rule-summary" id="rule-summary"></p><div class="scenario-goal"><span>두 주문이 각각 1개 감소</span><strong>10 − 1 − 1 = <b>8</b></strong><small>기대하는 최종 재고</small></div><div class="section-label">한 주문의 네 단계</div><ol class="recipe"><li><b>읽기</b><span>DB의 값을 앱에 보관</span></li><li><b>계산</b><span>앱에서 읽은 값 − 1</span></li><li><b>쓰기</b><span>계산한 숫자로 UPDATE</span></li><li><b>확정</b><span>COMMIT · 잠금 해제</span></li></ol><div class="isolation"><b>READ COMMITTED</b><span>PostgreSQL · 고정된 사건 순서</span></div><details class="model-notes"><summary>이 실험의 범위</summary><ul>${MODEL_NOTES.map((t) => `<li>${t}</li>`).join("")}<li>실제 데이터베이스 연결이나 실행 시간 측정 없이 한 행의 상태 변화를 재현합니다.</li></ul></details></div></aside>
 <section class="panel scene-panel"><div class="panel-head"><h2>요청과 잠금의 흐름</h2><b class="step-clock"><span id="step-count">0</span><small>/ 11 사건</small></b></div><div id="transaction-scene"></div><div class="scene-summary"><strong id="state-summary"></strong><button class="replay-event" data-action="replay" disabled>↻ 이번 사건 다시 보기</button><span id="commit-summary"></span></div><div class="transport"><div class="learning-mode"><button role="switch" aria-checked="true" data-action="guided"><i></i>핵심 장면에서 멈추기</button><span id="playback-hint"></span></div><div class="playback-buttons"><button class="button icon-button" data-action="reset" aria-label="처음으로">${icon("reset")}</button><button class="button icon-button" data-action="back" aria-label="이전 사건">${icon("back")}</button><button class="button primary play-button" data-action="play">${icon("play")}<span>학습 시작</span></button><button class="button" data-action="next">다음 사건 ${icon("next")}</button><button class="button speed-button" data-action="speed" aria-label="재생 속도 변경">1×</button></div><div class="seek-row"><span>0</span><input id="seek" type="range" min="0" max="11" value="0" step="1" aria-label="처리한 사건 수"/><span>11</span></div></div></section>
 <aside class="panel lesson-panel"><div class="panel-head"><h2>단계 해설</h2><span id="lesson-mode"></span></div><nav id="milestones" aria-label="핵심 학습 장면"></nav><div class="lesson-content"><div id="explanation"></div><div class="event-card"><div class="event-card-head"><strong id="event-title"></strong><span id="event-number"></span></div><p id="event-body" aria-live="polite"></p><code id="current-sql"></code><div id="change-facts"></div></div><ul id="lesson-details" class="lesson-details"></ul><div class="insight"><b>!</b><p id="takeaway"></p></div><button class="button prediction-button" data-action="predict" hidden>대기 다음의 결과, 맞혀보기 →</button><button class="button primary conclusion-button" data-action="compare" hidden>전체 실행 결과 비교 →</button></div></aside>
-<section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 순서</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">SQL 기록 <span id="log-count"></span></button><button id="tab-results" role="tab" aria-selected="false" aria-controls="record-results" data-record="results" tabindex="-1">재고 결과</button><span class="record-hint">기록을 눌러 그 사건으로 이동</span></div><section id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline"><div class="history-legend"><span>각 사건을 처리한 뒤의 상태</span><span>${tx("T1")} 주문 1 ${tx("T2")} 주문 2 <i class="waiting-sample"></i>대기</span></div><div class="timeline-wrap" id="timeline"></div></section><section id="record-log" role="tabpanel" aria-labelledby="tab-log" hidden><div id="sql-log" class="sql-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section></main>
+<section class="panel records-panel"><div class="record-tabs" role="tablist" aria-label="관찰 기록"><button id="tab-timeline" role="tab" aria-selected="true" aria-controls="record-timeline" data-record="timeline">실행 순서</button><button id="tab-log" role="tab" aria-selected="false" aria-controls="record-log" data-record="log" tabindex="-1">사건 기록 <span id="log-count"></span></button><button id="tab-results" role="tab" aria-selected="false" aria-controls="record-results" data-record="results" tabindex="-1">재고 결과</button><span class="record-hint">기록을 눌러 그 사건으로 이동</span></div><section id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline"><div class="history-legend"><span>각 사건을 처리한 뒤의 상태</span><span>${tx("T1")} 주문 1 ${tx("T2")} 주문 2 <i class="waiting-sample"></i>대기</span></div><div class="timeline-wrap" id="timeline"></div></section><section id="record-log" role="tabpanel" aria-labelledby="tab-log" hidden><div id="log-summary" class="history-legend"></div><div id="sql-log" class="sql-log"></div></section><section id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="result-metrics"></div></section></section></main>
 <footer><span><kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 사건 이동 <kbd>R</kbd> 처음으로</span><span>학습 근거 ${SOURCES.map((s) => `<a href="${s.url}" target="_blank" rel="noreferrer">${s.title} ↗</a>`).join(" · ")}</span></footer><dialog id="prediction-dialog" aria-labelledby="prediction-title"></dialog><dialog id="comparison-dialog" aria-labelledby="comparison-title"></dialog>`;
 
 const scene = createTransactionScene($("#transaction-scene"), {
@@ -231,16 +232,17 @@ function renderRecords() {
     .join("");
   $("#timeline").innerHTML =
     `<table class="trace-table"><thead><tr><th>사건</th>${steps.map((s) => `<th><button data-seek="${s.index}" aria-label="${s.index}번째 사건으로 이동">${s.index}</button></th>`).join("")}</tr></thead><tbody>${timelineRows}<tr><th scope="row">확정 재고</th>${steps.map((s) => cell(s, s.state.committedStock)).join("")}</tr><tr><th scope="row">행 잠금</th>${steps.map((s) => cell(s, s.state.rowLock.owner || "—", s.state.rowLock.owner?.toLowerCase() || "")).join("")}</tr></tbody></table>`;
-  $("#log-count").textContent = committed;
-  $("#sql-log").innerHTML = committed
-    ? steps
-        .slice(0, committed)
-        .map(
-          (s) =>
-            `<button data-seek="${s.index}" class="log-row ${s.index === index ? "current" : ""}"><b class="event-index">${s.index}</b>${tx(s.client)}<span><strong>${actions[s.action]}</strong><code>${escape(s.sql || `${s.state.clients[s.client].localRead} − 1 = ${s.state.clients[s.client].localWrite} · 앱에서 계산`)}</code></span><small>확정 ${s.state.committedStock}<br/>${s.state.uncommitted ? `미확정 ${s.state.uncommitted.stock}` : "미확정 없음"}</small></button>`,
-        )
-        .join("")
-    : '<p class="empty-note">재생하면 SQL 요청과 앱 계산이 사건 순서대로 쌓입니다.</p>';
+  const { entries, counts } = describeEventLog(steps.slice(0, committed));
+  $("#log-count").textContent = entries.length;
+  $("#log-summary").textContent = `새 SQL ${counts.sql}건 · 앱 계산 ${counts.calculate}건 · SQL 재개 ${counts.resume}건`;
+  $("#sql-log").innerHTML = entries.length
+    ? entries.map(({ step: s, kind, origin }) => {
+        const label = kind === "sql" ? `새 SQL · ${actions[s.action]}` : kind === "resume" ? `SQL 재개 · ${s.action === "resume-read" ? "읽기" : "쓰기"}` : "앱 계산";
+        const detail = s.sql || `${s.state.clients[s.client].localRead} − 1 = ${s.state.clients[s.client].localWrite}`;
+        const link = kind === "resume" ? `<button class="log-origin" data-origin="${origin}">↖ ${origin}번 원요청 · 잠금 대기 시작</button>` : "";
+        return `<div><button data-seek="${s.index}" class="log-row ${s.index === index ? "current" : ""}"><b class="event-index">${s.index}</b>${tx(s.client)}<span><strong>${label}</strong><code>${escape(detail)}</code></span><small>확정 ${s.state.committedStock}<br/>${s.state.uncommitted ? `미확정 ${s.state.uncommitted.stock}` : "미확정 없음"}</small></button>${link}</div>`;
+      }).join("")
+    : '<p class="empty-note">사건을 진행하면 요청과 계산, 대기 중이던 SQL의 재개가 차례로 기록됩니다.</p>';
   const s = current().state;
   $("#result-metrics").innerHTML =
     `<div class="metrics"><div><span>처음 재고</span><b>10<small>개</small></b></div><div><span>기대하는 최종 재고</span><b>8<small>개</small></b></div><div class="${committed === 11 ? "important" : ""}"><span>${committed === 11 ? "최종" : "현재"} 확정 재고</span><b>${s.committedStock}<small>개</small></b></div><div><span>완료한 트랜잭션</span><b>${s.completedTransactions}<small>/ 2</small></b></div></div><p class="result-note">${committed === 11 ? (mode === "naive" ? "두 트랜잭션이 모두 커밋했지만 재고 감소는 한 번만 남았습니다." : "T1의 10 → 9, T2의 9 → 8이 모두 반영됐습니다.") : "이 값은 현재까지 완료한 사건의 결과입니다. 마지막 커밋까지 재생해 최종 재고를 확인하세요."}</p>`;
@@ -284,7 +286,7 @@ async function move(next, motion = false) {
 }
 function jump(next) {
   pause();
-  move(next, false);
+  return move(next, false);
 }
 async function replayEvent() {
   const target = index;
@@ -334,7 +336,7 @@ function showPrediction() {
   $("#prediction-dialog").showModal();
 }
 
-document.addEventListener("click", (e) => {
+document.addEventListener("click", async (e) => {
   const button = e.target.closest("button");
   if (!button) return;
   if (button.dataset.mode) {
@@ -348,6 +350,11 @@ document.addEventListener("click", (e) => {
     scene.update(current(), null, { animate: false });
     render();
     if (button.dataset.close) button.closest("dialog").close();
+    return;
+  }
+  if (button.dataset.origin) {
+    await jump(Number(button.dataset.origin));
+    $(`#sql-log [data-seek="${button.dataset.origin}"]`).focus();
     return;
   }
   if (button.dataset.seek) {

@@ -2,11 +2,27 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { simulate } from "../src/engine.js";
 import {
+  describeEventLog,
   describeStep,
   buildMilestones,
   predictionFor,
   SOURCES,
 } from "../src/lesson.js";
+
+test("event log counts new statements once and links resumes to the waiting request", () => {
+  for (const [mode, wait, resume] of [["naive", 8, 10], ["locked", 4, 8]]) {
+    const steps = simulate({ mode }).steps.slice(1);
+    const before = describeEventLog(steps.slice(0, resume - 1));
+    assert.equal(before.counts.resume, 0);
+    const { entries, counts } = describeEventLog(steps);
+    assert.deepEqual(counts, { sql: 8, calculate: 2, resume: 1 });
+    const resumed = entries[resume - 1];
+    assert.equal(resumed.origin, wait);
+    assert.equal(resumed.kind, "resume");
+    assert.equal(entries[wait - 1].kind, "sql");
+    assert.equal(entries[wait - 1].step.sql, resumed.step.sql);
+  }
+});
 
 test("every action has Korean teaching content and the corresponding SQL", () => {
   for (const mode of ["naive", "locked"]) {

@@ -14,7 +14,24 @@ export const MODEL_NOTES = Object.freeze([
   "SELECT 결과를 앱이 기억하고 1을 뺀 숫자를 UPDATE에 넣습니다. SET stock = stock - 1을 실행하는 경우와 다릅니다.",
   "확정 재고와 아직 커밋하지 않은 값을 구분합니다. 화면의 버전 번호는 설명용이며 PostgreSQL의 실제 트랜잭션 ID가 아닙니다.",
   "일반 SELECT는 행 쓰기 잠금에 막히지 않습니다. UPDATE도 행을 잠그며, 이 예제에서 잠금은 COMMIT까지 유지됩니다.",
+  "사건 기록은 DB에 보낸 SQL, 앱에서 한 계산, 잠금을 기다리던 SQL의 재개를 각각 셉니다. 재개 사건에서 처음 대기한 요청을 다시 볼 수 있습니다.",
 ]);
+
+export function describeEventLog(steps) {
+  const counts = { sql: 0, calculate: 0, resume: 0 };
+  const waiting = new Map();
+  const entries = steps.map((step) => {
+    const kind = step.action.startsWith("resume-")
+      ? "resume"
+      : step.action === "calculate" ? "calculate" : "sql";
+    const origin = kind === "resume" ? waiting.get(step.client) : null;
+    if (step.action === "wait") waiting.set(step.client, step.index);
+    if (kind === "resume") waiting.delete(step.client);
+    counts[kind]++;
+    return { step, kind, origin };
+  });
+  return { entries, counts };
+}
 
 export function describeStep(step, run) {
   const locked = run.mode === "locked";

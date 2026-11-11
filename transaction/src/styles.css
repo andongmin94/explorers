@@ -1326,6 +1326,20 @@ summary {
   max-height: 350px;
   overflow: auto;
 }
+.log-origin {
+  margin: 4px 14px 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: var(--soft);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.log-origin:hover,
+.log-origin:focus-visible {
+  box-shadow: 2px 2px 0 var(--border);
+}
 .log-row {
   display: grid;
   grid-template-columns: 26px 26px 1fr 85px;
