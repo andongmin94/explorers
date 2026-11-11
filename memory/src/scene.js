@@ -529,6 +529,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     clearEmphasis();
   }
   function track(animation, active) {
+    animation.playbackRate = active.speed;
     active.animations.add(animation);
     if (active.paused) animation.pause();
     return animation.finished
@@ -544,7 +545,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       }),
       active,
     );
-  async function travel(kind, page, slot, active, pace) {
+  async function travel(kind, page, slot, active) {
     const laneKind = kind === "retry" ? "lookup" : kind;
     const flow = svg.querySelector(".mem-active-flow");
     active.updateRoute = () => {
@@ -562,12 +563,19 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       if (kind === "load") svg.querySelector(`[data-disk-page="${page}"]`).dataset.current = "true";
     };
     active.updateRoute();
-    const duration = (440 + flow.getTotalLength() * 0.6) * pace;
+    const duration = 440 + flow.getTotalLength() * 0.6;
     transfer.textContent =
       kind === "access" ? "값" : kind === "load" ? page : `${page}?`;
     transfer.hidden = false;
     transfer.style.setProperty("--page-color", COLOR[page]);
     transfer.dataset.kind = kind;
+    if (matchMedia("(max-width: 759px)").matches) {
+      const bounds = flow.getBoundingClientRect();
+      const pad = transfer.offsetHeight / 2 + 4;
+      const bottom = innerHeight - host.parentElement.querySelector(".playback-buttons").offsetHeight;
+      const distance = bounds.top < pad ? bounds.top - pad : Math.max(0, bounds.bottom + pad - bottom);
+      if (distance) window.scrollBy({ top: distance, behavior: "instant" });
+    }
     await Promise.all([
       track(transfer.animate([{ offsetDistance: "0%" }, { offsetDistance: "100%" }], { duration, easing: "linear" }), active),
       track(
@@ -588,7 +596,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       lane.setAttribute("d", path(lane.dataset.lane));
     }
   }
-  async function animateStep(active, pace) {
+  async function animateStep(active) {
     const page = step.page,
       slot = step.frameIndex;
     phase(
@@ -596,7 +604,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       `페이지 테이블에서 ${page} 항목을 조회합니다`,
       "CPU의 주소 변환 장치가 요청한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.",
     );
-    await travel("lookup", page, slot, active, pace);
+    await travel("lookup", page, slot, active);
     if (!alive(active)) return;
     for (const event of step.events) {
       if (!alive(active)) return;
@@ -607,14 +615,14 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           `적중 · ${page}가 F${slot}에 있습니다`,
           `페이지 테이블의 ${page} 항목이 F${slot}을 가리킵니다. 이 프레임을 바로 읽습니다.`,
         );
-        await hold(350 * pace, active);
+        await hold(350, active);
       } else if (event.type === "miss") {
         phase(
           "miss",
           `페이지 부재 · ${page}가 RAM에 없습니다`,
           `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`,
         );
-        await hold(500 * pace, active);
+        await hold(500, active);
       } else if (event.type === "select") {
         cards[slot].dataset.selected = "true";
         host.dataset.criterion = event.reason;
@@ -631,7 +639,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
             : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
           reason,
         );
-        await hold((event.victim ? 1500 : 900) * pace, active);
+        await hold(event.victim ? 1500 : 900, active);
         if (!alive(active)) return;
         delete host.dataset.criterion;
       } else if (event.type === "evict") {
@@ -646,14 +654,14 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
               { opacity: 1, transform: "translateY(0)" },
               { opacity: 0, transform: "translateY(-7px)" },
             ],
-            { duration: 340 * pace },
+            { duration: 340 },
           ),
           active,
         );
         if (!alive(active)) return;
         frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null };
         paintFrames();
-        await hold(110 * pace, active);
+        await hold(110, active);
       } else if (event.type === "load") {
         phase(
           "load",
@@ -662,7 +670,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         );
         cards[slot].dataset.receiving = "true";
         cards[slot].style.setProperty("--page-color", COLOR[page]);
-        await travel("load", page, slot, active, pace);
+        await travel("load", page, slot, active);
         if (!alive(active)) return;
         frames[slot] = { ...step.frames[slot], lastUsedAt: null };
         paintFrames();
@@ -676,7 +684,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
                 { transform: "translateY(-5px)" },
                 { transform: "translateY(0)" },
               ],
-              { duration: 200 * pace, easing: "ease-out" },
+              { duration: 200, easing: "ease-out" },
             ),
           active,
         );
@@ -687,7 +695,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
             `CPU가 ${page} 접근을 다시 시도합니다`,
             `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 F${slot}을 가리킵니다.`,
           );
-          await travel("retry", page, slot, active, pace);
+          await travel("retry", page, slot, active);
           if (!alive(active)) return;
         }
         phase(
@@ -695,7 +703,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           `F${slot}에서 CPU로 값을 전달합니다`,
           `페이지 ${page}는 F${slot}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`,
         );
-        await travel("access", page, slot, active, pace);
+        await travel("access", page, slot, active);
         if (!alive(active)) return;
         frames = cloneFrames(step.frames);
         paintFrames();
@@ -710,7 +718,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   function update(
     next,
     previous = null,
-    { animate = true, duration = 1000 } = {},
+    { animate = true, speed = 1 } = {},
   ) {
     if (destroyed) return Promise.resolve();
     revision++;
@@ -731,12 +739,13 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     }
     const active = {
       revision,
+      speed,
       animations: new Set(),
       paused: false,
       cancelled: false,
     };
     run = active;
-    return animateStep(active, duration / 1000);
+    return animateStep(active);
   }
   draw();
   let layoutFrame;
@@ -749,6 +758,11 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   observer.observe(host);
   return {
     update,
+    setSpeed(speed) {
+      if (!run) return;
+      run.speed = speed;
+      run.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
     pause() {
       if (run) {
         run.paused = true;

@@ -15,6 +15,7 @@ let algorithm = "fifo",
   playing = false,
   busy = false,
   motionPaused = false,
+  resumeAutomatically = false,
   guided = true,
   revision = 0,
   timer = null,
@@ -95,7 +96,7 @@ function renderProcess(kind = "ready") {
 function renderControls() {
   const moving = playing || (busy && !motionPaused);
   $('[data-action="play"]').innerHTML =
-    `${icon(moving ? "pause" : "play")}<span>${moving ? "일시정지" : index === 10 ? "다시 재생" : index === 0 ? "학습 시작" : "이어서 재생"}</span>`;
+    `${icon(moving ? "pause" : "play")}<span>${moving ? "일시정지" : index === 10 && !busy ? "다시 재생" : index === 0 ? "학습 시작" : "이어서 재생"}</span>`;
   $('[data-action="play"]').setAttribute(
     "aria-label",
     moving ? "일시정지" : "재생",
@@ -250,12 +251,13 @@ async function navigate(target, animate = false) {
   const sequential = animate && target === committed + 1;
   index = target;
   busy = sequential;
+  resumeAutomatically = playing;
   motionPaused = false;
   if (!sequential) committed = target;
   render();
   await scene.update(run().steps[target], previous, {
     animate: sequential,
-    duration: 1000 / speed,
+    speed,
   });
   if (token !== revision) return;
   busy = false;
@@ -273,7 +275,7 @@ async function navigate(target, animate = false) {
 async function togglePlay() {
   if (playing || (busy && !motionPaused)) return pause();
   if (index === 10 && !busy) await navigate(0);
-  playing = true;
+  playing = !busy || resumeAutomatically;
   motionPaused = false;
   scene.resume();
   renderControls();
@@ -400,6 +402,7 @@ $("#app").addEventListener("click", async (event) => {
     case "speed":
       speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1;
       button.textContent = speed + "×";
+      scene.setSpeed(speed);
       schedule();
       break;
     case "theme":

@@ -1507,3 +1507,36 @@ dialog {
     transition: transform 140ms ease, box-shadow 140ms ease;
   }
 }
+
+@media (max-width: 759px) {
+  .scene-panel {
+    overflow: clip;
+  }
+  .scene-panel .transport {
+    display: contents;
+  }
+  .scene-panel .learning-mode,
+  .scene-panel .seek-row {
+    margin: 0;
+    padding: 8px 10px;
+    background: var(--soft);
+  }
+  .scene-panel .playback-buttons {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    gap: 5px;
+    padding: 6px 6px 8px;
+    border-top: 1.5px solid var(--border);
+    background: var(--soft);
+  }
+}
+@media (max-width: 359px) {
+  .playback-buttons .button {
+    gap: 4px;
+    padding-inline: 5px;
+  }
+  .playback-buttons .play-button {
+    min-width: 0;
+  }
+}
