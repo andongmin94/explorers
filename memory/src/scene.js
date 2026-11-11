@@ -388,6 +388,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       evict: "부재 대기",
       load: "부재 대기",
       retry: "접근 재시도",
+      read: "응답 대기",
       access: "접근 완료",
     }[kind];
     status.querySelector("b").textContent = {
@@ -399,6 +400,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       evict: "제거",
       load: "읽기",
       retry: "재시도",
+      read: "읽기",
       access: "완료",
     }[kind];
     status.querySelector("strong").textContent = title;
@@ -462,7 +464,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         <text x="${leftGap}" y="${layout.compact ? 215 : 224}" text-anchor="middle">${layout.compact ? "조회" : "조회 요청"}</text>
         <text x="${layout.compact ? 122 : layout.cpu.x}" y="${layout.compact ? 322 : 377}" text-anchor="middle">접근 완료</text>
         <text x="${layout.compact ? layout.width / 2 + 20 : layout.ssd.x}" y="${layout.compact ? 574 : 341}" text-anchor="middle">페이지 읽기</text>
-      </g><path class="mem-measure"/>`;
+      </g>`;
     cards.forEach((card, slot) =>
       Object.assign(card.style, {
         left: `${layout.ramX}px`,
@@ -482,8 +484,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       top: `${layout.table.y}px`,
       width: `${layout.table.width}px`,
     });
-    paintFrames();
-    paintRequest(!!step?.index);
+    run?.updateRoute?.();
   }
   function clearEmphasis() {
     cards.forEach((card) => {
@@ -528,38 +529,31 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       active,
     );
   async function travel(kind, page, slot, active, pace) {
-    const data = path(kind, slot, page),
-      measure = svg.querySelector(".mem-measure"),
-      flow = svg.querySelector(".mem-active-flow");
-    measure.setAttribute("d", data);
-    flow.setAttribute("d", data);
-    flow.style.setProperty("--page-color", COLOR[page]);
-    flow.style.opacity = 1;
-    const lane = svg.querySelector(
-      `[data-lane="${kind === "retry" ? "lookup" : kind}"]`,
-    );
-    lane.dataset.active = "true";
-    lane.style.setProperty("--page-color", COLOR[page]);
-    lane.setAttribute("d", data);
-    const length = measure.getTotalLength(),
-      duration = (440 + length * 0.6) * pace;
+    const laneKind = kind === "retry" ? "lookup" : kind;
+    const flow = svg.querySelector(".mem-active-flow");
+    active.updateRoute = () => {
+      const data = path(kind, slot, page);
+      const lane = svg.querySelector(`[data-lane="${laneKind}"]`);
+      lane.dataset.active = "true";
+      lane.style.setProperty("--page-color", COLOR[page]);
+      lane.setAttribute("d", data);
+      const placeholder = svg.querySelector(".mem-active-flow");
+      if (placeholder !== flow) placeholder.replaceWith(flow);
+      flow.setAttribute("d", data);
+      flow.style.setProperty("--page-color", COLOR[page]);
+      flow.style.opacity = 1;
+      transfer.style.offsetPath = `path("${data}")`;
+      if (kind === "load") svg.querySelector(`[data-disk-page="${page}"]`).dataset.current = "true";
+    };
+    active.updateRoute();
+    const duration = (440 + flow.getTotalLength() * 0.6) * pace;
     transfer.textContent =
-      kind === "access" ? "✓" : kind === "load" ? page : `${page}?`;
+      kind === "access" ? "값" : kind === "load" ? page : `${page}?`;
     transfer.hidden = false;
     transfer.style.setProperty("--page-color", COLOR[page]);
     transfer.dataset.kind = kind;
-    const source =
-      kind === "load" ? svg.querySelector(`[data-disk-page="${page}"]`) : null;
-    if (source) source.dataset.current = "true";
-    const keys = Array.from({ length: 33 }, (_, index) => {
-      const p = measure.getPointAtLength((length * index) / 32);
-      return {
-        transform: `translate(${p.x - 17}px,${p.y - 17}px)`,
-        offset: index / 32,
-      };
-    });
     await Promise.all([
-      track(transfer.animate(keys, { duration, easing: "linear" }), active),
+      track(transfer.animate([{ offsetDistance: "0%" }, { offsetDistance: "100%" }], { duration, easing: "linear" }), active),
       track(
         flow.animate([{ strokeDashoffset: 16 }, { strokeDashoffset: 0 }], {
           duration,
@@ -569,9 +563,11 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       ),
     ]);
     if (alive(active)) {
+      active.updateRoute = null;
       transfer.hidden = true;
-      if (source) source.dataset.current = "false";
+      if (kind === "load") svg.querySelector(`[data-disk-page="${page}"]`).dataset.current = "false";
       flow.style.opacity = 0;
+      const lane = svg.querySelector(`[data-lane="${laneKind}"]`);
       delete lane.dataset.active;
       lane.setAttribute("d", path(lane.dataset.lane));
     }
@@ -676,9 +672,9 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           if (!alive(active)) return;
         }
         phase(
-          "access",
-          `${page} 접근 완료 · RAM의 페이지를 사용합니다`,
-          "페이지는 RAM에 남아 다음 요청에서도 사용할 수 있습니다.",
+          "read",
+          `F${slot}에서 CPU로 값을 전달합니다`,
+          `페이지 ${page}는 F${slot}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`,
         );
         await travel("access", page, slot, active, pace);
         if (!alive(active)) return;
@@ -726,13 +722,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   draw();
   const observer = new ResizeObserver((entries) => {
     if (Math.abs(entries[0].contentRect.width - layout.width) <= 1) return;
-    revision++;
-    cancel();
-    if (step) {
-      frames = cloneFrames(step.frames);
-    }
     draw();
-    finalPhase();
   });
   observer.observe(host);
   return {

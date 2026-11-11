@@ -100,7 +100,7 @@ export function describeStep(step, run) {
     return {
       ...common,
       title: "가득 찬 RAM, 무엇을 남길까",
-      body: `${pageName(step.page)}가 RAM에 없고, 빈 프레임도 없습니다. 운영체제는 ${algorithm === "fifo" ? "적재된 차례" : "마지막 접근 차례"}를 비교해 한 페이지의 사본을 제거하고 그 자리에 새 페이지를 읽어옵니다.`,
+      body: `${pageName(step.page)}를 요청했을 때 RAM에 빈 프레임이 없었습니다. 운영체제는 ${algorithm === "fifo" ? "적재된 차례" : "마지막 접근 차례"}를 비교해 한 페이지를 내보냈습니다. 그 자리에 ${step.page}를 적재한 뒤 CPU의 읽기를 마쳤습니다.`,
       insight:
         "이 실험은 읽기만 하므로 내보낸 페이지를 저장장치에 다시 쓸 필요가 없습니다. 저장장치의 원본은 남아 있고, 비워진 RAM 프레임을 다른 페이지에 사용합니다.",
     };

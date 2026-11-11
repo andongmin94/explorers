@@ -179,10 +179,6 @@
 .memory-scene marker path {
   fill: context-stroke;
 }
-.memory-scene .mem-measure {
-  fill: none;
-  stroke: none;
-}
 .memory-scene .mem-lane-labels text {
   font-size: 12px;
   font-weight: 800;
@@ -399,6 +395,7 @@
 }
 .memory-scene .mem-transfer {
   position: absolute;
+  offset-rotate: 0deg;
   left: 0;
   top: 0;
   width: 34px;

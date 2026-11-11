@@ -73,6 +73,7 @@ function renderProcess(kind = "ready") {
     evict: 2,
     load: 3,
     retry: 4,
+    read: 4,
     access: 4,
   }[kind];
   const decided = position >= 1;
@@ -81,7 +82,7 @@ function renderProcess(kind = "ready") {
     decided && step.index ? (step.hit ? "적중" : "부재") : "판정",
     "프레임 선택",
     "SSD 적재",
-    "접근 완료",
+    ({ retry: "접근 재시도", read: "값 전달 중", access: "접근 완료" })[kind] || "CPU 읽기",
   ];
   $("#process-strip").innerHTML = labels
     .map((label, i) => {
@@ -159,8 +160,11 @@ function render() {
       : `${badge(step.page)} ${step.hit ? "RAM 적중" : "페이지 부재"}${step.victim ? ` · ${step.victim} 교체` : ""}`;
   $("#counts-summary").textContent =
     `부재 ${step.faults} · 적중 ${step.hits} · 교체 ${step.replacements}`;
+  const concept = busy
+    ? `페이지 ${run().steps[index].page}의 테이블 항목과 프레임을 확인하세요. CPU가 값을 돌려받으면 이번 접근이 끝납니다.`
+    : lesson.body;
   $("#explanation").innerHTML =
-    `<span class="eyebrow">${busy ? `${index} / 10번째 접근 · 처리 중 · ${algorithm.toUpperCase()}` : lesson.eyebrow}</span><h3>${lesson.title}</h3><p>${lesson.body}</p>`;
+    `<span class="eyebrow">${busy ? `${index} / 10번째 접근 · 처리 중 · ${algorithm.toUpperCase()}` : lesson.eyebrow}</span><h3>${lesson.title}</h3><p>${concept}</p>`;
   $("#event-title").textContent = lesson.eventTitle;
   $("#event-body").textContent = lesson.eventBody;
   $("#event-index").textContent = step.index
