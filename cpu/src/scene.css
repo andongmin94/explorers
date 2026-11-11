@@ -271,21 +271,19 @@
 }
 .scheduler-scene .scene-process[data-moving="true"] {
   z-index: 8;
+  justify-content: center;
+  overflow: hidden;
   border-color: var(--process-color);
   box-shadow: 2px 2px 0 var(--process-color);
   gap: 0;
   padding: 3px;
-}
-.scheduler-scene .scene-process[data-moving="true"] .scene-token-copy {
-  position: absolute;
-  left: 39px;
-  right: 6px;
 }
 .scheduler-scene .scene-process[data-moving="true"] .scene-pid {
   width: 24px;
   height: 24px;
   font-size: 11px;
 }
+.scheduler-scene .scene-process[data-moving="true"] .scene-token-copy,
 .scheduler-scene .scene-process[data-moving="true"] .scene-token-check,
 .scheduler-scene .scene-process[data-moving="true"] .scene-io-meter {
   display: none;

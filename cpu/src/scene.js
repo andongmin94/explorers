@@ -281,7 +281,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
       ${routeBadge("preempt", labelX, layout.preemptY + (layout.mobile ? -18 : 14), layout.mobile ? ["시간", "만료"] : ["할당량", "만료"], layout.mobile ? 34 : 58)}
       ${routeBadge("unblock", layout.width / 2, layout.returnY, ["입출력 완료 · 큐 뒤로"], 172)}
     </g>
-    <text class="scene-rail-label" x="${layout.arrival.x}" y="${layout.arrival.y - 6}">도착 예정</text>
+    <text class="scene-rail-label scene-arrival-label" x="${layout.arrival.x}" y="${layout.arrival.y - 6}">도착 예정</text>
     <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="${layout.arrival.y - 6}"></text>
     <rect class="scene-completion-track" x="${layout.mobile ? 18 : layout.width / 2 - 215}" y="${layout.done.y - 4}" width="${layout.mobile ? layout.width - 36 : 430}" height="36" rx="3"/>
     <text class="scene-completion-empty" x="${layout.mobile ? layout.width / 2 : layout.done.x + 8}" y="${layout.done.y + 19}" text-anchor="${layout.mobile ? "middle" : "start"}">아직 완료된 작업 없음</text>
@@ -293,7 +293,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
       top: `${layout.meter.y}px`,
       width: `${layout.meter.width}px`,
     });
-    if (currentFrame && view) {
+    if (currentFrame && view && !activeRun) {
       snapTokens(view);
       renderProgress();
       showCallout(finalEvent(currentFrame));
@@ -301,13 +301,16 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     }
   }
 
-  function paintPresence() {
+  function paintPresence(event) {
     if (!view) return;
     hostElement.dataset.running = view.running || "";
     hostElement.dataset.io = view.blocked.length ? "active" : "idle";
-    svg.querySelector(".scene-arrived-note").textContent = view.new.length
-      ? `${view.new.length}개`
-      : "모두 도착";
+    const arriving = event?.type === "arrive";
+    svg.querySelector(".scene-arrival-label").textContent =
+      arriving ? "도착 중" : view.new.length ? "도착 예정" : "도착 완료";
+    svg.querySelector(".scene-arrived-note").textContent = arriving
+      ? `${event.id}${view.new.length ? ` · 남은 ${view.new.length}개` : ""}`
+      : view.new.length ? `${view.new.length}개` : `${processes.length} / ${processes.length}`;
     svg.querySelector(".scene-done-note").textContent =
       `${view.done.length} / ${processes.length}`;
     svg.querySelector(".scene-completion-empty").style.display = view.done
@@ -516,17 +519,15 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     activeRun = null;
   }
 
-  async function animateEvent(event, run) {
+  async function animateEvent(event, run, before, progress) {
     const previousPositions = new Map(
       processes.map((process) => [
         process.id,
-        positionFor(process.id, view, layout),
+        positionFor(process.id, before, layout),
       ]),
     );
-    onMove(currentFrame, view, event);
-    mutateView(view, event);
     showCallout(event);
-    paintPresence();
+    paintPresence(event);
     const flow = svg.querySelector(".scene-flow"),
       end = positionFor(event.id, view, layout);
     const pathData = route(event.type, previousPositions.get(event.id), end);
@@ -574,6 +575,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     function track(animation) {
       run.animations.add(animation);
       animation.playbackRate = run.speed;
+      animation.currentTime = progress * milliseconds;
       if (run.paused) animation.pause();
       waits.push(
         animation.finished
@@ -631,24 +633,13 @@ export function createSchedulerScene(hostElement, processes, onMove) {
           duration: milliseconds,
           easing: "linear",
         });
+        run.motion = animation;
         track(animation);
-        track(
-          token.querySelector(".scene-token-copy").animate(
-            [
-              { opacity: 1, offset: 0 },
-              { opacity: 0, offset: 0.12 },
-              { opacity: 0, offset: 0.78 },
-              { opacity: 1, offset: 0.9 },
-              { opacity: 1, offset: 1 },
-            ],
-            { duration: milliseconds, easing: "linear" },
-          ),
-        );
         waits.push(
           animation.finished
             .catch(() => {})
             .then(() => {
-              if (!run.cancelled) {
+              if (!run.cancelled && run.resizeAt === null) {
                 delete token.dataset.moving;
                 setTokenPresentation(id, to);
               }
@@ -679,7 +670,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     );
     renderProgress();
     await Promise.all(waits);
-    if (!run.cancelled) {
+    if (!run.cancelled && run.resizeAt === null) {
       for (const element of [lane, routeLabel].filter(Boolean))
         delete element.dataset.active;
       if (receivingSlot) delete receivingSlot.dataset.receiving;
@@ -730,7 +721,18 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     return (async () => {
       for (const event of events) {
         if (run.cancelled || run.revision !== revision) return;
-        await animateEvent(event, run);
+        // mutateView replaces each zone array, so this snapshot retains the
+        // departure slots even when a resize changes their screen coordinates.
+        const before = { ...view };
+        onMove(currentFrame, before, event);
+        mutateView(view, event);
+        let progress = 0;
+        do {
+          run.resizeAt = null;
+          await animateEvent(event, run, before, progress);
+          if (run.cancelled || run.revision !== revision) return;
+          progress = run.resizeAt;
+        } while (progress !== null);
       }
       if (run.cancelled || run.revision !== revision) return;
       activeRun = null;
@@ -746,9 +748,11 @@ export function createSchedulerScene(hostElement, processes, onMove) {
   drawMap();
   const observer = new ResizeObserver((entries) => {
     if (Math.abs(entries[0].contentRect.width - layout.width) <= 1) return;
-    revision += 1;
-    cancelTransition();
-    if (currentFrame) view = copyView(currentFrame, processes);
+    if (activeRun?.motion) {
+      const motion = activeRun.motion;
+      activeRun.resizeAt = Math.min(1, (motion.currentTime ?? 0) / motion.effect.getTiming().duration);
+      for (const animation of activeRun.animations) animation.cancel();
+    }
     drawMap();
   });
   observer.observe(hostElement);
