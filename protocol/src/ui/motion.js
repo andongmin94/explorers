@@ -139,6 +139,11 @@ function animateTextChange(element, text, direction = 1, onUpdate) {
   });
 }
 
+function resetScrollPosition(element) {
+  element._glide = null;
+  element.scrollTo({ top: 0, left: 0, behavior: "instant" });
+}
+
 function smoothScrollTo(element, targetTop) {
   const initialTop = element.scrollTop;
   const distance =
@@ -186,6 +191,7 @@ export {
   EASE_OUT_EXPO,
   animateTextChange,
   prefersReducedMotion,
+  resetScrollPosition,
   slideContent,
   smoothScrollTo,
 };

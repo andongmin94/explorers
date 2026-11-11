@@ -91,7 +91,7 @@ function devicePanels(lessonId, state, port) {
     if (state.localCopy) local.push(["메일 2", "읽음"]);
     if (state.clientCount === 3) local.push(["새 메일 알림", "+1", "fresh"]);
     return {
-      web: panel(`서버 메일함 · ${state.count}통`, mailIcon, rows),
+      web: panel(`서버 메일함 · ${state.count}통`, mailIcon, rows, "imap-mailbox"),
       client: state.clientCount && panel("노트북 메일 앱", mailIcon, local),
     };
   }
@@ -125,9 +125,10 @@ export function createEndpointDisplay(nodes) {
     }
     const belowLaptop = id === "client" && scale > 1.35;
     const x = id === "web" ? 750 : 146;
-    const y = id === "web" ? 165 : belowLaptop ? 565 : 305;
+    const serverY = card.classList.contains("imap-mailbox") && scale > 1.35 ? 205 : 165;
+    const y = id === "web" ? serverY : belowLaptop ? 565 : 305;
     const dy = belowLaptop ? 0 : -Number(card.dataset.height);
-    group.firstElementChild.setAttribute("d", id === "web" ? "M747 158h15l25 27" :
+    group.firstElementChild.setAttribute("d", id === "web" ? `M747 ${serverY - 7}h15L787 185` :
       belowLaptop ? "M253 478l23 25v62" : "M150 305v23l44 54");
     group.lastElementChild.setAttribute("transform",
       `translate(${x} ${y}) scale(${scale}) translate(${id === "web" ? -212 : 0} ${dy})`);

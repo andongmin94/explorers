@@ -2,6 +2,7 @@
 import {
   EASE_OUT_EXPO,
   prefersReducedMotion,
+  resetScrollPosition,
   smoothScrollTo,
 } from "./motion.js";
 import {
@@ -354,8 +355,7 @@ function drawSequenceDiagram(panel, lesson) {
   panel._lesson = lesson;
   panel._width = scrollArea.clientWidth;
   panel.dataset.lesson = lesson.id;
-  scrollArea.scrollTop = 0;
-  scrollArea.scrollLeft = 0;
+  resetScrollPosition(scrollArea);
   syncSequenceHeaderScroll(panel);
 }
 const syncSequenceHeaderScroll = (panel) => {
@@ -646,10 +646,8 @@ function applySequenceState(panel, state, drawingBeforeResize) {
     );
   const scrollArea = panel.querySelector(".seq-scroll");
   if (!state.started) {
-    if (newlyVisible.length) {
-      return smoothScrollTo(scrollArea, 0);
-    }
-    return newlyVisible.length;
+    resetScrollPosition(scrollArea);
+    return;
   }
   const visibleYPositions = [
     ...svg.querySelectorAll(".seq-arrow.is-shown, .seq-note.is-shown"),
