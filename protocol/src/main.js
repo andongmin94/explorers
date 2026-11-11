@@ -227,6 +227,7 @@ bindThemeToggle(topbarElement);
 /** Render one shared playback snapshot across all panels. */
 
 function updateAppPlaybackState(state, lesson = currentLesson) {
+  if (state.labels) networkAnimation.setLabels(state.labels);
   updateTopbar(topbarElement, state, lesson);
   updateSidebar(sidebarElement, state, lesson);
   updateOverviewPanel(

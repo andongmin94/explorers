@@ -915,25 +915,27 @@ class LessonPacketEncoder {
       isLocalNetworkAddress(sourceIp) ||
       isLocalNetworkAddress(destinationIp)
     ) {
-      const sourceIsLocal = isLocalNetworkAddress(sourceIp);
+      const fromLaptop = isClientAddress(sourceIp);
       const isBroadcast =
         destinationIp === "255.255.255.255" || destinationIp === "Broadcast";
       return {
         at: "Seen on the laptop’s home network",
-        src: sourceIsLocal
+        src: fromLaptop
           ? EXAMPLE_MAC_ADDRESSES.laptop
           : EXAMPLE_MAC_ADDRESSES.lan,
         dst: isBroadcast
           ? EXAMPLE_MAC_ADDRESSES.all
-          : sourceIsLocal
+          : fromLaptop
             ? EXAMPLE_MAC_ADDRESSES.lan
             : EXAMPLE_MAC_ADDRESSES.laptop,
-        srcNote: sourceIsLocal
+        srcNote: fromLaptop
           ? "The laptop’s network card."
           : "The router’s side facing the home network.",
         dstNote: isBroadcast
           ? "Broadcast: every device on the network receives it."
-          : sourceIsLocal
+          : destinationIp === ENCODING_ROUTER_LAN_IP
+            ? "The router’s LAN interface is the destination."
+          : fromLaptop
             ? "The router: anything beyond the home network goes to it first."
             : "The laptop.",
       };
@@ -1601,12 +1603,12 @@ class LessonPacketEncoder {
         wire.natOf !== undefined
           ? this.frames[packetIndex + wire.natOf].ipId
           : this.nextIpIdentification(packetRow.src);
-      const ttlExplanation = isClientAddress(packetRow.src)
+      const ttlExplanation = wire.ttlNote ?? (isClientAddress(packetRow.src)
         ? `Windows starts at 128.${ttl !== 128 ? ` Set to ${ttl} on purpose here.` : ""}`
         : isLocalNetworkAddress(packetRow.dst) &&
             !isLocalNetworkAddress(packetRow.src)
           ? `Started at ${getInitialTtl(packetRow.src)}; ${getExampleHopCount(packetRow.src)} router${getExampleHopCount(packetRow.src) === 1 ? "" : "s"} on the way each took 1.`
-          : `As sent: this system starts at ${getInitialTtl(packetRow.src)}.`;
+          : `As sent: this system starts at ${getInitialTtl(packetRow.src)}.`);
       ipv4.summary = `${packetRow.src} → ${packetRow.dst}`;
       ipv4.field("Version, header length", "4, 20 bytes", () => ipv4.u8(69), {
         note: "IPv4, with no options.",

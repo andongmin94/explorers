@@ -136,7 +136,7 @@ const udpLesson = {
           "web",
           "amber",
           "VOICE 1",
-          ["UDP 50000 → 5004", "92 B of audio, no setup"],
+          ["UDP 50000 → 5004", "80 B of audio + 12 B RTP header"],
           {
             time: "0.000s",
             src: UDP_CLIENT_IP,
@@ -240,7 +240,7 @@ const udpLesson = {
       title: "The App Decides",
       desc: "Reliability is up to the app",
       detail:
-        "The call app numbers its own frames (RTP does this), so it sees that frame 7 is missing and smooths over the 20 ms gap instead of waiting. Waiting for a resend would make the whole call lag.",
+        "The media server receives voice frames 6 and 8 from the laptop. Their RTP sequence numbers reveal the gap. Its audio decoder conceals the missing 20 ms so playback can continue. The laptop keeps sending.",
       facts: [
         ["Ordering", "App’s job (e.g. RTP)"],
         ["Loss", "Hidden by the app"],
@@ -249,7 +249,7 @@ const udpLesson = {
       events: [
         {
           type: "note",
-          at: "client",
+          at: "web",
           text: "APP COVERS THE 20 MS GAP",
           tone: "green",
         },

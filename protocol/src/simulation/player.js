@@ -42,6 +42,12 @@ function createLessonPlayer(
   const lastEventByStep = lesson.steps.map((step, stepIndex) =>
     events.findLastIndex((event) => event.step === stepIndex),
   );
+  // A packet can change an endpoint's label on arrival, including after seeking.
+  const labelsAtPosition = [lesson.labels];
+  for (const event of events) {
+    const previous = labelsAtPosition.at(-1);
+    labelsAtPosition.push(event.labelsAfter ? { ...previous, ...event.labelsAfter } : previous);
+  }
   const finishedSteps = new Set();
   let nextEventIndex = 0;
   let runningEventIndex = -1;
@@ -71,6 +77,7 @@ function createLessonPlayer(
       started,
       done,
       activeStep,
+      labels: labelsAtPosition[nextEventIndex],
       event: activeEventIndex >= 0 ? events[activeEventIndex] : null,
       steps: lesson.steps.map((step, stepIndex) => {
         if (

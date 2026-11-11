@@ -867,7 +867,7 @@ function createNetworkAnimation(networkSvg) {
     labelOverrides = overrides;
     for (const [nodeId, nodeElement] of Object.entries(nodeElements)) {
       const [name, address] = overrides[nodeId] ?? NETWORK_NODE_LABELS[nodeId];
-      const labelTexts = [translate(name), address];
+      const labelTexts = [translate(name), translate(address)];
       const textElements = [
         nodeElement.querySelector(".node-name"),
         nodeElement.querySelector(".node-ip"),
@@ -877,41 +877,12 @@ function createNetworkAnimation(networkSvg) {
         if (!textElement || textElement.textContent === labelTexts[index]) {
           return;
         }
-        if (!(visibleNodes.has(nodeId) && nodeElement.style.opacity !== "0")) {
-          textElement.textContent = labelTexts[index];
-          return scaleNodeLabel(labelElement);
+        textElement.getAnimations().forEach((animation) => animation.cancel());
+        textElement.textContent = labelTexts[index];
+        scaleNodeLabel(labelElement);
+        if (visibleNodes.has(nodeId) && nodeElement.style.opacity !== "0") {
+          textElement.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
         }
-        textElement.animate(
-          [
-            {
-              opacity: 1,
-            },
-            {
-              opacity: 0,
-            },
-          ],
-          {
-            duration: 140,
-            fill: "forwards",
-          },
-        ).onfinish = (event) => {
-          textElement.textContent = labelTexts[index];
-          scaleNodeLabel(labelElement);
-          event.target.cancel();
-          textElement.animate(
-            [
-              {
-                opacity: 0,
-              },
-              {
-                opacity: 1,
-              },
-            ],
-            {
-              duration: 220,
-            },
-          );
-        };
       });
     }
   }
@@ -988,6 +959,9 @@ function createNetworkAnimation(networkSvg) {
     },
     retext() {
       updateNodeLabels(labelOverrides);
+    },
+    setLabels(labels) {
+      if (labels !== labelOverrides) updateNodeLabels(labels);
     },
     overview(nodeIds, labels = {}) {
       lessonNodes = nodeIds;

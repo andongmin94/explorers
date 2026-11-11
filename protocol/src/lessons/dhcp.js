@@ -71,7 +71,8 @@ const dhcpLesson = {
     "client-router": 0.001,
   },
   labels: {
-    router: ["Router", "192.168.1.1 · DHCP server"],
+    client: ["Client", "Unassigned (0.0.0.0)"],
+    router: ["Router (DHCP server)", ROUTER_IP],
   },
   legend: [
     ["amber", "From the laptop"],
@@ -268,6 +269,7 @@ const dhcpLesson = {
               options: [[53, 5], ...DHCP_LEASE_OPTIONS],
             }),
           ),
+          { labelsAfter: { client: ["Client", `${CLIENT_IP}/24`] } },
         ),
         {
           type: "note",

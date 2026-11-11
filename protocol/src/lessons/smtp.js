@@ -211,7 +211,7 @@ const smtpLesson = {
   outro: {
     title: "Mail delivered",
     desc: "Two hops, one message",
-    text: "Alice’s app handed the message to her provider over an encrypted, logged-in connection. The provider found Bob’s mail server in DNS and relayed it there, upgrading that link to TLS. It now waits in Bob’s mailbox until he reads it with IMAP or POP3.",
+    text: "Alice’s provider found Bob’s mail server in DNS and relayed the message over TLS. The receiving server returned 250 after queuing the message and took responsibility for delivery. In this example its local delivery service then stored the message in Bob’s mailbox.",
     facts: [
       ["Hops", "Laptop → provider → Bob’s"],
       ["Submission", "Port 465, TLS, login"],
@@ -637,7 +637,7 @@ const smtpLesson = {
       title: "Deliver",
       desc: "The same transaction again",
       detail:
-        "With TLS on, the provider repeats EHLO, then the envelope and the message, now with a DKIM signature and a Received header added. Bob’s server checks SPF, DKIM and DMARC and accepts it.",
+        "After STARTTLS, the provider repeats EHLO and sends the envelope and signed message. Bob’s server checks SPF, DKIM and DMARC, queues the message and replies 250. Its local delivery service then moves the queued message into Bob’s mailbox.",
       facts: [
         ["Login needed", "No (server to server)"],
         ["Message", "1,316 bytes (signed)"],
@@ -730,6 +730,12 @@ const smtpLesson = {
           ),
           SMTP_ENCRYPTED_EVENT,
         ),
+        {
+          type: "note",
+          at: "mx",
+          text: "QUEUED FOR DELIVERY",
+          tone: "amber",
+        },
         packetEvent(
           "mx",
           "web",
@@ -748,7 +754,7 @@ const smtpLesson = {
         {
           type: "note",
           at: "mx",
-          text: "IN BOB’S MAILBOX",
+          text: "LOCAL DELIVERY · SAVED TO MAILBOX",
           tone: "green",
         },
       ],

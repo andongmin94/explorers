@@ -29,7 +29,7 @@ npm.cmd run preview
 npm.cmd test
 ```
 
-Node 내장 테스트 러너로 14개 수업과 215개 패킷의 내용·바이트·필드·시퀀스, 재생 제어와 학습 진도를 검사합니다. `test/fixtures/distribution-baseline.json`에는 복원 당시 배포본의 해시를 보존합니다. TCP의 재전송 타임아웃 사례와 TLS·HTTPS의 평문 CCS 해설은 교육용으로 수정했으며, 변경한 항목의 기준값과 동작 검사는 `test/distribution.test.js`에 있습니다. TCP 사례는 [RFC 6298 §5](https://www.rfc-editor.org/rfc/rfc6298.html#section-5), 호환용 CCS는 [RFC 8446 부록 D.4](https://www.rfc-editor.org/rfc/rfc8446.html#appendix-D.4)를 따릅니다.
+Node 내장 테스트 러너로 14개 수업과 215개 패킷의 내용·바이트·필드·시퀀스, 재생 제어와 학습 진도를 검사합니다. `test/fixtures/distribution-baseline.json`에는 복원 당시 배포본의 해시를 보존합니다. 수정한 TCP·TLS·HTTPS 사례, DHCP 주소 할당과 LAN 프레임, UDP 음성 손실, NAT의 TTL, SMTP 배달 단계는 `test/distribution.test.js`와 `test/player.test.js`에서 원본 기준값과 구분해 검사합니다. TCP 사례는 [RFC 6298 §5](https://www.rfc-editor.org/rfc/rfc6298.html#section-5), 호환용 CCS는 [RFC 8446 부록 D.4](https://www.rfc-editor.org/rfc/rfc8446.html#appendix-D.4)를 따릅니다.
 
 ## 수정 위치
 

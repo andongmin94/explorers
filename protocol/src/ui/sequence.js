@@ -35,7 +35,7 @@ const getLifelineName = (lesson, nodeId) =>
 function getLifelineAddress(lesson, nodeId, layout) {
   const address = (lesson.labels?.[nodeId] ?? NETWORK_NODE_LABELS[nodeId])[1];
   return (
-    address ||
+    translate(address) ||
     (layout.packets.find((packet) => packet.p.from === nodeId)?.p.row.src ?? "")
   );
 }
@@ -306,7 +306,7 @@ function drawSequenceDiagram(panel, lesson) {
     layout.lifelines
       .map(
         (nodeId) =>
-          `<span class="seq-who" style="left:${laneX[nodeId]}px; max-width:${Math.floor(laneWidth - 10)}px"><b>${escapeHtml(getLifelineName(lesson, nodeId))}</b><i>${escapeHtml(getLifelineAddress(lesson, nodeId, layout))}</i></span>`,
+          `<span class="seq-who" data-node="${nodeId}" style="left:${laneX[nodeId]}px; max-width:${Math.floor(laneWidth - 10)}px"><b>${escapeHtml(getLifelineName(lesson, nodeId))}</b><i>${escapeHtml(getLifelineAddress(lesson, nodeId, layout))}</i></span>`,
       )
       .join("") +
     "</div>";
@@ -555,6 +555,11 @@ function hideSequenceElement(element) {
 function applySequenceState(panel, state) {
   const svg = panel.querySelector(".seq-svg");
   const layout = panel._layout;
+  for (const [nodeId, [, address]] of Object.entries(state.labels ?? {})) {
+    const heading = panel.querySelector(`.seq-who[data-node="${nodeId}"] i`);
+    const text = translate(address);
+    if (heading && heading.textContent !== text) heading.textContent = text;
+  }
   const newlyVisible = [];
   let fadeIndex = 0;
   svg.querySelectorAll(".seq-arrow").forEach((arrow) => {

@@ -124,7 +124,8 @@ const interfaceStrings = {
   "FRAME 7 LOST · NOT RESENT": "프레임 7 손실 · 재전송 없음",
   "HOP 2 · 198.51.100.1": "홉 2 · 198.51.100.1",
   "HOST KEY MATCHES KNOWN_HOSTS": "호스트 키가 known_hosts와 일치",
-  "IN BOB’S MAILBOX": "Bob의 메일함에 있음",
+  "QUEUED FOR DELIVERY": "배달 대기열에 접수",
+  "LOCAL DELIVERY · SAVED TO MAILBOX": "로컬 배달 · Bob의 메일함에 저장",
   "IP PACKET": "IP 패킷",
   MESSAGE: "메시지",
   "MESSAGE 1 DELETED": "메시지 1 삭제됨",
@@ -589,7 +590,7 @@ const lessonStrings = {
     "통화 앱은 로그인할 때부터 미디어 서버의 주소와 포트를 알고 있습니다. 연결을 열지 않습니다. 맨 첫 데이터그램이 벌써 8바이트 UDP 헤더 뒤에 내 목소리 20 ms를 싣고 있습니다.",
   Setup: "준비",
   Ports: "포트",
-  "92 B of audio, no setup": "오디오 92 B, 준비 없음",
+  "80 B of audio + 12 B RTP header": "음성 80 B + RTP 헤더 12 B",
   "A Stream of Datagrams": "데이터그램의 흐름",
   "One every 20 ms, each on its own": "20 ms마다 하나씩, 각자 따로",
   "The app keeps sending a datagram every 20 ms. Each one stands alone, with its own header and no link to the others. UDP doesn’t number them, and nothing comes back to confirm they arrived.":
@@ -625,8 +626,8 @@ const lessonStrings = {
   "sent to port 50000": "50000번 포트로 보냄",
   "The App Decides": "앱이 결정",
   "Reliability is up to the app": "신뢰성은 앱의 몫",
-  "The call app numbers its own frames (RTP does this), so it sees that frame 7 is missing and smooths over the 20 ms gap instead of waiting. Waiting for a resend would make the whole call lag.":
-    "통화 앱은 자기 프레임에 직접 번호를 매기므로(RTP가 이 일을 합니다) 프레임 7이 빠진 것을 알아채고, 기다리는 대신 20 ms의 빈틈을 매끄럽게 메웁니다. 재전송을 기다리면 통화 전체가 지연됩니다.",
+  "The media server receives voice frames 6 and 8 from the laptop. Their RTP sequence numbers reveal the gap. Its audio decoder conceals the missing 20 ms so playback can continue. The laptop keeps sending.":
+    "미디어 서버가 노트북에서 보낸 음성 프레임 6과 8을 받습니다. RTP 시퀀스 번호가 건너뛴 것을 보고 7번이 비었다는 사실을 알아냅니다. 서버 쪽 오디오 디코더가 빠진 20 ms를 보정해 재생을 이어갑니다. 노트북은 계속 음성을 보냅니다.",
   "App’s job (e.g. RTP)": "앱의 일(예: RTP)",
   Loss: "손실",
   "Hidden by the app": "앱이 감춤",
@@ -831,6 +832,10 @@ const lessonStrings = {
   "4 to join, 2 per renewal": "참여에 4개, 갱신마다 2개",
   "24 h, renewed at 12 h": "24시간, 12시간에 갱신",
   "No Address Yet": "아직 주소 없음",
+  "Router (DHCP server)": "라우터 (DHCP 서버)",
+  "Unassigned (0.0.0.0)": "미할당 (0.0.0.0)",
+  "The router’s LAN interface is the destination.": "목적지는 같은 LAN에 있는 라우터의 인터페이스입니다.",
+  "The laptop sent this packet with TTL 128. Forwarding through the home router reduced it to 127.": "노트북이 TTL 128로 보낸 패킷입니다. 집 라우터가 다음 홉으로 전달하면서 127로 줄였습니다.",
   "The laptop joins the network": "노트북이 네트워크에 참여",
   "The laptop has just connected. It has a MAC address built in, but no IP address, no gateway and no DNS server, so it can’t talk to anything beyond its own network yet. It asks for them with DHCP.":
     "노트북이 방금 연결되었습니다. MAC 주소는 내장되어 있지만 IP 주소도, 게이트웨이도, DNS 서버도 없어서 아직 자기 네트워크 밖의 어떤 것과도 통신할 수 없습니다. 노트북은 DHCP로 이것들을 요청합니다.",
@@ -1045,8 +1050,8 @@ const lessonStrings = {
   "2xx ok, 3xx go on, 4/5xx error": "2xx 성공, 3xx 계속, 4/5xx 오류",
   "Mail delivered": "메일 배달 완료",
   "Two hops, one message": "두 구간, 메시지 하나",
-  "Alice’s app handed the message to her provider over an encrypted, logged-in connection. The provider found Bob’s mail server in DNS and relayed it there, upgrading that link to TLS. It now waits in Bob’s mailbox until he reads it with IMAP or POP3.":
-    "Alice의 앱은 암호화되고 로그인된 연결로 메시지를 Alice의 제공업체에 넘겼습니다. 제공업체는 DNS에서 Bob의 메일 서버를 찾아 그곳으로 중계했고, 그 연결도 TLS로 올렸습니다. 메시지는 이제 Bob이 IMAP이나 POP3로 읽을 때까지 Bob의 메일함에서 기다립니다.",
+  "Alice’s provider found Bob’s mail server in DNS and relayed the message over TLS. The receiving server returned 250 after queuing the message and took responsibility for delivery. In this example its local delivery service then stored the message in Bob’s mailbox.":
+    "Alice의 메일 서버는 DNS로 Bob의 메일 서버를 찾아 TLS로 메시지를 중계했습니다. 수신 서버는 메시지를 대기열에 넣고 배달 책임을 인수했다는 250 응답을 보냈습니다. 이 예시에서는 이어서 로컬 배달 서비스가 Bob의 메일함에 메시지를 저장했습니다.",
   "Laptop → provider → Bob’s": "노트북 → 제공업체 → Bob의 서버",
   Submission: "제출",
   "Port 465, TLS, login": "포트 465, TLS, 로그인",
@@ -1091,8 +1096,8 @@ const lessonStrings = {
   Upgrade: "전환",
   Deliver: "배달",
   "The same transaction again": "같은 절차를 한 번 더",
-  "With TLS on, the provider repeats EHLO, then the envelope and the message, now with a DKIM signature and a Received header added. Bob’s server checks SPF, DKIM and DMARC and accepts it.":
-    "TLS가 켜지면 제공업체는 EHLO를 다시 보내고 이어서 봉투와 메시지를 보냅니다. 이제 메시지에는 DKIM 서명과 Received 헤더가 더해져 있습니다. Bob의 서버는 SPF, DKIM, DMARC를 확인하고 받아들입니다.",
+  "After STARTTLS, the provider repeats EHLO and sends the envelope and signed message. Bob’s server checks SPF, DKIM and DMARC, queues the message and replies 250. Its local delivery service then moves the queued message into Bob’s mailbox.":
+    "STARTTLS 뒤에 송신 서버가 다시 EHLO를 보내고 봉투 정보와 서명된 메시지를 전송합니다. Bob의 서버는 SPF·DKIM·DMARC를 확인하고 메시지를 대기열에 넣은 뒤 250으로 접수를 확인합니다. 다음으로 수신 서버의 로컬 배달 서비스가 Bob의 메일함에 저장합니다.",
   "Login needed": "로그인 필요 여부",
   "No (server to server)": "아니요(서버 간)",
   "1,316 bytes (signed)": "1,316바이트(서명됨)",

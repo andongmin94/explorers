@@ -206,6 +206,7 @@ const ipLesson = {
                 seq: 0,
               }),
               ttl: 127,
+              ttlNote: "The laptop sent this packet with TTL 128. Forwarding through the home router reduced it to 127.",
               natOf: -1,
               alias: [`${PUBLIC_NAT_IP}:40112`, `${CLIENT_IP}:52344`],
             },

@@ -4,6 +4,35 @@ import { createLessonPlayer } from "../src/simulation/player.js";
 import { animateWithClock, playbackClock } from "../src/simulation/clock.js";
 import { lessonsById } from "../src/lessons/index.js";
 
+test("DHCP assigns the address on ACK completion and restores it when seeking", async () => {
+  let finish, state;
+  const renderer = {
+    clear() {}, snapshot() {}, overview() {}, morph() {}, apply() {},
+    run: () => new Promise((resolve) => { finish = resolve; }),
+  };
+  const player = createLessonPlayer(lessonsById.dhcp, renderer, (s) => { state = s; });
+  const go = async (index) => {
+    player.jump(index);
+    player.pause();
+    await Promise.resolve();
+    return state.labels.client[1];
+  };
+  try {
+    assert.equal(await go(4), "Unassigned (0.0.0.0)");
+    assert.equal(state.event.label, "ACK");
+    finish();
+    await new Promise(setImmediate);
+    assert.equal(state.labels.client[1], "192.168.1.10/24");
+    assert.equal(await go(5), "192.168.1.10/24");
+    assert.equal(await go(2), "Unassigned (0.0.0.0)");
+    player.reset();
+    await Promise.resolve();
+    assert.equal(state.labels.client[1], "Unassigned (0.0.0.0)");
+  } finally {
+    player.dispose();
+  }
+});
+
 test("jumping to the HTTP ending credits only the step that actually finishes", async (t) => {
   const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   const saved = new Map();
