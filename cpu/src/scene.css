@@ -12,6 +12,7 @@
   isolation: isolate;
   width: 100%;
   flex: none;
+  container-type: inline-size;
   overflow: hidden;
   background: var(--scene-surface);
   color: var(--scene-ink);
@@ -471,6 +472,24 @@
 .scheduler-scene[data-compact="true"] .scene-callout {
   font-size: 11px;
   padding-block: 5px;
+}
+@container (max-width: 380px) {
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-content: center;
+    gap: 1px 4px;
+  }
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) .scene-pid {
+    width: 24px;
+    height: 19px;
+  }
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) .scene-token-copy {
+    display: contents;
+  }
+  .scene-token-copy small {
+    grid-column: 1 / -1;
+  }
 }
 .scheduler-scene [hidden] {
   display: none !important;

@@ -278,7 +278,7 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     <g class="scene-route-labels">
       ${routeBadge("dispatch", labelX, layout.running.y - 21, ["CPU", "배정 →"], 58)}
       ${routeBadge("block", layout.mobile ? cpu.x : ioLabelX, layout.mobile ? 392 : layout.running.y - 21, layout.mobile ? ["입출력 요청 ↓"] : ["입출력", "요청 →"], layout.mobile ? 110 : 58)}
-      ${routeBadge("preempt", labelX, layout.preemptY + (layout.mobile ? -18 : 14), layout.mobile ? ["시간", "만료"] : ["할당량", "만료"], layout.mobile ? 34 : 58)}
+      ${routeBadge("preempt", labelX, layout.preemptY + (layout.mobile ? 18 : 14), layout.mobile ? ["시간", "만료"] : ["할당량", "만료"], layout.mobile ? 34 : 58)}
       ${routeBadge("unblock", layout.width / 2, layout.returnY, ["입출력 완료 · 큐 뒤로"], 172)}
     </g>
     <text class="scene-rail-label scene-arrival-label" x="${layout.arrival.x}" y="${layout.arrival.y - 6}">도착 예정</text>
@@ -538,6 +538,19 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     flow.style.opacity = 1;
     const measure = svg.querySelector(".scene-motion-measure");
     measure.setAttribute("d", pathData);
+    if (layout.mobile && matchMedia("(max-width: 759px)").matches) {
+      const routeBounds = measure.getBoundingClientRect();
+      const padding = layout.tokenHeight / 2 + 5;
+      if (routeBounds.top < padding || routeBounds.bottom > innerHeight - padding) {
+        // Keep the CPU in view when the entire trip fits below it.
+        const deviceTop = hostElement.getBoundingClientRect().top + layout.titleY - 18;
+        const top = Math.max(
+          routeBounds.bottom + padding - innerHeight,
+          Math.min(deviceTop, routeBounds.top - padding),
+        );
+        window.scrollBy({ top, behavior: "instant" });
+      }
+    }
     const length = measure.getTotalLength(),
       waits = [];
     const milliseconds = 510 + length * 0.75;
