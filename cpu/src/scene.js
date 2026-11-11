@@ -541,14 +541,15 @@ export function createSchedulerScene(hostElement, processes, onMove) {
     if (layout.mobile && matchMedia("(max-width: 759px)").matches) {
       const routeBounds = measure.getBoundingClientRect();
       const padding = layout.tokenHeight / 2 + 5;
+      const viewportBottom = innerHeight - hostElement.parentElement.querySelector(".playback-buttons").offsetHeight;
       const deviceTop = hostElement.getBoundingClientRect().top + layout.titleY - 22;
       const startsOrEndsAtCPU = event.from === "running" || event.to === "running";
       const topOfTrip = startsOrEndsAtCPU
         ? Math.min(deviceTop, routeBounds.top - padding)
         : routeBounds.top - padding;
-      if (topOfTrip < 0 || routeBounds.bottom > innerHeight - padding) {
+      if (topOfTrip < 0 || routeBounds.bottom > viewportBottom - padding) {
         const top = Math.max(
-          routeBounds.bottom + padding - innerHeight,
+          routeBounds.bottom + padding - viewportBottom,
           Math.min(deviceTop, topOfTrip),
         );
         window.scrollBy({ top, behavior: "instant" });
