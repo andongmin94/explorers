@@ -581,6 +581,11 @@ summary {
   margin-left: 0;
   font-variant-numeric: tabular-nums;
 }
+.client-card[data-write-source] [data-write] {
+  padding: 0 3px;
+  background: var(--client-color);
+  color: var(--inverse);
+}
 .client-card[data-client="T1"][data-active] {
   border-color: var(--t1);
 }
@@ -647,6 +652,19 @@ summary {
 }
 .stock-values .pending-value > b {
   font-size: 24px;
+}
+.stock-card[data-pending="true"] .pending-value {
+  background: color-mix(in srgb, var(--pending-color) 10%, var(--surface));
+}
+.stock-card[data-pending="true"] [data-stock],
+.stock-card[data-pending="true"] [data-pending] {
+  text-decoration: underline 2px var(--pending-color);
+  text-underline-offset: 3px;
+}
+.stock-card[data-pending="true"] [data-row-caption],
+.stock-card[data-committing="true"] [data-row-caption] {
+  color: var(--ink);
+  font-weight: 750;
 }
 .stock-card[data-owned="true"] {
   border-color: var(--owner-color);

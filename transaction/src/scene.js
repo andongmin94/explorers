@@ -191,7 +191,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
   host.className = "transaction-scene";
   host.innerHTML = `<svg class="scene-map" aria-hidden="true"></svg><div class="scene-callout" aria-live="off"></div>
     ${["T1", "T2"].map((id, i) => `<div class="client-card" data-client="${id}" style="--client-color:${color(id)}"><div class="client-card-head"><b class="tx-id ${id.toLowerCase()}">${id}</b><strong>주문 ${i + 1}</strong></div><div class="client-role" data-status></div><div class="local-values"><span>읽은 값 <b data-read>—</b></span><span>앱 계산 <b data-write>—</b></span></div></div>`).join("")}
-    <div class="stock-card"><div class="stock-card-head"><strong>재고 행</strong><span>inventory · id = 1</span></div><div class="stock-values"><div><span>확정 재고</span><b data-stock>10</b><small data-version>버전 0</small></div><div class="pending-value"><span data-pending-owner>미확정 쓰기</span><b data-pending>—</b><small>커밋 전</small></div></div></div>
+    <div class="stock-card"><div class="stock-card-head"><strong>재고 행</strong><span data-row-caption>inventory · id = 1</span></div><div class="stock-values"><div><span>확정 재고</span><b data-stock>10</b><small data-version>버전 0</small></div><div class="pending-value"><span data-pending-owner>미확정 쓰기</span><b data-pending>—</b><small>커밋 전</small></div></div></div>
     <div class="row-lock"><svg class="lock-icon" viewBox="0 0 22 22" aria-hidden="true"><path class="lock-shackle" d="M6 10V7a5 5 0 0 1 10 0v3"/><rect x="4" y="10" width="14" height="10" rx="1"/><path d="M11 14v3"/></svg><strong data-lock>행 잠금 없음</strong><span data-wait></span></div>
     <div class="parked-query" hidden><b class="tx-id t2">T2</b><strong></strong><span></span></div><div class="query-packet" hidden></div>`;
   const svg = host.querySelector("svg"),
@@ -323,6 +323,8 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       committed =
         lastStep?.action === "commit" &&
         state.committedVersion === lastStep.state.committedVersion;
+    const writesStock = ["write", "resume-write", "commit"].includes(lastStep.action) ||
+      (lastStep.action === "wait" && lastStep.mode === "naive");
     for (const id of ["T1", "T2"]) {
       const client = state.clients[id],
         card = cards[id];
@@ -345,6 +347,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       card.querySelector("[data-status]").textContent = roleLabel;
       card.querySelector("[data-read]").textContent = client.localRead ?? "—";
       card.querySelector("[data-write]").textContent = client.localWrite ?? "—";
+      card.toggleAttribute("data-write-source", id === lastStep.client && writesStock);
       card.setAttribute(
         "aria-label",
         `${id} ${roleLabel}. 읽은 값 ${client.localRead ?? "없음"}, 앱 계산 ${client.localWrite ?? "없음"}`,
@@ -386,12 +389,20 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
     lock.dataset.ready = String(ready);
     parked.hidden = !waiting.length;
     parked.dataset.ready = String(ready);
-    parked.querySelector("strong").textContent =
-      lastStep?.mode === "locked" ? "읽기" : "쓰기";
+    parked.querySelector("strong").textContent = waiting.length && lastStep.mode === "naive"
+      ? `쓰기 ${state.clients[waiting[0]].localWrite}` : "읽기";
     parked.querySelector("span").textContent = ready ? "재개 가능" : "SQL 대기";
-    stock.querySelector(".pending-value small").textContent = "커밋 전";
+    const pending = state.uncommitted;
+    stock.querySelector(".pending-value small").textContent = pending
+      ? `${state.clients[pending.client].localRead} − 1` : "커밋 전";
+    const caption = stock.querySelector("[data-row-caption]");
+    caption.textContent = "inventory · id = 1";
+    if (pending) caption.textContent = pending.stock === state.committedStock
+      ? "같은 값 다시 쓰기 · 커밋 전" : "차감 반영 대기 · 커밋 전";
     stock.dataset.committing = String(committed);
     if (committed) {
+      const decrement = lastStep.before.committedStock - state.committedStock;
+      caption.textContent = `이번 주문 · 실제 차감 ${decrement}개`;
       stock.querySelector("[data-version]").textContent =
         `${lastStep.before.committedStock} → ${state.committedStock} 확정`;
       stock.querySelector(".pending-value small").textContent =
@@ -475,7 +486,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       return `앱 계산 완료 · ${client.localRead} − 1 = ${client.localWrite}`;
     if (step.action === "read" || step.action === "resume-read")
       return `재고 ${client.localRead}개를 앱에 보관했습니다`;
-    return `${client.localWrite}을 썼지만 아직 미확정입니다`;
+    return `재고 ← ${client.localWrite} · 커밋 대기`;
   }
   async function update(
     step,
@@ -555,7 +566,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
               : step.action === "read" ||
                   (step.action === "wait" && step.mode === "locked")
                 ? "읽기"
-                : "쓰기",
+                : `재고 ← ${client.localWrite}`,
           false,
           pace,
           () => path(id, false, step.action === "wait"),
@@ -572,7 +583,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         await travel(
           run,
           id,
-          step.action === "resume-read" ? "읽기 재개" : "쓰기 재개",
+          step.action === "resume-read" ? "읽기 재개" : `재고 ← ${client.localWrite}`,
           false,
           pace,
           resumePath,
@@ -597,6 +608,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         );
       } else {
         const reading = step.action === "read" || step.action === "resume-read";
+        const writing = step.action === "write" || step.action === "resume-write";
         if (step.action === "commit") {
           phase(
             id,
@@ -639,17 +651,17 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         }
         phase(
           id,
-          resuming
-            ? "대기하던 SQL이 이어서 실행됩니다"
-            : reading
-              ? `DB에서 ${client.localRead}을 반환합니다`
+          reading
+            ? `DB에서 재고 ${client.localRead}개를 반환합니다`
+            : writing
+              ? `DB에 재고 ${client.localWrite} 기록 · 커밋 대기`
               : step.action === "commit"
                 ? `${step.state.committedStock} 확정 · 잠금 해제`
                 : "DB 처리가 끝났습니다",
-          resuming
-            ? "새 요청을 보내지 않고, 기다리던 요청이 재개됩니다."
-            : reading
-              ? "반환된 값을 앱이 따로 기억합니다."
+          reading
+            ? "응답이 도착하면 앱이 읽은 값을 기억합니다."
+            : writing
+              ? `현재 확정 재고는 ${step.before.committedStock}개입니다. 앱에서 계산해 보낸 ${client.localWrite}개는 커밋할 때 확정됩니다.`
               : step.action === "commit"
                 ? "커밋된 버전이 바뀌고 대기 요청이 진행할 수 있게 됩니다."
                 : "클라이언트에 처리 결과를 알립니다.",
