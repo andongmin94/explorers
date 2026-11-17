@@ -1,0 +1,582 @@
+import { getDeadlockPresentationState } from "./deadlock-engine.js";
+
+function housing(x, y, width, height, depth = 14) {
+  const rise = depth / Math.sqrt(3),
+    bottom = y + height;
+  return `<g>
+    <path class="dl-device-shadow" d="M${x + 5} ${y + 5}H${x + width + depth + 5}V${bottom + 6}H${x + 5}Z"/>
+    <path class="dl-device-top" d="M${x} ${y}L${x + depth} ${y - rise}H${x + width + depth}L${x + width} ${y}Z"/>
+    <path class="dl-device-side" d="M${x + width} ${y}L${x + width + depth} ${y - rise}V${bottom - rise}L${x + width} ${bottom}Z"/>
+    <rect class="dl-device-front" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>
+  </g>`;
+}
+function terminal(x, y, width) {
+  const bottom = y + 140;
+  return `${housing(x, y, width, 140)}
+    <path class="dl-device-top" d="M${x} ${bottom}H${x + width}L${x + width - 16} ${bottom + 23}H${x - 16}Z"/>
+    <path class="dl-device-side" d="M${x - 16} ${bottom + 23}H${x + width - 16}L${x + width} ${bottom}V${bottom + 5}L${x + width - 16} ${bottom + 28}H${x - 16}Z"/>
+    <path class="dl-device-keys" d="M${x + 10} ${bottom + 5}H${x + width - 20}L${x + width - 27} ${bottom + 16}H${x + 3}Z"/>
+    ${[0, 1].map((i) => `<path class="dl-device-detail" d="M${x + 9 - i * 3} ${bottom + 8 + i * 4}H${x + width - 23 - i * 3}"/>`).join("")}
+    ${[1, 2, 3, 4, 5].map((i) => `<path class="dl-device-detail" d="M${x + 10 + ((width - 30) * i) / 6} ${bottom + 5}l-7 11"/>`).join("")}`;
+}
+const socketPort = (x, y) =>
+  `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`;
+
+const ids = ["T1", "T2"],
+  rowIds = ["A", "B"];
+const color = (id) => `var(--${id.toLowerCase()})`;
+const badge = (id) => `<b class="tx-id ${id.toLowerCase()}">${id}</b>`;
+const statusLabel = {
+  idle: "시작 전",
+  active: "진행 중",
+  waiting: "잠금 대기",
+  aborted: "롤백됨",
+  committed: "커밋 완료",
+};
+
+export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
+  host.className = "dl-scene";
+  host.innerHTML = `<svg class="dl-map" aria-hidden="true"></svg><div class="dl-callout"></div>
+    ${ids.map((id, i) => `<div class="dl-client" data-client="${id}" style="--actor:${color(id)}"><div class="dl-client-head"><span class="dl-client-name">${badge(id)}<span>주문 ${i + 1}</span></span><strong data-status>시작 전</strong></div><div class="dl-client-line"><span>보유 잠금</span><b data-held>없음</b></div><div class="dl-client-line dl-client-wait"><span>요청 대기</span><b data-waiting>없음</b></div></div>`).join("")}
+    <div class="dl-cycle"><div class="dl-cycle-heading"><span class="dl-cycle-mark" aria-hidden="true">⇄</span><strong data-cycle-title>대기 관계 없음</strong></div><div data-cycle-edges></div></div>
+    <div class="dl-db-heading"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5c0-4 16-4 16 0v14c0 4-16 4-16 0V5m0 0c0 4 16 4 16 0M4 12c0 4 16 4 16 0"/></svg>공유 데이터베이스</span><b>재고 테이블</b></div>
+    ${rowIds.map((row) => `<div class="dl-row" data-row="${row}"><div class="dl-row-head"><b>행 ${row}</b><span data-owner>잠금 없음</span></div><div class="dl-row-values"><span>확정 재고<strong data-stock></strong></span><span>미확정 변경<b data-pending>없음</b></span></div><div class="dl-row-note" data-note>변경 없음</div></div><div class="dl-queued" data-queue="${row}" hidden></div>`).join("")}
+    <div class="dl-packet" hidden></div>`;
+  const svg = host.querySelector(".dl-map"),
+    packet = host.querySelector(".dl-packet"),
+    callout = host.querySelector(".dl-callout"),
+    cycle = host.querySelector(".dl-cycle");
+  const cards = Object.fromEntries(
+    ids.map((id) => [id, host.querySelector(`[data-client="${id}"]`)]),
+  );
+  const rows = Object.fromEntries(
+    rowIds.map((row) => [row, host.querySelector(`[data-row="${row}"]`)]),
+  );
+  const queues = Object.fromEntries(
+    rowIds.map((row) => [row, host.querySelector(`[data-queue="${row}"]`)]),
+  );
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  let layout,
+    active = null,
+    lastStep = null,
+    paintedState = null;
+
+  function requestPath(id, row, stop = false, returning = false) {
+    const sx = layout.clients[id],
+      bridge = id === "T1" ? 257 : 266,
+      lane = layout.lanes[row || (id === "T1" ? "A" : "B")];
+    const points = [[sx, 246], [sx, bridge], [lane, bridge]];
+    if (row) {
+      const target = stop ? layout.park[row] : layout.ports[row];
+      points.push([lane, target.y], [target.x, target.y]);
+    } else {
+      const port = layout.databasePort;
+      points.push([lane, port.y - 16], [port.x, port.y - 16], [port.x, port.y]);
+    }
+    if (returning) points.reverse();
+    return "M" + points.map(([x, y]) => `${x} ${y}`).join("L");
+  }
+  function ownershipPath(id, row) {
+    const outside =
+      row === "A" ? layout.dbLeft - 10 : layout.dbLeft + layout.dbWidth + 24;
+    return `M${layout.clients[id]} 246V${id === "T1" ? 259 : 269}H${outside}V${layout.ports[row].y}H${layout.ports[row].x}`;
+  }
+  function resumePath(row) {
+    const park = layout.park[row], port = layout.ports[row];
+    return `M${park.x} ${park.y}H${layout.lanes[row]}V${port.y}H${port.x}`;
+  }
+  function draw() {
+    const width = Math.round(host.clientWidth),
+      compact = width < 560,
+      cycleWidth = Math.min(356, width - 108),
+      cycleLeft = (width - cycleWidth) / 2,
+      dbWidth = Math.min(580, width - 42),
+      dbLeft = (width - dbWidth) / 2 - 5,
+      rowWidth = (dbWidth - 36) / 2;
+    layout = {
+      width,
+      compact,
+      dbWidth,
+      dbLeft,
+      rowWidth,
+      height: 628,
+      cardWidth: Math.min(228, (width - 80) / 2),
+      clients: { T1: width * 0.25, T2: width * 0.75 - 6 },
+      rowX: { A: dbLeft + 12, B: dbLeft + 24 + rowWidth },
+      rowY: 456,
+      databasePort: { x: dbLeft + dbWidth / 2, y: 413 },
+      lanes: {
+        A: Math.max(compact ? 25 : 36, dbLeft - 36),
+        B: Math.min(width - (compact ? 25 : 36), dbLeft + dbWidth + 36),
+      },
+      park: {
+        A: { x: dbLeft + 53, y: 398 },
+        B: { x: dbLeft + dbWidth - 53, y: 398 },
+      },
+      ports: {
+        A: { x: dbLeft + 6, y: 456 },
+        B: { x: dbLeft + dbWidth - 6, y: 456 },
+      },
+    };
+    host.style.height = `${layout.height}px`;
+    host.dataset.compact = String(compact);
+    svg.setAttribute("viewBox", `0 0 ${width} ${layout.height}`);
+    svg.innerHTML = `<defs><marker id="dl-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
+      ${ids.map((id) => rowIds.map((row) => `<path class="dl-route" data-route="${id}-${row}" d="${requestPath(id, row)}" style="--actor:${color(id)}" marker-end="url(#dl-arrow)"/>`).join("")).join("")}
+      ${ids.map((id) => `<g class="dl-device" data-device="${id}">${terminal(layout.clients[id] - layout.cardWidth / 2 - 7, 79, layout.cardWidth + 14)}${socketPort(layout.clients[id], 246)}</g>`).join("")}
+      <g class="dl-database">${housing(dbLeft, 419, dbWidth, 190, 16)}${socketPort(layout.databasePort.x, layout.databasePort.y)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
+      ${rowIds.map((row) => `<g class="dl-gate" data-gate="${row}" transform="translate(${layout.ports[row].x} ${layout.ports[row].y})"><path d="M-4 14H4"/><path class="dl-gate-arm" d="M0 13V-13"/></g>`).join("")}<path class="dl-motion-path"/>`;
+    for (const id of ids)
+      Object.assign(cards[id].style, {
+        left: `${layout.clients[id] - layout.cardWidth / 2}px`,
+        top: "86px",
+        width: `${layout.cardWidth}px`,
+      });
+    for (const row of rowIds) {
+      Object.assign(rows[row].style, {
+        left: `${layout.rowX[row]}px`,
+        top: `${layout.rowY}px`,
+        width: `${rowWidth}px`,
+      });
+      Object.assign(queues[row].style, {
+        left: `${layout.park[row].x - 53}px`,
+        top: `${layout.park[row].y - 17}px`,
+      });
+    }
+    Object.assign(host.querySelector(".dl-db-heading").style, {
+      left: `${dbLeft + 12}px`,
+      top: "424px",
+      width: `${dbWidth - 24}px`,
+    });
+    Object.assign(cycle.style, {
+      left: `${cycleLeft}px`,
+      width: `${cycleWidth}px`,
+      top: "285px",
+    });
+    if (paintedState) paintRoutes(paintedState);
+    active?.updateRoute?.();
+  }
+  function paintRoutes(state) {
+    for (const row of rowIds) {
+      const data = state.rows[row];
+      const gate = svg.querySelector(`[data-gate="${row}"]`);
+      gate.dataset.open = String(!data.owner);
+      gate.dataset.waiting = String(data.waiting.length > 0);
+      for (const id of ids) {
+        const route = svg.querySelector(`[data-route="${id}-${row}"]`);
+        route.dataset.owned = String(data.owner === id);
+        route.dataset.waiting = String(data.waiting.includes(id));
+        route.setAttribute("d", data.owner === id
+          ? ownershipPath(id, row)
+          : requestPath(id, row, data.waiting.includes(id)));
+      }
+    }
+  }
+  function snap(state) {
+    paintedState = state;
+    paintRoutes(state);
+    host.dataset.deadlocked = String(state.deadlocked);
+    for (const id of ids) {
+      const client = state.clients[id],
+        waiting = client.waitingFor,
+        waitingRow = waiting ? state.rows[waiting] : null,
+        ready = !!waitingRow && !waitingRow.owner,
+        held = client.held.length
+          ? client.held.map((row) => `행 ${row}`).join(" · ")
+          : "없음";
+      let label = statusLabel[client.status];
+      if (ready) label = "재개 가능";
+      if (state.detected && state.victim === id && client.status !== "aborted")
+        label = "중단 대상";
+      cards[id].dataset.status = client.status;
+      cards[id].dataset.ready = String(ready);
+      cards[id].dataset.victim = String(
+        state.detected && state.victim === id && client.status !== "aborted",
+      );
+      cards[id].querySelector("[data-status]").textContent = label;
+      cards[id].querySelector("[data-held]").textContent = held;
+      cards[id].querySelector("[data-waiting]").textContent = waiting
+        ? `${waiting} · ${ready ? "재개 가능" : waitingRow.owner + " 보유"}`
+        : "없음";
+      cards[id].setAttribute(
+        "aria-label",
+        `${id} ${label}. 보유 ${held}. ${waiting ? waiting + " 대기, " + (ready ? "재개 가능" : "보유자 " + waitingRow.owner) : "대기 없음"}`,
+      );
+    }
+    for (const row of rowIds) {
+      const data = state.rows[row],
+        card = rows[row],
+        waiting = data.waiting[0],
+        ready = waiting && !data.owner;
+      card.style.setProperty(
+        "--owner",
+        data.owner ? color(data.owner) : "var(--border)",
+      );
+      card.dataset.owned = String(!!data.owner);
+      card.dataset.transition =
+        lastStep.action === "rollback" &&
+        row === "B" &&
+        state.rollbacks > lastStep.before.rollbacks
+          ? "rollback"
+          : lastStep.action === "commit" &&
+              state.commits > lastStep.before.commits
+            ? "commit"
+            : "none";
+      card.querySelector("[data-stock]").textContent = data.committed;
+      card.querySelector("[data-owner]").textContent = data.owner
+        ? `${data.owner} 보유`
+        : "잠금 없음";
+      card.querySelector("[data-pending]").textContent = data.pending
+        ? `${data.pending.client} · ${data.pending.value}`
+        : "없음";
+      const note = card.querySelector("[data-note]");
+      if (card.dataset.transition === "rollback")
+        note.innerHTML = `<s>${lastStep.before.rows[row].pending.value}</s> 폐기 · 확정 ${data.committed} 유지`;
+      else if (
+        lastStep.action === "rollback" &&
+        state.rollbacks > lastStep.before.rollbacks
+      )
+        note.textContent = "T2 대기 취소 · T1 보유";
+      else if (card.dataset.transition === "commit")
+        note.textContent = `${lastStep.before.rows[row].committed} → ${data.committed} 확정 · 잠금 해제`;
+      else
+        note.textContent = data.pending
+          ? "커밋 전 · 확정 값 유지"
+          : data.owner
+            ? "행 잠금 유지"
+            : "변경 없음";
+      queues[row].hidden = !waiting;
+      queues[row].dataset.ready = String(!!ready);
+      queues[row].innerHTML = waiting
+        ? `${badge(waiting)}<span>${row} ${ready ? "재개 가능" : "대기 중"}</span>`
+        : "";
+    }
+    cycle.dataset.cycle = String(state.deadlocked);
+    cycle.querySelector("[data-cycle-title]").textContent = state.deadlocked
+      ? state.detected
+        ? "교착 감지 · T2 중단 선택"
+        : "순환 대기 · 서로 진행 불가"
+      : ids.some(
+            (id) =>
+              state.clients[id].waitingFor &&
+              state.rows[state.clients[id].waitingFor].owner,
+          )
+        ? "잠금 해제를 기다리는 중"
+        : ids.some((id) => state.clients[id].waitingFor)
+          ? "교착 해소 · 요청 재개 가능"
+          : state.commits
+            ? "완료 · 모든 잠금 해제"
+            : state.rollbacks
+              ? "교착 해소 · T1 실행 중"
+              : "대기 관계 없음";
+    cycle.querySelector("[data-cycle-edges]").innerHTML =
+      ids
+        .filter((id) => state.clients[id].waitingFor)
+        .map((id) => {
+          const row = state.clients[id].waitingFor,
+            owner = state.rows[row].owner;
+          return id === "T2" && owner
+            ? `<div class="dl-reverse" aria-label="T2는 T1의 A 잠금을 기다림">${badge(owner)}<b class="dl-wait-arrow" aria-hidden="true">←</b><span>${row} 잠금 기다림</span>${badge(id)}</div>`
+            : `<div>${badge(id)}<span>${row} 잠금 ${owner ? "기다림" : "해제됨"}</span><b class="dl-wait-arrow" aria-hidden="true">→</b>${owner ? badge(owner) : '<b class="dl-free-label">재개</b>'}</div>`;
+        })
+        .join("") ||
+      `<p>${state.commits ? "커밋 완료 · 모든 잠금이 풀렸습니다" : state.rollbacks ? "순환이 풀리고 T1이 작업을 이어갑니다" : "실선은 잠금 보유 · 화살표는 대기 관계"}</p>`;
+  }
+  function phase(step, title, body, kind) {
+    callout.innerHTML = `${step.client ? badge(step.client) : ""}<strong>${title}</strong>`;
+    if (step.action === "commit" && ["database", "response"].includes(kind)) {
+      cards.T1.querySelector("[data-status]").textContent = "커밋 응답 대기";
+      cards.T1.setAttribute(
+        "aria-label",
+        "T1 커밋 응답 대기. 보유 없음. 대기 없음",
+      );
+    }
+    onPhase({ title, body, kind, snapshot: paintedState });
+  }
+  function completeTitle(step) {
+    switch (step.action) {
+      case "initial":
+        return "서로 다른 순서로 두 행을 갱신합니다";
+      case "begin":
+        return `${step.client} 트랜잭션 시작`;
+      case "write":
+        return `${step.client} · ${step.row} 쓰기 후 잠금 보유`;
+      case "wait":
+        return step.state.deadlocked
+          ? "T1 → T2 → T1 · 순환 대기"
+          : "T1은 B를 기다리며 A를 계속 보유";
+      case "detect":
+        return "교착 상태 감지 · 예제에서는 T2 선택";
+      case "rollback":
+        return "T2 롤백 · B 잠금 해제 · T1 재개 가능";
+      case "resume":
+        return "T1의 B 요청 재개 · A와 B 모두 보유";
+      case "commit":
+        return "A 9 · B 19 확정 · 모든 잠금 해제";
+    }
+  }
+  function cancel() {
+    if (active) {
+      active.cancelled = true;
+      for (const animation of active.animations) animation.cancel();
+    }
+    active = null;
+    packet.hidden = true;
+    host
+      .querySelectorAll("[data-active]")
+      .forEach((e) => delete e.dataset.active);
+  }
+  async function animate(run, element, keyframes, options) {
+    const animation = element.animate(keyframes, options);
+    animation.playbackRate = run.speed;
+    run.animations.add(animation);
+    if (run.paused) animation.pause();
+    await animation.finished.catch(() => {});
+    run.animations.delete(animation);
+  }
+  async function travel(run, id, label, route) {
+    if (run.cancelled) return;
+    run.updateRoute = () => {
+      const data = route();
+      const line = svg.querySelector(".dl-motion-path");
+      line.setAttribute("d", data);
+      line.dataset.active = "true";
+      line.dataset.response = String(["확인", "확정"].includes(label));
+      line.style.setProperty("--actor", color(id));
+      packet.style.offsetPath = `path("${data}")`;
+      return line.getTotalLength();
+    };
+    const length = run.updateRoute();
+    packet.textContent = label;
+    packet.style.setProperty("--actor", color(id));
+    packet.hidden = false;
+    await animate(run, packet, [
+      { offsetDistance: "0%", opacity: 0 },
+      { opacity: 1, offset: 0.04 },
+      { opacity: 1, offset: 0.96 },
+      { offsetDistance: "100%", opacity: 0 },
+    ], {
+      duration: 320 + length * 1.1,
+      easing: "linear",
+    });
+    if (!run.cancelled) {
+      packet.hidden = true;
+      run.updateRoute = null;
+      delete svg.querySelector(".dl-motion-path").dataset.active;
+    }
+  }
+  async function update(
+    step,
+    previous = null,
+    { animate: motion = true, speed = 1 } = {},
+  ) {
+    cancel();
+    lastStep = step;
+    if (motion && matchMedia("(max-width: 759px)").matches) {
+      host.scrollIntoView({ block: "end", behavior: "instant" });
+    }
+    if (!motion || !previous || reduced.matches || step.index === 0) {
+      snap(getDeadlockPresentationState(step, "complete"));
+      phase(step, completeTitle(step), "", "complete");
+      return;
+    }
+    const run = { cancelled: false, paused: false, speed, animations: new Set() };
+    active = run;
+    const row = step.row;
+    snap(getDeadlockPresentationState(step, "request"));
+    if (step.action === "detect") {
+      phase(
+        step,
+        "DB가 순환 대기를 확인합니다",
+        "T1은 T2가 가진 B를, T2는 T1이 가진 A를 기다립니다. 둘 다 스스로 진행할 수 없습니다.",
+        "request",
+      );
+      await animate(
+        run,
+        cycle,
+        [
+          { outlineColor: "var(--warning)" },
+          { outlineColor: "var(--warning)" },
+        ],
+        { duration: 1100 },
+      );
+      if (run.cancelled) return;
+      snap(getDeadlockPresentationState(step, "database"));
+      phase(
+        step,
+        "예제에서는 T2를 중단 대상으로 선택",
+        "실제 PostgreSQL이 어느 트랜잭션을 중단할지는 미리 보장할 수 없습니다.",
+        "database",
+      );
+      await animate(
+        run,
+        cards.T2,
+        [{ transform: "translateY(-3px)" }, { transform: "translateY(0)" }],
+        { duration: 650 },
+      );
+    } else if (step.action === "rollback") {
+      phase(
+        step,
+        "DB가 T2를 중단합니다",
+        "T2의 미확정 쓰기, 보유 잠금, 기다리던 요청을 함께 정리합니다. 클라이언트가 새 ROLLBACK 요청을 보내는 장면은 아닙니다.",
+        "request",
+      );
+      await animate(
+        run,
+        cards.T2,
+        [
+          { outlineColor: "var(--warning)" },
+          { outlineColor: "var(--warning)" },
+        ],
+        { duration: 650 },
+      );
+      if (run.cancelled) return;
+      snap(getDeadlockPresentationState(step, "database"));
+      phase(
+        step,
+        "T2의 19 폐기 · B의 확정 20 유지",
+        "B 잠금과 A 대기를 함께 해제했습니다. T1의 A 미확정 9는 그대로이며, B 요청이 이제 진행할 수 있습니다.",
+        "database",
+      );
+      await animate(
+        run,
+        rows.B.querySelector("[data-note]"),
+        [
+          { opacity: 0.35, transform: "translateY(-4px)" },
+          { opacity: 1, transform: "translateY(0)" },
+          { opacity: 1 },
+        ],
+        { duration: 1300 },
+      );
+    } else {
+      if (step.action === "resume") {
+        phase(
+          step,
+          "DB에서 대기하던 B 요청을 이어서 처리",
+          "새 SQL을 보내지 않습니다. T2가 놓은 B 잠금 앞에서 기존 요청이 재개됩니다.",
+          "request",
+        );
+        queues[row].hidden = true;
+        await travel(run, step.client, "B 재개", () => resumePath(row));
+      } else {
+        phase(
+          step,
+          step.action === "wait"
+            ? `${step.client} · ${row} 잠금 요청`
+            : step.action === "commit"
+              ? "두 행의 변경을 COMMIT 요청"
+              : step.action === "begin"
+                ? "트랜잭션 시작 요청"
+                : `${row} 재고를 1 줄이는 요청`,
+          step.action === "commit"
+            ? "DB에 도착하기 전에는 A와 B의 값이 미확정이며 T1이 두 잠금을 보유합니다."
+            : step.action === "begin"
+              ? "트랜잭션을 시작합니다. BEGIN만으로 A나 B의 행 잠금을 얻지는 않습니다."
+              : "요청이 DB에 도착하면 해당 행의 잠금 상태를 확인합니다.",
+          "request",
+        );
+        await travel(
+          run,
+          step.client,
+          step.action === "begin"
+            ? "시작"
+            : step.action === "commit"
+              ? "커밋"
+              : `${row} 쓰기`,
+          () => requestPath(step.client, row, step.action === "wait"),
+        );
+      }
+      if (run.cancelled) return;
+      snap(getDeadlockPresentationState(step, "database"));
+      if (step.action === "wait") {
+        phase(
+          step,
+          step.state.deadlocked
+            ? "서로 상대 잠금을 기다립니다"
+            : `${step.client}의 ${row} 요청 대기`,
+          step.state.deadlocked
+            ? "T1은 A를 쥔 채 B를, T2는 B를 쥔 채 A를 기다립니다. 대기 경로가 원을 이룹니다."
+            : "T1이 A를 놓고 기다리는 것이 아닙니다. A 잠금을 유지한 채 T2의 B를 기다립니다.",
+          "database",
+        );
+        await animate(
+          run,
+          queues[row],
+          [{ transform: "translateY(-4px)" }, { transform: "translateY(0)" }],
+          { duration: 450 },
+        );
+      } else {
+        if (step.action === "commit") {
+          phase(
+            step,
+            "A 10 → 9 · B 20 → 19 확정",
+            "두 미확정 값이 함께 확정되고 T1의 모든 행 잠금이 해제됩니다. T2는 롤백된 상태로 남습니다.",
+            "database",
+          );
+          await Promise.all(
+            rowIds.map((r) =>
+              animate(
+                run,
+                rows[r].querySelector("[data-stock]"),
+                [
+                  { backgroundColor: "var(--selected)", color: "var(--on-selected)" },
+                  { backgroundColor: "var(--selected)", color: "var(--on-selected)", offset: 0.6 },
+                  { backgroundColor: "transparent", color: "var(--ink)" },
+                ],
+                { duration: 1200 },
+              ),
+            ),
+          );
+          if (run.cancelled) return;
+        }
+        phase(
+          step,
+          step.action === "resume"
+            ? "T1이 B도 보유 · 재고 19는 미확정"
+            : step.action === "commit"
+              ? "커밋 완료 응답이 돌아갑니다"
+              : "DB 처리 결과가 돌아갑니다",
+          step.action === "resume"
+            ? "롤백으로 남은 확정 값 20에서 1을 줄였습니다. T1은 A와 B를 모두 커밋까지 보유합니다."
+            : "DB에 적용된 상태를 클라이언트에 알립니다.",
+          "response",
+        );
+        await travel(
+          run,
+          step.client,
+          step.action === "commit" ? "확정" : "확인",
+          () => requestPath(step.client, row, false, true),
+        );
+      }
+    }
+    if (run.cancelled) return;
+    snap(getDeadlockPresentationState(step, "complete"));
+    phase(step, completeTitle(step), "", "complete");
+    active = null;
+  }
+  draw();
+  const observer = new ResizeObserver(() => {
+    if (Math.abs(host.clientWidth - layout.width) > 1) draw();
+  });
+  observer.observe(host);
+  return {
+    update,
+    setSpeed(speed) {
+      if (!active) return;
+      active.speed = speed;
+      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+    },
+    pause() {
+      if (active) {
+        active.paused = true;
+        active.animations.forEach((a) => a.pause());
+      }
+    },
+    resume() {
+      if (active) {
+        active.paused = false;
+        active.animations.forEach((a) => a.play());
+      }
+    },
+  };
+}
