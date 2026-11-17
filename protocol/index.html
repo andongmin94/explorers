@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko" dir="ltr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>프로토콜 탐색기 · 인터넷 작동 원리 배우기</title>
+    <meta
+      name="description"
+      content="패킷의 이동을 보며 인터넷 작동 원리를 배웁니다. HTTP, HTTPS, TCP, UDP, DNS 등 14개 프로토콜의 동작과 패킷 구조를 단계별로 살펴보세요."
+    />
+    <meta name="author" content="Dilum Sanjaya" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      name="theme-color"
+      content="#f4f5f7"
+      media="(prefers-color-scheme: light)"
+    />
+    <meta
+      name="theme-color"
+      content="#18191c"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="canonical" href="https://protocol-explorer-alpha.vercel.app/" />
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- sharing: the card is public/og.png (drawn by scripts/brand-assets.mjs) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="프로토콜 탐색기" />
+    <meta
+      property="og:title"
+      content="프로토콜 탐색기 · 인터넷 작동 원리 배우기"
+    />
+    <meta
+      property="og:description"
+      content="DNS와 TCP부터 TLS까지, 네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜."
+    />
+    <meta
+      property="og:url"
+      content="https://protocol-explorer-alpha.vercel.app/"
+    />
+    <meta
+      property="og:image"
+      content="https://protocol-explorer-alpha.vercel.app/og.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="프로토콜 탐색기에서 라우터와 노트북 사이로 패킷이 이동하는 모습."
+    />
+    <meta property="og:locale" content="ko_KR" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="@DilumSanjaya" />
+    <meta
+      name="twitter:title"
+      content="프로토콜 탐색기 · 인터넷 작동 원리 배우기"
+    />
+    <meta
+      name="twitter:description"
+      content="DNS와 TCP부터 TLS까지, 네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜."
+    />
+    <meta
+      name="twitter:image"
+      content="https://protocol-explorer-alpha.vercel.app/og.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="프로토콜 탐색기에서 라우터와 노트북 사이로 패킷이 이동하는 모습."
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "프로토콜 탐색기",
+        "url": "https://protocol-explorer-alpha.vercel.app/",
+        "description": "네트워크 애니메이션과 패킷 분석으로 배우는 인터넷 프로토콜.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "inLanguage": "ko",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": {
+          "@type": "Person",
+          "name": "Dilum Sanjaya",
+          "url": "https://x.com/DilumSanjaya"
+        }
+      }
+    </script>
+
+    <script>
+      // the theme, before anything is drawn: the one chosen last time, or the system's
+      try {
+        const saved = localStorage.getItem("protocol-explorer:theme");
+        const dark = saved
+          ? saved === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+        if (saved)
+          for (const meta of document.querySelectorAll(
+            'meta[name="theme-color"]',
+          ))
+            meta.content = dark ? "#18191c" : "#f4f5f7";
+      } catch {
+        document.documentElement.dataset.theme = "light";
+      }
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>
+      <p
+        style="
+          margin: 40px;
+          font:
+            16px/1.5 ui-monospace,
+            monospace;
+          color: #27282b;
+        "
+      >
+        네트워크 애니메이션과 학습 기능을 사용하려면 브라우저에서 JavaScript를
+        활성화해 주세요.
+      </p>
+    </noscript>
+  </body>
+</html>
