@@ -1,0 +1,501 @@
+.scheduler-scene {
+  --scene-ink: var(--ink, #27282b);
+  --scene-surface: var(--surface, #fff);
+  --scene-soft: var(--soft, #edeef1);
+  --scene-border: var(--border, #3b3c40);
+  --scene-rule: var(--rule, #d6d7db);
+  --scene-muted: var(--muted, #6d6f75);
+  --device-front: #e6e7ea;
+  --device-side: #c4c6cc;
+  --device-top: #fafafa;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  flex: none;
+  container-type: inline-size;
+  overflow: hidden;
+  background: var(--scene-surface);
+  color: var(--scene-ink);
+}
+:root[data-theme="dark"] .scheduler-scene {
+  --device-front: #4b4d54;
+  --device-side: #35373d;
+  --device-top: #62656c;
+}
+.scheduler-scene .scene-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.scheduler-scene svg text {
+  font-family: inherit;
+  fill: var(--scene-ink);
+}
+.scheduler-scene .device-shadow {
+  fill: var(--scene-border);
+  opacity: 0.15;
+}
+.scheduler-scene .device-top {
+  fill: var(--device-top);
+  stroke: var(--scene-border);
+  stroke-width: 2.3;
+  stroke-linejoin: round;
+}
+.scheduler-scene .device-front {
+  fill: var(--device-front);
+  stroke: var(--scene-border);
+  stroke-width: 2.3;
+  stroke-linejoin: round;
+}
+.scheduler-scene .device-side {
+  fill: var(--device-side);
+  stroke: var(--scene-border);
+  stroke-width: 2.3;
+  stroke-linejoin: round;
+}
+.scheduler-scene .device-trace,
+.scheduler-scene .device-edge {
+  fill: none;
+  stroke: var(--scene-border);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+.scheduler-scene .device-edge {
+  opacity: 0.45;
+}
+.scheduler-scene .device-metal .device-top,
+.scheduler-scene .device-metal .device-front,
+.scheduler-scene .device-metal .device-side {
+  stroke-width: 0.8;
+}
+.scheduler-scene .device-bolt {
+  fill: var(--device-side);
+  stroke: var(--scene-border);
+  stroke-width: 1;
+}
+.scheduler-scene .device-port {
+  fill: #37383d;
+}
+.scheduler-scene .device-contact {
+  fill: #a5a7ad;
+  stroke: var(--scene-border);
+  stroke-width: 0.6;
+}
+.scheduler-scene .memory-chip-top,
+.scheduler-scene .memory-chip-front,
+.scheduler-scene .memory-chip-side {
+  stroke: var(--scene-border);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.scheduler-scene .memory-chip-top {
+  fill: #777a82;
+}
+.scheduler-scene .memory-chip-front {
+  fill: #5c5f67;
+}
+.scheduler-scene .memory-chip-side {
+  fill: #373a42;
+}
+.scheduler-scene .cpu-die {
+  fill: var(--scene-surface);
+  stroke: var(--scene-border);
+  stroke-width: 2.2;
+}
+.scheduler-scene .device-engraving {
+  font-weight: 850;
+  letter-spacing: -0.03em;
+  stroke: none;
+}
+.scheduler-scene .cpu-dock {
+  display: none;
+}
+.scheduler-scene .ssd-label {
+  fill: var(--scene-surface);
+  stroke: var(--scene-border);
+  stroke-width: 1.5;
+}
+.scheduler-scene .ssd-contact {
+  stroke: #d6d7db;
+  stroke-width: 1.2;
+}
+.scheduler-scene .scene-device-title {
+  font-size: 18px;
+  font-weight: 850;
+}
+.scheduler-scene .scene-device-sub {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--scene-muted);
+}
+.scheduler-scene .scene-rail-label {
+  font-size: 12px;
+  font-weight: 750;
+  fill: var(--scene-muted);
+}
+.scheduler-scene .scene-arrived-note,
+.scheduler-scene .scene-done-note {
+  font-size: 11px;
+  font-weight: 550;
+  fill: var(--scene-muted);
+}
+.scheduler-scene .scene-queue-order text {
+  font-size: 10px;
+  font-weight: 850;
+  fill: var(--scene-muted);
+}
+.scheduler-scene .scene-lane {
+  fill: none;
+  stroke: var(--scene-muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  opacity: 0.7;
+}
+.scheduler-scene .scene-lane[data-route="preempt"],
+.scheduler-scene .scene-lane[data-route="unblock"] {
+  stroke-dasharray: 5 4;
+}
+.scheduler-scene .scene-route-labels text {
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--scene-ink);
+}
+.scheduler-scene .scene-route-badge > rect {
+  fill: var(--scene-surface);
+  stroke: var(--scene-border);
+  stroke-width: 1.5px;
+}
+.scheduler-scene .scene-route-badge .route-badge-shadow {
+  fill: var(--scene-border);
+  stroke: none;
+}
+.scheduler-scene .scene-lane[data-active] {
+  stroke: var(--flow-color);
+  stroke-width: 2.5;
+  opacity: 1;
+}
+.scheduler-scene .scene-route-badge[data-active] text {
+  fill: var(--flow-color);
+}
+.scheduler-scene
+  .scene-route-badge[data-active]
+  > rect:not(.route-badge-shadow) {
+  stroke: var(--flow-color);
+  stroke-width: 2px;
+}
+.scheduler-scene[data-algorithm="fcfs"] [data-route="preempt"],
+.scheduler-scene[data-algorithm="fcfs"] [data-route-label="preempt"] {
+  display: none;
+}
+.scheduler-scene .scene-dock {
+  stroke: var(--scene-muted);
+  stroke-width: 1.5;
+  fill: none;
+}
+.scheduler-scene .scene-station[data-occupied="true"] .scene-dock {
+  stroke: var(--station-color);
+  stroke-width: 2;
+}
+.scheduler-scene .scene-slot rect {
+  fill: var(--scene-surface);
+  fill-opacity: 0.86;
+  stroke: var(--scene-rule);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 3;
+}
+.scheduler-scene .scene-slot text {
+  fill: var(--scene-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.scheduler-scene .scene-slot[data-receiving] rect {
+  stroke: var(--slot-color);
+  stroke-width: 2;
+}
+.scheduler-scene .scene-completion-track {
+  fill: var(--scene-soft);
+  stroke: var(--scene-border);
+  stroke-width: 1.5;
+}
+.scheduler-scene .scene-completion-empty {
+  fill: var(--scene-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+.scheduler-scene .scene-flow {
+  fill: none;
+  stroke: var(--flow-color, var(--scene-ink));
+  stroke-width: 2.7;
+  stroke-dasharray: 6 4;
+  opacity: 0;
+}
+.scheduler-scene marker path {
+  fill: context-stroke;
+}
+.scheduler-scene .scene-motion-measure {
+  fill: none;
+  stroke: none;
+}
+.scheduler-scene .scene-tokens {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.scheduler-scene .scene-process {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border: 2px solid var(--scene-border);
+  border-radius: 3px;
+  background: var(--scene-surface);
+  color: var(--scene-ink);
+  box-shadow: 2px 2px 0 var(--scene-border);
+  box-sizing: border-box;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  will-change: transform;
+}
+.scheduler-scene .scene-process:focus-visible {
+  outline: 2px solid var(--scene-ink);
+  outline-offset: 4px;
+}
+.scheduler-scene .scene-process:hover {
+  border-color: var(--process-color);
+}
+.scheduler-scene .scene-process[data-moving="true"] {
+  z-index: 8;
+  justify-content: center;
+  overflow: hidden;
+  border-color: var(--process-color);
+  box-shadow: 2px 2px 0 var(--process-color);
+  gap: 0;
+  padding: 3px;
+}
+.scheduler-scene .scene-process[data-moving="true"] .scene-pid {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+.scheduler-scene .scene-process[data-moving="true"] .scene-token-copy,
+.scheduler-scene .scene-process[data-moving="true"] .scene-token-check,
+.scheduler-scene .scene-process[data-moving="true"] .scene-io-meter {
+  display: none;
+}
+.scheduler-scene .scene-pid {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 29px;
+  height: 30px;
+  background: var(--process-color);
+  color: var(--inverse, #fff);
+  font-size: 12px;
+  font-weight: 850;
+  border: 1px solid var(--scene-border);
+  border-radius: 1px;
+}
+.scheduler-scene .scene-token-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.scheduler-scene .scene-token-copy strong {
+  font-size: 13px;
+  line-height: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scheduler-scene .scene-token-copy small {
+  font-size: 11.5px;
+  line-height: 16px;
+  color: var(--scene-muted);
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.scheduler-scene .scene-token-check {
+  display: none;
+  font-size: 12px;
+  font-weight: 850;
+}
+.scheduler-scene .scene-process[data-state="running"] {
+  border-color: var(--process-color);
+  box-shadow: 2px 2px 0 var(--process-color);
+}
+.scheduler-scene .scene-process[data-state="new"] {
+  box-shadow: none;
+  border-style: dashed;
+  padding: 3px;
+  gap: 5px;
+}
+.scheduler-scene .scene-process[data-state="new"] .scene-token-copy strong {
+  display: none;
+}
+.scheduler-scene .scene-process[data-state="new"] .scene-pid {
+  width: 23px;
+  height: 22px;
+}
+.scheduler-scene .scene-process[data-state="done"] {
+  padding: 2px 4px;
+  gap: 4px;
+  box-shadow: 1px 1px 0 var(--scene-border);
+  background: var(--scene-soft);
+}
+.scheduler-scene .scene-process[data-state="done"] .scene-pid {
+  width: 23px;
+  height: 20px;
+  font-size: 10px;
+}
+.scheduler-scene .scene-process[data-state="done"] .scene-token-copy strong {
+  display: none;
+}
+.scheduler-scene .scene-process[data-state="done"] .scene-token-copy small {
+  font-size: 10px;
+}
+.scheduler-scene .scene-process[data-state="done"] .scene-token-check {
+  display: inline;
+  margin-left: auto;
+}
+.scheduler-scene .scene-io-meter {
+  display: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--scene-soft);
+  overflow: hidden;
+}
+.scheduler-scene .scene-io-meter i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--process-color);
+  transform-origin: left;
+}
+.scheduler-scene .scene-process[data-state="blocked"] .scene-io-meter {
+  display: block;
+}
+.scheduler-scene .scene-cpu-readout {
+  position: absolute;
+  z-index: 2;
+}
+.scheduler-scene .scene-meter-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 7px;
+  margin-bottom: 6px;
+  font-size: 11.5px;
+  line-height: 16px;
+  font-weight: 600;
+}
+.scheduler-scene .scene-meter-row > span {
+  color: var(--scene-muted);
+}
+.scheduler-scene .scene-meter-row b {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.scheduler-scene .scene-meter {
+  grid-column: 1 / -1;
+  height: 6px;
+  border: 1px solid var(--scene-border);
+  background: var(--scene-soft);
+  overflow: hidden;
+}
+.scheduler-scene .scene-meter i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: var(--scene-ink);
+}
+.scheduler-scene .scene-meter [data-fill="burst"] {
+  background: var(--running-color);
+}
+.scheduler-scene .scene-cpu-idle {
+  font-size: 11px;
+  line-height: 17px;
+  text-align: center;
+  font-weight: 650;
+  color: var(--scene-muted);
+  margin: 0;
+}
+.scheduler-scene .scene-callout {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 9px;
+  background: var(--scene-surface);
+  border: 1.5px solid var(--scene-border);
+  border-radius: 3px;
+  box-shadow: 2px 2px 0 var(--scene-border);
+  box-sizing: border-box;
+  font-size: 12px;
+  line-height: 17px;
+  font-weight: 750;
+  word-break: keep-all;
+  pointer-events: none;
+}
+.scheduler-scene .scene-callout i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 4px;
+  background: var(--callout-color);
+  border: 1px solid var(--scene-border);
+}
+.scheduler-scene[data-compact="true"] .scene-device-sub {
+  font-size: 10px;
+}
+.scheduler-scene[data-compact="true"] .scene-memory {
+  opacity: 0.95;
+}
+.scheduler-scene[data-compact="true"] .scene-meter-row {
+  font-size: 11px;
+  column-gap: 3px;
+}
+.scheduler-scene[data-compact="true"] .scene-callout {
+  font-size: 11px;
+  padding-block: 5px;
+}
+@container (max-width: 380px) {
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr);
+    align-content: center;
+    gap: 1px 4px;
+  }
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) .scene-pid {
+    width: 24px;
+    height: 19px;
+  }
+  .scene-process:is([data-state="ready"], [data-state="running"], [data-state="blocked"]) .scene-token-copy {
+    display: contents;
+  }
+  .scene-token-copy small {
+    grid-column: 1 / -1;
+  }
+}
+.scheduler-scene [hidden] {
+  display: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scheduler-scene .scene-process {
+    will-change: auto;
+  }
+}
