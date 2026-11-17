@@ -1,25 +1,10 @@
 # CPU 스케줄링 탐색기
 
-세 프로세스가 하나의 CPU를 나누는 대표 시나리오를 실행·예측·비교하는 한국어 학습 앱입니다. Protocol Explorer와 분리된 프로젝트이며 별도의 개발 서버·의존성·Git 저장소를 사용합니다. 원래 프로젝트에 대한 런타임 의존성은 없습니다.
+세 프로세스가 하나의 CPU를 나누는 대표 시나리오를 실행·예측·비교하는 한국어 학습 앱입니다. 원래 프로젝트에 대한 런타임 의존성은 없습니다.
 
 ## 실행
 
-Node.js 22.12 이상에서 실행합니다.
-
-```powershell
-npm.cmd install
-npm.cmd run dev
-```
-
-개발 주소: http://127.0.0.1:5174/
-
-```powershell
-npm.cmd test
-npm.cmd run build
-npm.cmd run preview
-```
-
-빌드는 `dist/`에 생성되고 빌드 미리보기는 4174 포트를 사용합니다. 기존 Protocol Explorer의 5173 포트는 사용하지 않습니다.
+이 탐색기는 [탐색기 모음](../README.md)의 한 페이지입니다. 저장소 루트에서 `npm run dev`를 실행한 뒤 <http://127.0.0.1:5173/cpu/>을 엽니다. 검사는 루트의 `npm test`로 모든 탐색기를 함께 실행합니다.
 
 ## 대표 시나리오
 

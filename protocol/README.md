@@ -9,25 +9,7 @@
 
 ## 실행
 
-Node.js 22.12 이상이 필요합니다.
-
-```powershell
-npm.cmd install
-npm.cmd run dev
-```
-
-터미널에 표시되는 로컬 주소를 브라우저에서 여세요. 수정한 파일은 개발 서버에 바로 반영됩니다.
-
-```powershell
-npm.cmd run build
-npm.cmd run preview
-```
-
-빌드 결과는 `dist/`에 생성됩니다. 화면은 한국어로 고정되어 있으며 언어 선택 메뉴는 없습니다.
-
-```powershell
-npm.cmd test
-```
+이 탐색기는 [탐색기 모음](../README.md)의 한 페이지입니다. 저장소 루트에서 `npm run dev`를 실행한 뒤 <http://127.0.0.1:5173/protocol/>을 엽니다. 검사는 루트의 `npm test`로 모든 탐색기를 함께 실행합니다. 화면은 한국어로 고정되어 있으며 언어 선택 메뉴는 없습니다.
 
 Node 내장 테스트 러너로 14개 수업과 215개 패킷의 내용·바이트·필드·시퀀스, 재생 제어와 학습 진도를 검사합니다. `test/fixtures/distribution-baseline.json`에는 복원 당시 배포본의 해시를 보존합니다. 수정한 TCP·TLS·HTTPS 사례, DHCP 주소 할당과 LAN 프레임, UDP 음성 손실, NAT의 TTL, SMTP 배달 단계는 `test/distribution.test.js`와 `test/player.test.js`에서 원본 기준값과 구분해 검사합니다. TCP 사례는 [RFC 6298 §5](https://www.rfc-editor.org/rfc/rfc6298.html#section-5), 호환용 CCS는 [RFC 8446 부록 D.4](https://www.rfc-editor.org/rfc/rfc8446.html#appendix-D.4)를 따릅니다.
 
