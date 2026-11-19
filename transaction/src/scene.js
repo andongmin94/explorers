@@ -4,6 +4,7 @@
 // writer's colour) and the row lock (LED in the owner's colour). SQL requests
 // are tokens that travel the floor routes; a blocked request parks at the
 // database edge until the lock is released.
+import { eul, ga } from "../../shared/josa.js";
 import { getPresentationState } from "./presentation.js";
 import {
   COLORS,
@@ -12,8 +13,6 @@ import {
   PARK,
   ROUTES,
   createMoves,
-  eul,
-  ga,
   createRunner,
   lamp,
   place,
@@ -48,7 +47,9 @@ const requestLabel = (action, mode, client) => {
   if (action === "commit") return "COMMIT";
   const reading = action === "read" || action === "resume-read" || (action === "wait" && mode === "locked");
   if (reading) return mode === "locked" ? "FOR UPD" : "SELECT";
-  // A waiting UPDATE shows no number: the prediction asks what it will write.
+  // A parked UPDATE is labelled without its number to keep the token short.
+  // The number (9) is on the CALC screen and in the timeline; the prediction
+  // tests whether the learner thinks the DB recalculates it after the wait.
   if (action === "wait") return "UPDATE";
   return `SET ${client.localWrite}`;
 };

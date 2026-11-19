@@ -35,6 +35,7 @@ export function paginate(list, { label = "페이지", pager } = {}) {
         const part = el.cloneNode(false);
         part.textContent = sentence;
         part.dataset.split = i ? "cont" : "first";
+        if (i) part.removeAttribute("id");
         return part;
       });
       el.replaceWith(...parts);

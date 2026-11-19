@@ -135,7 +135,7 @@ const dhcpLesson = {
       title: "Discover",
       desc: "Shout to the whole network",
       detail:
-        "Without an address of its own, the laptop sends from 0.0.0.0 to the broadcast address 255.255.255.255, so every device on the local network receives it. Only DHCP servers answer.",
+        "Without an address of its own, the laptop sends from 0.0.0.0 to the broadcast address 255.255.255.255, so every device on the local network receives it. Only DHCP servers answer. Its broadcast flag is left at 0.",
       facts: [
         ["From", "0.0.0.0, UDP port 68"],
         ["To", "255.255.255.255, port 67"],

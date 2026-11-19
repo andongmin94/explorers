@@ -152,7 +152,8 @@ function setPacketTableLesson(panel, lesson) {
 function updatePacketRows(panel, playback) {
   if (panel.querySelector(".packet-rows").dataset.lesson !== panel.dataset.lesson) return;
   const rows = [...panel.querySelectorAll("tr[data-packet]")];
-  const shouldShow = rows.map((row, index) => !playback.started || playback.packets[index] !== "future");
+  // Before playback (the 목표 screen) no packet is shown: no result before it happens.
+  const shouldShow = rows.map((row, index) => playback.started && playback.packets[index] !== "future");
   const entering = rows.filter((row, index) => shouldShow[index] && row.dataset.shown !== "1");
   const leaving = rows.filter((row, index) => !shouldShow[index] && row.dataset.shown === "1");
   leaving.forEach(hidePacketRow);
@@ -173,7 +174,7 @@ function updatePacketRows(panel, playback) {
   }
   if (!playback.started && entering.length) scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
   const empty = panel.querySelector(".packet-empty");
-  const showEmpty = playback.started && !shouldShow.some(Boolean);
+  const showEmpty = !shouldShow.some(Boolean);
   if (showEmpty && empty.dataset.shown !== "1") showPacketRow(empty, leaving.length ? 220 : 0);
   if (!showEmpty && empty.dataset.shown === "1") hidePacketRow(empty);
   fitPacketRows(panel);

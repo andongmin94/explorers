@@ -548,7 +548,7 @@ const lessonStrings = {
   "Resend the Gap": "빈틈 재전송",
   "The retransmission timer expires": "재전송 타이머 만료",
   "The SACK reports that segment 2 arrived. With just one duplicate ACK, the server still cannot tell whether segment 1 was lost or delayed. In this example its retransmission timer is 1 second. At 1.052 s the timer expires and the server resends segment 1. The laptop now has both segments and advances its cumulative ACK to 2921.":
-    "SACK는 두 번째 세그먼트를 받았다는 뜻입니다. 서버는 중복 ACK 하나만으로 첫 세그먼트가 사라졌는지 늦게 오는지 구별할 수 없습니다. 이 예시의 재전송 타이머(RTO, 확인 응답을 기다리는 최대 시간으로 측정한 왕복 시간에서 계산)는 1초입니다. 1.052초에 타이머가 만료되면 서버는 첫 세그먼트를 다시 보냅니다. 이제 노트북은 두 세그먼트를 모두 받았으므로 누적 ACK를 2921로 올립니다.",
+    "SACK는 두 번째 세그먼트를 받았다는 뜻입니다. 서버는 중복 ACK 하나만으로 첫 세그먼트가 사라졌는지 늦게 오는지 구별할 수 없습니다. 이 예시의 재전송 타이머(RTO: 측정한 왕복 시간(RTT)으로 계산하는, 확인 응답을 기다리는 최대 시간)는 1초입니다. 1.052초에 타이머가 만료되면 서버는 첫 세그먼트를 다시 보냅니다. 이제 노트북은 두 세그먼트를 모두 받았으므로 누적 ACK를 2921로 올립니다.",
   Resent: "재전송한 것",
   "bytes 1–1460 only": "바이트 1–1460만",
   "Next ACK": "다음 ACK",
@@ -781,8 +781,8 @@ const lessonStrings = {
   "RD (recursion desired)": "RD(재귀 요청)",
   "flags: RD": "플래그: RD",
   "Points the way to .com": ".com으로 가는 길을 알려 줌",
-  "The resolver’s cache is empty (it has just started), so it begins at the top. A root server doesn’t know the address, but it knows which servers handle .com and replies with a referral. Many resolvers send it only “com”, not the full name.":
-    "리졸버의 캐시는 비어 있으므로(방금 시작했습니다) 꼭대기부터 시작합니다. 노트북→리졸버 질의는 ‘끝까지 찾아 달라’는 재귀 질의(RD=1)였지만, 리졸버→루트·TLD·권한 서버 질의는 ‘아는 만큼만 알려 달라’는 반복 질의(RD=0)입니다. 루트 서버는 주소를 모르지만 .com을 맡은 서버는 알고 있어서 리퍼럴로 답합니다. 많은 리졸버는 전체 이름이 아니라 ‘com’만 보냅니다.",
+  "The resolver’s cache is empty (it has just started), so it begins at the top. A root server doesn’t know the address, but it knows which servers handle .com and replies with a referral. This example sends the full name; many resolvers send each server only the part it needs, here just “com” (QNAME minimisation, RFC 9156).":
+    "리졸버의 캐시는 비어 있으므로(방금 시작했습니다) 꼭대기부터 시작합니다. 노트북→리졸버 질의는 ‘끝까지 찾아 달라’는 재귀 질의(RD=1)였지만, 리졸버→루트·TLD·권한 서버 질의는 ‘아는 만큼만 알려 달라’는 반복 질의(RD=0)입니다. 루트 서버는 주소를 모르지만 .com을 맡은 서버는 알고 있어서 리퍼럴로 답합니다. 이 예시는 전체 이름을 보내지만, 많은 리졸버는 각 서버에 필요한 부분(여기서는 ‘com’)만 보냅니다(QNAME 최소화, RFC 9156).",
   "Root servers": "루트 서버",
   "13 names, 1,000+ anycast sites": "이름 13개, 애니캐스트 지점 1,000곳 이상",
   "Referral (13 .com servers)": "리퍼럴(.com 서버 13대)",
@@ -815,6 +815,8 @@ const lessonStrings = {
     "보낸 그대로: 이 시스템은 128에서 시작합니다.",
   "0x0000: query": "0x0000: 쿼리, RD=0(반복 질의)",
   "UDP size 1232, DNSSEC OK = 0": "UDP 크기 1232, DNSSEC OK = 0",
+  "The responder’s own limit: the largest UDP answer it can send and accept. No DNSSEC signatures were asked for, so none are added.":
+    "응답한 서버 자신의 한도입니다. 보내고 받을 수 있는 가장 큰 UDP 응답 크기이며, DNSSEC 서명을 요청받지 않았으므로 서명은 붙이지 않았습니다.",
   "Says how big a UDP answer can be. DNSSEC signatures are not asked for here, to keep the lesson short; a validating resolver like 8.8.8.8 does ask for them.":
     "UDP 응답이 얼마나 커도 되는지 알려 줍니다. 실제 검증 리졸버(예: 8.8.8.8)는 DO=1로 서명을 요청하지만, 이 레슨에서는 생략했습니다.",
   "0x8000: response": "0x8000: 응답",
@@ -854,8 +856,8 @@ const lessonStrings = {
   Needs: "필요한 것",
   Discover: "탐색",
   "Shout to the whole network": "네트워크 전체에 외치기",
-  "Without an address of its own, the laptop sends from 0.0.0.0 to the broadcast address 255.255.255.255, so every device on the local network receives it. Only DHCP servers answer.":
-    "자기 주소가 없으므로 노트북은 0.0.0.0에서 브로드캐스트 주소 255.255.255.255로 보냅니다. 그래서 로컬 네트워크의 모든 장치가 받지만, 답하는 것은 DHCP 서버뿐입니다.",
+  "Without an address of its own, the laptop sends from 0.0.0.0 to the broadcast address 255.255.255.255, so every device on the local network receives it. Only DHCP servers answer. Its broadcast flag is left at 0.":
+    "자기 주소가 없으므로 노트북은 0.0.0.0에서 브로드캐스트 주소 255.255.255.255로 보냅니다. 그래서 로컬 네트워크의 모든 장치가 받지만, 답하는 것은 DHCP 서버뿐입니다. 브로드캐스트 플래그는 0으로 둡니다.",
   From: "보낸 곳",
   "0.0.0.0, UDP port 68": "0.0.0.0, UDP 포트 68",
   "255.255.255.255, port 67": "255.255.255.255, 포트 67",

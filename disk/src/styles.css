@@ -628,3 +628,30 @@ body {
   }
 }
 .disk-pages > .hw-text { margin: 0; }
+
+/* Learning model: goal line, further study, chosen prediction. */
+.disk-goal { margin: 0; }
+
+.disk-choices .hw-key[aria-pressed="true"] { font-weight: 750; }
+.disk-recap-more > li { border-top: 1px solid var(--hw-edge); }
+/* The progress line wraps in the narrow side column instead of being cut off. */
+.disk-pages .hw-progress { flex-wrap: wrap; row-gap: 6px; }
+.disk-pages .hw-progress .hw-label { white-space: normal; }
+/* 정리: recall answers as a row of small keys (not list rows). */
+.disk-pages .hw-recall-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.disk-pages .hw-recall-choices > .hw-key {
+  min-height: 34px;
+  padding-inline: 14px;
+}
+.disk-pages .hw-recall-q { margin: 4px 0 8px; }
+.disk-pages .hw-recall-why { margin: 8px 0 0; }
+.disk-further { margin: 0; }
+/* Short desktop windows: the stage foot already narrates the four stages
+   (select → controller → seek → arrive), so the list is left out here. */
+@media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px) {
+  .disk-stages-section { display: none; }
+}

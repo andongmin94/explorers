@@ -156,6 +156,49 @@ export function followRows(box, { before = 0.4, current = (tbody) => tbody.query
   return { refresh };
 }
 
+/**
+ * 정리 (shared/lesson-kit.js recapHtml) mounted as items of a paged 해설 list:
+ * each section is its own item, and each recall answer (the `why`) is a
+ * separate item after its question so an answered question never outgrows a
+ * page. show(false) takes it out again; the progress line follows progress.
+ */
+export function createRecap(host, { id, recap, progress, side, recapHtml, bindRecap, progressHtml }) {
+  progress.onChange((summary) => {
+    const line = $(".tx-recap .hw-progress", host);
+    if (line) line.outerHTML = progressHtml(summary);
+  });
+  return {
+    show(on) {
+      const parts = $$(".tx-recap", host);
+      if (!on) {
+        for (const el of parts) el.remove();
+        return;
+      }
+      if (parts.length) return;
+      const t = document.createElement("template");
+      t.innerHTML = recapHtml({ id, ...recap, progress });
+      const items = [...t.content.firstElementChild.children];
+      for (const el of items) el.classList.add("tx-recap");
+      host.append(...items);
+      bindRecap(host, {
+        recall: recap.recall,
+        progress,
+        onAnswer(q) {
+          const why = $(`[data-recall="${q.id}"]`, host).nextElementSibling;
+          why.classList.remove("tx-off");
+          side.refresh(host.id, { item: why });
+        },
+      });
+      // The pager un-hides its direct items, so a pending answer is .tx-off, not [hidden].
+      for (const why of $$(".hw-recall-why", host)) {
+        why.hidden = false;
+        why.classList.add("tx-recap", "tx-off");
+        why.closest("[data-recall]").after(why);
+      }
+    },
+  };
+}
+
 export function footer(sources) {
   return `<footer class="hw-footer">
     <span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 사건 이동 <kbd>R</kbd> 처음으로</span>

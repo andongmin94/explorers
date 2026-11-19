@@ -114,7 +114,7 @@ test("chapter explanations remain readable between meaningful boundaries for eve
       const start = milestones[index].time;
       const end = milestones[index + 1]?.time ?? result.stats.makespan + 1;
       const expected = describeChapter(result.frames[start], result);
-      assert.ok(expected.title && expected.body && expected.insight);
+      assert.ok(expected.title && expected.body && expected.key);
       for (let time = start; time < end; time++) {
         assert.deepEqual(
           describeChapter(result.frames[time], result),

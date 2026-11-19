@@ -293,8 +293,3 @@ export function createMoves(svg, runner) {
   return moves;
 }
 
-// Korean particles after ids and numbers: T1 (일) takes 이/은/을, T2 (이) 가/는/를.
-const batchim = (v) => !/[2459]$|^T2$/.test(String(v)) && !/^[AB]$/.test(String(v));
-export const ga = (v) => `${v}${batchim(v) ? "이" : "가"}`;
-export const neun = (v) => `${v}${batchim(v) ? "은" : "는"}`;
-export const eul = (v) => `${v}${batchim(v) ? "을" : "를"}`;

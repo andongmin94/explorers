@@ -109,7 +109,7 @@ test("all three resolutions preserve two-parent history, including an unchanged 
     assert.equal(steps[10].state.index.status, "unmerged");
     assert.equal(steps[11].state.index.content, option.content);
     assert.equal(indexMatchesHead(steps[11].state), option.id === "ours");
-    assert.match(describeStep(steps[11]).body, option.id === "ours" ? /변경이 없습니다/ : /다른 제목 한 줄/);
+    assert.match(describeStep(steps[11]).body, option.id === "ours" ? /달라진 줄이 없습니다/ : /다른 제목 한 줄/);
     assert.equal(steps[12].state.working, option.content);
     assert.equal(steps[12].state.commits.at(-1).content, option.content);
     assert.deepEqual(steps[12].state.commits.at(-1).parents, ["C2", "C1"]);
@@ -157,10 +157,11 @@ test("the button line changed only on main merges on its own beside the title co
 test("git status output follows the index: unmerged until git add, then still merging", () => {
   for (const option of RESOLUTIONS) {
     const { steps } = simulateGit(option.id);
-    for (const i of [9, 10]) {
-      assert.equal(steps[i].state.index.status, "unmerged");
-      assert.ok(describeStep(steps[i]).terminal.some((l) => l.includes("both modified:   welcome.txt")));
-    }
+    for (const i of [9, 10]) assert.equal(steps[i].state.index.status, "unmerged");
+    const status = describeStep(steps[10]).terminal;
+    assert.ok(status.some((l) => l.includes("both modified:   welcome.txt")));
+    assert.ok(status.includes('  (use "git add <file>..." to mark resolution)'));
+    assert.ok(status.includes('  (fix conflicts and run "git commit")'));
     const after = describeStep(steps[11]).terminal;
     assert.ok(after.includes("All conflicts fixed but you are still merging."));
     assert.equal(after.some((l) => l.includes("Changes to be committed")), option.id !== "ours");
@@ -172,7 +173,8 @@ test("predictions agree with the model they ask about", () => {
   assert.deepEqual(Object.keys(PREDICTIONS).map(Number), [8, 10, 11]);
   for (const [at, q] of Object.entries(PREDICTIONS)) {
     assert.equal(q.choices.filter((c) => c.correct).length, 1, `step ${at}`);
-    assert.equal(q.verify.step, Number(at) + 1);
+    // 10 is answered by its own git status; the others by the next event.
+    assert.equal(q.verify.step, Number(at) === 10 ? 10 : Number(at) + 1);
   }
   const { steps } = simulateGit("ours");
   // 8: HEAD stays on main → C2 after the conflicted merge.

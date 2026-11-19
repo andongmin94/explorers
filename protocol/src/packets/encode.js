@@ -651,7 +651,9 @@ function encodeDnsMessage(message) {
       `UDP size ${message.edns.size}, DNSSEC OK = 0`,
       () => layer.u8(0).u16(41).u16(message.edns.size).u32(0).u16(0),
       {
-        note: "Says how big a UDP answer can be. DNSSEC signatures are not asked for here, to keep the lesson short; a validating resolver like 8.8.8.8 does ask for them.",
+        note: message.response
+          ? "The responder’s own limit: the largest UDP answer it can send and accept. No DNSSEC signatures were asked for, so none are added."
+          : "Says how big a UDP answer can be. DNSSEC signatures are not asked for here, to keep the lesson short; a validating resolver like 8.8.8.8 does ask for them.",
       },
     );
   }

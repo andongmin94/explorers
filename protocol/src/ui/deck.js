@@ -1,6 +1,8 @@
-// Deck: every playback control. Transport keys, speed selector and a seek
-// slider over the lesson's steps (0 = overview).
+// Deck: every playback control. Transport keys, speed selector, one event at
+// a time, the guided switch (핵심 장면에서 멈추기) and a seek slider over the
+// lesson's steps (0 = overview). Labels follow shared/lesson-kit.js LABELS.
 import { translate } from "../i18n.js";
+import { LABELS } from "../../../shared/lesson-kit.js";
 import { icon } from "../../../shared/hw.js";
 import { bindSliders, syncSlider } from "../../../shared/hw.js";
 
@@ -15,9 +17,9 @@ function renderDeck() {
     <div class="hw-field">
       <span class="hw-label">재생</span>
       <div class="hw-transport">
-        <button class="hw-key hw-key--icon" type="button" data-action="reset" aria-label="${translate("Reset")}" title="${translate("Back to the overview (Esc)")}">${icon("reset")}</button>
+        <button class="hw-key hw-key--icon" type="button" data-action="reset" aria-label="${translate("Reset")}" title="처음으로 (R)">${icon("reset")}</button>
         <button class="hw-key hw-key--icon" type="button" data-action="prev" aria-label="${translate("Previous step")}" title="${translate("Previous step (←)")}">${icon("back")}</button>
-        <button class="hw-key hw-key--accent toggle" type="button" data-action="toggle" title="${translate("Play / pause (Space)")}"><span class="toggle-icon">${icon("play")}</span><span class="toggle-label">${translate("PLAY")}</span></button>
+        <button class="hw-key hw-key--accent toggle" type="button" data-action="toggle" title="${translate("Play / pause (Space)")}"><span class="toggle-icon">${icon("play")}</span><span class="toggle-label">${LABELS.start}</span></button>
         <button class="hw-key hw-key--icon" type="button" data-action="next" aria-label="다음 단계" title="다음 단계 (→)">${icon("next")}</button>
       </div>
     </div>
@@ -26,8 +28,11 @@ function renderDeck() {
       <div class="hw-seg speed-seg" role="group" aria-label="${translate("Playback speed")}">${speeds}</div>
     </div>
     <div class="hw-field">
-      <span class="hw-label">한 장면씩</span>
-      <button class="hw-key step-key" type="button" data-action="step" title="${translate("Advance one event")}">${translate("STEP")}</button>
+      <span class="hw-label">한 사건씩</span>
+      <button class="hw-key step-key" type="button" data-action="step" title="사건 하나만 진행">다음 사건</button>
+    </div>
+    <div class="hw-field guided-field">
+      <button class="hw-switch" type="button" role="switch" aria-checked="true" data-action="guided" title="예측이 있는 패킷 앞과 끝에서 멈춥니다">${LABELS.guided}</button>
     </div>
     <div class="hw-seek">
       <span class="hw-label">${translate("OVERVIEW")}</span>
@@ -54,7 +59,13 @@ function bindDeck(deck, actions) {
 
 function updateDeck(deck, playback, lesson) {
   const toggle = deck.querySelector(".toggle");
-  const label = translate(playback.playing ? "PAUSE" : playback.done ? "REPLAY" : "PLAY");
+  const label = playback.playing
+    ? LABELS.pause
+    : playback.done
+      ? LABELS.replay
+      : playback.started
+        ? LABELS.resume
+        : LABELS.start;
   if (toggle.dataset.label !== label) {
     toggle.dataset.label = label;
     toggle.querySelector(".toggle-label").textContent = label;
@@ -83,10 +94,14 @@ function updateDeck(deck, playback, lesson) {
   syncSlider(seek);
 }
 
+function updateDeckGuided(deck, on) {
+  deck.querySelector('[data-action="guided"]').setAttribute("aria-checked", String(on));
+}
+
 function updateDeckSpeed(deck, speed) {
   deck.querySelectorAll("[data-speed]").forEach((button) =>
     button.setAttribute("aria-pressed", Number(button.dataset.speed) === speed),
   );
 }
 
-export { SPEEDS, bindDeck, renderDeck, updateDeck, updateDeckSpeed };
+export { SPEEDS, bindDeck, renderDeck, updateDeck, updateDeckGuided, updateDeckSpeed };

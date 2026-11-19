@@ -77,3 +77,23 @@ Content that does not fit is split, never scrolled (helpers in `shared/fit.js`, 
 7. Dark mode comes from tokens; check `?theme=dark` (the explorers keep their own theme toggle that sets `data-theme`).
 8. Mobile (≤ 759px): the console stacks stage → deck → side → records; the scene SVG scales to width; no horizontal page scroll; keys ≥ 42px tall.
 9. Motion: tokens move with `travel()` (WAAPI) or `.iso-token` transitions; honour `prefers-reduced-motion` and the explorer's existing pause/speed logic.
+
+## Learning model (every explorer)
+
+All six explorers teach the same way: **목표 → 관찰 → 예측 → 확인 → 설명 → 비교 → 정리**. Wording and progress live in `shared/lesson-kit.js` (`LABELS`, `createProgress`, `recapHtml`, `bindRecap`, `nextExperiment`); Korean particles after IDs and numbers come from `shared/josa.js` (`ga`, `eul`, `eun`, `ro`, `josa`).
+
+| Phase | What the learner gets | Shared labels |
+|---|---|---|
+| 목표 | Start screen (before playback): header `01 대표 시나리오 · {title}`; side title is a **question**; body sets up the scenario; one line `학습 목표: …`. No result is shown before it happens. | `학습 시작` |
+| 관찰 | Playback with the guided switch on: it stops at 3–6 **핵심 장면** (the same list the 장면 tab shows). | `핵심 장면에서 멈추기`, `학습 시작 / 이어서 재생 / 일시정지 / 다시 재생`, `다음 {단위}`, `이번 {단위} 다시 보기`, keys Space ←/→ R |
+| 예측 | At a 핵심 장면 just before a decision. While a prediction is open, **nothing on screen gives the answer away** (scene marks, tabs, step text, terminal, facts). Each option has its own `why` (the misconception it reflects). Never gates progress (except Git's resolution choice). | `{대상}, 먼저 맞혀보기 →`, dialog `예측`, `맞았습니다.` / `정답은 X입니다.` |
+| 확인 | Plays exactly that unit, then pauses. | `실제로 확인 →` |
+| 설명 | 해설 tab: eyebrow `핵심 장면 k/N` or `{n}번째 {단위}` / title / body (≤ 3 sentences) / `이번 {단위}` (직전 → 현재) / note `핵심` that changes per step. | `핵심` |
+| 비교 | Same input, other method: two columns, one 갈림길 sentence. | `두 방식 비교`, `결과 비교 →`, `같은 입력 · 다른 방식`, `이 방식으로 다시 보기`, `갈림길로 돌아가기` |
+| 정리 | Shown at the end in 해설: 2–3 `핵심 정리` points, 1–2 `확인 문제` answered without the scene (per-option `why`), progress line, `다음 실험: … →`. | `정리`, `핵심 정리`, `확인 문제`, `학습 진도` |
+
+Nouns: **장면** only means a 핵심 장면; **사건** is one event; **단계** is used only for protocol lesson steps. Side tabs: `해설 · 장면 · [one subject tab] · 범위` (범위 = rules, terms, model notes). Records: `[subject trace] · {단위} 기록 · {…} 결과`.
+
+Progress: `createProgress(id, { scenes, recall })` — call `markScene` when a 핵심 장면 is reached, `markPrediction` on the first answer, `markCompared` when the comparison opens, `markRecall` via `bindRecap`. Ids: `protocol`, `cpu`, `memory`, `transaction`, `deadlock`, `disk`, `git`.
+
+Kept on purpose (subject-specific): the unit (ms·사건 / 접근 / 사건 / 요청 / 사건 / 단계+패킷), CPU's two-step generated prediction, memory's and disk's sub-stage strips, Git's gated resolution choice and `해결안 비교`, protocol's 14-lesson picker, OSI header, packet inspector, V view switch and multi-event steps.

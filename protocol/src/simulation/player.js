@@ -8,6 +8,9 @@ const PLAYER_EVENT_DELAYS = {
 };
 
 /**
+ * `stopBefore(eventIndex)` (guided playback) holds continuous playback just
+ * before that event; playing again runs it. A single step never holds.
+ *
  * Both diagrams use the same packet departures and arrivals. Sequence mode
  * uses its shorter travel times and applies local scene changes immediately.
  * The callback drives the sidebar, explanation, packet table and diagram.
@@ -16,7 +19,7 @@ function createLessonPlayer(
   lesson,
   renderer,
   onStateChange,
-  { mode = "network" } = {},
+  { mode = "network", stopBefore = () => false } = {},
 ) {
   const events = [
     { type: "focus", ...lesson.start, step: 0 },
@@ -51,6 +54,8 @@ function createLessonPlayer(
   let currentMode = mode;
   let notificationQueued = false;
   let disposed = false;
+  // The event a guided stop already held before; playing on runs it.
+  let heldBefore = -1;
 
   function getState() {
     const done = nextEventIndex >= events.length && runningEventIndex === -1;
@@ -65,6 +70,7 @@ function createLessonPlayer(
     const devicePosition = runningEventIndex !== -1 &&
       (packetArrived || events[runningEventIndex].type === "note") ? nextEventIndex + 1 : nextEventIndex;
     return {
+      held: !playing && runningEventIndex === -1 && heldBefore === nextEventIndex && nextEventIndex < events.length,
       devices: deviceStates[devicePosition],
       playing,
       running: runningEventIndex !== -1,
@@ -136,6 +142,11 @@ function createLessonPlayer(
     }
 
     const eventIndex = nextEventIndex;
+    if (playing && !singleEvent && heldBefore !== eventIndex && stopBefore(eventIndex)) {
+      heldBefore = eventIndex;
+      pause();
+      return;
+    }
     const token = eventToken;
     const event = events[eventIndex];
     const packets = event.type === "stream" ? event.packets : event.type === "packet" ? [event] : [];
@@ -191,6 +202,7 @@ function createLessonPlayer(
 
   function reset() {
     cancelPendingWork();
+    heldBefore = -1;
     finishedSteps.clear();
     playing = false;
     nextEventIndex = 0;
@@ -198,8 +210,10 @@ function createLessonPlayer(
     notifyStateChange();
   }
 
-  function play() {
+  /** release: an event index to play through without a guided hold (a prediction's reveal). */
+  function play({ release } = {}) {
     if (nextEventIndex >= events.length && runningEventIndex === -1) reset();
+    if (release !== undefined) heldBefore = release;
     if (runningEventIndex === -1) singleEvent = false;
     playing = true;
     playbackClock.resume();
@@ -239,6 +253,8 @@ function createLessonPlayer(
     jump(stepIndex, { paused = false } = {}) {
       cancelPendingWork(paused);
       nextEventIndex = events.findIndex((event) => event.step === stepIndex);
+      // Jumping to a step start is already the stop before its first event.
+      heldBefore = nextEventIndex;
       atStepStart = paused;
       restoreScene(!paused);
       if (paused) pause();

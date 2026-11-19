@@ -408,11 +408,7 @@
   }
   .git-page .hw-records > .hw-plate-body[hidden] { display: none; }
   .git-rows { flex: 1 1 auto; min-height: 0; overflow: hidden; }
-  #record-result,
-  #record-terms { padding: 4px 18px 10px; }
-  #record-terms > .git-glossary { flex: 1 1 auto; min-height: 0; }
-  #record-terms > .git-glossary > [hidden] { display: none !important; }
-  #record-terms .hw-pager { padding-top: 4px; }
+  #record-result { padding: 4px 18px 10px; }
   .git-result { gap: 24px; align-items: center; }
   .git-result .hw-table tbody th,
   .git-result .hw-table td { padding-block: 5px; }
@@ -474,3 +470,46 @@
   filter: drop-shadow(0 1px 1.5px rgb(83 80 70 / 0.18));
 }
 .git-ref-text { dominant-baseline: central; }
+
+/* ---------- Learning model: goal, 핵심 note, 범위 tab, 정리 ---------- */
+
+.git-goal { margin: 0; }
+.git-key-label {
+  margin-inline-end: 8px;
+  color: var(--accent);
+}
+/* 범위 in the side column: term above its meaning. */
+.hw-side .git-glossary > div {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 7px 0;
+}
+.hw-side .git-glossary > div:last-child { border-bottom: 0; }
+.hw-side .git-glossary > [hidden] { display: none !important; }
+/* 정리 sections are items of the 해설 pages: the page rhythm separates them. */
+.git-pages > .hw-section { margin-top: 0; }
+.git-pages .hw-recall-choices > button { padding-block: 6px; }
+.git-pages .hw-recap-points { margin: 6px 0 0; }
+.git-lesson-title { word-break: keep-all; }
+/* The progress line wraps in the side column instead of being cut off. */
+.git-pages .hw-progress { flex-wrap: wrap; }
+.git-pages .hw-progress .hw-label { white-space: normal; }
+/* A long terminal output continues as further page items, read as one box. */
+.git-pages > :not([hidden]) + .git-term-more {
+  margin-top: -10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.git-terminal.has-more pre { border-bottom: 0; border-end-start-radius: 0; border-end-end-radius: 0; padding-bottom: 0; }
+.git-term-more pre { margin-top: 0; border-top: 0; border-start-start-radius: 0; border-start-end-radius: 0; padding-top: 1.45em; }
+.git-term-more:not(:last-child):has(+ .git-term-more) pre { border-bottom: 0; border-end-start-radius: 0; border-end-end-radius: 0; padding-bottom: 0; }
+.git-pages > [hidden] + .git-term-more pre { border-top: 1px dashed var(--rule); }
+/* The answer note is its own page item, read with the question above it. */
+.git-pages > .git-recall-after { padding-top: 0; border-top: 0; }
+.git-pages > .git-recall-after:has(> [hidden]) { display: none; }
+.git-recall-after > .hw-recall-why { margin: 0; border-bottom: 0; }
+/* Short windows: recall rows a little tighter so a question fits one page. */
+@media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px) {
+  .git-pages .hw-recall-choices > button { min-height: 32px; padding-block: 4px; }
+  .git-pages .hw-recall-q { margin: 4px 0 4px; }
+}

@@ -1,7 +1,7 @@
 // The memory explorer's isometric scene: CPU, page table, RAM frames and SSD
 // on one floor. Pages are tokens: the SSD keeps the originals A–E, the RAM
 // frames hold copies, and one access moves them along the floor paths.
-import { josa } from "./josa.js";
+import { josa } from "../../shared/josa.js";
 import {
   callout,
   chip,
@@ -130,12 +130,13 @@ function ranks(frames, algorithm) {
   return new Map(order.map((frame, i) => [frame.slot, i + 1]));
 }
 
-const F = (slot, particle) => josa(`F${slot}`, particle, { digits: "ko" });
+// Prose names a frame "프레임 0"; "F0" stays a compact label on the device.
+const F = (slot, pair) => (pair ? josa(`프레임 ${slot}`, pair) : `프레임 ${slot}`);
 
 export const replacementReason = (policy, frame) =>
   policy === "fifo"
-    ? `가장 먼저 적재된 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
-    : `마지막 사용이 가장 이른 ${frame.page} 교체 (사용 ${frame.lastUsedAt}번째)`;
+    ? `적재 순서가 가장 앞선 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
+    : `마지막 접근이 가장 이른 ${frame.page} 교체 (마지막 접근 ${frame.lastUsedAt}번째)`;
 
 export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
@@ -172,11 +173,13 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   let frames = emptyFrames();
   let run = null;
   let revision = 0;
+  // Next-victim marks (#1, its LED, the callout) hide while a victim prediction is pending.
+  let hints = true;
 
   /* ---------- Painting the state ---------- */
 
   function paintFrames() {
-    const rank = ranks(frames, algorithm);
+    const rank = hints ? ranks(frames, algorithm) : new Map();
     const full = frames.every((frame) => frame.page);
     frames.forEach((frame) => {
       const el = tokenEls[frame.slot];
@@ -198,10 +201,10 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       entry.querySelector(".mem-entry-frame text").textContent = frame ? `F${frame.slot}` : "—";
       entry.classList.toggle("is-resident", Boolean(frame));
     }
-    $(".mem-ram-callout .iso-callout-sub").textContent = algorithm === "fifo" ? "#1 다음 교체 · 적재 순" : "#1 다음 교체 · 사용 순";
+    $(".mem-ram-callout .iso-callout-sub").textContent = !hints || !full ? "프레임 3개" : algorithm === "fifo" ? "#1 다음 교체 · 적재 순서" : "#1 다음 교체 · 마지막 접근";
     host.setAttribute(
       "aria-label",
-      `${step?.index || 0}번째 접근 후. ${frames.map((f) => `프레임 F${f.slot} ${f.page ? `페이지 ${f.page}` : "비어 있음"}`).join(", ")}.`,
+      `${step?.index || 0}번째 접근 후. ${frames.map((f) => `${F(f.slot)} ${f.page ? `페이지 ${f.page}` : "비어 있음"}`).join(", ")}.`,
     );
   }
 
@@ -244,7 +247,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     phase(
       "access",
       `${step.index}번째 ${step.page} 접근 완료 · ${outcome}`,
-      step.hit ? "RAM에 있던 페이지를 그대로 사용했습니다. 운영체제는 관여하지 않았습니다." : "저장장치에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
+      step.hit ? "RAM에 있던 페이지를 그대로 사용했습니다." : "저장장치에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
     );
   }
 
@@ -300,11 +303,11 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       if (!alive(active)) return;
       if (event.type === "hit") {
         emphasis({ ring: "hit", slot, entry: page });
-        phase("hit", `적중 · ${page}가 F${slot}에 있습니다`, `페이지 테이블의 ${page} 항목이 ${F(slot, "를")} 가리킵니다. MMU가 이 프레임의 주소로 바로 변환하고, 운영체제는 관여하지 않습니다.`);
+        phase("hit", `적중 · ${josa(page, "이/가")} ${F(slot)}에 있습니다`, `페이지 테이블의 ${page} 항목이 ${F(slot, "을/를")} 가리킵니다. 이 프레임의 주소로 바로 변환합니다.`);
         await hold(600, active);
       } else if (event.type === "miss") {
         emphasis({ entry: page });
-        phase("miss", `페이지 부재 · ${page}가 RAM에 없습니다`, `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`);
+        phase("miss", `페이지 부재 · ${josa(page, "이/가")} RAM에 없습니다`, `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`);
         await hold(700, active);
       } else if (event.type === "select") {
         emphasis({ ring: "select", slot });
@@ -312,16 +315,16 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           event.reason === "empty"
             ? "빈 프레임을 사용합니다."
             : event.reason === "fifo"
-              ? `${event.victim}가 가장 먼저 들어왔습니다.`
-              : `${event.victim}를 가장 오래 사용하지 않았습니다.`;
+              ? `${josa(event.victim, "이/가")} 적재 순서가 가장 앞섭니다.`
+              : `${event.victim}의 마지막 접근이 가장 이릅니다.`;
         phase(
           "select",
-          event.reason === "empty" ? `빈 프레임 F${slot} 선택` : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
+          event.reason === "empty" ? `빈 ${F(slot)} 선택` : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
           reason,
         );
         await hold(event.victim ? 1500 : 900, active);
       } else if (event.type === "evict") {
-        phase("evict", `F${slot}의 ${event.page} 사본만 제거합니다`, `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 저장장치에 다시 쓸 필요는 없습니다.`);
+        phase("evict", `${F(slot)}의 ${event.page} 사본만 제거합니다`, `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 저장장치에 다시 쓸 필요는 없습니다.`);
         const gone = mover(event.page);
         place(gone, ...slotPoint(slot));
         tokenEls[slot].innerHTML = "";
@@ -337,7 +340,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         if (!alive(active)) return;
         await hold(120, active);
       } else if (event.type === "load") {
-        phase("load", `저장장치에서 ${page}를 읽어 F${slot}에 적재합니다`, `저장장치의 원본을 ${F(slot, "로")} 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → ${F(slot, "를")} 기록합니다.`);
+        phase("load", `저장장치에서 ${josa(page, "을/를")} 읽어 ${F(slot)}에 적재합니다`, `저장장치의 원본을 ${F(slot, "으로")} 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → ${josa(`F${slot}`, "을/를")} 기록합니다.`);
         emphasis({ path: "load", ring: "select", slot });
         flow("load", active);
         const copy = mover(page);
@@ -350,7 +353,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         emphasis({ ring: "hit", slot });
       } else if (event.type === "access") {
         if (step.fault) {
-          phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 ${F(slot, "를")} 가리킵니다.`);
+          phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 ${F(slot, "을/를")} 가리킵니다.`);
           emphasis({ path: "lookup", entry: page, ring: "hit", slot });
           flow("lookup", active);
           const retry = mover(page, { size: 0.8 });
@@ -359,7 +362,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
           retry.remove();
           if (!alive(active)) return;
         }
-        phase("read", `F${slot}에서 CPU로 값을 전달합니다`, `페이지 ${page}는 F${slot}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`);
+        phase("read", `${F(slot)}에서 CPU로 값을 전달합니다`, `${josa(`페이지 ${page}`, "은/는")} ${F(slot)}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`);
         emphasis({ path: "read", ring: "hit", slot, entry: page });
         flow("read", active);
         const value = mover(page, { size: 0.8 });
@@ -408,6 +411,11 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
 
   return {
     update,
+    setHints(on) {
+      if (hints === on) return;
+      hints = on;
+      paintFrames();
+    },
     setSpeed(speed) {
       if (!run) return;
       run.speed = speed;

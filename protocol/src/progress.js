@@ -1,4 +1,8 @@
-// Reconstructed from the distributed Protocol Explorer JavaScript.
+// Learning progress per lesson, kept in localStorage: the steps seen (the
+// picker and the top bar), and for the 정리 panel the 핵심 장면 reached, the
+// first verdict of each prediction and each 확인 문제. The same marks are
+// mirrored into the shared explorer progress (shared/lesson-kit.js).
+import { createProgress } from "../../shared/lesson-kit.js";
 const PROGRESS_STORAGE_KEY = "protocol-explorer:progress:v1";
 function loadLessonProgress() {
   try {
@@ -57,4 +61,56 @@ function getLessonStatus(lesson) {
   }
   return progress?.started || progress?.seen.length ? "progress" : "new";
 }
-export { getLessonCompletion, getLessonStatus, recordLessonProgress };
+const sharedProgress = createProgress("protocol");
+const entry = (lesson) => (lessonProgress[lesson.id] ??= { seen: [], done: false });
+
+/** A 핵심 장면 (a step with a prediction) was reached. */
+function markKeyScene(lesson, step) {
+  const progress = entry(lesson);
+  progress.scenes ??= [];
+  sharedProgress.markScene(`${lesson.id}:${step}`);
+  if (progress.scenes.includes(step)) return;
+  progress.scenes.push(step);
+  saveLessonProgress();
+}
+/** The first answer to the prediction for this packet. */
+function markPrediction(lesson, packet, correct) {
+  const progress = entry(lesson);
+  progress.predictions ??= {};
+  sharedProgress.markPrediction(`${lesson.id}:${packet}`, correct);
+  if (packet in progress.predictions) return;
+  progress.predictions[packet] = Boolean(correct);
+  saveLessonProgress();
+}
+/** A 확인 문제 answer; once right it stays right. */
+function markRecall(lesson, id, correct) {
+  const progress = entry(lesson);
+  progress.recall ??= {};
+  if (progress.recall[id]) return;
+  progress.recall[id] = Boolean(correct);
+  saveLessonProgress();
+}
+/** Counts for the progress line of one lesson's 정리. */
+function getLearningSummary(lesson, { scenes = 0, recall = [] } = {}) {
+  const progress = lessonProgress[lesson.id] ?? {};
+  const predictions = Object.values(progress.predictions ?? {});
+  return {
+    scenesSeen: Math.min((progress.scenes ?? []).length, scenes),
+    scenesTotal: scenes,
+    predictionsAnswered: predictions.length,
+    predictionsRight: predictions.filter(Boolean).length,
+    recallRight: recall.filter((q) => progress.recall?.[q.id]).length,
+    recallTotal: recall.length,
+  };
+}
+
+export {
+  getLearningSummary,
+  getLessonCompletion,
+  getLessonStatus,
+  markKeyScene,
+  markPrediction,
+  markRecall,
+  recordLessonProgress,
+  sharedProgress,
+};

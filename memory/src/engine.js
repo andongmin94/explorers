@@ -54,6 +54,7 @@ export function simulate({ algorithm = "fifo", frameCount = 3 } = {}) {
       page: null,
       hit: null,
       fault: false,
+      compulsory: false,
       victim: null,
       frameIndex: null,
       before: snapshot(frames),
@@ -74,6 +75,9 @@ export function simulate({ algorithm = "fifo", frameCount = 3 } = {}) {
     const events = [];
     let frameIndex = frames.findIndex((frame) => frame.page === page);
     const hit = frameIndex !== -1;
+    // A compulsory (cold) miss is the first reference to a page. It can still
+    // replace a page when RAM is full (OSTEP 22.2, the three Cs).
+    const compulsory = !hit && !REFERENCE_STRING.slice(0, referenceIndex).includes(page);
     let victim = null;
 
     if (hit) {
@@ -115,6 +119,7 @@ export function simulate({ algorithm = "fifo", frameCount = 3 } = {}) {
       page,
       hit,
       fault: !hit,
+      compulsory,
       victim,
       frameIndex,
       before,

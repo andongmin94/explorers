@@ -7,6 +7,7 @@ import {
   buildMilestones,
   predictionFor,
   MODEL_NOTES,
+  RECAP,
   SCENE_LEGEND,
   SOURCES,
 } from "../src/lesson.js";
@@ -31,11 +32,11 @@ test("every action has Korean teaching content and the corresponding SQL", () =>
     const run = simulate({ mode });
     for (const step of run.steps) {
       const lesson = describeStep(step, run);
-      for (const field of ["eyebrow", "title", "summary", "takeaway"]) {
+      for (const field of ["eyebrow", "title", "summary", "key"]) {
         assert.ok(lesson[field].length > 0, `${mode} ${step.index} ${field}`);
         assert.doesNotMatch(lesson[field], /undefined|NaN/);
       }
-      assert.ok(lesson.details.length > 0);
+      assert.ok(lesson.details.length > 0 && lesson.details.length <= 2, `${mode} ${step.index} details`);
       assert.equal(lesson.sql, step.sql);
     }
   }
@@ -73,7 +74,8 @@ test("prediction asks for the final committed stock, which differs by mode", () 
     answers[mode] = question.answerId;
     assert.deepEqual(question.options.map((o) => o.id), ["8", "9", "10"]);
     for (const option of question.options) assert.ok(option.feedback.length > 20, `${mode} ${option.id}`);
-    // The facts shown before answering never print T2's computed number.
+    // The dialog facts do not restate T2's computed number; what is tested is
+    // whether the learner thinks the DB recalculates it after the wait.
     assert.ok(!question.facts.some(([label]) => /계산$/.test(label)));
     assert.ok(!question.facts.some(([, value]) => value === String(step.state.clients.T2.localWrite)));
   }
@@ -89,9 +91,13 @@ test("lock modes, atomic re-evaluation and the observation split are stated", ()
   assert.match(notes, /FOR NO KEY UPDATE/);
   assert.match(notes, /잠금이 풀리는 즉시 재개/);
   const naive = simulate({ mode: "naive" });
-  assert.match(describeStep(naive.steps[10], naive).details.join(" "), /stock - 1.*8/);
+  assert.match(describeStep(naive.steps[11], naive).details.join(" "), /stock - 1.*8/);
+  assert.doesNotMatch(describeStep(naive.steps[10], naive).details.join(" "), /stock - 1/);
+  assert.doesNotMatch(MODEL_NOTES.join(" "), /stock - 1/);
+  assert.match(notes, /같은 모드와도 충돌/);
+  assert.doesNotMatch(notes, /서로 충돌하므로/);
   assert.match(describeStep(naive.steps[8], naive).details.join(" "), /FOR NO KEY UPDATE/);
-  assert.doesNotMatch(describeStep(naive.steps[8], naive).summary, /9/);
+  assert.doesNotMatch(describeStep(naive.steps[8], naive).summary, /9|무엇을 쓸까/);
   assert.ok(SCENE_LEGEND.join(" ").includes("WAITING"));
 });
 
@@ -112,4 +118,36 @@ test("ordinary UPDATE locking and fresh locked reading are stated explicitly", (
       (source) => new URL(source.url).hostname === "www.postgresql.org",
     ),
   );
+});
+
+test("titles attach Korean particles to ids and numbers", () => {
+  const naive = simulate({ mode: "naive" });
+  const locked = simulate({ mode: "locked" });
+  assert.equal(describeStep(naive.steps[3], naive).title, "T1이 재고 10을 읽음");
+  assert.equal(describeStep(naive.steps[4], naive).title, "T2가 재고 10을 읽음");
+  assert.equal(describeStep(naive.steps[6], naive).title, "T1이 9를 쓰고 잠금 유지");
+  assert.equal(describeStep(locked.steps[10], locked).title, "T2가 8을 쓰고 잠금 유지");
+  for (const run of [naive, locked])
+    for (const step of run.steps) assert.doesNotMatch(describeStep(step, run).title, /T1가|T2이|9을|10를/);
+});
+
+test("the start screen asks, states the goal and shows no result; T1's commit key points forward", () => {
+  for (const mode of ["naive", "locked"]) {
+    const run = simulate({ mode });
+    const start = describeStep(run.steps[0], run);
+    assert.match(start.title, /\?$/);
+    assert.match(start.goal, /^학습 목표: /);
+    assert.doesNotMatch(start.summary + start.goal, /유실|최종 [89]/);
+    const handoff = describeStep(run.steps.find((s) => s.action === "commit" && s.client === "T1"), run);
+    assert.doesNotMatch(handoff.key, /두 사건으로 나눴습니다/);
+  }
+});
+
+test("the recap has 2–3 points and recall questions with one right answer and a why per choice", () => {
+  assert.ok(RECAP.points.length >= 2 && RECAP.points.length <= 3);
+  assert.ok(RECAP.recall.length >= 1 && RECAP.recall.length <= 2);
+  for (const q of RECAP.recall) {
+    assert.equal(q.choices.filter((c) => c.correct).length, 1);
+    for (const c of q.choices) assert.ok(c.why.length > 10);
+  }
 });

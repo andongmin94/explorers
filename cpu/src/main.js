@@ -12,13 +12,18 @@ import {
   comparisonSummary,
   buildMilestones,
   buildPrediction,
+  describeIntro,
   eventLabel,
   frameAtMove,
-  momentNotes,
   processDetails,
   quantumSweep,
+  recallQuestions,
+  recapPoints,
+  stepNotes,
+  sweepSummary,
 } from "./lesson.js";
 import { josa } from "./josa.js";
+import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
 
 const number = (value) => Number(value.toFixed(2)).toLocaleString("ko-KR");
 const ledFor = (id) => `<span class="hw-led is-on" style="--led:var(--${id ? id.toLowerCase() : "muted"})"></span>`;
@@ -43,7 +48,9 @@ let guided = true,
   movingEvent = null,
   displayedFrame = result.frames[0],
   transitionId = 0,
-  selectedProcess = null;
+  selectedProcess = null,
+  // 목표: the start screen shows until the learner starts or moves.
+  started = false;
 const STEP_DURATION = 1600;
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -53,7 +60,7 @@ app.outerHTML = `
     <div class="hw-brand"><h1>CPU 스케줄링 탐색기</h1><p>보면서 이해하는 운영체제</p></div>
     <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> 대표 시나리오</span><strong>하나의 CPU, 세 개의 작업</strong></div>
     <div class="hw-actions">
-      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>결과 비교</span></button>
+      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>${LABELS.compare}</span></button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="어두운 테마로 전환"></button>
     </div>
   </header>
@@ -96,7 +103,7 @@ app.outerHTML = `
         <span class="hw-label" id="seek-end">20MS</span>
       </div>
       <div class="cpu-guided">
-        <button class="hw-switch" data-action="guided" role="switch" aria-checked="true">핵심 장면에서 멈추기</button>
+        <button class="hw-switch" data-action="guided" role="switch" aria-checked="true">${LABELS.guided}</button>
         <span class="hw-muted" id="playback-hint"></span>
       </div>
     </section>
@@ -105,29 +112,24 @@ app.outerHTML = `
       <div class="hw-plate-head cpu-side-head">
         <span class="hw-label" id="side-label"><span class="hw-index">B</span><span class="cpu-sr">학습 패널</span></span>
         <div class="hw-tabs" role="tablist" aria-labelledby="side-label">
-          <button type="button" data-tab="now" aria-selected="true">해설</button>
-          <button type="button" data-tab="scenes">장면</button>
+          <button type="button" data-tab="now" aria-selected="true">${LABELS.explainTab}</button>
+          <button type="button" data-tab="scenes">${LABELS.scenesTab}</button>
           <button type="button" data-tab="process">작업</button>
-          <button type="button" data-tab="rules">규칙</button>
+          <button type="button" data-tab="rules">${LABELS.scopeTab}</button>
         </div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="now">
         <div class="hw-fill cpu-pages" id="now-pages">
           <div id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></div>
-          <div>
-            <span class="hw-label">이번 시각의 사건</span>
-            <ul class="hw-list cpu-events" id="current-events"></ul>
-          </div>
-          <div><p class="hw-note hw-note--accent" id="insight"></p></div>
         </div>
         <div class="cpu-side-actions">
           <button class="hw-key cpu-wide" data-action="predict"></button>
-          <button class="hw-key cpu-wide" data-action="compare" data-conclusion hidden>다른 방식과 비교 ${icon("arrow")}</button>
+          <button class="hw-key cpu-wide" data-action="compare" data-conclusion hidden>${LABELS.compareEnd}</button>
           <div class="hw-pager" id="now-pager"></div>
         </div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="scenes" hidden>
-        <span class="hw-label cpu-panel-label">핵심 장면으로 이동 <span class="hw-muted" id="scene-progress"></span></span>
+        <span class="hw-label cpu-panel-label">${LABELS.jumpToScene} <span class="hw-muted" id="scene-progress"></span></span>
         <nav class="hw-list hw-fill cpu-milestones" id="milestones" aria-label="핵심 학습 장면"></nav>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="process" hidden>
@@ -135,18 +137,18 @@ app.outerHTML = `
         <div class="hw-fill cpu-pages" id="process-detail"></div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="rules" hidden>
-        <span class="hw-label cpu-panel-label">이 실험의 규칙</span>
+        <span class="hw-label cpu-panel-label">이 모델의 범위 · 흔한 오해</span>
         <ul class="hw-list hw-fill cpu-rules" id="rules">
           <li>CPU는 하나이며 한 번에 한 작업만 실행합니다.</li>
           <li>CPU 구간(CPU 버스트)은 입출력 없이 계산하는 구간입니다. 작업은 CPU 구간과 입출력을 번갈아 거칩니다.</li>
           <li>선점은 실행 중인 작업에게서 CPU를 거두는 것입니다. 라운드 로빈은 할당량이 끝날 때만 선점합니다.</li>
-          <li>도착·입출력 복귀는 실행 중인 작업을 선점하지 않습니다. 준비 큐 뒤에 줄을 섭니다.</li>
+          <li>오해: "도착하면 바로 실행된다", "입출력 복귀가 선점한다". 도착·입출력 복귀는 실행 중인 작업을 선점하지 않고 준비 큐 뒤에 줄을 섭니다.</li>
           <li>CPU 구간이 끝나는 시각에 할당량도 끝나면 구간 종료가 우선합니다. 작업은 입출력이나 완료로 갑니다.</li>
           <li>같은 시각에는 도착·입출력 복귀를 먼저 큐에 넣고, 할당량이 끝난 작업을 맨 뒤에 넣습니다.</li>
           <li>입출력은 CPU와 따로 진행됩니다. 여러 작업의 입출력이 겹칠 수 있습니다.</li>
           <li>문맥 교환(작업 전환) 비용은 0ms로 단순화했습니다.</li>
           <li>대기 시간(준비 큐)에 입출력 대기는 포함하지 않습니다. 반환 시간은 완료 시각 − 도착 시각입니다.</li>
-          <li>FCFS는 긴 CPU 구간이 앞에 서면 짧은 작업들이 줄줄이 기다리는 호위 효과(convoy effect)가 생길 수 있습니다.</li>
+          <li>FCFS는 긴 CPU 구간이 앞에 서면 짧은 작업들이 줄줄이 기다립니다(호위 효과, convoy effect). 이 시나리오의 FCFS에서도 P2·P3는 P1의 5ms 구간 뒤에서 4ms, 5ms를 기다립니다.</li>
         </ul>
       </div>
     </aside>
@@ -187,11 +189,11 @@ app.outerHTML = `
   </footer>
 
   <dialog id="prediction-dialog" class="hw-dialog" aria-labelledby="prediction-title">
-    <div class="hw-plate-head"><span class="hw-label"><span class="hw-index">?</span> 예측 → 확인 → 이해</span><button class="hw-key hw-key--sm hw-key--icon" data-action="close-dialog" aria-label="닫기">${icon("close")}</button></div>
+    <div class="hw-plate-head"><span class="hw-label"><span class="hw-index">?</span> ${LABELS.predictTitle}</span><button class="hw-key hw-key--sm hw-key--icon" data-action="close-dialog" aria-label="닫기">${icon("close")}</button></div>
     <div id="prediction-body"></div>
   </dialog>
   <dialog id="comparison-dialog" class="hw-dialog cpu-compare" aria-labelledby="comparison-title">
-    <div class="hw-plate-head"><span class="hw-label"><span class="hw-index">C</span> 같은 입력으로 공정하게 비교</span><button class="hw-key hw-key--sm hw-key--icon" data-action="close-dialog" aria-label="닫기">${icon("close")}</button></div>
+    <div class="hw-plate-head"><span class="hw-label"><span class="hw-index">C</span> ${LABELS.compare} · ${LABELS.compareSub}</span><button class="hw-key hw-key--sm hw-key--icon" data-action="close-dialog" aria-label="닫기">${icon("close")}</button></div>
     <div id="comparison-body"></div>
   </dialog>
 </div>`;
@@ -206,16 +208,65 @@ const sidePanel = plateTabs($(".hw-side"));
 const nowPager = paginate($("#now-pages"), { label: "해설", pager: $("#now-pager") });
 const scenePager = paginate($("#milestones"), { label: "장면" });
 const processPager = paginate($("#process-detail"), { label: "상세" });
-paginate($("#rules"), { label: "규칙" });
+paginate($("#rules"), { label: "범위" });
+const defaultMilestones = buildMilestones(simulate());
+const recallCount = 2;
+const progress = createProgress("cpu", { scenes: defaultMilestones.length, recall: recallCount });
+progress.onChange((summary) => {
+  const line = $("#now-pages .hw-progress");
+  if (line) line.outerHTML = progressHtml(summary);
+});
 let shownMilestone = null;
 const logWindow = rowWindow($(".cpu-log-box"), $("#event-log"), { current: () => $("#event-log tr[aria-current]") });
 // Content that changes starts again on its first page.
-function refill(pager, el, html) {
-  if (el.dataset.html === html) return;
+function refill(pager, el, html, before) {
+  if (el.dataset.html === html) return false;
   el.dataset.html = html;
   el.innerHTML = html;
+  before?.(el);
   pager.refresh();
   pager.show(0);
+  return true;
+}
+
+/* 정리: shown in 해설 after the finish chapter. The panel's sections become
+   direct children of the paged column so they split into whole pages. */
+let currentRecall = [];
+function recapBlocks() {
+  const fcfs = simulate({ algorithm: "fcfs" });
+  const rr = simulate({ algorithm: "rr", quantum: algorithm === "rr" ? quantum : 2 });
+  currentRecall = recallQuestions(rr, fcfs);
+  const template = document.createElement("template");
+  template.innerHTML = recapHtml({ id: "cpu", points: [], recall: currentRecall });
+  const panel = template.content.querySelector(".hw-recap");
+  // Each 핵심 정리 point is its own block so short windows split between points.
+  panel.firstElementChild.remove();
+  const points = recapPoints(result, fcfs).map((point, i) =>
+    i
+      ? `<p class="hw-text cpu-recap-point">${point}</p>`
+      : `<div class="cpu-recap-point"><span class="hw-label"><span class="hw-index">${LABELS.recap}</span> ${LABELS.recapPoints}</span><p class="hw-text">${point}</p></div>`,
+  );
+  return points.join("") + [...panel.children].map((child) => child.outerHTML).join("");
+}
+function fillRecap(box) {
+  box.querySelector(".hw-recap-foot")?.insertAdjacentHTML("afterbegin", progressHtml(progress.summary()));
+  bindRecap(box, { recall: currentRecall, progress, onAnswer: showRecallWhy });
+}
+// The answer note becomes its own block in the paged column, so a question
+// and its feedback split into whole pages instead of overflowing one.
+function showRecallWhy(question) {
+  const box = $(`#now-pages [data-recall="${question.id}"]`);
+  let wrap = box?.nextElementSibling;
+  if (box && !wrap?.classList.contains("cpu-recall-why")) {
+    wrap = document.createElement("div");
+    wrap.className = "cpu-recall-why";
+    box.after(wrap);
+    wrap.append(box.querySelector(".hw-recall-why"));
+  }
+  requestAnimationFrame(() => {
+    nowPager.refresh();
+    if (wrap) nowPager.showItem(wrap);
+  });
 }
 
 function updateThemeButton() {
@@ -286,32 +337,44 @@ function presentFrame(frame, move = null) {
   $("#seek").setAttribute("aria-valuetext", `${time}밀리초, 전체 ${result.stats.makespan}밀리초`);
   syncSlider($("#seek"));
 
-  const description = describeChapter(frame, result);
-  if (move) {
-    const order = frame.events.length + 1;
-    description.eyebrow = `${time} ms · 이번 시각의 사건 ${order}/${result.frames[time].events.length}`;
-    description.title = eventLabel(move);
-    description.body = moveExplanations[move.type];
-    description.insight = `이동 직전 준비 큐 · ${frame.ready.join(" → ") || "비어 있음"}`;
-  }
-  const visibleEvents = move ? [...frame.events, move] : frame.events;
-  const notes = move ? [] : momentNotes(frame, result);
-  const events = (visibleEvents.length
-    ? visibleEvents
-        .map((e) => `<li>${ledFor(e.id)}<span>${eventLabel(e)}${e === move ? '<span class="hw-muted"> · 이동 중</span>' : ""}</span></li>`)
-        .join("")
-    : `<li>${ledFor(frame.running)}<span>${frame.running ? `${josa(frame.running, "가")} 다음 사건까지 실행을 이어갑니다.` : "입출력이 끝나기를 기다립니다."}</span></li>`) +
-    notes.map((note) => `<li class="cpu-event-note"><span class="hw-muted">${note}</span></li>`).join("");
-  refill(
-    nowPager,
-    $("#now-pages"),
-    `<div id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"><span class="hw-label">${description.eyebrow}</span><h2 class="hw-title">${description.title}</h2><p class="hw-text">${description.body}</p></div>
-    <div><span class="hw-label">이번 시각의 사건</span><ul class="hw-list cpu-events" id="current-events">${events}</ul></div>
-    <div><p class="hw-note hw-note--accent" id="insight">${description.insight}</p></div>`,
-  );
-
   const milestones = buildMilestones(result);
+  const finished = time === result.stats.makespan;
+  const intro = time === 0 && !started && !move;
+  let html;
+  if (intro) {
+    // 목표: the question and the setup; nothing that has not happened yet.
+    const goal = describeIntro(result);
+    html = `<div id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"><span class="hw-label"><span class="hw-index">01</span> ${goal.eyebrow}</span><h2 class="hw-title">${goal.title}</h2><p class="hw-text">${goal.body}</p></div>
+    <p class="hw-text cpu-goal">${goal.goal}</p>
+    <dl class="hw-list cpu-terms">${goal.terms.map(([term, meaning]) => `<div><dt>${term}</dt><dd class="hw-muted">${meaning}</dd></div>`).join("")}</dl>`;
+  } else {
+    const description = describeChapter(frame, result);
+    let { key, notes } = stepNotes(frame, result);
+    if (move) {
+      const order = frame.events.length + 1;
+      description.eyebrow = `${time} ms · 이번 사건 ${order}/${result.frames[time].events.length}`;
+      description.title = eventLabel(move);
+      description.body = moveExplanations[move.type];
+      key = `이동 직전 준비 큐 · ${frame.ready.join(" → ") || "비어 있음"}`;
+      notes = [];
+    }
+    const visibleEvents = move ? [...frame.events, move] : frame.events;
+    const events = (visibleEvents.length
+      ? visibleEvents
+          .map((e) => `<li>${ledFor(e.id)}<span>${eventLabel(e)}${e === move ? '<span class="hw-muted"> · 이동 중</span>' : ""}</span></li>`)
+          .join("")
+      : `<li>${ledFor(frame.running)}<span>${frame.running ? `${josa(frame.running, "가")} 다음 사건까지 실행을 이어갑니다.` : "입출력이 끝나기를 기다립니다."}</span></li>`) +
+      notes.map((note) => `<li class="cpu-event-note"><span class="hw-muted">${note}</span></li>`).join("");
+    const canReplay = !move && time > 0 && result.frames[time].events.length > 0;
+    html = `<div id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"><span class="hw-label">${description.eyebrow}</span><h2 class="hw-title">${description.title}</h2><p class="hw-text">${description.body}</p></div>
+    <div><span class="hw-label cpu-events-head">${LABELS.now} 사건${canReplay ? `<button type="button" class="hw-key hw-key--sm" data-action="replay-event">${LABELS.now} 사건 다시 보기</button>` : ""}</span><ul class="hw-list cpu-events" id="current-events">${events}</ul></div>
+    <div><p class="hw-note hw-note--accent" id="insight"><span><b>${LABELS.key}</b> · ${key}</span></p></div>`;
+    if (finished && !move) html += recapBlocks();
+  }
+  refill(nowPager, $("#now-pages"), html, finished && !move && !intro ? fillRecap : null);
+
   const active = Math.max(0, milestones.findLastIndex((m) => m.time <= time));
+  if (!intro && !move && milestones[active].time === time) progress.markScene(milestones[active].kind);
   root.querySelectorAll("[data-milestone]").forEach((b, i) => {
     b.classList.toggle("is-done", i < active);
     if (i === active) b.setAttribute("aria-current", "true");
@@ -320,9 +383,8 @@ function presentFrame(frame, move = null) {
   $("#scene-progress").textContent = `· ${active + 1} / ${milestones.length}`;
   const activeButton = root.querySelectorAll("[data-milestone]")[active];
   if (activeButton !== shownMilestone) scenePager.showItem((shownMilestone = activeButton));
-  const finished = time === result.stats.makespan;
   const hasNext = result.decisions.some((d) => d.time > time && d.candidates.length > 1);
-  $('[data-action="predict"]').innerHTML = `${hasNext ? "다음 실행, 먼저 맞혀보기" : "앞선 장면에서 다시 예측"} ${icon("arrow")}`;
+  $('[data-action="predict"]').innerHTML = hasNext ? LABELS.predict("다음 CPU 배정") : `앞선 장면에서 다시 예측 ${icon("arrow")}`;
   $('[data-action="predict"]').hidden = finished;
   $("[data-conclusion]").hidden = !finished;
   renderTimeline();
@@ -384,8 +446,9 @@ function updateControls() {
 
   $("#scene").setAttribute("aria-busy", String(transitioning));
   const play = $('[data-action="play"]');
-  play.innerHTML = `${icon(canPause ? "pause" : finished && !transitioning ? "replay" : "play")}<span>${canPause ? "일시정지" : finished && !transitioning ? "다시 재생" : time === 0 ? "학습 시작" : "이어서 재생"}</span>`;
-  play.setAttribute("aria-label", canPause ? "일시정지" : "재생");
+  const playLabel = canPause ? LABELS.pause : finished && !transitioning ? LABELS.replay : time === 0 ? LABELS.start : LABELS.resume;
+  play.innerHTML = `${icon(canPause ? "pause" : finished && !transitioning ? "replay" : "play")}<span>${playLabel}</span>`;
+  play.setAttribute("aria-label", playLabel);
   $('[data-action="back"]').disabled = time === 0;
   $('[data-action="step"]').disabled = $('[data-action="event"]').disabled = finished;
   $('[data-action="guided"]').setAttribute("aria-checked", String(guided));
@@ -400,12 +463,13 @@ function updateControls() {
           ? "다음 핵심 장면에서 자동으로 멈춥니다."
           : "전체 과정을 연속으로 재생합니다."
         : time === 0
-          ? "재생하면 첫 장면부터 따라갑니다."
+          ? "핵심 장면마다 멈춥니다."
           : "장면을 살펴본 뒤 이어서 재생하세요.";
 }
 
 function seek(next, animate = false) {
   pause();
+  if (next > 0) started = true;
   moveTo(Math.max(0, Math.min(result.stats.makespan, next)), animate);
   if (time === 0 && matchMedia("(max-width: 759px)").matches) $(".hw-stage").scrollIntoView({ block: "start", behavior: "instant" });
 }
@@ -454,6 +518,10 @@ function togglePlay() {
     return;
   }
   if (time === result.stats.makespan && !transitioning) seek(0);
+  if (!started) {
+    started = true;
+    if (time === 0 && !transitioning) presentFrame(result.frames[0]);
+  }
   playing = true;
   motionPaused = false;
   scene.resume();
@@ -545,14 +613,17 @@ function openPrediction() {
   pause();
   const prediction = buildPrediction(result, time);
   const { decision } = prediction;
+  const rr = algorithm === "rr";
   quiz = { ...prediction, answered: false, followAnswered: false };
+  started = true;
   seek(prediction.beforeTime);
+  const follow = prediction.followUp;
   $("#prediction-body").innerHTML = `
     <div class="hw-plate-body">
       <div class="hw-section">
-        <span class="hw-label">${time}MS 장면에서 멈춤</span>
+        <span class="hw-label">${time}MS에서 멈춤</span>
         <h2 class="hw-title" id="prediction-title">${decision.time}ms, 다음 CPU는 누구에게 돌아갈까요?</h2>
-        <p class="hw-text hw-muted">실행 중인 작업의 남은 할당량·구간과 규칙을 근거로 ${decision.time}ms의 준비 큐를 직접 만들어 보세요.</p>
+        <p class="hw-text hw-muted">실행 중인 작업의 남은 ${rr ? "할당량·구간" : "CPU 구간"}과 규칙을 근거로 ${decision.time}ms의 준비 큐를 직접 만들어 보세요.</p>
       </div>
       <div class="hw-section">
         <dl class="hw-list cpu-quiz-context">
@@ -564,18 +635,18 @@ function openPrediction() {
       <div class="hw-section">
         <span class="hw-label">${decision.time}ms에 CPU를 받을 작업</span>
         <div class="cpu-choices">${prediction.choices
-          .map((id) => `<button class="hw-key" data-answer="${id}">${ledFor(id)}<span><b>${id}</b> ${DEFAULT_PROCESSES.find((p) => p.id === id).name}</span></button>`)
+          .map(({ id }) => `<button class="hw-key" data-answer="${id}">${ledFor(id)}<span><b>${id}</b> ${DEFAULT_PROCESSES.find((p) => p.id === id).name}</span></button>`)
           .join("")}</div>
         <div id="quiz-feedback" aria-live="polite"></div>
       </div>
-      <div class="hw-section" id="quiz-follow" hidden>
+      ${follow ? `<div class="hw-section" id="quiz-follow" hidden>
         <span class="hw-label">이어서 · 숫자로 예측</span>
-        <p class="hw-text">${prediction.followUp.question}</p>
-        <div class="cpu-choices cpu-choices--numbers">${prediction.followUp.choices.map((n) => `<button class="hw-key" data-number="${n}"><b class="hw-mono">${n}ms</b></button>`).join("")}</div>
+        <p class="hw-text">${follow.question}${follow.context ? ` <span class="hw-muted">(${follow.context})</span>` : ""}</p>
+        <div class="cpu-choices cpu-choices--numbers" style="--n:${follow.choices.length}">${follow.choices.map((n) => `<button class="hw-key" data-number="${n}"><b class="hw-mono">${n}ms</b></button>`).join("")}</div>
         <div id="quiz-follow-feedback" aria-live="polite"></div>
-      </div>
+      </div>` : ""}
     </div>
-    <div class="hw-plate-foot cpu-dialog-actions"><button class="hw-key hw-key--accent" data-action="quiz-continue" hidden>실제 이동을 보며 확인 ${icon("arrow")}</button></div>`;
+    <div class="hw-plate-foot cpu-dialog-actions"><button class="hw-key hw-key--accent" data-action="quiz-continue" hidden>${LABELS.reveal}</button></div>`;
   $("#prediction-dialog").showModal();
 }
 function markChoices(selector, attribute, correctValue, picked) {
@@ -587,16 +658,26 @@ function markChoices(selector, attribute, correctValue, picked) {
     else if (value === picked) b.insertAdjacentHTML("beforeend", '<span class="hw-tag">내 선택</span>');
   });
 }
+function showReveal() {
+  const key = $('[data-action="quiz-continue"]');
+  key.hidden = false;
+  key.focus();
+}
 function answerPrediction(answer) {
   if (quiz.answered) return;
   quiz.answered = true;
-  const chosen = quiz.decision.chosen,
-    correct = answer === chosen;
+  const chosen = quiz.decision.chosen;
+  const picked = quiz.choices.find((choice) => choice.id === answer);
+  const correct = picked.correct;
+  progress.markPrediction(quiz.id, correct);
   markChoices("[data-answer]", "answer", chosen, answer);
-  $("#quiz-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? "맞았습니다." : `실제 차례는 ${chosen}입니다.`}</p><p>${quiz.explanation}</p></div></div>`;
+  const right = quiz.choices.find((choice) => choice.correct);
+  $("#quiz-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? LABELS.correct : LABELS.wrong(chosen)}</p><p>${picked.why}</p>${correct ? "" : `<p class="hw-muted">${right.why}</p>`}</div></div>`;
   // The feedback restates the queue, so the context makes room for the follow-up.
   $("#prediction-body .cpu-quiz-context").closest(".hw-section").hidden = true;
   $("#prediction-body .hw-section > .hw-text.hw-muted").hidden = true;
+  $("#prediction-body").classList.add("is-answered");
+  if (!quiz.followUp) return showReveal();
   $("#quiz-follow").hidden = false;
   $("[data-number]")?.focus();
 }
@@ -604,10 +685,10 @@ function answerNumber(value) {
   if (!quiz.answered || quiz.followAnswered) return;
   quiz.followAnswered = true;
   const { answer, explanation } = quiz.followUp;
+  const correct = Number(value) === answer;
   markChoices("[data-number]", "number", String(answer), String(value));
-  $("#quiz-follow-feedback").innerHTML = `<div class="hw-note ${Number(value) === answer ? "hw-note--accent" : ""}"><div><p>${Number(value) === answer ? "맞았습니다. " : ""}${explanation}</p></div></div>`;
-  $('[data-action="quiz-continue"]').hidden = false;
-  $('[data-action="quiz-continue"]').focus();
+  $("#quiz-follow-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p>${correct ? LABELS.correct : LABELS.wrong(`${answer}ms`)} ${explanation}</p></div></div>`;
+  showReveal();
 }
 
 function comparisonTimeline(run, scale) {
@@ -620,6 +701,7 @@ function comparisonTimeline(run, scale) {
 }
 function openComparison() {
   pause();
+  progress.markCompared();
   const rr = simulate({ algorithm: "rr", quantum }),
     fcfs = simulate({ algorithm: "fcfs" });
   const scale = Math.max(rr.stats.makespan, fcfs.stats.makespan);
@@ -644,7 +726,6 @@ function openComparison() {
     <div class="hw-plate-body">
       <div class="hw-section">
         <h2 class="hw-title" id="comparison-title">빠른 응답과 빠른 완료는 같은 뜻일까요?</h2>
-        <p class="hw-text hw-muted">작업과 도착 시각은 그대로 두고 CPU 배정 방식만 바꿔 끝까지 실행한 결과입니다.</p>
       </div>
       <div class="hw-section cpu-compare-runs">
         <span class="hw-label">RR · ${quantum}ms</span>${comparisonTimeline(rr, scale)}<span class="hw-mono">${rr.stats.makespan}ms</span>
@@ -659,12 +740,12 @@ function openComparison() {
           .join("")}</tbody></table>
       </div>
       <div class="hw-section">
-        <div class="hw-note hw-note--accent"><div><p class="hw-heading">${summary.response}</p><p>${summary.finish} ${summary.cause}</p><p class="hw-muted">${summary.caveat}</p></div></div>
-        <p class="hw-text hw-muted cpu-sweep">할당량 ${sweep.map((r) => mark(r.quantum, `${r.quantum}`)).join("·")}ms → 문맥 교환 ${sweep.map((r) => mark(r.quantum, r.switches)).join("·")}회, 전체 완료 ${sweep.map((r) => mark(r.quantum, r.makespan)).join("·")}ms. 할당량이 작을수록 전환이 늘고, 가장 긴 CPU 구간 이상이면 FCFS와 같아집니다.</p>
+        <div class="hw-note hw-note--accent"><div><p class="hw-heading">${summary.response}</p><p>${summary.finish} ${summary.cause}</p>${summary.caveat ? `<p class="hw-muted">${summary.caveat}</p>` : ""}</div></div>
+        <p class="hw-text hw-muted cpu-sweep">${sweepSummary(sweep, Math.max(...DEFAULT_PROCESSES.flatMap((p) => p.cpu)), mark)}</p>
       </div>
     </div>
     <div class="hw-plate-foot cpu-dialog-actions">
-      <button class="hw-key" data-action="try-other">${josa(algorithm === "rr" ? "FCFS" : "라운드 로빈", "으로")} 직접 실행 ${icon("arrow")}</button>
+      <button class="hw-key" data-action="try-other">${josa(algorithm === "rr" ? "FCFS" : "라운드 로빈", "으로")} 다시 보기 ${icon("arrow")}</button>
       <button class="hw-key hw-key--accent" data-action="close-dialog">계속 살펴보기</button>
     </div>`;
   $("#comparison-dialog").showModal();
@@ -701,6 +782,10 @@ root.addEventListener("click", (event) => {
   if (target.dataset.time !== undefined) {
     seek(Number(target.dataset.time));
     if (target.hasAttribute("data-milestone")) {
+      if (!started) {
+        started = true;
+        presentFrame(result.frames[time]);
+      }
       sidePanel.select("now");
       $("#explanation").focus({ preventScroll: true });
       $("#explanation").scrollIntoView({ block: "nearest" });
@@ -724,8 +809,16 @@ root.addEventListener("click", (event) => {
       seek(time + 1, true);
       break;
     case "reset":
+      started = false;
       seek(0);
       break;
+    case "replay-event": {
+      // Play this boundary's moves again from the moment before.
+      const at = time;
+      seek(at - 1);
+      seek(at, true);
+      break;
+    }
     case "event":
       seek(result.frames.find((f) => f.t > time && f.events.length)?.t ?? result.stats.makespan, true);
       break;
@@ -801,7 +894,10 @@ document.addEventListener("keydown", (e) => {
   } else if (e.key === "ArrowLeft") {
     e.preventDefault();
     seek(time - 1);
-  } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) seek(0);
+  } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    started = false;
+    seek(0);
+  }
 });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) pause();

@@ -31,14 +31,19 @@ const reviewedCorrections = {
     encoding: "97ff96fae163df84696d0740455cda9cc3e9f4d2a5ef33efb3052025274c2d5b",
     sequence: "f544a71076427313a3e018970c4d281757e71a5d8f95b3b875d0b9e093c9172d",
   },
+  // Step 2 (Discover) now says the broadcast flag is left at 0, which the
+  // OFFER prediction relies on; packets and sequence are unchanged.
   dhcp: {
-    lesson: "fcf2031ceb653cca14b1ed9d797dc0f009dbccb59a8c6ece056ad36c7505c895",
+    lesson: "349514f08000f549ca267938105c8624a2268559a14e175591eb9e3563d72ec0",
     encoding: "b7e084412e3c60768ecf47ddd81c1b5b66a6ce470a8592344c10f436eb7a3b2a",
     sequence: "34fe4cc1cc3e6d4f0d3f3bb1c3316d86dc2e02b313b85fb89821b8bf169e6e35",
   },
   icmp: { encoding: "9db27999c606d0ad13d34336d04ee5a48aebc49ac24c2ef34c5d7a1d81ea42f0" },
+  // The EDNS record of a DNS response is described as the responder's own
+  // UDP limit (the query keeps the request wording): only a field note changed.
   smtp: {
     lesson: "36aa3125bc0d34a6a7d8eebf9677628d1bcf1b58e857e56cc8aa8069d932981a",
+    encoding: "0b882992b983a3ed8e2c003b247a67f4a5d746a031ef8706eca1b9e2fed2641f",
     sequence: "82645d0874e689e99ae336f069d04b0e3f13d05eccc286866e6759b0d94f3382",
   },
   tcp: {
@@ -48,7 +53,13 @@ const reviewedCorrections = {
   },
   // Steps 2–4 state as a fact that the resolver's own queries are iterative
   // (RD=0); only the facts changed, not the packets or the sequence.
-  dns: { lesson: "98da24902b9d294738ec1a22020190f315666ba9238adde6e25b4b6e18076ec0" },
+  // Step 2 says this example sends the full name while many resolvers send
+  // only the label each server needs (RFC 9156); responses describe their
+  // EDNS record as the responder's limit. Packet bytes are unchanged.
+  dns: {
+    lesson: "ea19e2e633871eb35d8d9c4d0cd0e460a2c89df8ef2c7f72e7574996c4b59b33",
+    encoding: "043cb59f971c7ffad27b148f1f13023fe646fecd28c771814dd7f47829e15605",
+  },
   tls: { lesson: "61f24c71bd8eb9ed1980cce0526c8a17dda3c331885702019280ad7363378155" },
   https: { lesson: "3b63bedaf277bebd6807d8770cdfd3c602b5d04d469823b704ee0572d0cd6333" },
 };

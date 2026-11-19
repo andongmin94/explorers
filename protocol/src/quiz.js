@@ -64,6 +64,8 @@ const READERS = {
     const port = transportOf(packet)?.sport;
     return port === undefined ? null : String(port);
   },
+  /** IPv4 source address (after NAT where the packet was rewritten). */
+  source: (packet) => packet.row?.src ?? null,
   /** Which link the packet takes: "from>to" node ids. */
   route: (packet) => (packet.from && packet.to ? `${packet.from}>${packet.to}` : null),
   /** Who opens a TCP connection, and to which port: "from>to:dport". */
@@ -106,6 +108,7 @@ function getLessonQuizzes(lesson) {
 }
 function buildLessonQuizzes(lesson) {
   const packets = getLessonPackets(lesson);
+  const where = getPacketPositions(lesson);
   return (lessonQuizzes[lesson.id] ?? [])
     .map((question) => {
       const packet = packets[question.packet];
@@ -114,9 +117,11 @@ function buildLessonQuizzes(lesson) {
         ...question,
         packetData: packet,
         answer,
-        choices: question.choices.map(([value, text = defaultChoiceText(lesson, question.kind, value)]) => ({
+        step: where[question.packet]?.step ?? -1,
+        choices: question.choices.map(([value, text, why]) => ({
           value,
-          text,
+          text: text ?? defaultChoiceText(lesson, question.kind, value),
+          why,
           correct: value === answer,
         })),
       };
@@ -147,4 +152,66 @@ function nextQuiz(lesson, playback) {
   return getLessonQuizzes(lesson).find((quiz) => quiz.packet >= upcoming) ?? null;
 }
 
-export { getLessonQuizzes, getPacketAnswer, getQuizForStep, getUpcomingPacket, nextQuiz };
+/**
+ * Where each packet sits in the player's event list: { step, event, k }.
+ * `event` is the index in createLessonPlayer's events (a focus event comes
+ * first), `k` the packet's position inside a stream (0 for single packets).
+ */
+function getPacketPositions(lesson) {
+  const positions = [];
+  let eventIndex = 1;
+  lesson.steps.forEach((step, stepIndex) =>
+    step.events.forEach((event) => {
+      if (event.type === "packet") positions.push({ step: stepIndex, event: eventIndex, k: 0 });
+      if (event.type === "stream") event.packets.forEach((_, k) => positions.push({ step: stepIndex, event: eventIndex, k }));
+      eventIndex++;
+    }),
+  );
+  return positions;
+}
+
+/**
+ * The 핵심 장면 of a lesson: the steps with a prediction, in order. Guided
+ * playback stops before each of their questions.
+ */
+function getKeySteps(lesson) {
+  return [...new Set(getLessonQuizzes(lesson).map((quiz) => quiz.step))].sort((a, b) => a - b);
+}
+
+/**
+ * Guided stops: player event indices to hold before (a question about the
+ * event's first packet) and packets inside a stream to hold before.
+ */
+function getGuidedStops(lesson) {
+  const where = getPacketPositions(lesson);
+  const events = new Set();
+  const midStream = new Set();
+  for (const quiz of getLessonQuizzes(lesson)) {
+    const position = where[quiz.packet];
+    if (position.k === 0) events.add(position.event);
+    else midStream.add(quiz.packet);
+  }
+  return { events, midStream };
+}
+
+/**
+ * The question that still hides the explanation: the one for the upcoming
+ * packet, until it is answered or the packet has passed. `answered` holds
+ * the packet indices answered in this lesson.
+ */
+function getPendingQuiz(lesson, playback, answered = new Set()) {
+  const quiz = getQuizForStep(lesson, playback);
+  return quiz && !answered.has(quiz.packet) ? quiz : null;
+}
+
+export {
+  getGuidedStops,
+  getKeySteps,
+  getLessonQuizzes,
+  getPacketAnswer,
+  getPacketPositions,
+  getPendingQuiz,
+  getQuizForStep,
+  getUpcomingPacket,
+  nextQuiz,
+};

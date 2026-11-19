@@ -5,14 +5,18 @@ import "../../shared/switcher.js";
 import "../../shared/iso.js";
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs, rowWindow } from "../../shared/fit.js";
+import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
 import { REFERENCE_STRING, simulate } from "./engine.js";
-import { buildMilestones, describeStep, predictionFor } from "./lesson.js";
+import { buildMilestones, compulsoryCount, describeStep, predictionFor, recapFor, victimHintsVisible } from "./lesson.js";
 import { createMemoryScene, pageColor } from "./scene.js";
 import { countFaults } from "./policies.js";
 
 const $ = (selector) => document.querySelector(selector);
 const TOTAL = REFERENCE_STRING.length;
 const runs = { fifo: simulate({ algorithm: "fifo" }), lru: simulate({ algorithm: "lru" }) };
+const MILESTONES = buildMilestones(runs.fifo);
+const RECAP = recapFor(runs);
+const progress = createProgress("memory", { scenes: MILESTONES.length, recall: RECAP.recall.length });
 let algorithm = "fifo",
   index = 0,
   committed = 0,
@@ -26,27 +30,56 @@ let algorithm = "fifo",
   timer = null,
   selectedRecord = "history",
   quiz = null;
+// Predictions answered in this session, by quiz id ("fifo-5"): their hints may show.
+const answered = new Set();
 
 const run = () => runs[algorithm];
 const current = () => run().steps[committed];
 const policyName = (name) => name.toUpperCase();
 const chipFor = (page) => (page ? `<span class="mem-pg" style="--pg:${pageColor(page)}">${page}</span>` : `<span class="mem-pg is-empty">—</span>`);
-const outcome = (step) =>
-  `<span class="mem-outcome ${step.hit ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span>${step.hit ? "적중" : "부재"}</span>`;
+const outcome = (step, cold = false) =>
+  `<span class="mem-outcome ${step.hit ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span>${step.hit ? "적중" : cold && step.compulsory ? "강제 부재" : "부재"}</span>`;
 const STAGES = ["조회", "판정", "프레임 선택", "적재", "CPU 읽기"];
-const MILESTONE_SHORT = ["개념", "빈 칸", "재사용", "교체", "영향", "비교"];
 const RULES = {
-  fifo: "가장 먼저 들어온 페이지를 내보냅니다. 적중해도 적재 순서는 바뀌지 않습니다.",
-  lru: "가장 오래 사용하지 않은 페이지를 내보냅니다. 적중하면 최근 사용 순서를 갱신합니다.",
+  fifo: "적재 순서가 가장 앞선 페이지를 내보냅니다. 적중해도 적재 순서는 바뀌지 않습니다.",
+  lru: "마지막 접근이 가장 이른 페이지를 내보냅니다. 적중하면 마지막 접근을 갱신합니다.",
 };
+const TERMS = [
+  ["가상 주소", "프로그램이 보는 주소. 실제 RAM 위치와 따로 매겨집니다."],
+  ["페이지", "가상 주소 공간을 같은 크기로 나눈 단위. A~E 다섯 개"],
+  ["프레임", "RAM을 같은 크기로 나눈 칸. 프레임 0~2(F0~F2)"],
+  ["페이지 테이블", "페이지마다 상주 여부와 프레임 번호를 적은 표"],
+  ["MMU", "주소 변환 장치. 접근마다 페이지 테이블로 가상 주소를 RAM 주소로 바꿉니다."],
+  ["상주·미상주", "페이지가 지금 RAM 프레임에 있으면 상주, 없으면 미상주(—)"],
+  ["적중", "상주 페이지에 접근. 저장장치를 읽지 않습니다."],
+  ["페이지 부재", "page fault. 미상주 페이지에 접근해 운영체제가 저장장치에서 읽어 옵니다."],
+  ["부재 비용", "RAM 접근은 약 100ns, 저장장치 읽기는 SSD 수십 µs 이상·HDD 수 ms. 그동안 프로세스는 기다립니다."],
+  ["강제 부재", "compulsory miss. 그 페이지를 처음 참조할 때의 부재. RAM이 가득 차 있으면 교체도 일어날 수 있습니다."],
+  ["용량 부재", "capacity miss. 프레임이 모자라 내보냈던 페이지를 다시 읽는 부재"],
+  ["교체", "빈 프레임이 없을 때 한 페이지를 내보내고 그 프레임을 재사용하는 일"],
+  ["적중률", "적중 횟수 ÷ 전체 접근 횟수"],
+  ["FIFO", RULES.fifo],
+  ["LRU", RULES.lru],
+  ["LRU 근사", "실제로는 접근 순서 대신 참조 비트만 기록되고, 운영체제가 클럭 알고리즘 등으로 근사합니다. 이 화면은 정확한 LRU입니다."],
+  ["OPT(MIN)", "앞으로 가장 늦게 쓰일 페이지를 내보내는 이론상 최적 정책. 미래를 알아야 해 기준선으로만 씁니다."],
+];
+const MODEL_RULES = [
+  ["시작", "RAM 프레임 3개는 처음에 모두 비어 있습니다."],
+  ["접근", `A B C A D A B E A B, 정해진 ${TOTAL}번의 읽기를 두 방식에 똑같이 적용합니다.`],
+  ["원본", "A~E는 저장장치(SSD)에 원본이 있는 읽기 전용 페이지입니다."],
+  ["빈 칸", "빈 프레임이 있으면 교체 없이 적재합니다."],
+  ["쓰기", "내보내는 사본은 수정되지 않아 저장장치에 다시 쓰지 않습니다."],
+  ["제외", "TLB·수정 페이지는 다루지 않습니다. 시뮬레이션은 지연 시간을 재지 않습니다. 한 번 넘기면 한 번의 접근입니다."],
+];
+const dl = (rows) => rows.map(([term, text]) => `<div><dt>${term}</dt><dd>${text}</dd></div>`).join("");
 
 $("#app").outerHTML = `
 <div class="hw-page">
   <header class="hw-topbar">
     <div class="hw-brand"><h1>메모리 탐색기</h1><p>보면서 이해하는 운영체제</p></div>
-    <div class="hw-context"><span class="hw-label"><span class="hw-index">02</span> 대표 시나리오</span><strong>같은 접근, 다른 교체</strong></div>
+    <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> ${LABELS.scenario}</span><strong>같은 접근, 다른 교체</strong></div>
     <div class="hw-actions">
-      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span class="mem-hide-sm">FIFO · LRU </span>비교</button>
+      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span class="mem-hide-sm">두 방식 </span>비교</button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button>
     </div>
   </header>
@@ -92,17 +125,17 @@ $("#app").outerHTML = `
         <input class="hw-slider" id="seek" type="range" min="0" max="${TOTAL}" step="1" value="0" aria-label="처리한 페이지 접근 수" />
         <span class="hw-label">${TOTAL}</span>
       </div>
-      <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">핵심 장면에서 멈추기</button>
+      <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">${LABELS.guided}</button>
     </section>
 
     <aside class="hw-plate hw-side" aria-labelledby="lesson-label">
       <div class="hw-plate-head mem-side-head">
         <span class="hw-label" id="lesson-label"><span class="hw-index">B</span><span class="visually-hidden">학습 패널</span></span>
         <div class="hw-tabs" role="tablist" aria-labelledby="lesson-label">
-          <button type="button" data-tab="now" aria-selected="true">해설</button>
+          <button type="button" data-tab="now" aria-selected="true">${LABELS.explainTab}</button>
+          <button type="button" data-tab="scenes">${LABELS.scenesTab}</button>
           <button type="button" data-tab="frames">프레임</button>
-          <button type="button" data-tab="scenes">장면</button>
-          <button type="button" data-tab="rules">규칙</button>
+          <button type="button" data-tab="scope">${LABELS.scopeTab}</button>
         </div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="now">
@@ -110,54 +143,37 @@ $("#app").outerHTML = `
           <div>
             <span class="hw-label" id="eyebrow"></span>
             <h2 class="hw-title mem-gap-sm" id="lesson-title"></h2>
-            <p class="hw-text mem-gap-sm" id="lesson-body"></p>
+            <p class="hw-text mem-gap-sm" id="lesson-body" aria-live="polite"></p>
+            <p class="hw-text mem-gap-sm mem-goal" id="lesson-goal"></p>
           </div>
-          <div>
+          <div id="event-block">
             <span class="hw-label" id="event-title"></span>
-            <p class="hw-text mem-gap-sm" id="event-body" aria-live="polite"></p>
+            <p class="mem-ram-line mem-gap-sm" id="event-ram"></p>
           </div>
-          <div><div class="hw-note hw-note--accent" id="insight"></div></div>
+          <div id="key-block"><div class="hw-note hw-note--accent"><p class="hw-text"><b>${LABELS.key}</b> <span id="insight"></span></p></div></div>
         </div>
         <div class="mem-side-foot">
-          <button class="hw-key" data-action="predict">다음 접근 맞혀보기 →</button>
-          <button class="hw-key hw-key--accent" data-action="compare" id="conclusion">전체 결과 비교 →</button>
+          <button class="hw-key" data-action="predict"></button>
+          <button class="hw-key hw-key--accent" data-action="compare" id="conclusion">${LABELS.compareEnd}</button>
           <div class="hw-pager" id="now-pager"></div>
         </div>
+      </div>
+      <div class="hw-plate-body hw-fit" data-panel="scenes" hidden>
+        <span class="hw-label">${LABELS.jumpToScene}</span>
+        <div class="hw-list hw-fill mem-gap-sm" id="milestones"></div>
+        <div class="mem-gap-sm" id="scene-progress"></div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="frames" hidden>
         <span class="hw-label">지금 RAM의 프레임</span>
         <span class="hw-label hw-muted mem-frames-note" id="frames-note"></span>
         <ul class="hw-list hw-fill mem-gap-sm" id="frame-list"></ul>
       </div>
-      <div class="hw-plate-body hw-fit" data-panel="scenes" hidden>
-        <span class="hw-label">핵심 장면으로 이동 <span class="hw-muted" id="lesson-progress"></span></span>
-        <div class="hw-list hw-fill mem-gap-sm" id="milestones"></div>
-      </div>
-      <div class="hw-plate-body hw-fit" data-panel="rules" hidden>
-        <span class="hw-label">이 실험의 규칙과 용어</span>
-        <dl class="hw-list hw-fill mem-gap-sm mem-rules" id="rules">
-          <div><dt>가상 주소</dt><dd>프로그램이 보는 주소. 실제 RAM 위치와 따로 매겨집니다.</dd></div>
-          <div><dt>페이지</dt><dd>가상 주소 공간을 같은 크기로 나눈 단위. A~E 다섯 개</dd></div>
-          <div><dt>프레임</dt><dd>RAM을 같은 크기로 나눈 칸. F0~F2</dd></div>
-          <div><dt>페이지 테이블</dt><dd>페이지마다 상주 여부와 프레임 번호를 적은 표</dd></div>
-          <div><dt>MMU</dt><dd>주소 변환 장치. 접근마다 페이지 테이블로 가상 주소를 RAM 주소로 바꿉니다.</dd></div>
-          <div><dt>상주·미상주</dt><dd>페이지가 지금 RAM 프레임에 있으면 상주, 없으면 미상주(—)</dd></div>
-          <div><dt>적중</dt><dd>상주 페이지에 접근. 운영체제 없이 MMU만으로 끝납니다.</dd></div>
-          <div><dt>페이지 부재</dt><dd>page fault. 미상주 페이지에 접근해 운영체제가 저장장치에서 읽어 옵니다.</dd></div>
-          <div><dt>부재 비용</dt><dd>RAM 접근은 약 100ns, 저장장치 읽기는 SSD 수십 µs 이상·HDD 수 ms. 그동안 프로세스는 기다립니다.</dd></div>
-          <div><dt>강제 부재</dt><dd>초기 부재(cold miss). 빈 RAM을 처음 채울 때의 부재로, 교체가 없습니다.</dd></div>
-          <div><dt>교체</dt><dd>빈 프레임이 없을 때 한 페이지를 내보내고 그 프레임을 재사용하는 일</dd></div>
-          <div><dt>적중률</dt><dd>적중 횟수 ÷ 전체 접근 횟수</dd></div>
-          <div><dt>FIFO</dt><dd>${RULES.fifo}</dd></div>
-          <div><dt>LRU</dt><dd>${RULES.lru}</dd></div>
-          <div><dt>LRU 근사</dt><dd>실제로는 접근 순서 대신 참조 비트만 기록되고, 운영체제가 클럭 알고리즘 등으로 근사합니다. 이 화면은 정확한 LRU입니다.</dd></div>
-          <div><dt>OPT(MIN)</dt><dd>앞으로 가장 늦게 쓰일 페이지를 내보내는 이론상 최적 정책. 미래를 알아야 해 기준선으로만 씁니다.</dd></div>
-          <div><dt>시작</dt><dd>RAM 프레임 3개는 처음에 모두 비어 있습니다.</dd></div>
-          <div><dt>원본</dt><dd>A~E는 저장장치(SSD)에 원본이 있는 읽기 전용 페이지입니다.</dd></div>
-          <div><dt>빈 칸</dt><dd>빈 프레임이 있으면 교체 없이 적재합니다.</dd></div>
-          <div><dt>쓰기</dt><dd>내보내는 사본은 수정되지 않아 저장장치에 다시 쓰지 않습니다.</dd></div>
-          <div><dt>범위</dt><dd>TLB·수정 페이지·실제 지연 시간은 다루지 않습니다. 1단계는 1번의 접근입니다.</dd></div>
-        </dl>
+      <div class="hw-plate-body hw-fit" data-panel="scope" hidden>
+        <div class="hw-seg mem-scope-seg" role="group" aria-label="범위">
+          <button type="button" data-scope="terms" aria-pressed="true">용어</button><button type="button" data-scope="rules" aria-pressed="false">이 실험의 규칙</button>
+        </div>
+        <dl class="hw-list hw-fill mem-gap-sm mem-rules" id="terms" aria-label="용어">${dl(TERMS)}</dl>
+        <dl class="hw-list hw-fill mem-gap-sm mem-rules" id="rules" aria-label="이 실험의 규칙" hidden>${dl(MODEL_RULES)}</dl>
       </div>
     </aside>
 
@@ -166,14 +182,14 @@ $("#app").outerHTML = `
         <div class="hw-tabs" role="tablist" aria-label="관찰 기록">
           <button role="tab" id="tab-history" aria-controls="record-history" aria-selected="true" data-record="history">프레임 기록</button>
           <button role="tab" id="tab-events" aria-controls="record-events" aria-selected="false" data-record="events" tabindex="-1">접근 기록 <span class="hw-mono hw-muted" id="event-count"></span></button>
-          <button role="tab" id="tab-results" aria-controls="record-results" aria-selected="false" data-record="results" tabindex="-1">정책별 누적</button>
+          <button role="tab" id="tab-results" aria-controls="record-results" aria-selected="false" data-record="results" tabindex="-1">정책별 결과</button>
         </div>
         <span class="hw-label mem-hide-sm">기록을 눌러 그 접근으로 이동</span>
       </div>
       <div class="hw-plate-body hw-scroll" id="record-history" role="tabpanel" aria-labelledby="tab-history"></div>
       <div class="hw-plate-body hw-scroll mem-events-box" id="record-events" role="tabpanel" aria-labelledby="tab-events" hidden>
         <p class="hw-text hw-muted" id="events-empty">페이지에 접근하면 판정과 교체 근거가 기록됩니다.</p>
-        <table class="hw-table" id="events-table"><thead><tr><th>접근</th><th>페이지</th><th>판정</th><th>프레임</th><th>교체</th><th>이번 접근의 근거</th></tr></thead><tbody id="events-body"></tbody></table>
+        <table class="hw-table" id="events-table"><thead><tr><th>접근</th><th>페이지</th><th>판정</th><th>프레임</th><th>교체</th><th>근거</th></tr></thead><tbody id="events-body"></tbody></table>
       </div>
       <div class="hw-plate-body hw-scroll" id="record-results" role="tabpanel" aria-labelledby="tab-results" hidden></div>
     </section>
@@ -194,11 +210,13 @@ const app = $(".hw-page");
 const sidePanel = plateTabs($(".hw-side"));
 const nowPager = paginate($("#now-pages"), { label: "해설", pager: $("#now-pager") });
 const framesPager = paginate($("#frame-list"), { label: "프레임" });
-const scenePager = paginate($("#milestones"), { label: "장면" });
+const scenePager = paginate($("#milestones"), { label: LABELS.scenesTab });
+paginate($("#terms"), { label: "용어" });
 paginate($("#rules"), { label: "규칙" });
 const eventsWindow = rowWindow($("#record-events"), $("#events-body"), { current: () => $("#events-body tr[aria-current]") });
 let nowText = "",
-  shownChapter = null;
+  shownChapter = null,
+  recapShownFor = null;
 // Changed explanation text starts again on its first page.
 function refreshNow() {
   const text = $("#now-pages").textContent;
@@ -213,12 +231,18 @@ const scene = createMemoryScene($("#memory-scene"), {
     $("#status-led").dataset.kind = phase.kind;
     $("#status-led").classList.toggle("is-on", phase.kind !== "ready");
     if (busy) {
-      $("#event-title").textContent = `${index}번째 접근 · 처리 중`;
-      $("#event-body").textContent = phase.body;
+      $("#lesson-body").textContent = phase.body;
       refreshNow();
     }
   },
 });
+
+function renderProgress() {
+  const html = progressHtml(progress.summary());
+  $("#scene-progress").innerHTML = html;
+  document.querySelectorAll("#now-pages .hw-progress").forEach((el) => (el.outerHTML = html));
+}
+progress.onChange(renderProgress);
 
 /* ---------- Rendering ---------- */
 
@@ -237,8 +261,8 @@ function renderStages(kind = "ready") {
 function renderControls() {
   const moving = playing || (busy && !motionPaused);
   const play = $('[data-action="play"]');
-  play.innerHTML = `${icon(moving ? "pause" : "play")}${moving ? "일시정지" : index === TOTAL && !busy ? "다시 재생" : index === 0 ? "학습 시작" : "이어서 재생"}`;
-  play.setAttribute("aria-label", moving ? "일시정지" : "재생");
+  play.innerHTML = `${icon(moving ? "pause" : "play")}${moving ? LABELS.pause : index === TOTAL && !busy ? LABELS.replay : index === 0 ? LABELS.start : LABELS.resume}`;
+  play.setAttribute("aria-label", moving ? LABELS.pause : "재생");
   $('[data-action="back"]').disabled = index === 0;
   $('[data-action="next"]').disabled = busy || index === TOTAL;
   $('[data-action="replay"]').disabled = index === 0 || busy;
@@ -246,9 +270,36 @@ function renderControls() {
   $("#memory-scene").setAttribute("aria-busy", String(busy));
 }
 
+/** The 정리 sections join the 해설 pages at the end; built once per visit. */
+function renderRecap(show) {
+  const key = show ? algorithm : null;
+  if (key === recapShownFor) return;
+  recapShownFor = key;
+  document.querySelectorAll("#now-pages > .mem-recap-part").forEach((el) => el.remove());
+  if (!show) return;
+  const holder = document.createElement("div");
+  holder.innerHTML = recapHtml({ id: "memory", points: RECAP.points, recall: RECAP.recall, progress });
+  const parts = [...holder.firstElementChild.children];
+  parts.forEach((el) => el.classList.add("mem-recap-part"));
+  parts[0].querySelector(".hw-label").textContent = `${LABELS.recap} · ${LABELS.recapPoints}`;
+  $("#now-pages").append(...parts);
+  bindRecap($("#now-pages"), {
+    recall: RECAP.recall,
+    progress,
+    onAnswer(question) {
+      // Keep the learner on the question they answered.
+      const box = $(`#now-pages [data-recall="${question.id}"]`);
+      nowPager.refresh();
+      nowPager.showItem(box);
+      nowText = $("#now-pages").textContent;
+    },
+  });
+}
+
 function render() {
   const step = current();
-  const lesson = describeStep(run().steps[busy && index < TOTAL ? index : committed], run());
+  const shown = run().steps[busy && index < TOTAL ? index : committed];
+  const lesson = describeStep(shown, run());
   const seek = $("#seek");
   seek.value = index;
   seek.setAttribute("aria-valuetext", `${index}번의 페이지 접근, 전체 ${TOTAL}번`);
@@ -263,46 +314,57 @@ function render() {
       `<button data-seek="${i + 1}" aria-pressed="${i + 1 === index}" class="${i < committed ? "is-visited" : ""}" style="--pg:${pageColor(page)}" aria-label="${i + 1}번째, 페이지 ${page} 접근 후로 이동"><small>${i + 1}</small><b>${page}</b></button>`,
   ).join("");
 
-  $("#eyebrow").textContent = busy ? `${index} / ${TOTAL}번째 접근 · 처리 중 · ${policyName(algorithm)}` : lesson.eyebrow;
+  // 설명: eyebrow, title, body, 이번 접근 (직전 → 현재), 핵심.
+  $("#eyebrow").textContent = busy ? `${index}번째 접근 · 처리 중 · ${policyName(algorithm)}` : lesson.eyebrow;
   $("#lesson-title").textContent = lesson.title;
-  $("#lesson-body").textContent = busy
-    ? `페이지 ${run().steps[index].page}의 테이블 항목과 프레임을 확인하세요. CPU가 값을 돌려받으면 이번 접근이 끝납니다.`
-    : lesson.body;
-  if (!busy) {
-    $("#event-title").textContent = lesson.eventTitle;
-    $("#event-body").textContent = lesson.eventBody;
-  }
-  $("#insight").textContent = lesson.insight;
+  if (!busy) $("#lesson-body").textContent = lesson.body;
+  $("#lesson-goal").textContent = busy ? "" : lesson.goal;
+  $("#lesson-goal").hidden = busy || !lesson.goal;
+  // paginate() owns `hidden` on the page blocks; a class takes a block out.
+  $("#event-block").classList.toggle("mem-off", busy || shown.index === 0);
+  $("#event-title").textContent = `${LABELS.now} 접근 · ${lesson.eventTitle}`;
+  $("#event-ram").innerHTML = shown.index
+    ? `<span class="hw-label">직전</span>${shown.before.map((f) => chipFor(f.page)).join("")}<span class="hw-label">→ 현재</span>${shown.frames.map((f) => chipFor(f.page)).join("")}`
+    : "";
+  $("#key-block").classList.toggle("mem-off", busy);
+  $("#insight").textContent = lesson.key;
+  renderRecap(index === TOTAL && !busy);
+
+  const nextQuiz = !busy && run().steps[index + 1] ? predictionFor(run().steps[index + 1], run()) : null;
+  const open = $("#prediction-dialog").open ? quiz : null;
+  const hints = victimHintsVisible({ nextQuiz: open ?? nextQuiz, answered: answered.has((open ?? nextQuiz)?.id), busy });
+  scene.setHints(hints);
 
   const occupied = step.frames.filter((frame) => frame.page !== null);
   const key = algorithm === "fifo" ? "loadedAt" : "lastUsedAt";
-  $("#frames-note").textContent = busy ? "직전 접근 기준" : algorithm === "fifo" ? "적재 번호가 가장 작은 페이지가 다음 교체" : "최근 접근 번호가 가장 작은 페이지가 다음 교체";
+  $("#frames-note").textContent = busy
+    ? "직전 접근 기준"
+    : !hints
+      ? "예측을 마치면 다음 교체 순서를 표시합니다."
+      : occupied.length < 3
+        ? "빈 프레임이 있어 교체하지 않습니다."
+        : algorithm === "fifo"
+          ? "적재 순서가 가장 앞선 페이지가 다음 교체"
+          : "마지막 접근이 가장 이른 페이지가 다음 교체";
   $("#frame-list").innerHTML = occupied.length
     ? occupied
         .map(
           (f) =>
-            `<li><span class="hw-label mem-slot-id">F${f.slot}</span>${chipFor(f.page)}<span class="mem-frame-nums"><span class="${key === "loadedAt" ? "is-key" : ""}">적재 <b class="hw-mono">${f.loadedAt}</b></span><span class="${key === "lastUsedAt" ? "is-key" : ""}">최근 접근 <b class="hw-mono">${f.lastUsedAt}</b></span></span></li>`,
+            `<li><span class="hw-label mem-slot-id">F${f.slot}</span>${chipFor(f.page)}<span class="mem-frame-nums"><span class="${hints && key === "loadedAt" ? "is-key" : ""}">적재 <b class="hw-mono">${f.loadedAt}</b></span><span class="${hints && key === "lastUsedAt" ? "is-key" : ""}">마지막 접근 <b class="hw-mono">${f.lastUsedAt}</b></span></span></li>`,
         )
         .join("")
     : '<li class="hw-muted">RAM이 비어 있습니다.</li>';
 
-  const nextQuiz = !busy && run().steps[index + 1] ? predictionFor(run().steps[index + 1], run()) : null;
-  const showPredict = Boolean(nextQuiz);
-  if (nextQuiz) $('[data-action="predict"]').textContent = nextQuiz.kind === "outcome" ? "적중일까 부재일까 맞혀보기 →" : "다음 교체 맞혀보기 →";
-  const showConclusion = index === TOTAL && !busy;
-  $('[data-action="predict"]').hidden = !showPredict;
-  $("#conclusion").hidden = !showConclusion;
+  const predict = $('[data-action="predict"]');
+  if (nextQuiz) predict.textContent = LABELS.predict(nextQuiz.kind === "outcome" ? `${nextQuiz.atIndex}번째 ${nextQuiz.page}의 결과` : "내보낼 페이지");
+  predict.hidden = !nextQuiz;
+  $("#conclusion").hidden = !(index === TOTAL && !busy);
 
-  const milestones = buildMilestones(run());
-  const chapter = milestones.findIndex((m) => m.index === lesson.chapterId);
-  $("#lesson-progress").textContent = `· ${Math.max(0, chapter) + 1} / ${milestones.length}`;
-  $("#milestones").innerHTML = milestones
-    .map(
-      (m, i) =>
-        `<button data-seek="${m.index}"${i === chapter ? ' aria-current="true"' : ""}><span class="hw-index">${String(i + 1).padStart(2, "0")}</span>${m.title}<span class="hw-mono hw-muted mem-end">${m.index === 0 ? "시작" : `${m.index}번째`}</span></button>`,
-    )
-    .join("");
-  $("#milestones").setAttribute("aria-label", milestones.map((m, i) => `${i + 1}. ${MILESTONE_SHORT[i]}`).join(", "));
+  const chapter = MILESTONES.findIndex((m) => m.index === lesson.chapterId);
+  $("#milestones").innerHTML = MILESTONES.map(
+    (m, i) =>
+      `<button data-seek="${m.index}"${i === chapter ? ' aria-current="true"' : ""}><span class="hw-index">${String(i + 1).padStart(2, "0")}</span>${m.title}<span class="hw-mono hw-muted mem-end">${m.index === 0 ? "시작" : `${m.index}번째`}</span></button>`,
+  ).join("");
   scenePager.refresh();
   if (chapter !== shownChapter) scenePager.showItem($("#milestones").children[(shownChapter = chapter) < 0 ? 0 : chapter]);
   framesPager.refresh();
@@ -335,15 +397,16 @@ function renderRecords() {
   $("#events-empty").hidden = committed > 0;
   $("#events-table").hidden = committed === 0;
   $("#events-body").innerHTML = steps
-        .slice(1, committed + 1)
-        .map(
-          (s) =>
-            `<tr data-seek="${s.index}"${s.index === committed ? ' aria-current="true"' : ""}><td class="hw-mono"><button class="mem-row-key" data-seek="${s.index}" aria-label="${s.index}번째 접근으로 이동">${s.index}번째</button></td><td>${chipFor(s.page)}</td><td>${outcome(s)}</td><td class="hw-mono">F${s.frameIndex}</td><td class="hw-mono">${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${s.hit ? "이미 상주" : !s.victim ? "빈 프레임" : algorithm === "fifo" ? `가장 이른 적재 · ${s.before[s.frameIndex].loadedAt}번째` : `가장 오래된 접근 · ${s.before[s.frameIndex].lastUsedAt}번째`}</td></tr>`,
-        )
-        .join("");
+    .slice(1, committed + 1)
+    .map(
+      (s) =>
+        `<tr data-seek="${s.index}"${s.index === committed ? ' aria-current="true"' : ""}><td class="hw-mono"><button class="mem-row-key" data-seek="${s.index}" aria-label="${s.index}번째 접근으로 이동">${s.index}번째</button></td><td>${chipFor(s.page)}</td><td>${outcome(s, true)}</td><td class="hw-mono">F${s.frameIndex}</td><td class="hw-mono">${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${s.hit ? "이미 상주" : !s.victim ? "빈 프레임" : algorithm === "fifo" ? `적재 순서 가장 앞 · ${s.before[s.frameIndex].loadedAt}번째` : `마지막 접근 가장 이름 · ${s.before[s.frameIndex].lastUsedAt}번째`}</td></tr>`,
+    )
+    .join("");
   eventsWindow.refresh();
 
   const at = committed;
+  const cold = compulsoryCount(run(), at);
   $("#record-results").innerHTML = `<table class="hw-table">
     <thead><tr><th>정책</th><th>처리한 접근</th><th>페이지 부재</th><th>적중</th><th>페이지 교체</th><th>적중률</th></tr></thead>
     <tbody>${Object.entries(runs)
@@ -352,7 +415,7 @@ function renderRecords() {
         return `<tr${name === algorithm ? ' aria-current="true"' : ""}><td><b>${policyName(name)}</b></td><td class="hw-mono">${s.index}회</td><td class="hw-mono">${s.faults}회</td><td class="hw-mono">${s.hits}회</td><td class="hw-mono">${s.replacements}회</td><td class="hw-mono">${s.index ? `${Math.round((s.hits / s.index) * 100)}%` : "—"}</td></tr>`;
       })
       .join("")}</tbody></table>
-    <p class="hw-text hw-muted mem-gap-md">${at ? `${at}번째 접근까지 같은 순서를 두 정책에 적용한 결과입니다. ${policyName(algorithm)}의 부재 ${current().faults}회 중 ${current().faults - current().replacements}회는 빈 프레임에 적재했습니다.` : "첫 접근 전에는 적중률을 계산하지 않습니다."} 부재와 교체는 같은 횟수가 아닙니다.</p>`;
+    <p class="hw-text hw-muted mem-gap-md">${at ? `${at}번째 접근까지 같은 순서를 두 방식에 적용한 결과입니다. ${policyName(algorithm)}의 부재 ${current().faults}회 중 ${cold}회는 처음 참조한 강제 부재이고, ${current().faults - current().replacements}회는 빈 프레임에 적재했습니다.` : "첫 접근 전에는 적중률을 계산하지 않습니다."} 부재와 교체는 같은 횟수가 아닙니다.</p>`;
 }
 
 /* ---------- Playback ---------- */
@@ -386,7 +449,9 @@ async function navigate(target, animate = false, startPaused = false) {
   committed = target;
   motionPaused = false;
   render();
-  if (target === TOTAL || (guided && buildMilestones(run()).some((m) => m.index === target))) playing = false;
+  const stop = MILESTONES.some((m) => m.index === target);
+  if (stop) progress.markScene(target);
+  if (target === TOTAL || (guided && stop)) playing = false;
   renderControls();
   schedule();
 }
@@ -425,64 +490,77 @@ function showPrediction() {
   quiz = predictionFor(run().steps[index + 1], run());
   if (!quiz) return;
   pause();
-  $("#prediction-dialog").innerHTML = `${dialogHead("다음 접근을 먼저 예측하기", "prediction-dialog")}
+  const outcomeQuiz = quiz.kind === "outcome";
+  $("#prediction-dialog").innerHTML = `${dialogHead(LABELS.predictTitle, "prediction-dialog")}
     <div class="hw-plate-body">
       <span class="hw-label"><span class="hw-index">${policyName(algorithm)}</span> ${quiz.atIndex}번째 접근</span>
       <h2 class="hw-title mem-gap-sm" id="prediction-title">${quiz.question}</h2>
       <p class="hw-text hw-muted mem-gap-sm">${quiz.rule}</p>
       <p class="hw-label mem-gap-sm mem-history-line">지금까지의 접근 · ${quiz.history.map((page, i) => `<span class="hw-mono">${i + 1}</span>${chipFor(page)}`).join(" ")}</p>
       <div class="hw-list mem-gap-md mem-choices">${quiz.choices
-        .map((c) => `<button data-answer="${c.id}">${quiz.kind === "outcome" ? `<span class="mem-outcome ${c.id === "hit" ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span></span>` : chipFor(c.id)}<span class="mem-choice-text"><span>${c.label}</span><span class="hw-label" data-detail="${c.detail}">${quiz.kind === "outcome" ? c.detail : `F${c.slot}`}</span></span><span class="mem-verdict mem-end"></span></button>`)
+        .map(
+          (c) =>
+            `<button data-answer="${c.id}">${outcomeQuiz ? `<span class="mem-outcome ${c.id.startsWith("hit") ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span></span>` : chipFor(c.id)}<span class="mem-choice-text"><span>${c.label}</span><span class="hw-label" data-detail="${c.detail}">${outcomeQuiz ? c.detail : `F${c.slot}`}</span></span><span class="mem-verdict mem-end"></span></button>`,
+        )
         .join("")}</div>
       <div id="prediction-feedback" class="mem-gap-md" aria-live="polite"></div>
-      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="reveal" hidden>실제 ${quiz.kind === "outcome" ? "접근" : "교체"}을 보며 확인 →</button></div>
+      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="reveal" hidden>${LABELS.reveal}</button></div>
     </div>`;
+  // While the result is asked, what is in RAM would answer it: mask it.
+  app.classList.toggle("mem-masked", outcomeQuiz);
   $("#prediction-dialog").showModal();
+  render();
 }
 function answer(id) {
+  const chosen = quiz.choices.find((c) => c.id === id);
+  const right = quiz.choices.find((c) => c.correct);
   document.querySelectorAll("[data-answer]").forEach((b) => {
     b.disabled = true;
-    const correct = b.dataset.answer === quiz.correctId;
+    const correct = b.dataset.answer === right.id;
     const wrong = b.dataset.answer === id && !correct;
     b.classList.toggle("is-correct", correct);
     b.classList.toggle("is-wrong", wrong);
     b.querySelector(".mem-verdict").textContent = correct ? "정답" : wrong ? "선택" : "";
-    // The evidence (load and last-access order) is shown once the learner has committed.
+    // The evidence (load order and last access) is shown once the learner has committed.
     const detail = b.querySelector("[data-detail]");
     detail.textContent = detail.dataset.detail;
   });
-  $("#prediction-feedback").innerHTML = `<div class="hw-note ${id === quiz.correctId ? "hw-note--accent" : ""}"><p class="hw-text"><b>${id === quiz.correctId ? "맞았습니다." : quiz.kind === "outcome" ? `실제로는 ${quiz.correctId === "hit" ? "적중" : "부재"}입니다.` : `다음 교체 대상은 ${quiz.correctId}입니다.`}</b> ${quiz.explanation}</p></div>`;
+  const ok = chosen.correct;
+  $("#prediction-feedback").innerHTML = `<div class="hw-note ${ok ? "hw-note--accent" : ""}"><p class="hw-text"><b>${ok ? LABELS.correct : LABELS.wrong(quiz.answer)}</b> ${chosen.why}${ok ? "" : ` ${right.why}`}</p></div>`;
+  answered.add(quiz.id);
+  progress.markPrediction(quiz.id, ok);
+  app.classList.remove("mem-masked");
   $('[data-action="reveal"]').hidden = false;
   $('[data-action="reveal"]').focus();
+  render();
 }
 
 function showComparison() {
   pause();
+  progress.markCompared();
   const opt = countFaults(REFERENCE_STRING, 3, "opt");
-  $("#comparison-dialog").innerHTML = `${dialogHead(`같은 ${TOTAL}번의 접근 · 같은 3개 프레임`, "comparison-dialog")}
+  $("#comparison-dialog").innerHTML = `${dialogHead(`${LABELS.compareSub} · ${TOTAL}번의 접근 · 프레임 3개`, "comparison-dialog")}
     <div class="hw-plate-body">
-      <span class="hw-label">전체 실행 결과</span>
-      <h2 class="hw-title mem-gap-sm" id="comparison-title">기준 하나가 다음 적중을 바꿉니다</h2>
-      ${Object.entries(runs)
+      <h2 class="hw-title" id="comparison-title">${LABELS.compare}</h2>
+      <div class="mem-compare-grid">${Object.entries(runs)
         .map(
-          ([name, r]) => `<div class="hw-section mem-compare">
-            <div class="mem-compare-head">
-              <span class="hw-label"><span class="hw-index">${policyName(name)}</span> ${name === "fifo" ? "먼저 적재된 페이지부터" : "오래 사용하지 않은 페이지부터"}</span>
-              <span class="hw-lcd">${r.stats.faults}<small>부재</small> ${r.stats.hits}<small>적중</small> ${r.stats.replacements}<small>교체</small></span>
-            </div>
+          ([name, r]) => `<div class="mem-compare">
+            <span class="hw-label"><span class="hw-index">${policyName(name)}</span> ${name === "fifo" ? "적재 순서가 가장 앞선 페이지부터" : "마지막 접근이 가장 이른 페이지부터"}</span>
+            <span class="hw-lcd mem-gap-sm">${r.stats.faults}<small>부재</small> ${r.stats.hits}<small>적중</small> ${r.stats.replacements}<small>교체</small></span>
             <ol class="mem-trace" aria-label="${policyName(name)} 접근별 결과">${r.steps
               .slice(1)
               .map((s) => `<li class="${s.hit ? "is-hit" : "is-fault"}" title="${s.index}번째 ${s.page}: ${s.hit ? "적중" : "부재"}">${chipFor(s.page)}<span class="hw-led is-on"></span><span class="visually-hidden">${s.hit ? "적중" : "부재"}</span></li>`)
               .join("")}</ol>
+            <button class="hw-key hw-key--sm mem-gap-md" data-replay-mode="${name}">${LABELS.replayMode}</button>
           </div>`,
         )
-        .join("")}
+        .join("")}</div>
       <div class="hw-section">
-        <p class="hw-text"><b>갈림길은 4번째 A 적중입니다.</b> FIFO는 A의 최초 적재 순서를 유지하고, LRU는 A의 마지막 접근을 4번째로 기록합니다. 5번째 D를 넣을 때 FIFO는 A, LRU는 B를 내보내므로 6번째 A 접근이 각각 부재와 적중으로 갈립니다.</p>
-        <p class="hw-text hw-muted mem-gap-sm">이 접근 순서에서는 LRU의 부재가 ${runs.fifo.stats.faults - runs.lru.stats.faults}회 적습니다. 기준선인 OPT(MIN)는 부재 ${opt.faults}회입니다. 모든 접근 순서에서 같은 차이가 나는 것은 아니며, 이 화면은 실제 실행 시간을 측정하지 않습니다.</p>
+        <p class="hw-text"><b>갈림길은 4번째 A 적중입니다.</b> FIFO는 A의 적재 순서를 그대로 두고, LRU는 A의 마지막 접근을 4번째로 기록합니다. 그래서 5번째 D를 넣을 때 FIFO는 A, LRU는 B를 내보내고, 6번째 A가 각각 부재와 적중으로 갈립니다.</p>
+        <p class="hw-text hw-muted mem-gap-sm">이 접근 순서에서는 LRU의 부재가 ${runs.fifo.stats.faults - runs.lru.stats.faults}회 적고, 기준선 OPT(MIN)는 부재 ${opt.faults}회입니다. 다른 접근 순서에서는 차이가 달라질 수 있습니다.</p>
         <p class="mem-legend hw-label mem-gap-sm"><span class="mem-outcome is-hit"><span class="hw-led is-on"></span>적중</span><span class="mem-outcome is-fault"><span class="hw-led is-on"></span>부재</span></p>
       </div>
-      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="turning-point">4번째 접근으로 돌아가 비교 →</button></div>
+      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="turning-point">${LABELS.backToFork} →</button></div>
     </div>`;
   $("#comparison-dialog").showModal();
 }
@@ -506,9 +584,23 @@ function focusScene() {
 app.addEventListener("click", async (event) => {
   const target = event.target.closest("button, [data-seek]");
   if (!target || target.disabled) return;
+  if (target.closest("[data-recall]")) return; // bindRecap handles these
   if (target.dataset.close) return $("#" + target.dataset.close).close();
   if (target.dataset.answer) return answer(target.dataset.answer);
   if (target.dataset.record) return selectRecord(target.dataset.record);
+  if (target.dataset.scope) {
+    document.querySelectorAll("[data-scope]").forEach((b) => b.setAttribute("aria-pressed", String(b === target)));
+    $("#terms").hidden = target.dataset.scope !== "terms";
+    $("#rules").hidden = target.dataset.scope !== "rules";
+    return;
+  }
+  if (target.dataset.replayMode) {
+    $("#comparison-dialog").close();
+    pause();
+    algorithm = target.dataset.replayMode;
+    await navigate(0);
+    return;
+  }
   if (target.dataset.seek !== undefined) {
     if (target.closest("#milestones")) sidePanel.select("now");
     pause();
@@ -575,6 +667,10 @@ app.addEventListener("click", async (event) => {
       break;
   }
 });
+$("#prediction-dialog").addEventListener("close", () => {
+  app.classList.remove("mem-masked");
+  render();
+});
 $("#seek").addEventListener("input", () => {
   pause();
   navigate(Number($("#seek").value));
@@ -613,5 +709,7 @@ for (const dialog of document.querySelectorAll("dialog"))
 
 if (localStorage.getItem("memory-explorer-theme") === "dark") changeTheme();
 bindSliders(app);
+renderProgress();
 render();
+progress.markScene(0);
 scene.update(current(), null, { animate: false, algorithm });

@@ -25,8 +25,12 @@ function initialState() {
   };
 }
 
+// Two fixed runs on the same rows and the same UPDATEs:
+//   opposite: T1 locks A→B, T2 locks B→A: a wait cycle, detection, T2 aborted.
+//   same:     both lock A→B: T2 waits on A holding nothing, then proceeds.
 // Detection and abort are separate observation points, not measured DB timing.
-const trace = [
+export const ORDERS = Object.freeze({ opposite: "반대 순서", same: "같은 순서" });
+const opposite = [
   ["begin", "T1", null],
   ["begin", "T2", null],
   ["write", "T1", "A"],
@@ -38,12 +42,26 @@ const trace = [
   ["resume", "T1", "B"],
   ["commit", "T1", null],
 ];
+const same = [
+  ["begin", "T1", null],
+  ["begin", "T2", null],
+  ["write", "T1", "A"],
+  ["wait", "T2", "A"],
+  ["write", "T1", "B"],
+  ["commit", "T1", null],
+  ["resume", "T2", "A"],
+  ["write", "T2", "B"],
+  ["commit", "T2", null],
+];
+const TRACES = { opposite, same };
 
-export function simulateDeadlock() {
+export function simulateDeadlock({ order = "opposite" } = {}) {
+  if (!(order in TRACES)) throw new RangeError(`Unknown order: ${order}`);
   const state = initialState();
   const steps = [
     {
       index: 0,
+      order,
       action: "initial",
       client: null,
       row: null,
@@ -53,7 +71,7 @@ export function simulateDeadlock() {
     },
   ];
 
-  for (const [action, client, rowId] of trace) {
+  for (const [action, client, rowId] of TRACES[order]) {
     const before = structuredClone(state);
     const current = client ? state.clients[client] : null;
     const row = rowId ? state.rows[rowId] : null;
@@ -125,6 +143,7 @@ export function simulateDeadlock() {
     });
     steps.push({
       index: steps.length,
+      order,
       action,
       client,
       row: rowId,
@@ -134,6 +153,7 @@ export function simulateDeadlock() {
     });
   }
   return {
+    order,
     steps,
     stats: {
       commits: state.commits,

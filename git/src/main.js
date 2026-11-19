@@ -7,7 +7,21 @@ import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs, rowWindow } from "../../shared/fit.js";
 import { simulateGit, RESOLUTIONS, FILE_NAME } from "./engine.js";
 import { createGitScene, contentKind, hasMainButton } from "./scene.js";
-import { describeStep, MILESTONES, SOURCES, PREDICTIONS } from "./lesson.js";
+import { LABELS, createProgress, recapHtml, bindRecap, progressHtml } from "../../shared/lesson-kit.js";
+import {
+  describeStep,
+  feedback,
+  predictionAt,
+  GATE,
+  GUIDED_STOPS,
+  MILESTONES,
+  PREDICTIONS,
+  RECAP,
+  SCENARIO,
+  SCOPE,
+  SOURCES,
+  STATE_NAMES,
+} from "./lesson.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -29,37 +43,26 @@ let choice = null,
   timer = null,
   phase = null;
 const last = 12;
+const progress = createProgress("git", { scenes: MILESTONES.length, recall: RECAP.recall.length });
+// Predictions answered or passed by: their step then shows what answers them.
+const settled = new Set();
+const pendingAt = (i) => Boolean(PREDICTIONS[i]) && !settled.has(i);
+let needsRender = false;
 
-const stateNames = {
-  clean: "변경 없음 · 작업 트리, 인덱스, HEAD 커밋이 같습니다",
-  modified: "작업 트리만 수정됨 · 아직 git add 전입니다",
-  staged: "인덱스에 준비됨 · 아직 커밋 전입니다",
-  conflict: "충돌 1곳 · 병합 커밋은 아직 없습니다",
-  resolved: "파일 편집 완료 · 인덱스에는 아직 세 버전이 있습니다",
-};
 const indexNames = {
   clean: "커밋과 같음",
   staged: "다음 커밋 준비",
   unmerged: "미해결 세 버전",
   comparing: "세 버전 기록 중",
 };
-const indexLabel = (state) =>
-  state.merge && state.index.status === "staged" ? "해결 등록 완료" : indexNames[state.index.status];
+const indexLabel = (state, pending = false) =>
+  state.merge && state.index.status === "staged"
+    ? "해결 등록 완료"
+    : pending && state.index.status === "unmerged"
+      ? "stage 1·2·3"
+      : indexNames[state.index.status];
 const titleOf = (content) => content.split("\n").find((line) => line.startsWith("제목:"))?.replace(/^제목:\s*/, "") ?? "";
 const headCommit = (state) => state.commits.find((c) => c.id === state.refs[state.currentBranch]);
-
-const glossary = [
-  ["작업 트리", "디스크에서 직접 편집하는 파일입니다. 저장해도 Git 이력은 바뀌지 않습니다."],
-  ["인덱스(스테이징)", "다음 커밋에 담을 스냅샷입니다. git add가 작업 트리의 내용을 여기에 복사합니다."],
-  ["커밋", "인덱스 스냅샷과 부모 커밋을 함께 기록한 이력의 한 지점입니다."],
-  ["브랜치", "커밋 하나를 가리키는 이동 가능한 이름입니다. 커밋하면 현재 브랜치가 앞으로 이동합니다."],
-  ["HEAD", "지금 작업 중인 브랜치를 가리킵니다. 이 시나리오에서 HEAD는 항상 브랜치를 거쳐 커밋을 가리킵니다."],
-  ["충돌", "두 브랜치가 공통 조상에서 같은 줄(또는 맞닿은 줄)을 다르게 바꿔 자동 병합이 멈춘 상태입니다. 한쪽만 바꾼 줄은 Git이 자동으로 합칩니다."],
-  [
-    "모델의 범위",
-    "로컬 저장소 하나, 브랜치 두 개, 파일 하나, 텍스트 충돌 하나의 고정 시나리오입니다. 원격 저장소·push·pull·rebase·fast-forward는 다루지 않습니다. C0–C3는 실제 해시가 아닌 이름이고, 장치 사이의 이동은 저장 상태의 변화를 나타낼 뿐 Git 내부 구조나 처리 시간이 아닙니다.",
-  ],
-];
 
 /* ---------------------------------------------------------------- markup */
 
@@ -67,7 +70,7 @@ $("#app").outerHTML = `
 <div class="hw-page git-page">
   <header class="hw-topbar">
     <div class="hw-brand"><h1>Git 탐색기</h1><p>브랜치 분기부터 충돌 해결까지</p></div>
-    <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> 하나의 파일, 서로 다른 두 제목</span><strong>갈라진 작업을 하나의 이력으로</strong></div>
+    <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> ${LABELS.scenario} · ${esc(SCENARIO.title)}</span><strong>갈라진 작업을 하나의 이력으로</strong></div>
     <div class="hw-actions">
       <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>해결안 비교</span></button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button>
@@ -100,7 +103,7 @@ $("#app").outerHTML = `
       </div>
       <div class="hw-seek"><span class="hw-label">00</span><input id="seek" class="hw-slider" type="range" min="0" max="12" step="1" value="0" aria-label="현재 사건"/><span class="hw-label">12</span></div>
       <div class="git-deck-foot">
-        <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">핵심 장면에서 멈추기</button>
+        <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">${LABELS.guided}</button>
         <span class="hw-muted" id="playback-hint"></span>
       </div>
     </section>
@@ -108,10 +111,11 @@ $("#app").outerHTML = `
     <aside class="hw-plate hw-side" aria-labelledby="lesson-title">
       <div class="hw-plate-head">
         <span class="hw-label"><span class="hw-index">B</span> <span id="lesson-counter">시작 전</span></span>
-        <div class="hw-tabs" aria-label="단계 해설 보기">
-          <button type="button" data-tab="now" aria-selected="true">해설</button>
+        <div class="hw-tabs" aria-label="사건 해설 보기">
+          <button type="button" data-tab="now" aria-selected="true">${LABELS.explainTab}</button>
+          <button type="button" data-tab="scenes">${LABELS.scenesTab}</button>
           <button type="button" data-tab="change">변화</button>
-          <button type="button" data-tab="scenes">장면</button>
+          <button type="button" data-tab="scope">${LABELS.scopeTab}</button>
         </div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="now" aria-label="이번 사건 해설">
@@ -120,8 +124,9 @@ $("#app").outerHTML = `
             <span class="hw-label" id="eyebrow"></span>
             <h2 class="hw-title git-lesson-title" id="lesson-title"></h2>
             <p class="hw-text git-lesson-body" id="lesson-body"></p>
-            <p class="git-command"><span class="hw-label" id="command-label"></span><code class="hw-mono" id="command"></code></p>
+            <p class="git-command" id="command-line"><span class="hw-label" id="command-label"></span><code class="hw-mono" id="command"></code></p>
           </div>
+          <p class="hw-text git-goal" id="goal"></p>
           <div id="resolution">
             <span class="hw-label"><span class="hw-index">!</span> 직접 해결 · 파일에 남길 제목은?</span>
             <div class="hw-list git-choices">${RESOLUTIONS.map((r, i) => `<button data-resolution="${r.id}"><span class="hw-index">${pad(i + 1)}</span><span class="git-choice"><span>${esc(r.label)}</span><span class="hw-muted">${esc(titleOf(r.content))}</span></span></button>`).join("")}</div>
@@ -130,24 +135,27 @@ $("#app").outerHTML = `
             <span class="hw-label">선택한 해결안</span>
             <div class="git-chosen"><strong id="chosen-label"></strong><button class="hw-key hw-key--sm" data-action="choose-again">다른 해결안으로</button></div>
           </div>
-          <div class="git-terminal" id="terminal"><span class="hw-label">git status 출력</span><pre class="hw-mono" id="terminal-text"></pre></div>
-          <div class="hw-note hw-note--accent" id="takeaway"></div>
+          <div class="git-terminal" id="terminal"><span class="hw-label">터미널 출력</span><pre class="hw-mono" id="terminal-text"></pre></div>
+          <p class="hw-note hw-note--accent" id="takeaway"><span><span class="hw-label git-key-label">${LABELS.key}</span><span id="takeaway-text"></span></span></p>
           <div id="predict-section">
-            <button class="hw-key git-wide" data-action="predict"><span id="predict-label"></span>${icon("arrow")}</button>
+            <button class="hw-key git-wide" data-action="predict"><span id="predict-label"></span></button>
           </div>
         </div>
+      </div>
+      <div class="hw-plate-body hw-fit" data-panel="scenes" aria-label="${LABELS.scene}" hidden>
+        <span class="hw-label git-pages-label">${LABELS.jumpToScene}</span>
+        <div class="hw-fill hw-list git-milestones" id="milestones"></div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="change" aria-label="직전과 현재 비교" hidden>
         <div class="hw-fill git-pages" id="change-pages">
           <div>
-            <span class="hw-label">직전 → 현재</span>
+            <span class="hw-label">${LABELS.now} 사건 · 직전 → 현재</span>
             <table class="hw-table git-facts"><tbody id="facts"></tbody></table>
           </div>
         </div>
       </div>
-      <div class="hw-plate-body hw-fit" data-panel="scenes" aria-label="핵심 장면" hidden>
-        <span class="hw-label git-pages-label">핵심 장면으로 이동</span>
-        <div class="hw-fill hw-list git-milestones" id="milestones"></div>
+      <div class="hw-plate-body hw-fit" data-panel="scope" aria-label="용어와 모델의 범위" hidden>
+        <dl class="hw-fill git-glossary" id="glossary">${SCOPE.map(([term, text]) => `<div><dt>${esc(term)}</dt><dd class="hw-text">${esc(text)}</dd></div>`).join("")}</dl>
       </div>
     </aside>
 
@@ -157,7 +165,6 @@ $("#app").outerHTML = `
           <button role="tab" id="tab-log" aria-controls="record-log" aria-selected="true" data-record="log">사건 기록</button>
           <button role="tab" id="tab-commits" aria-controls="record-commits" aria-selected="false" data-record="commits" tabindex="-1">커밋 이력</button>
           <button role="tab" id="tab-result" aria-controls="record-result" aria-selected="false" data-record="result" tabindex="-1">병합 결과</button>
-          <button role="tab" id="tab-terms" aria-controls="record-terms" aria-selected="false" data-record="terms" tabindex="-1">용어와 범위</button>
         </div>
         <span class="hw-label git-records-hint">행을 눌러 그 순간으로 이동</span>
       </div>
@@ -168,9 +175,6 @@ $("#app").outerHTML = `
         <div class="git-rows"><table class="hw-table"><thead><tr><th>커밋</th><th>부모</th><th>브랜치</th><th>메시지</th><th>제목 줄</th></tr></thead><tbody id="commit-rows"></tbody></table></div>
       </div>
       <div class="hw-plate-body" role="tabpanel" id="record-result" aria-labelledby="tab-result" hidden></div>
-      <div class="hw-plate-body git-terms-body" role="tabpanel" id="record-terms" aria-labelledby="tab-terms" hidden>
-        <dl class="git-glossary" id="glossary">${glossary.map(([term, text]) => `<div><dt>${esc(term)}</dt><dd class="hw-text">${esc(text)}</dd></div>`).join("")}</dl>
-      </div>
     </section>
   </main>
 
@@ -190,6 +194,7 @@ const desktop = matchMedia("(min-width: 1100px) and (min-height: 700px)");
 const fragment = (html) => document.createRange().createContextualFragment(html).firstElementChild;
 const now = {
   intro: $(".git-intro"),
+  goal: $("#goal"),
   resolution: $("#resolution"),
   chosen: $("#chosen"),
   terminal: $("#terminal"),
@@ -201,7 +206,34 @@ const sideTabs = plateTabs($(".hw-side"));
 const nowPages = paginate($("#now-pages"), { label: "해설 쪽" });
 const changePages = paginate($("#change-pages"), { label: "변화 쪽" });
 const scenePages = paginate($("#milestones"), { label: "장면 쪽" });
-paginate($("#glossary"), { label: "용어 쪽" });
+const scopePages = paginate($("#glossary"), { label: "범위 쪽" });
+
+// 정리: built once; its sections become items of the 해설 pages at the end.
+const recapRoot = fragment(recapHtml({ id: "git", points: RECAP.points, recall: RECAP.recall, progress }));
+bindRecap(recapRoot, {
+  recall: RECAP.recall,
+  progress,
+  onAnswer(q) {
+    // The answer note just appeared: re-fit and show its page.
+    const item = whyItems.get(q.id);
+    nowPages.refresh();
+    if (item?.isConnected) nowPages.showItem(item);
+  },
+});
+const recapFoot = recapRoot.querySelector(".hw-recap-foot");
+// Each answer note is its own page item, so a question never outgrows a page
+// on a short window (bindRecap keeps its reference to the note). Wrapped,
+// because fit.js would unhide a hidden direct item.
+const whyItems = new Map();
+for (const why of recapRoot.querySelectorAll(".hw-recall-why")) {
+  const box = why.closest("[data-recall]");
+  const item = fragment('<div class="git-recall-after"></div>');
+  box.after(item);
+  item.append(why);
+  whyItems.set(box.dataset.recall, item);
+}
+const recapItems = [...recapRoot.children];
+progress.onChange((s) => recapFoot.querySelector(".hw-progress")?.replaceWith(fragment(progressHtml(s))));
 const logRows = rowWindow($("#record-log .git-rows"), $("#log-rows"), { current: () => $("#log-rows tr[aria-current]") });
 const commitRows = rowWindow($("#record-commits .git-rows"), $("#commit-rows"));
 let shownIndex = -1;
@@ -279,12 +311,12 @@ new ResizeObserver(fitWell).observe($(".hw-stage"));
 function statusLine(state) {
   if (busy && phase && phase.kind !== "complete") return [phase.title, phase.body];
   if (state.merge) {
-    if (state.status === "conflict") return [stateNames.conflict];
-    if (state.index.status === "unmerged") return [stateNames.resolved];
-    return ["해결 등록 완료 · 병합 커밋을 기다립니다"];
+    if (state.status === "conflict") return [STATE_NAMES.conflict];
+    if (state.index.status === "unmerged") return [pendingAt(index) ? STATE_NAMES.resolvedPending : STATE_NAMES.resolved];
+    return [STATE_NAMES.registered];
   }
-  if (index === last) return ["병합 완료 · 두 작업의 이력을 함께 보존했습니다"];
-  return [stateNames[state.status]];
+  if (index === last) return [STATE_NAMES.done];
+  return [STATE_NAMES[state.status]];
 }
 
 function renderState(state) {
@@ -292,13 +324,15 @@ function renderState(state) {
   const [title, body] = statusLine(state);
   $("#status").innerHTML = `${esc(title)}${body ? `<span class="hw-muted"> — ${esc(body)}</span>` : ""}`;
   const led = $("#status-led");
-  const conflict = state.status === "conflict" || state.index.status === "unmerged" || state.index.status === "comparing";
+  // While prediction 10 is open the LED does not say "still unresolved".
+  const hide = pendingAt(index) && state.status === "resolved";
+  const conflict = !hide && (state.status === "conflict" || state.index.status === "unmerged" || state.index.status === "comparing");
   led.classList.toggle("is-on", busy || conflict);
   led.style.setProperty("--led", conflict ? "var(--git-conflict)" : "var(--accent)");
   const before = run.steps[index].before;
   const rows = [
     ["현재 커밋", before.refs[before.currentBranch], state.refs[state.currentBranch]],
-    ["인덱스", indexLabel(before), indexLabel(state)],
+    ["인덱스", indexLabel(before, hide), indexLabel(state, hide)],
     ["커밋 수", before.commits.length, state.commits.length],
   ];
   $("#facts").innerHTML = rows
@@ -310,36 +344,54 @@ function renderState(state) {
 
 function render() {
   const step = run.steps[index];
-  const lesson = describeStep(step);
+  const pending = pendingAt(index);
+  const lesson = describeStep(step, { pending });
+  const ended = index === last && !busy && completed === last;
   $("#step-count").textContent = pad(index);
   const seek = $("#seek");
   seek.value = index;
   seek.setAttribute("aria-valuetext", `${index} / 12 사건${busy ? " 처리 중" : ""}`);
   syncSlider(seek);
   $("#lesson-counter").textContent = index ? `${pad(index)} / 12${busy ? " · 처리 중" : ""}` : "시작 전";
-  $("#eyebrow").textContent = lesson.eyebrow;
+  $("#eyebrow").textContent = ended ? `${LABELS.recap} · ${lesson.eyebrow}` : lesson.eyebrow;
   $("#lesson-title").textContent = lesson.title;
   $("#lesson-body").textContent = lesson.body;
-  $("#command-label").textContent = step.command ? "실행 명령" : index === 0 ? "명령" : "작업 트리 편집";
+  now.goal.textContent = lesson.goal ?? "";
+  // At the end the 정리 takes the room: the title stays, the step text goes.
+  $("#command-line").hidden = index === 0 || ended;
+  $("#lesson-body").hidden = ended;
+  $("#command-label").textContent = step.command ? "실행 명령" : "작업 트리 편집";
   $("#command").textContent =
     step.command ||
-    (index === 0 ? "아직 실행한 명령이 없습니다" : index === 10 ? "충돌 표시를 지우고 선택한 제목을 저장" : index === 6 ? `${FILE_NAME}의 제목과 버튼을 수정하고 저장` : `${FILE_NAME}의 제목을 수정하고 저장`);
+    (index === 10 ? "충돌 표시를 지우고 선택한 제목을 저장" : index === 6 ? `${FILE_NAME}의 제목과 버튼을 수정하고 저장` : `${FILE_NAME}의 제목을 수정하고 저장`);
   $("#command").classList.toggle("is-git", Boolean(step.command));
-  $("#takeaway").textContent = lesson.takeaway;
-  now.terminal.querySelector("pre").textContent = lesson.terminal?.join("\n") ?? "";
-  const prediction = PREDICTIONS[index];
-  if (prediction) now.predict.querySelector("#predict-label").textContent = prediction.button;
+  now.takeaway.querySelector("#takeaway-text").textContent = lesson.takeaway ?? "";
+  // Terminal output: one page item per paragraph (split at blank lines), so a
+  // long git status continues on the next page instead of being cut.
+  const chunks = (lesson.terminal ?? []).join("\n").split(/\n\n+/).filter(Boolean);
+  now.terminal.querySelector("pre").textContent = chunks[0] ?? "";
+  const termMore = chunks.slice(1).map((text) => {
+    const el = fragment('<div class="git-terminal git-term-more"><pre class="hw-mono"></pre></div>');
+    el.firstChild.textContent = text;
+    return el;
+  });
+  now.terminal.classList.toggle("has-more", termMore.length > 0);
+  const prediction = pending && predictionAt(index, choice);
+  if (prediction) now.predict.querySelector("#predict-label").textContent = LABELS.predict(prediction.target);
   $("#git-scene").dataset.focus = lesson.focus;
   if (choice) now.chosen.querySelector("#chosen-label").textContent = RESOLUTIONS.find((r) => r.id === choice).label;
   if ($("#prediction-dialog").open) $("#prediction-dialog").close();
   $("#now-pages").replaceChildren(
     ...[
       now.intro,
-      !busy && index === 9 && now.resolution,
-      index >= 10 && choice && now.chosen,
+      lesson.goal && now.goal,
+      !busy && index === GATE && now.resolution,
+      index >= 10 && !ended && choice && now.chosen,
       lesson.terminal && now.terminal,
-      now.takeaway,
+      ...(lesson.terminal ? termMore : []),
+      lesson.takeaway && !ended && now.takeaway,
       !busy && prediction && now.predict,
+      ...(ended ? recapItems : []),
     ].filter(Boolean),
   );
   $("#change-pages").replaceChildren(
@@ -357,6 +409,7 @@ function render() {
   nowPages.refresh();
   changePages.refresh();
   scenePages.refresh();
+  scopePages.refresh();
   if (shownIndex !== index) {
     // A new moment opens on its first page.
     shownIndex = index;
@@ -367,12 +420,12 @@ function render() {
 
 function controls() {
   const moving = playing || (busy && !paused);
-  const gated = index === 9 && !busy;
+  const gated = index === GATE && !busy;
   const play = $('[data-action="play"]');
-  let label = index ? "이어서 재생" : "학습 시작";
-  if (moving) label = "일시정지";
+  let label = index ? LABELS.resume : LABELS.start;
+  if (moving) label = LABELS.pause;
   else if (gated) label = "해결안 선택";
-  else if (completed === last) label = "처음부터 재생";
+  else if (completed === last) label = LABELS.replay;
   play.innerHTML = `${icon(moving ? "pause" : "play")}<span>${label}</span>`;
   play.setAttribute("aria-label", label);
   $('[data-action="next"]').disabled = index === last || busy || gated;
@@ -395,8 +448,11 @@ function renderRecords() {
   $("#log-rows").innerHTML = run.steps
     .map((s) => {
       const st = s.state;
+      // Events not yet played show only their number: a future command or
+      // title would answer the open prediction ("git add", "두 부모").
       const future = s.index > completed;
-      return `<tr data-time="${s.index}" tabindex="0"${s.index === index ? ' aria-current="true"' : ""} class="${future ? "is-future" : ""}"><td class="hw-mono">${pad(s.index)}</td><td><code class="hw-mono">${esc(s.command || (s.index ? "직접 편집" : "—"))}</code></td><td>${esc(s.title)}</td><td class="hw-mono">${future ? "" : `${esc(st.currentBranch)} → ${st.refs[st.currentBranch]}`}</td></tr>`;
+      const command = future ? "…" : s.command || (s.index ? "직접 편집" : "—");
+      return `<tr data-time="${s.index}" tabindex="0"${s.index === index ? ' aria-current="true"' : ""} class="${future ? "is-future" : ""}"><td class="hw-mono">${pad(s.index)}</td><td><code class="hw-mono">${esc(command)}</code></td><td>${future ? "" : esc(s.title)}</td><td class="hw-mono">${future ? "" : `${esc(st.currentBranch)} → ${st.refs[st.currentBranch]}`}</td></tr>`;
     })
     .join("");
   logRows.refresh();
@@ -427,7 +483,7 @@ function renderRecords() {
             <tr><th scope="row">C2와 다른 줄</th><td class="hw-mono">${chosen.id === "ours" ? "0" : "1"}</td></tr>
           </tbody></table>
         </div>`
-      : `<p class="hw-text hw-muted">${state.commits.length}개 커밋 · 충돌을 해결하고 병합 커밋까지 실행하면 최종 결과가 나타납니다. (파일 편집 → 해결안 등록 → 병합 커밋)</p>`;
+      : `<p class="hw-text hw-muted">${state.commits.length}개 커밋 · 병합을 끝까지 마치면 최종 결과가 나타납니다.</p>`;
 }
 
 /* ---------------------------------------------------------------- flow */
@@ -446,10 +502,12 @@ function schedule() {
 }
 async function move(next, motion = false) {
   let target = Math.max(0, Math.min(last, next));
-  if (target > 9 && !choice) {
-    target = 9;
+  if (target > GATE && !choice) {
+    target = GATE;
     playing = false;
   }
+  // Moving past a prediction's step without answering it skips it.
+  for (const k of Object.keys(PREDICTIONS).map(Number)) if (k < target) settled.add(k);
   const token = ++revision;
   clearTimeout(timer);
   index = target;
@@ -464,8 +522,9 @@ async function move(next, motion = false) {
   completed = index;
   busy = false;
   paused = false;
+  if (GUIDED_STOPS.includes(index)) progress.markScene(index);
   render();
-  if (index === last || index === 9 || (playing && guided && [4, 8, 10, 11].includes(index))) playing = false;
+  if (index === last || index === GATE || (playing && guided && GUIDED_STOPS.includes(index))) playing = false;
   controls();
   schedule();
 }
@@ -478,6 +537,7 @@ function reset() {
   choice = null;
   run = simulateGit();
   completed = 0;
+  settled.clear();
   move(0, false);
 }
 function showResolutionChoices() {
@@ -493,7 +553,7 @@ function play() {
     pause();
     return;
   }
-  if (index === 9 && !busy) {
+  if (index === GATE && !busy) {
     showResolutionChoices();
     return;
   }
@@ -519,7 +579,9 @@ function resolveWith(id) {
 function chooseAgain() {
   choice = null;
   run = simulateGit();
-  jump(9);
+  // Prediction 11 is worded for the chosen sentence: ask it again.
+  settled.delete(11);
+  jump(GATE);
   showResolutionChoices();
 }
 function selectRecord(name) {
@@ -528,7 +590,7 @@ function selectRecord(name) {
     b.setAttribute("aria-selected", String(selected));
     b.tabIndex = selected ? 0 : -1;
   }
-  for (const n of ["log", "commits", "result", "terms"]) $(`#record-${n}`).hidden = n !== name;
+  for (const n of ["log", "commits", "result"]) $(`#record-${n}`).hidden = n !== name;
   $(".git-records-hint").hidden = name !== "log";
 }
 
@@ -540,9 +602,9 @@ const dialogHead = (id, eyebrow, title) =>
 let prediction = null;
 function predict() {
   pause();
-  const q = (prediction = PREDICTIONS[index]);
+  const q = (prediction = predictionAt(index, choice));
   if (!q) return;
-  $("#prediction-dialog").innerHTML = `${dialogHead("prediction-title", "실행 전에 예상해 보기", q.question)}
+  $("#prediction-dialog").innerHTML = `${dialogHead("prediction-title", LABELS.predictTitle, q.question)}
     <div class="hw-plate-body">
       <p class="hw-text">${esc(q.context)}</p>
       <div class="git-answers">${q.choices.map((c, i) => `<button class="hw-key" data-answer="${c.id}"><span class="hw-index">${pad(i + 1)}</span>${esc(c.text)}</button>`).join("")}</div>
@@ -559,11 +621,35 @@ function answer(id) {
     if (c.correct) el.insertAdjacentHTML("beforeend", '<span class="hw-led is-on git-push"></span>');
     else if (c.id === id) el.insertAdjacentHTML("beforeend", '<span class="hw-led is-on git-push" style="--led:var(--git-conflict)"></span>');
   }
-  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${picked.correct ? "맞았습니다." : esc(q.miss)}</strong> ${esc(picked.feedback)}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">${esc(q.verify.label)}${icon("arrow")}</button></div>`;
+  const { verdict, why } = feedback(q, id);
+  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${esc(verdict)}</strong> ${esc(why)}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">${esc(q.verify.label)}</button></div>`;
+  progress.markPrediction(q.index, picked.correct);
+  // The step behind the dialog may now show what answers the question.
+  settled.add(q.index);
+  needsRender = true;
+}
+$("#prediction-dialog").addEventListener("close", () => {
+  if (!needsRender) return;
+  needsRender = false;
+  render();
+});
+function verify() {
+  const q = prediction;
+  needsRender = false;
+  $("#prediction-dialog").close();
+  if (q.verify.step === index) {
+    // The answer is this step's own output (git status): reveal it here.
+    render();
+    sideTabs.select("now");
+    nowPages.showItem(now.terminal);
+    return;
+  }
+  move(q.verify.step, true);
 }
 
 function compare() {
   pause();
+  progress.markCompared();
   const head = run.steps[8].state.commits.find((c) => c.id === "C2");
   $("#compare-dialog").innerHTML = `${dialogHead("compare-title", "해결안 비교", "세 해결안의 병합 결과")}
     <div class="hw-plate-body">
@@ -635,8 +721,7 @@ document.addEventListener("click", (e) => {
       b.closest("dialog").close();
       break;
     case "verify":
-      $("#prediction-dialog").close();
-      move(prediction.verify.step, true);
+      verify();
       break;
     case "choose-again":
       chooseAgain();
@@ -651,7 +736,7 @@ document.addEventListener("click", (e) => {
   }
 });
 $("#seek").addEventListener("input", (e) => jump(Number(e.target.value)));
-$(".hw-tabs").addEventListener("keydown", (e) => {
+$(".hw-records .hw-tabs").addEventListener("keydown", (e) => {
   if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
   const tabs = $$("[data-record]");
   const at = tabs.indexOf(document.activeElement);

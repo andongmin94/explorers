@@ -4,12 +4,14 @@ import "./styles.css";
 import "../../shared/switcher.js";
 import "../../shared/iso.js";
 import { simulate } from "./engine.js";
-import { describeEventLog, describeStep, buildMilestones, predictionFor, MODEL_NOTES, SCENE_LEGEND, SOURCES } from "./lesson.js";
+import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
+import { describeEventLog, describeStep, buildMilestones, predictionFor, MODEL_NOTES, RECAP, SCENE_LEGEND, SOURCES } from "./lesson.js";
 import { createTransactionScene } from "./scene.js";
 import {
   $,
   $$,
   bindConsole,
+  createRecap,
   createSide,
   followRows,
   createPlayer,
@@ -29,6 +31,7 @@ import {
 
 const runs = { naive: simulate({ mode: "naive" }), locked: simulate({ mode: "locked" }) };
 const TOTAL = 11;
+const progress = createProgress("transaction", { scenes: 5, recall: RECAP.recall.length });
 let mode = "naive";
 let quiz = null;
 let status = "";
@@ -53,7 +56,7 @@ const RULES = {
 };
 
 $("#app").outerHTML = `<div class="hw-page tx-page">
-  ${topbar({ page: 0, context: { label: "대표 시나리오", title: "같은 재고, 두 개의 주문" }, compare: true })}
+  ${topbar({ page: 0, context: { label: LABELS.scenario, title: "같은 재고, 두 개의 주문" }, compare: true })}
   <main class="hw-console">
     ${stage({ label: "요청과 잠금의 흐름", sceneId: "scene", total: TOTAL })}
     ${deck({
@@ -75,31 +78,28 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
             <h2 class="hw-title tx-lesson-title" id="lesson-title"></h2>
           </div>
           <p class="hw-text" id="lesson-summary"></p>
+          <p class="hw-text" id="lesson-goal"></p>
           <div class="hw-section" id="event-section">
             <span class="hw-label">이번 사건</span>
             <code class="tx-sql" id="current-sql"></code>
           </div>
           <ul class="tx-details" id="lesson-details"></ul>
           <div class="hw-section" id="changes"></div>
-          <div class="hw-section" id="takeaway-section"><p class="hw-note hw-note--accent" id="takeaway"></p></div>
+          <div class="hw-section" id="key-section"><p class="hw-note hw-note--accent"><span class="hw-label">${LABELS.key}</span> <span id="lesson-key"></span></p></div>
         </div>`,
         `<div class="tx-cta" id="cta">
-          <button class="hw-key tx-wide" data-action="predict" hidden>대기가 풀리면? 결과 맞혀보기 →</button>
-          <button class="hw-key hw-key--accent tx-wide" data-action="compare" data-role="conclusion" hidden>전체 실행 결과 비교 →</button>
+          <button class="hw-key tx-wide" data-action="predict" hidden>${LABELS.predict("최종 재고")}</button>
+          <button class="hw-key hw-key--accent tx-wide" data-action="compare" data-role="conclusion" hidden>${LABELS.compareEnd}</button>
         </div>`,
       )}
-      ${sidePanel("scenes", `<div class="hw-fill hw-list tx-milestones" id="milestones" aria-label="핵심 장면으로 이동"></div>`)}
+      ${sidePanel("scenes", `<div class="hw-fill hw-list tx-milestones" id="milestones" aria-label="${LABELS.jumpToScene}"></div>`)}
       ${sidePanel(
         "scope",
         `<div class="hw-fill tx-pages" id="scope-pages">
           <div class="hw-section tx-fact"><span class="hw-label">선택한 방식 · <span id="rule-mode"></span></span><p class="hw-text" id="rule-summary"></p></div>
-          <div class="hw-section tx-fact"><span class="hw-label">데이터베이스</span><p class="hw-text">PostgreSQL · READ COMMITTED · 고정된 사건 순서</p></div>
-          <div class="hw-section tx-fact"><span class="hw-label">목표</span><p class="hw-text">두 주문이 각각 1개 감소 · 10 − 1 − 1 = 8</p></div>
-          <div class="hw-section tx-fact"><span class="hw-label">한 주문</span><p class="hw-text">읽기 → 앱에서 −1 계산 → 계산한 숫자로 UPDATE → COMMIT</p></div>
-          ${[...MODEL_NOTES, "실제 데이터베이스 연결이나 실행 시간 측정 없이 한 행의 상태 변화를 재현합니다."]
-            .map((t, i) => `<div class="hw-section tx-fact"><span class="hw-label">모델 ${pad(i + 1)}</span><p class="hw-text">${t}</p></div>`)
-            .join("")}
-          ${SCENE_LEGEND.map((t) => `<div class="hw-section tx-fact"><span class="hw-label">장면 표시</span><p class="hw-text">${t}</p></div>`).join("")}
+          <div class="hw-section tx-fact"><span class="hw-label">실험 조건</span><p class="hw-text">PostgreSQL · READ COMMITTED · 고정된 사건 순서. 재고 10에서 두 주문이 각각 1개 감소(기대 8). 한 주문은 읽기 → 앱에서 −1 → 계산한 숫자로 UPDATE → COMMIT.</p></div>
+          ${MODEL_NOTES.map((t, i) => `<div class="hw-section tx-fact"><span class="hw-label">모델 ${pad(i + 1)}</span><p class="hw-text">${t}</p></div>`).join("")}
+          <div class="hw-section tx-fact"><span class="hw-label">장면 표시</span><ul class="tx-details">${SCENE_LEGEND.map((t) => `<li>${t}</li>`).join("")}</ul></div>
         </div>`,
       )}
     </aside>
@@ -172,24 +172,32 @@ function render() {
   for (const b of $$("[data-mode]:not([data-close])")) b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   $("#rule-summary").textContent = RULES[mode];
   $("#rule-mode").textContent = MODES[mode];
-  $("#eyebrow").textContent = s.busy ? `${s.index}번째 사건 · 처리 중` : lesson.eyebrow;
+  const milestones = buildMilestones(run());
+  const sceneAt = s.busy ? -1 : milestones.findIndex((m) => m.index === lessonStep.index);
+  if (sceneAt >= 0) progress.markScene(sceneAt + 1);
+  const conclusion = s.done === TOTAL && !s.busy;
+  $("#eyebrow").textContent = s.busy
+    ? `${s.index}번째 사건 · 처리 중`
+    : sceneAt >= 0 ? `${LABELS.scene} ${sceneAt + 1}/${milestones.length} · ${lesson.eyebrow}` : lesson.eyebrow;
   $("#lesson-title").textContent = s.busy ? `${lessonStep.client} · ${actions[lessonStep.action]} 처리 중` : lesson.title;
   $("#lesson-summary").textContent = s.busy ? phaseBody || "장면의 현재 상태를 보며 이번 사건을 따라가세요." : lesson.summary;
+  $("#lesson-goal").textContent = lesson.goal;
+  $("#lesson-goal").classList.toggle("tx-off", s.busy || !lesson.goal);
   const sql = s.busy ? steps()[s.index].sql : step.sql;
-  $("#event-section").classList.toggle("tx-off", lessonStep.index === 0);
+  $("#event-section").classList.toggle("tx-off", lessonStep.index === 0 || conclusion);
   $("#lesson-details").classList.toggle("tx-off", lessonStep.index === 0);
   $("#current-sql").hidden = !sql;
   $("#current-sql").textContent = sql || "";
   $("#lesson-details").innerHTML = s.busy ? "" : lesson.details.map((t) => `<li>${t}</li>`).join("");
   renderChanges(lessonStep, s.busy ? lessonStep.before : step.state);
-  $("#takeaway").textContent = lesson.takeaway;
-  $("#takeaway-section").classList.toggle("tx-off", s.busy);
+  if (conclusion) $("#changes").classList.add("tx-off");
+  $("#lesson-key").textContent = lesson.key;
+  $("#key-section").classList.toggle("tx-off", s.busy || conclusion);
+  recapView.show(conclusion);
   const predict = !s.busy && Boolean(predictionFor(step, run()));
-  const conclusion = s.done === TOTAL && !s.busy;
   $('[data-action="predict"]').hidden = !predict;
   $('[data-role="conclusion"]').hidden = !conclusion;
   $("#cta").hidden = !predict && !conclusion;
-  const milestones = buildMilestones(run());
   const active = milestones.findLastIndex((m) => m.index <= s.index);
   $("#milestones").innerHTML = milestones
     .map(
@@ -265,7 +273,8 @@ function renderRecords() {
 
 function showComparison() {
   player.pause();
-  $("#comparison-dialog").innerHTML = `${dialogHead("같은 10개 · 같은 두 주문")}
+  progress.markCompared();
+  $("#comparison-dialog").innerHTML = `${dialogHead(`${LABELS.compare} · ${LABELS.compareSub}`)}
   <div class="hw-plate-body">
     <h2 class="hw-title" id="comparison-title">잠금은 언제 시작해야 할까?</h2>
     <p class="hw-text tx-gap">두 방식 모두 UPDATE가 행을 잠급니다. 차이는 T2가 계산에 사용할 값을 언제 읽는지입니다.</p>
@@ -280,7 +289,7 @@ function showComparison() {
             <li>${tx("T2")}<span>읽기 <b class="hw-mono">${m === "naive" ? 10 : 9}</b> → 커밋 <b class="hw-mono">${final}</b></span></li>
           </ul>
           <p class="hw-text">${m === "naive" ? "T2는 먼저 읽은 10으로 계산한 9를 씁니다. 쓰기 잠금을 기다려도 이 숫자는 바뀌지 않습니다." : "T2의 읽기가 T1의 커밋을 기다립니다. 갱신된 9를 읽고 8을 계산합니다."}</p>
-          <button class="hw-key" data-mode="${m}" data-close="true">이 방식으로 다시 보기 →</button>
+          <button class="hw-key" data-mode="${m}" data-close="true">${LABELS.replayMode} →</button>
         </section>`;
       })
       .join("")}</div>
@@ -293,7 +302,7 @@ function showPrediction() {
   player.pause();
   quiz = predictionFor(steps()[player.state.done], run());
   if (!quiz) return;
-  $("#prediction-dialog").innerHTML = `${dialogHead("T1 커밋 직후 · 잠금이 풀린 순간")}
+  $("#prediction-dialog").innerHTML = `${dialogHead(`${LABELS.predictTitle} · T1 커밋 직후`)}
   <div class="hw-plate-body">
     <h2 class="hw-title" id="prediction-title">${quiz.question}</h2>
     <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="hw-mono">${escape(value)}</b></li>`).join("")}</ul>
@@ -304,6 +313,7 @@ function showPrediction() {
 }
 
 side = createSide();
+const recapView = createRecap($("#lesson-pages"), { id: "transaction", recap: RECAP, progress, side, recapHtml, bindRecap, progressHtml });
 const timelineRows = followRows($("#record-timeline"), { current: (tbody) => tbody.querySelector(`[data-step="${player.state.index}"]`) });
 const logRows = followRows($("#record-log"));
 
@@ -330,7 +340,8 @@ bindConsole(player, {
         b.querySelector(".hw-led").classList.toggle("is-on", b.dataset.answer === quiz.answerId);
       }
       const chosen = quiz.options.find((o) => o.id === button.dataset.answer);
-      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${correct ? "맞았습니다." : `${chosen.label}가 아닙니다. 정답은 ${quiz.options.find((o) => o.id === quiz.answerId).label}입니다.`}</p><p class="hw-text tx-gap">${chosen.feedback}</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">실제 요청 재개 보기 →</button></div>`;
+      progress.markPrediction(mode, correct);
+      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${correct ? LABELS.correct : LABELS.wrong(quiz.options.find((o) => o.id === quiz.answerId).label)}</p><p class="hw-text tx-gap">${chosen.feedback}</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">${LABELS.reveal}</button></div>`;
       return true;
     }
     switch (button.dataset.action) {

@@ -170,7 +170,7 @@ const dnsLesson = {
       title: "Root Server",
       desc: "Points the way to .com",
       detail:
-        "The resolver’s cache is empty (it has just started), so it begins at the top. A root server doesn’t know the address, but it knows which servers handle .com and replies with a referral. Many resolvers send it only “com”, not the full name.",
+        "The resolver’s cache is empty (it has just started), so it begins at the top. A root server doesn’t know the address, but it knows which servers handle .com and replies with a referral. This example sends the full name; many resolvers send each server only the part it needs, here just “com” (QNAME minimisation, RFC 9156).",
       facts: [
         ["Server", "a.root-servers.net"],
         ["Root servers", "13 names, 1,000+ anycast sites"],

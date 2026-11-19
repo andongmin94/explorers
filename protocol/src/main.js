@@ -8,7 +8,16 @@ import "./styles.css";
 import "../../shared/switcher.js";
 import "../../shared/iso.js";
 import { lessonsById, protocolCatalog } from "./lessons/index.js";
-import { recordLessonProgress } from "./progress.js";
+import {
+  getLearningSummary,
+  markKeyScene,
+  markPrediction,
+  markRecall,
+  recordLessonProgress,
+  sharedProgress,
+} from "./progress.js";
+import { getGuidedStops, getKeySteps, getPendingQuiz, getUpcomingPacket } from "./quiz.js";
+import { learning } from "./lessons/learning.js";
 import { translate } from "./i18n.js";
 import {
   bindThemeToggle,
@@ -32,7 +41,7 @@ import {
   updateOverviewPanel,
 } from "./ui/overview.js";
 import { bindPacketTable, fitPacketRows, renderPacketTable, updatePacketTable } from "./ui/packet-table.js";
-import { SPEEDS, bindDeck, renderDeck, updateDeck, updateDeckSpeed } from "./ui/deck.js";
+import { SPEEDS, bindDeck, renderDeck, updateDeck, updateDeckGuided, updateDeckSpeed } from "./ui/deck.js";
 import { createNetworkAnimation } from "./simulation/network-animation.js";
 import { createLessonPlayer } from "./simulation/player.js";
 import { createQuiz, renderQuizDialog, renderQuizFoot } from "./ui/quiz.js";
@@ -49,7 +58,7 @@ appElement.innerHTML = `
       ${renderPacketTable()}
     </main>
     <footer class="hw-footer">
-      <span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 단계 이동 (검사 중에는 패킷) <kbd>V</kbd> 보기 전환 <kbd>Esc</kbd> 닫기·처음으로</span>
+      <span>조작: <kbd>Space</kbd> 재생·일시정지 <kbd>←</kbd><kbd>→</kbd> 이전·다음 단계 (검사 중에는 패킷) <kbd>R</kbd> 처음으로 <kbd>V</kbd> 보기 전환 <kbd>Esc</kbd> 닫기</span>
       <span>교육용 패킷 시나리오 · 실제 통신을 캡처하지 않습니다</span>
     </footer>
     <div class="pe-scrim" aria-hidden="true"></div>
@@ -98,6 +107,17 @@ setDrawerOpen(false);
 let currentLesson = null;
 let lessonPlayer = null;
 let currentPlaybackState = null;
+let guidedStops = { events: new Set(), midStream: new Set() };
+// A packet inside a stream the guided mode already held before.
+let heldInStream = -1;
+
+/* ---------- Guided playback (핵심 장면에서 멈추기) ---------- */
+
+const GUIDED_STORAGE_KEY = "protocol-explorer:guided";
+let guided = true;
+try {
+  guided = localStorage.getItem(GUIDED_STORAGE_KEY) !== "0";
+} catch {}
 const viewController = createViewSwitcher(stageElement, (view) => lessonPlayer?.setMode(view));
 
 const getVisiblePacketIndices = () =>
@@ -151,6 +171,10 @@ const quiz = createQuiz({
   player: () => lessonPlayer,
   lesson: () => currentLesson,
   playback: () => currentPlaybackState,
+  onAnswer: (lesson, question, correct) => {
+    markPrediction(lesson, question.packet, correct);
+    if (lesson === currentLesson && currentPlaybackState) updateAppPlaybackState(currentPlaybackState, lesson);
+  },
 });
 updateLearningProgress(topbarElement, lessonsById);
 bindThemeToggle(topbarElement);
@@ -159,11 +183,14 @@ bindThemeToggle(topbarElement);
 function updateStageStatus(state, lesson) {
   const total = state.packets.length;
   const sent = state.packets.filter((packet) => packet !== "future").length;
+  const pending = !state.playing && getPendingQuiz(lesson, state, quiz.answered(lesson));
   const status = !state.started
-    ? `${translate("OVERVIEW · {n} STEPS", { n: lesson.steps.length })} · 재생을 누르면 시작합니다`
+    ? `${translate("OVERVIEW · {n} STEPS", { n: lesson.steps.length })} · 학습 시작을 누르면 시작합니다`
     : state.done
-      ? `${translate("END OF SCENARIO")} · 패킷 ${total}개 모두 전송`
-      : `${state.playing ? "재생 중" : "일시정지"} · 패킷 ${sent}/${total}`;
+      ? `${translate("END OF SCENARIO")} · 패킷 ${total}개 모두 전송 · 정리`
+      : pending
+        ? `핵심 장면 · 다음 패킷을 먼저 맞혀 보세요 · 패킷 ${sent}/${total}`
+        : `${state.playing ? "재생 중" : "일시정지"} · 패킷 ${sent}/${total}`;
   const foot = stageElement.querySelector(".stage-status");
   if (foot.textContent !== status) foot.textContent = status;
   stageElement.querySelector(".stage-led").classList.toggle("is-on", state.playing);
@@ -175,6 +202,16 @@ function updateStageStatus(state, lesson) {
 
 /** Render one shared playback snapshot across all panels. */
 function updateAppPlaybackState(state, lesson = currentLesson) {
+  // Guided: hold before a predicted packet inside a stream (packet events are
+  // held by the player itself, before the event starts).
+  const upcoming = getUpcomingPacket(state);
+  if (guided && state.playing && state.running && guidedStops.midStream.has(upcoming) && heldInStream !== upcoming) {
+    heldInStream = upcoming;
+    lessonPlayer.pause();
+  }
+  const keySteps = getKeySteps(lesson);
+  if (state.started && !state.done && keySteps.includes(state.activeStep)) markKeyScene(lesson, state.activeStep);
+  const pending = getPendingQuiz(lesson, state, quiz.answered(lesson));
   if (state.labels) networkAnimation.setLabels(state.labels);
   networkAnimation.setDevices(lesson.id, state.devices, state.event, state.running);
   updateTopbar(topbarElement, state, lesson);
@@ -184,6 +221,10 @@ function updateAppPlaybackState(state, lesson = currentLesson) {
     state,
     lesson,
     protocolCatalog.findIndex((protocol) => protocol.id === lesson.id),
+    {
+      pending,
+      summary: getLearningSummary(lesson, { scenes: keySteps.length, recall: learning[lesson.id]?.recall ?? [] }),
+    },
   );
   updatePacketTable(packetsElement, state, lesson);
   updateDeck(deckElement, state, lesson);
@@ -193,12 +234,21 @@ function updateAppPlaybackState(state, lesson = currentLesson) {
     packetInspector.close();
   }
   updateSequenceDiagram(sequenceElement, state, lesson);
+  // The sequence's step label would name the pending answer (e.g. "Server Hello").
+  sequenceElement.querySelectorAll(".seq-step").forEach((label) =>
+    label.classList.toggle(
+      "is-masked",
+      Boolean(pending) && Number(label.dataset.step) === pending.step && state.steps[pending.step] !== "done",
+    ),
+  );
   quiz.update(state, lesson);
 }
 
 /** Back to the overview; a pending quiz reveal no longer applies. */
 function resetLesson() {
   quiz.cancel();
+  quiz.clearAnswers(currentLesson);
+  heldInStream = -1;
   lessonPlayer.reset();
 }
 
@@ -208,6 +258,10 @@ function selectLesson(lessonId) {
   packetInspector.close();
   lessonPlayer?.dispose();
   currentLesson = lessonsById[lessonId];
+  quiz.clearAnswers(currentLesson);
+  heldInStream = -1;
+  guidedStops = getGuidedStops(currentLesson);
+  const stops = guidedStops;
   // Capture this lesson: asynchronous notifications must not read a newer one.
   const selectedLesson = currentLesson;
   lessonPlayer = createLessonPlayer(
@@ -221,7 +275,7 @@ function selectLesson(lessonId) {
       }
       updateAppPlaybackState(state, selectedLesson);
     },
-    { mode: viewController.view() },
+    { mode: viewController.view(), stopBefore: (eventIndex) => guided && stops.events.has(eventIndex) },
   );
   lessonPlayer.reset();
 }
@@ -230,6 +284,7 @@ const closeDrawerAfterSelection = () => isDrawerOpen() && setTimeout(() => setDr
 
 function jumpToStep(index) {
   quiz.cancel();
+  heldInStream = -1;
   lessonPlayer.jump(index, {
     paused: currentPlaybackState.started && !currentPlaybackState.playing,
   });
@@ -253,7 +308,18 @@ bindSidebar(sidebarElement, {
     closeDrawerAfterSelection();
   },
 });
-bindOverviewBackButton(overviewElement, resetLesson, (stepIndex) => jumpToStep(stepIndex));
+bindOverviewBackButton(overviewElement, resetLesson, (stepIndex) => jumpToStep(stepIndex), {
+  onNextLesson: (lessonId) => selectLesson(lessonId),
+  recallProgress: (lesson) => ({
+    markRecall(id, correct) {
+      markRecall(lesson, id, correct);
+      sharedProgress.markRecall(`${lesson.id}:${id}`, correct);
+    },
+  }),
+  onRecall: (lesson) => {
+    if (lesson === currentLesson && currentPlaybackState) updateAppPlaybackState(currentPlaybackState, lesson);
+  },
+});
 
 /* ---------- Speed ---------- */
 
@@ -279,8 +345,16 @@ bindDeck(deckElement, {
   prev: () => jumpToPreviousStep(),
   next: () => jumpToNextStep(),
   speed: (speed) => setPlaybackSpeed(speed),
+  guided: () => {
+    guided = !guided;
+    updateDeckGuided(deckElement, guided);
+    try {
+      localStorage.setItem(GUIDED_STORAGE_KEY, guided ? "1" : "0");
+    } catch {}
+  },
   seek: (value) => (value === 0 ? resetLesson() : jumpToStep(value - 1)),
 });
+updateDeckGuided(deckElement, guided);
 bindPacketTable(packetsElement, { inspect: inspectPacket });
 
 /* ---------- Keyboard ---------- */
@@ -291,12 +365,9 @@ const keyboardActions = {
   " ": () => lessonPlayer.toggle(),
   ArrowRight: navigateForward,
   ArrowLeft: navigateBackward,
-  Escape: () =>
-    isDrawerOpen()
-      ? setDrawerOpen(false)
-      : packetInspector.isOpen()
-        ? packetInspector.close()
-        : resetLesson(),
+  Escape: () => (isDrawerOpen() ? setDrawerOpen(false) : packetInspector.isOpen() && packetInspector.close()),
+  r: () => resetLesson(),
+  R: () => resetLesson(),
   v: () => viewController.toggle(),
   V: () => viewController.toggle(),
 };

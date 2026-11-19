@@ -72,3 +72,21 @@ export function look(requests = REQUESTS, initialHead = INITIAL_HEAD, direction 
   }
   return { order, total };
 }
+
+/**
+ * SCAN: like LOOK, but the head runs on to the disk edge (cylinder 0 or
+ * `max`) before reversing. Used only for the comparison note.
+ */
+export function scan(requests = REQUESTS, initialHead = INITIAL_HEAD, direction = "down", max = 199) {
+  const below = requests.filter((c) => c < initialHead).sort((a, b) => b - a);
+  const above = requests.filter((c) => c >= initialHead).sort((a, b) => a - b);
+  const [first, second, edge] = direction === "down" ? [below, above, 0] : [above, below, max];
+  const order = second.length ? [...first, edge, ...second] : first;
+  let head = initialHead,
+    total = 0;
+  for (const c of order) {
+    total += Math.abs(c - head);
+    head = c;
+  }
+  return { order: order.filter((c, i) => !(second.length && i === first.length)), total };
+}

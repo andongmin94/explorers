@@ -1243,3 +1243,37 @@
   .hw-table th { padding-block: 6px 5px; }
   .hw-table td { padding-block: 5px; }
 }
+
+/* ---------- Learning model: 정리 panel, recall questions, progress ---------- */
+
+.hw-recap-points > li {
+  font-size: var(--fs-2);
+  line-height: 1.55;
+  word-break: keep-all;
+}
+.hw-recall-q {
+  margin: 6px 0 8px;
+}
+.hw-recall-choices > button[aria-pressed="true"] {
+  font-weight: 750;
+}
+.hw-recall-why {
+  margin-top: 8px;
+}
+.hw-recap-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hw-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.hw-progress .hw-label {
+  white-space: normal;
+  word-break: keep-all;
+}

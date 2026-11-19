@@ -578,8 +578,9 @@ function applySequenceState(panel, state, drawingBeforeResize) {
     const packetIndex = Number(arrow.dataset.packet);
     const packetState = state.packets[packetIndex];
     const tip = arrow.querySelector(".seq-tip, .seq-cross");
-    tip.style.visibility = !state.started || packetState === "lost" || packetState === "past" ? "visible" : "hidden";
-    const visible = !state.started || packetState !== "future";
+    tip.style.visibility = packetState === "lost" || packetState === "past" ? "visible" : "hidden";
+    // Before playback nothing is drawn yet: no result before it happens.
+    const visible = state.started && packetState !== "future";
     const current = state.started && packetState === "current";
     if (visible && !arrow.classList.contains("is-shown")) {
       newlyVisible.push({
@@ -626,8 +627,7 @@ function applySequenceState(panel, state, drawingBeforeResize) {
     }
   });
   svg.querySelectorAll(".seq-note").forEach((note) => {
-    const visible =
-      !state.started || state.notes[Number(note.dataset.note)] !== "future";
+    const visible = state.started && state.notes[Number(note.dataset.note)] !== "future";
     if (visible && !note.classList.contains("is-shown")) {
       if (drawingBeforeResize) note.classList.add("is-shown");
       else revealSequenceElement(note, "fade", 0);

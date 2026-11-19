@@ -6,21 +6,27 @@ import "../../shared/iso.js";
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs } from "../../shared/fit.js";
 import { followRows } from "./fit-rows.js";
-import { simulate, look, REQUESTS, INITIAL_HEAD } from "./engine.js";
+import { simulate, look, scan, REQUESTS, INITIAL_HEAD } from "./engine.js";
+import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
+import { josa } from "../../shared/josa.js";
 import { createDiskScene } from "./scene.js";
 import {
   COMPARE_STORY,
+  FURTHER,
   MODEL_NOTES,
   NAMES,
+  RECALL_TOTAL,
   RULE_SHORT,
   STAGES,
-  TAKEAWAY,
-  josa,
+  compareNote,
+  guidedStops,
   lessonAt,
   milestonesFor,
   phaseText,
+  predictionFor,
+  recapFor,
   servicePosition,
-  starvationNote,
+  takeawayAt,
 } from "./lesson.js";
 
 const $ = (s) => document.querySelector(s);
@@ -33,6 +39,10 @@ const SIDE_TABS = [
 const N = REQUESTS.length;
 const runs = { fcfs: simulate("fcfs"), sstf: simulate("sstf") };
 const sweep = look(REQUESTS, INITIAL_HEAD, "down");
+const scanTotal = scan(REQUESTS, INITIAL_HEAD, "down").total;
+const scenes = { fcfs: milestonesFor("fcfs", runs.fcfs), sstf: milestonesFor("sstf", runs.sstf) };
+const stops = { fcfs: guidedStops("fcfs", runs.fcfs), sstf: guidedStops("sstf", runs.sstf) };
+const progress = createProgress("disk", { scenes: scenes.fcfs.length + scenes.sstf.length, recall: RECALL_TOTAL });
 let algorithm = "fcfs",
   index = 0,
   committed = 0,
@@ -57,9 +67,9 @@ $("#app").outerHTML = `
 <div class="hw-page disk-page">
   <header class="hw-topbar">
     <div class="hw-brand"><h1>디스크 스케줄링 탐색기</h1><p>보면서 이해하는 운영체제</p></div>
-    <div class="hw-context"><span class="hw-label"><span class="hw-index">04</span> 대표 시나리오</span><strong>같은 요청, 다른 이동 거리</strong></div>
+    <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> ${LABELS.scenario}</span><strong>같은 요청, 다른 이동 거리</strong></div>
     <div class="hw-actions">
-      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>두 방식 비교</span></button>
+      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>${LABELS.compare}</span></button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="${dark() ? "밝은" : "어두운"} 테마로 전환">${icon(dark() ? "sun" : "moon")}</button>
     </div>
   </header>
@@ -93,7 +103,7 @@ $("#app").outerHTML = `
           <button class="hw-key hw-key--icon" data-action="back" aria-label="이전 요청">${icon("back")}</button>
           <button class="hw-key hw-key--accent disk-play" data-action="play" aria-label="재생"></button>
           <button class="hw-key" data-action="next">다음 요청 ${icon("next")}</button>
-          <button class="hw-key hw-key--icon" data-action="replay" aria-label="이번 요청 다시 보기">${icon("replay")}</button>
+          <button class="hw-key hw-key--icon" data-action="replay" aria-label="${LABELS.now} 요청 다시 보기">${icon("replay")}</button>
           <button class="hw-key hw-key--icon hw-mono" data-action="speed" aria-label="재생 속도 1배, 바꾸기">1×</button>
         </div>
       </div>
@@ -102,7 +112,7 @@ $("#app").outerHTML = `
         <input id="seek" class="hw-slider" type="range" min="0" max="${N}" step="1" value="0" aria-label="처리한 요청 수" />
         <span class="hw-label">${N}</span>
       </div>
-      <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">요청마다 멈추기</button>
+      <button class="hw-switch" role="switch" aria-checked="true" data-action="guided">${LABELS.guided}</button>
     </section>
 
     <aside class="hw-plate hw-side" aria-labelledby="side-label">
@@ -113,28 +123,16 @@ $("#app").outerHTML = `
         ).join("")}</div>
       </div>
       <div class="hw-plate-body hw-fit" id="side-lesson" data-panel="lesson" aria-labelledby="side-tab-lesson">
-        <div class="hw-fill disk-pages" id="lesson-pages">
-          <div class="hw-section">
-            <span class="hw-label" id="eyebrow"></span>
-            <h2 class="hw-title disk-title" id="lesson-title"></h2>
-          </div>
-          <p class="hw-text" id="lesson-body"></p>
-          <div class="hw-section">
-            <span class="hw-label">한 요청의 네 단계</span>
-            <ol class="hw-list disk-stages" id="stages"></ol>
-          </div>
-          <div class="hw-section"><p class="hw-note hw-note--accent" id="takeaway"></p></div>
-        </div>
+        <div class="hw-fill disk-pages" id="lesson-pages"></div>
         <div class="disk-cta">
-          <button class="hw-key disk-wide" data-action="predict">다음 선택, 먼저 맞혀보기 ${icon("arrow")}</button>
-          <button class="hw-key hw-key--accent disk-wide" data-action="compare" data-conclusion hidden>전체 이동 거리 비교 ${icon("arrow")}</button>
+          <button class="hw-key disk-wide" data-action="predict">${LABELS.predict("다음 선택")}</button>
         </div>
       </div>
       <div class="hw-plate-body hw-fit" id="side-distance" data-panel="distance" aria-labelledby="side-tab-distance">
         <div class="hw-fill disk-pages" id="remaining"></div>
       </div>
       <div class="hw-plate-body hw-fit" id="side-scenes" data-panel="scenes" aria-labelledby="side-tab-scenes">
-        <div class="hw-fill hw-list disk-milestones" id="milestones" aria-label="핵심 장면으로 이동"></div>
+        <div class="hw-fill hw-list disk-milestones" id="milestones" aria-label="${LABELS.jumpToScene}"></div>
       </div>
       <div class="hw-plate-body hw-fit" id="side-scope" data-panel="scope" aria-labelledby="side-tab-scope">
         <div class="hw-fill disk-pages" id="scope-pages">${MODEL_NOTES.map(
@@ -147,7 +145,7 @@ $("#app").outerHTML = `
       <div class="hw-plate-head">
         <div class="hw-tabs" role="tablist" aria-label="관찰 기록">
           <button role="tab" aria-selected="true" id="tab-path" aria-controls="record-path" data-record="path">헤드 이동 경로</button>
-          <button role="tab" aria-selected="false" id="tab-log" aria-controls="record-log" data-record="log" tabindex="-1">처리 기록 <span class="hw-mono hw-muted" id="log-count">0</span></button>
+          <button role="tab" aria-selected="false" id="tab-log" aria-controls="record-log" data-record="log" tabindex="-1">요청 기록 <span class="hw-mono hw-muted" id="log-count">0</span></button>
           <button role="tab" aria-selected="false" id="tab-results" aria-controls="record-results" data-record="results" tabindex="-1">누적 결과</button>
         </div>
         <span class="hw-label disk-records-hint">완료한 요청을 눌러 그 순간으로 이동</span>
@@ -204,6 +202,7 @@ let lessonKey = "";
 /* ---------- Rendering ---------- */
 
 function renderStages(step) {
+  if (!$("#stages")) return;
   const at = STAGES.findIndex((s) => s.kind === phase);
   const reached = (i) => (busy ? i <= at : index > 0);
   const detail = {
@@ -216,6 +215,85 @@ function renderStages(step) {
     (s, i) =>
       `<li${busy && i === at ? ' aria-current="step"' : ""}><span class="hw-led${reached(i) ? " is-on" : ""}"></span><span class="hw-index">${i + 1}</span>${s.label}<span class="hw-mono hw-muted disk-stage-detail">${reached(i) ? detail[s.kind] : ""}</span></li>`,
   ).join("");
+}
+
+const sceneAt = (n) => scenes[algorithm].findIndex((m) => m.n === n);
+
+// The 해설 tab: the current request (설명) or, at the end of a run, 정리.
+// Rebuilt only when the moment changes, so recall answers stay put.
+function renderLesson(step, target) {
+  const end = committed === N && !busy;
+  const key = `${algorithm}:${index}:${busy}`;
+  if (key === lessonKey) {
+    if (!busy && !end) renderStages(step);
+    return;
+  }
+  lessonKey = key;
+  const k = sceneAt(committed);
+  if (!busy && k >= 0) progress.markScene(`${algorithm}:${committed}`);
+  const tag = !busy && k >= 0 ? `${end ? `${LABELS.recap} · ` : ""}${LABELS.scene} ${k + 1}/${scenes[algorithm].length} · ` : "";
+  const l = busy
+    ? { eyebrow: `${index}번째 요청 · 처리 중`, title: `요청 ${target.request.id} · ${target.request.cylinder}번 처리 중`, body: "" }
+    : lessonAt(algorithm, index, step);
+  const head = `<div class="hw-section"><span class="hw-label" id="eyebrow">${tag}${l.eyebrow}</span><h2 class="hw-title disk-title" id="lesson-title">${l.title}</h2></div>`;
+  const note = `<div class="hw-section"><span class="hw-label">${LABELS.key}</span><p class="hw-note hw-note--accent" id="takeaway">${takeawayAt(algorithm, committed, runs)}</p></div>`;
+  if (end) {
+    const recap = recapFor(algorithm, runs, sweep, scanTotal);
+    const box = document.createElement("div");
+    box.innerHTML = recapHtml({ id: "disk", points: recap.points, recall: recap.recall, progress });
+    // One page item per point, so the pager fills pages instead of moving the
+    // whole list. The 핵심 note is left out here: the points restate it.
+    const parts = [...box.firstElementChild.children];
+    const foot = parts.pop();
+    parts.shift();
+    const points = recap.points.map((text, i) => {
+      const el = document.createElement(i ? "ul" : "div");
+      if (i) el.className = "hw-list hw-recap-points disk-recap-more";
+      else el.className = "hw-section";
+      el.innerHTML = i ? "" : `<span class="hw-label">${LABELS.recapPoints}</span><ul class="hw-list hw-recap-points"></ul>`;
+      const li = document.createElement("li");
+      li.textContent = text;
+      (i ? el : el.querySelector("ul")).append(li);
+      return el;
+    });
+    // 비교 comes before the questions; further study sits just before the
+    // progress line and the next-experiment key (each its own page item).
+    const compare = document.createElement("div");
+    compare.className = "hw-section";
+    compare.innerHTML = `<button class="hw-key hw-key--accent disk-wide" data-action="compare">${LABELS.compareEnd}</button>`;
+    const further = document.createElement("p");
+    further.className = "hw-text disk-further";
+    further.innerHTML = `${FURTHER.text} <a href="${FURTHER.href}" target="_blank" rel="noreferrer">${FURTHER.source}</a>`;
+    // Recall answers are short: print them as small keys in one row.
+    for (const el of parts) {
+      el.querySelector(".hw-recall-choices")?.classList.remove("hw-list");
+      el.querySelectorAll("[data-choice]").forEach((b) => b.classList.add("hw-key", "hw-key--sm"));
+    }
+    const lesson = $("#lesson-pages");
+    lesson.innerHTML = head;
+    lesson.append(...points, compare, ...parts, further, foot);
+    bindRecap(lesson, {
+      recall: recap.recall,
+      progress,
+      // The answer's why makes its question taller: lay the pages out again
+      // and stay on that question.
+      onAnswer(q) {
+        pagers.lesson.refresh();
+        pagers.lesson.showItem(lesson.querySelector(`[data-recall="${q.id}"]`));
+        const line = lesson.querySelector(".hw-progress");
+        if (line) line.outerHTML = progressHtml(progress.summary());
+      },
+    });
+  } else {
+    $("#lesson-pages").innerHTML = `${head}
+      <p class="hw-text" id="lesson-body">${l.body}</p>
+      ${l.goal ? `<p class="hw-text disk-goal">${l.goal}</p>` : ""}
+      <div class="hw-section disk-stages-section"><span class="hw-label">한 요청의 네 단계</span><ol class="hw-list disk-stages" id="stages"></ol></div>
+      ${note}`;
+    renderStages(busy ? target : step);
+  }
+  pagers.lesson.refresh();
+  pagers.lesson.show(0);
 }
 
 function controls() {
@@ -245,16 +323,7 @@ function render() {
     .forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.algorithm === algorithm)));
   $("#stage-mode").textContent = `${NAMES[algorithm]} · ${RULE_SHORT[algorithm]}`;
 
-  if (busy) {
-    $("#eyebrow").textContent = `${index}번째 요청 · 처리 중`;
-    $("#lesson-title").textContent = `요청 ${target.request.id} · ${target.request.cylinder}번 처리 중`;
-  } else {
-    const l = lessonAt(algorithm, index, step);
-    $("#eyebrow").textContent = l.eyebrow;
-    $("#lesson-title").textContent = l.title;
-    $("#lesson-body").textContent = l.body;
-  }
-  renderStages(busy ? target : step);
+  renderLesson(step, target);
 
   // The distances behind the choice just made are shown; the next choice's
   // distances are left for the learner to work out (and the prediction).
@@ -266,22 +335,19 @@ function render() {
     ? `<div class="hw-section"><span class="hw-label">직전 선택 · 헤드 ${step.before.head}에서 잰 거리</span>${cells(step.candidates.slice().sort((a, b) => a.id - b.id), (r) => `${r.distance}칸`)}</div>`
     : "";
   $("#remaining").innerHTML = busy
-    ? `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">${josa(`요청 ${target.request.id}번`, "을")} 처리하는 중입니다. 헤드가 도착하면 남은 요청까지 거리를 다시 잽니다.</p></div>`
+    ? `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">${josa(`요청 ${target.request.id}번`, "을/를")} 처리하는 중입니다. 헤드가 도착하면 남은 요청까지 거리를 다시 잽니다.</p></div>`
     : state.pending.length
       ? `<div class="hw-section"><span class="hw-label">다음 후보 · 헤드 ${state.head}</span>${cells(state.pending, () => "?칸")}
       <p class="hw-text hw-muted disk-small">${algorithm === "fcfs" ? "FCFS는 거리가 아니라 도착 순서로 선택" : "SSTF는 이 거리 중 최솟값을 선택 · 직접 계산한 뒤 맞혀보세요"}</p></div>${last}`
-      : `${last}<div class="hw-section"><p class="hw-text hw-muted disk-body">남은 요청이 없습니다. 처리 기록과 두 방식 비교에서 전체 이동을 확인하세요.</p></div>`;
-  $("#takeaway").textContent = algorithm === "sstf" ? `${TAKEAWAY.sstf} ${starvationNote(runs)}` : TAKEAWAY.fcfs;
+      : `${last}<div class="hw-section"><p class="hw-text hw-muted disk-body">남은 요청이 없습니다. 요청 기록과 결과 비교에서 전체 이동을 확인하세요.</p></div>`;
   $('[data-action="predict"]').hidden = busy || committed === N;
-  $("[data-conclusion]").hidden = committed !== N;
-  $("#milestones").innerHTML = milestonesFor(algorithm, run()).map(
+  $(".disk-cta").hidden = committed === N && !busy;
+  // A scene not reached yet shows only where it is, not what happens there.
+  $("#milestones").innerHTML = scenes[algorithm].map(
     (m) =>
-      `<button data-seek="${m.n}"${m.n === index ? ' aria-current="true"' : ""}><span class="hw-index">${String(m.n).padStart(2, "0")}</span>${m.label}</button>`,
+      `<button data-seek="${m.n}"${m.n === index ? ' aria-current="true"' : ""}><span class="hw-index">${String(m.n).padStart(2, "0")}</span>${m.n <= committed ? m.label : `${m.n}번째 요청 · ${m.preview}`}</button>`,
   ).join("");
-  const key = `${algorithm}:${index}`;
   pagers.lesson.refresh();
-  if (key !== lessonKey) pagers.lesson.show(0);
-  lessonKey = key;
   pagers.distance.refresh();
   pagers.scenes.refresh();
   const here = $("#milestones [aria-current]");
@@ -344,7 +410,7 @@ function renderRecords() {
       <div><dt class="hw-label">요청당 평균 이동</dt><dd class="hw-mono">${committed ? (s.total / committed).toFixed(1) : "—"}<small>칸</small></dd></div>
       <div><dt class="hw-label">가장 긴 한 번 이동</dt><dd class="hw-mono">${committed ? longest : "—"}<small>칸</small></dd></div>
     </dl>
-    <p class="hw-text hw-muted disk-small">${committed === N ? "같은 요청 전체를 처리한 결과입니다. 두 방식 비교에서 이동 경로와 합계를 함께 확인하세요." : "현재까지 완료한 요청의 결과입니다. 누적 이동 거리는 장면의 표시창에 있습니다."}</p>`;
+    <p class="hw-text hw-muted disk-small">${committed === N ? "같은 요청 전체를 처리한 결과입니다. 결과 비교에서 이동 경로와 합계를 함께 확인하세요." : "현재까지 완료한 요청의 결과입니다. 누적 이동 거리는 장면의 표시창에 있습니다."}</p>`;
 }
 
 /* ---------- Playback ---------- */
@@ -374,7 +440,7 @@ async function move(next, motion = false) {
   busy = false;
   paused = false;
   render();
-  if (index === N || (guided && playing)) playing = false;
+  if (index === N || (guided && playing && stops[algorithm].includes(index))) playing = false;
   controls();
   schedule();
 }
@@ -460,7 +526,8 @@ function dialogHead(label, title, id) {
 
 function comparison() {
   pause();
-  $("#comparison-dialog").innerHTML = `${dialogHead(`같은 요청 ${N}개 · 같은 시작점 ${INITIAL_HEAD}`, "순서가 바꾸는 이동 거리", "comparison-title")}
+  progress.markCompared();
+  $("#comparison-dialog").innerHTML = `${dialogHead(`${LABELS.compareSub} · 요청 ${N}개 · 시작 ${INITIAL_HEAD}`, LABELS.compare, "comparison-title")}
     <div class="disk-compare">${Object.entries(runs)
       .map(
         ([name, r]) => `<section>
@@ -469,59 +536,48 @@ function comparison() {
           ${miniPath(r)}
           <p class="hw-mono disk-order">${INITIAL_HEAD} → ${r.order.join(" → ")}</p>
           <p class="hw-text">${COMPARE_STORY[name]} 183번은 ${servicePosition(r, 183)}번째로 처리됩니다.</p>
-          <button class="hw-key${name === algorithm ? "" : " hw-key--accent"}" data-algorithm="${name}" data-close="true">이 방식으로 다시 보기 ${icon("arrow")}</button>
+          <button class="hw-key${name === algorithm ? "" : " hw-key--accent"}" data-algorithm="${name}" data-close="true">${LABELS.replayMode} ${icon("arrow")}</button>
         </section>`,
       )
       .join("")}</div>
-    <div class="hw-plate-foot">SSTF는 FCFS보다 ${runs.fcfs.total - runs.sstf.total}칸 덜 움직이지만 이 예제에서도 최소는 아닙니다. 먼저 바깥쪽으로 쓸고 돌아오는 ${INITIAL_HEAD} → ${josa(sweep.order.join(" → "), "은")} ${sweep.total}칸입니다. 한 방향으로 쓸어 가는 이 생각이 다음 방식인 SCAN/LOOK입니다.</div>`;
+    <div class="hw-plate-foot">${compareNote(runs, sweep, scanTotal)}</div>`;
   $("#comparison-dialog").showModal();
 }
 
+// SSTF: choices are cylinders only. FCFS: the next cylinder is plain once
+// the queue is listed, so it asks for the length of the next move instead.
+let choices = [];
 function prediction() {
   pause();
   const next = run().steps[committed + 1];
   if (!next) return;
   const head = current().state.head;
-  $("#prediction-dialog").innerHTML = `${dialogHead(`${NAMES[algorithm]} · 현재 헤드 ${head}`, "다음에 어느 요청을 고를까요?", "prediction-title")}
+  const p = predictionFor(algorithm, run(), committed + 1);
+  choices = p.choices;
+  $("#prediction-dialog").innerHTML = `${dialogHead(`${LABELS.predictTitle} · ${NAMES[algorithm]} · 현재 헤드 ${head}`, p.question, "prediction-title")}
     <div class="hw-plate-body">
-      <p class="hw-text">${algorithm === "fcfs" ? "도착 순서를 근거로 선택하세요. 요청 번호가 도착 순서입니다." : `헤드 ${head}에서 각 실린더까지 거리를 직접 계산해 선택하세요.`} 버튼은 실린더 번호 순서입니다.</p>
-      <div class="disk-choices">${current()
-        .state.pending.slice()
-        .sort((a, b) => a.cylinder - b.cylinder || a.id - b.id)
-        .map(
-          (r) =>
-            `<button class="hw-key" data-answer="${r.id}">${algorithm === "fcfs" ? `<span class="hw-label">요청 ${r.id}번</span>` : ""}<b class="hw-mono">${r.cylinder}</b></button>`,
-        )
+      <p class="hw-text">${p.prompt}</p>
+      <div class="disk-choices">${choices
+        .map((c) => `<button class="hw-key" data-answer="${c.id}"><b class="hw-mono">${c.label}</b></button>`)
         .join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;
   $("#prediction-dialog").showModal();
 }
 
-// What the answer explains: FCFS names the arrival order (even when a nearer
-// request exists); SSTF shows the distances the learner was asked to compute.
-function predictionFeedback(next, chosenId) {
-  const chosen = next.candidates.find((c) => c.id === chosenId);
-  if (algorithm === "fcfs") {
-    const wrong = chosen.id === next.request.id ? "" : ` ${chosen.cylinder}번은 요청 ${chosen.id}번으로 더 늦게 도착했습니다.`;
-    return `${josa(`${next.request.cylinder}번`, "을")} 고릅니다. 요청 ${next.request.id}번이 남은 요청 중 먼저 도착했기 때문입니다.${wrong}`;
-  }
-  const near = next.candidates.slice(0, 2).map((c) => `${c.cylinder}번 ${c.distance}칸`).join(" · ");
-  const wrong = chosen.id === next.request.id ? "" : ` 고른 ${chosen.cylinder}번은 ${chosen.distance}칸입니다.`;
-  return `${josa(`${next.request.cylinder}번`, "을")} 고릅니다. 헤드 ${next.before.head}에서 가까운 순서: ${near}.${wrong}`;
-}
-
 function answer(b) {
-  const next = run().steps[committed + 1];
-  const correct = Number(b.dataset.answer) === next.request.id;
+  const chosen = choices.find((c) => c.id === Number(b.dataset.answer));
+  const right = choices.find((c) => c.correct);
+  progress.markPrediction(`${algorithm}:${committed + 1}`, chosen.correct);
   document.querySelectorAll("[data-answer]").forEach((x) => {
     x.disabled = true;
-    x.classList.toggle("is-correct", Number(x.dataset.answer) === next.request.id);
+    x.classList.toggle("is-correct", Number(x.dataset.answer) === right.id);
+    if (x === b) x.setAttribute("aria-pressed", "true");
   });
   $("#prediction-feedback").innerHTML = `<div class="hw-section">
-      <h3 class="hw-heading">${correct ? "맞았습니다." : "선택 기준을 다시 확인하세요."}</h3>
-      <p class="hw-text">${predictionFeedback(next, Number(b.dataset.answer))}</p>
-      <button class="hw-key hw-key--accent" data-action="verify">실제 이동으로 확인 ${icon("arrow")}</button>
+      <h3 class="hw-heading">${chosen.correct ? LABELS.correct : LABELS.wrong(right.answer)}</h3>
+      <p class="hw-text">${chosen.why}${chosen.correct ? "" : ` ${right.why}`}</p>
+      <button class="hw-key hw-key--accent" data-action="verify">${LABELS.reveal}</button>
     </div>`;
   $('[data-action="verify"]').focus();
 }

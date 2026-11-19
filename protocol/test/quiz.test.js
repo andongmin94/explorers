@@ -17,13 +17,19 @@ for (const [lessonId, questions] of Object.entries(lessonQuizzes)) {
       const answer = getPacketAnswer(packet, question.kind);
       assert.equal(typeof answer, "string", `${where}: answer read off the packet`);
       const values = question.choices.map(([value]) => value);
+      for (const [value, , why] of question.choices) {
+        assert.ok(typeof why === "string" && why.length > 10, `${where}: choice ${value} explains itself (why)`);
+      }
+      const described = question.choices.map(([, text]) => text !== null && text !== undefined);
+      assert.ok(described.every(Boolean) || !described.some(Boolean), `${where}: all choices described, or none`);
       assert.equal(new Set(values).size, values.length, `${where}: choices are distinct`);
       assert.equal(
         values.filter((value) => value === answer).length,
         1,
         `${where}: "${answer}" is exactly one of ${JSON.stringify(values)}`,
       );
-      assert.ok(question.prompt && question.explain, `${where}: prompt and explanation`);
+      assert.ok(question.prompt, `${where}: prompt`);
+      assert.ok(!/\?.*\?/.test(question.prompt), `${where}: one question per prompt`);
     }
     assert.equal(getLessonQuizzes(lesson).length, questions.length, "no question dropped");
   });

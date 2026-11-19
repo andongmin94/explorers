@@ -313,7 +313,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     commit: "인덱스의 스냅샷으로 새 커밋을 만들고 현재 브랜치를 옮깁니다.",
     switch: "main이 가리키는 커밋에서 작업 트리와 인덱스를 함께 복원합니다.",
     merge: "Git이 공통 조상 C0, 현재 C2, 가져올 C1로 병합을 계산하고, 자동으로 합칠 수 없는 파일의 세 버전을 인덱스에 기록합니다.",
-    resolve: "선택한 최종 문장으로 충돌 표시를 교체합니다. 아직 git add 전입니다.",
+    resolve: "선택한 최종 문장으로 충돌 표시를 교체합니다.",
   };
   const stageNames = { base: "공통 조상", ours: "현재 main", theirs: "가져올 feature/title" };
 
@@ -393,7 +393,8 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       step.title,
       {
         merge: "자동 병합이 멈췄습니다. main은 여전히 C2를 가리키고, 새 커밋은 없습니다.",
-        resolve: "작업 트리는 고쳤지만 인덱스에는 아직 세 버전이 남아 있습니다.",
+        // Neutral on purpose: prediction 10 ("is it resolved now?") is asked right after.
+        resolve: "작업 트리의 충돌 표시가 사라졌습니다.",
         commit: state.commits.length === 4 ? "C3는 C2와 C1을 부모로 갖습니다. main만 C3로 이동합니다." : "",
       }[step.action] ?? "",
       state,

@@ -1,11 +1,13 @@
-// Prediction quiz UI: a key at the foot of the side plate ("guess the next
-// packet first") and a dialog with the question, its choices as list rows, the
-// verdict with an explanation, then a key that plays on until the real packet
-// has arrived. The questions and their grading live in ../quiz.js.
+// Prediction quiz UI (예측 → 확인): a key at the foot of the side plate
+// ("다음 패킷, 먼저 맞혀보기 →") and a dialog with the question, its choices
+// as list rows, the verdict with the chosen choice's why, then 실제로 확인 →
+// which plays on until the real packet has arrived and pauses. The questions
+// and their grading live in ../quiz.js; labels in shared/lesson-kit.js.
 import { escapeHtml, translate } from "../i18n.js";
+import { LABELS } from "../../../shared/lesson-kit.js";
 import { icon } from "../../../shared/hw.js";
 import { getLessonPackets } from "../packets/encode.js";
-import { getLessonQuizzes, getQuizForStep, nextQuiz } from "../quiz.js";
+import { getLessonQuizzes, getPacketPositions, getQuizForStep, nextQuiz } from "../quiz.js";
 
 const CHOICE_LETTERS = "ABCDEF";
 
@@ -24,8 +26,10 @@ function renderQuizDialog() {
  * `player()` returns the current lesson player; `lesson()` and `playback()`
  * return the latest lesson and playback snapshot.
  */
-function createQuiz({ foot, dialog, player, lesson, playback }) {
+function createQuiz({ foot, dialog, player, lesson, playback, onAnswer = () => {} }) {
   const key = foot.querySelector(".pe-quiz-key");
+  const answered = new Map(); // lesson id → Set of answered packet indices
+  const answeredIn = (l) => answered.get(l.id) ?? new Set();
   let open = null; // { quiz, lesson, wasPlaying, answered }
   let reveal = null; // { lesson, packet, wasPlaying }
 
@@ -49,8 +53,9 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
     if (!upcoming) return;
     key.disabled = !available;
     const label = available
-      ? `다음 패킷, 먼저 맞혀보기 ${icon("arrow")}`
+      ? escapeHtml(LABELS.predict("다음 패킷"))
       : `패킷 ${upcoming.packet + 1} 앞에서 맞혀보기`;
+    key.classList.toggle("hw-key--accent", Boolean(available) && !answeredIn(currentLesson).has(available.packet));
     if (key.dataset.label !== label) {
       key.dataset.label = label;
       key.innerHTML = label;
@@ -68,7 +73,7 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
     const total = getLessonPackets(currentLesson).length;
     dialog.innerHTML = `
       <div class="hw-plate-head">
-        <span class="hw-label"><span class="hw-index">?</span> 다음 패킷을 먼저 예측하기</span>
+        <span class="hw-label"><span class="hw-index">?</span> ${LABELS.predictTitle}</span>
         <button class="hw-key hw-key--sm hw-key--icon" type="button" data-quiz="close" aria-label="${translate("Close (Esc)")}">${icon("close")}</button>
       </div>
       <div class="hw-plate-body">
@@ -83,8 +88,8 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
         <div class="pe-quiz-feedback" aria-live="polite"></div>
       </div>
       <div class="hw-plate-foot pe-quiz-actions">
-        <span class="pe-quiz-hint">답을 고르면 설명이 나옵니다</span>
-        <button class="hw-key hw-key--accent" type="button" data-quiz="continue" hidden>실제 패킷을 보며 확인 ${icon("arrow")}</button>
+        <span class="pe-quiz-hint">답을 고르면 고른 답의 이유가 나옵니다</span>
+        <button class="hw-key hw-key--accent" type="button" data-quiz="continue" hidden>${LABELS.reveal}</button>
       </div>`;
     dialog.showModal();
     dialog.querySelector("[data-answer]").focus();
@@ -104,9 +109,13 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
       button.querySelector(".pe-quiz-verdict").textContent = choice.correct ? "정답" : wrong ? "선택" : "";
     });
     const correct = quiz.choices.find((choice) => choice.correct);
-    dialog.querySelector(".pe-quiz-feedback").innerHTML = `<p class="hw-note ${picked.correct ? "hw-note--accent" : ""}"><span><b>${
-      picked.correct ? "맞았습니다." : `정답은 ${escapeHtml(correct.text)}입니다.`
-    }</b> ${escapeHtml(quiz.explain)}</span></p>`;
+    const verdict = picked.correct ? LABELS.correct : LABELS.wrong(correct.text);
+    dialog.querySelector(".pe-quiz-feedback").innerHTML = `<p class="hw-note ${picked.correct ? "hw-note--accent" : ""}"><span><b>${escapeHtml(verdict)}</b> ${escapeHtml(picked.why)}</span></p>${
+      picked.correct ? "" : `<p class="hw-text pe-quiz-right">${escapeHtml(correct.why)}</p>`
+    }`;
+    if (!answered.has(open.lesson.id)) answered.set(open.lesson.id, new Set());
+    answered.get(open.lesson.id).add(quiz.packet);
+    onAnswer(open.lesson, quiz, picked.correct);
     dialog.querySelector(".pe-quiz-hint").hidden = true;
     const next = dialog.querySelector('[data-quiz="continue"]');
     next.hidden = false;
@@ -119,7 +128,8 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
     dialog.close();
     if (quizLesson !== lesson()) return;
     reveal = { lesson: quizLesson, packet: quiz.packet, wasPlaying };
-    player().play();
+    // Play through the guided hold before this very packet.
+    player().play({ release: getPacketPositions(quizLesson)[quiz.packet].event });
   }
 
   key.addEventListener("click", show);
@@ -141,6 +151,12 @@ function createQuiz({ foot, dialog, player, lesson, playback }) {
   return {
     update,
     isOpen: () => dialog.open,
+    /** Packets whose prediction was answered in this lesson run. */
+    answered: answeredIn,
+    clearAnswers(l) {
+      answered.delete(l.id);
+    },
+    open: show,
     /** Forget a pending reveal (new lesson, reset, jump). */
     cancel() {
       reveal = null;

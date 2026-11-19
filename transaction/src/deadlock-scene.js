@@ -6,6 +6,7 @@
 // paths close the cycle; the rollback of T2 removes its write, its lock and its
 // parked request, and the cycle opens.
 import { floorPath, topText } from "../../shared/iso-kit.js";
+import { eul, eun, ga } from "../../shared/josa.js";
 import { getDeadlockPresentationState } from "./deadlock-engine.js";
 import {
   COLORS,
@@ -15,9 +16,6 @@ import {
   VIEWS,
   ROUTES,
   createMoves,
-  eul,
-  ga,
-  neun,
   createRunner,
   lamp,
   place,
@@ -65,7 +63,7 @@ function completedTitle(step) {
   const s = step.state;
   switch (step.action) {
     case "initial":
-      return "T1은 A→B, T2는 B→A 순서로 두 행을 줄이려 합니다";
+      return step.order === "same" ? "T1과 T2 모두 A→B 순서로 두 행을 줄이려 합니다" : "T1은 A→B, T2는 B→A 순서로 두 행을 줄이려 합니다";
     case "begin":
       return `${step.client} 트랜잭션을 시작했습니다`;
     case "write":
@@ -76,7 +74,7 @@ function completedTitle(step) {
     case "detect":
       return `DB가 순환을 감지 · ${eul(s.victim)} 중단 대상으로 선택`;
     case "rollback":
-      return `${step.client} 중단·롤백 · ${step.row}의 미확정 값과 잠금, 대기 요청 취소`;
+      return `${step.client} 중단·롤백 · ${step.row}의 미확정 값·잠금과 A 대기 요청 취소`;
     case "commit":
       return `${step.client} 커밋 · A ${s.rows.A.committed}, B ${s.rows.B.committed} 확정`;
   }
@@ -179,10 +177,12 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           moves.reset();
           paint(getDeadlockPresentationState(step, "database"));
           phase(
-            step.state.deadlocked ? "순환 대기 · 서로가 가진 잠금을 기다립니다" : `${neun(id)} ${row} 잠금을 기다리며 ${step.state.clients[id].held.join("·")} 잠금을 유지합니다`,
+            step.state.deadlocked ? "순환 대기 · 서로가 가진 잠금을 기다립니다" : step.state.clients[id].held.length ? `${eun(id)} ${row} 잠금을 기다리며 ${step.state.clients[id].held.join("·")} 잠금을 유지합니다` : `${eun(id)} 아무 잠금 없이 ${row} 잠금을 기다립니다`,
             step.state.deadlocked
               ? "T1은 B를 가진 T2를, T2는 A를 가진 T1을 기다립니다. 둘 다 잠금을 놓지 않아 진행할 수 없습니다."
-              : "기다리는 동안 먼저 얻은 잠금과 미확정 쓰기는 유지됩니다.",
+              : step.state.clients[id].held.length
+                ? "기다리는 동안 먼저 얻은 잠금과 미확정 쓰기는 유지됩니다."
+                : `${eun(id)} 아직 아무 행도 잠그지 않았습니다.`,
           );
           if (!(await runner.hold(step.state.deadlocked ? 700 : 420))) return;
           break;
@@ -192,7 +192,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
           paint(getDeadlockPresentationState(step, "database"));
         } else if (action === "commit") {
           moves.reset();
-          phase(`${id} 커밋 · 두 행의 미확정 값을 확정`, "T1의 A·B 쓰기가 함께 확정되고 두 행 잠금이 해제됩니다.");
+          phase(`${id} 커밋 · 두 행의 미확정 값을 확정`, `${id}의 A·B 쓰기가 함께 확정되고 두 행 잠금이 해제됩니다.`);
           const merges = [...svg.querySelectorAll(".tx-pend")].map((el) => moves.merge(el, slotOf(el.dataset.pend), [LCD_X, ROWS[el.dataset.pend], DB_TOP]));
           if (!(await Promise.all(merges)).every(Boolean)) return;
           paint(getDeadlockPresentationState(step, "database"));
@@ -231,7 +231,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         if (!(await moves.send(id, `UPD ${row}`, [PARK[id], moves.edge(id)]))) return;
         if (!(await moves.rise(id, slotOf(row)))) return;
         paint(getDeadlockPresentationState(step, "database"));
-        phase(`DB → ${id} · 처리 완료`, `${row}의 미확정 값 ${neun(step.state.rows[row].pending.value)} ${ga(id)} 새로 만든 값입니다.`);
+        phase(`DB → ${id} · 처리 완료`, `${row}의 미확정 값 ${eun(step.state.rows[row].pending.value)} ${ga(id)} 새로 만든 값입니다.`);
         if (!(await moves.respond(id, "OK"))) return;
         break;
       }

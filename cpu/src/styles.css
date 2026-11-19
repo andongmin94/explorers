@@ -134,9 +134,10 @@ body {
 .cpu-pages {
   display: flex;
   flex-direction: column;
+  /* A gap, not margins: the pager counts it when it splits pages. */
+  row-gap: 14px;
 }
 .cpu-pages > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--hw-edge);
 }
@@ -705,4 +706,84 @@ body {
 .cpu-pages > :not([hidden]) ~ div:has(> .hw-note) {
   padding-top: 0;
   border-top: 0;
+}
+
+/* ---------- Learning model: 목표 start screen, 이번 사건, 정리 ---------- */
+.cpu-goal {
+  margin: 0;
+}
+.cpu-terms {
+  margin: 0;
+}
+.cpu-terms > div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 7px 0;
+}
+.cpu-terms dt {
+  flex: none;
+  width: 84px;
+  font-weight: 650;
+}
+.cpu-terms dd {
+  margin: 0;
+}
+.cpu-events-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cpu-events-head > .hw-key {
+  font-family: inherit;
+}
+.cpu-choices--numbers {
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+}
+#insight b {
+  font-weight: 750;
+}
+/* Sections in the paged column: the column draws the hairlines between
+   visible blocks, so a page never opens with a rule. */
+.cpu-pages > .hw-section {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.cpu-pages .hw-progress {
+  flex-wrap: wrap;
+}
+.cpu-pages .hw-progress .hw-label {
+  white-space: normal;
+}
+/* Short desktop windows: a recall question and its three options stay one page. */
+@media (min-width: 1100px) and (max-height: 760px) {
+  .cpu-pages .hw-recall-choices > button {
+    min-height: 0;
+    padding-block: 6px;
+  }
+  .cpu-pages .hw-recall-q {
+    margin-block: 2px 4px;
+  }
+}
+.cpu-recap-point,
+.cpu-recap-point .hw-text {
+  margin: 0;
+}
+.cpu-recap-point .hw-label {
+  display: block;
+  margin-bottom: 4px;
+}
+/* Short windows: once answered, the feedback names the answer, so the
+   job keys fold away to leave room for the follow-up without scrolling. */
+@media (min-width: 760px) and (max-height: 820px) {
+  #prediction-body.is-answered .cpu-choices:not(.cpu-choices--numbers),
+  #prediction-body.is-answered .cpu-choices:not(.cpu-choices--numbers) ~ * {
+    display: none;
+  }
+  #prediction-body.is-answered #quiz-feedback {
+    display: block;
+    margin-top: 0;
+  }
 }
