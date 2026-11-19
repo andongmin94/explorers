@@ -39,13 +39,15 @@ export const LABELS = {
 };
 
 /** Learning order across the explorers; the 정리 panel links to the next. */
+// The site may live under a base path (e.g. /explorers/ on GitHub Pages).
+const BASE = import.meta.env?.BASE_URL ?? "/";
 export const EXPERIMENTS = [
-  { id: "protocol", href: "/protocol/", title: "인터넷 프로토콜" },
-  { id: "cpu", href: "/cpu/", title: "CPU 스케줄링" },
-  { id: "memory", href: "/memory/", title: "페이지 교체" },
-  { id: "transaction", href: "/transaction/", title: "트랜잭션과 잠금" },
-  { id: "disk", href: "/disk/", title: "디스크 스케줄링" },
-  { id: "git", href: "/git/", title: "Git 병합 충돌" },
+  { id: "protocol", href: `${BASE}protocol/`, title: "인터넷 프로토콜" },
+  { id: "cpu", href: `${BASE}cpu/`, title: "CPU 스케줄링" },
+  { id: "memory", href: `${BASE}memory/`, title: "페이지 교체" },
+  { id: "transaction", href: `${BASE}transaction/`, title: "트랜잭션과 잠금" },
+  { id: "disk", href: `${BASE}disk/`, title: "디스크 스케줄링" },
+  { id: "git", href: `${BASE}git/`, title: "Git 병합 충돌" },
 ];
 
 export function nextExperiment(id) {

@@ -23,8 +23,11 @@ const icon = (name) =>
 const escape = (text) =>
   text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
+const BASE = import.meta.env?.BASE_URL ?? "/";
+
 function mountSwitcher() {
-  const slug = location.pathname.split("/")[1];
+  // The site may live under a base path (e.g. /explorers/ on GitHub Pages).
+  const slug = location.pathname.slice(BASE.length).split("/")[0];
   const current = explorers.find((explorer) => explorer.slug === slug);
   const heading = document.querySelector("header h1");
   if (!current || !heading) return;
@@ -38,7 +41,7 @@ function mountSwitcher() {
     .map((explorer, index) => {
       const here = explorer.slug === slug;
       return `<ui-menu-item as-child>
-        <a class="explorer-item" href="${here ? location.href : `/${explorer.slug}/`}"${here ? ' aria-current="page"' : ""}>
+        <a class="explorer-item" href="${here ? location.href : `${BASE}${explorer.slug}/`}"${here ? ' aria-current="page"' : ""}>
           <span class="explorer-item-index">${String(index + 1).padStart(2, "0")}</span>
           ${icon(explorer.slug)}
           <span class="explorer-item-label">${escape(explorer.label)}</span>

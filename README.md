@@ -2,6 +2,8 @@
 
 프로토콜, CPU 스케줄링, 메모리, 트랜잭션, 디스크 스케줄링, Git 탐색기를 하나의 Vite 프로젝트로 묶었습니다. 화면 왼쪽 위의 탐색기 이름을 눌러 주제를 바꿀 수 있습니다.
 
+바로 보기: <https://andongmin94.github.io/explorers/> (main에 푸시하면 GitHub Actions가 GitHub Pages로 배포합니다.)
+
 | 탐색기 | 주소 | 폴더 |
 | --- | --- | --- |
 | 프로토콜 탐색기 | `/protocol/` | [protocol](protocol/README.md) |

@@ -18,6 +18,8 @@ function addTrailingSlash(server) {
 // Every explorer is its own page under /<slug>/. Each page imports the shared
 // theme and the explorer switcher from shared/ in its main.js.
 export default defineConfig({
+  // GitHub Pages serves the site under /explorers/; BASE_PATH sets it at build time.
+  base: process.env.BASE_PATH ?? "/",
   appType: "mpa",
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
   preview: { host: "127.0.0.1", port: 4173, strictPort: true },
