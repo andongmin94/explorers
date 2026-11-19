@@ -43,8 +43,7 @@ export const EXPERIMENTS = [
   { id: "protocol", href: "/protocol/", title: "인터넷 프로토콜" },
   { id: "cpu", href: "/cpu/", title: "CPU 스케줄링" },
   { id: "memory", href: "/memory/", title: "페이지 교체" },
-  { id: "transaction", href: "/transaction/", title: "동시 갱신과 잠금" },
-  { id: "deadlock", href: "/transaction/deadlock.html", title: "교착 상태" },
+  { id: "transaction", href: "/transaction/", title: "트랜잭션과 잠금" },
   { id: "disk", href: "/disk/", title: "디스크 스케줄링" },
   { id: "git", href: "/git/", title: "Git 병합 충돌" },
 ];
@@ -70,25 +69,25 @@ function defaultStore() {
 }
 
 /**
- * Progress for one experiment. Scenes are the guided stops (any stable id),
+ * Progress for one lesson. Scenes are the guided stops (any stable id),
  * predictions and recall questions are keyed by id with the learner's first
- * verdict. The experiment counts as done once every scene was seen, the
- * comparison was opened and every recall question was answered correctly.
+ * verdict. The lesson counts as done once every scene was seen, the
+ * comparison was opened (unless `compare: false`) and every recall question
+ * was answered correctly. Totals are stored too, so the lesson rail can show
+ * status for lessons that are not open.
  *
- * createProgress("cpu", { scenes: 6, recall: 2 })
+ * Ids: one per lesson, "<explorer>" for the first lesson or
+ * "<explorer>:<lesson>" (see lessonId), e.g. createProgress("cpu:sjf", { scenes: 5, recall: 2 }).
  */
-export function createProgress(id, { scenes = 0, recall = 0, store = defaultStore() } = {}) {
+export function createProgress(id, { scenes = 0, recall = 0, compare = true, store = defaultStore() } = {}) {
   const empty = () => ({ scenes: [], predictions: {}, recall: {}, compared: false });
-  let all = {};
-  try {
-    all = JSON.parse(store.getItem(STORE_KEY)) || {};
-  } catch {
-    all = {};
-  }
+  let all = readAll(store);
   const state = Object.assign(empty(), all[id]);
+  state.totals = { scenes, recall, compare };
   const listeners = new Set();
 
   function save() {
+    all = readAll(store);
     all[id] = state;
     try {
       store.setItem(STORE_KEY, JSON.stringify(all));
@@ -99,20 +98,10 @@ export function createProgress(id, { scenes = 0, recall = 0, store = defaultStor
     listeners.forEach((fn) => fn(s));
   }
 
-  function summary() {
-    const recallRight = Object.values(state.recall).filter(Boolean).length;
-    const predictions = Object.values(state.predictions);
-    return {
-      scenesSeen: Math.min(state.scenes.length, scenes || state.scenes.length),
-      scenesTotal: scenes,
-      predictionsAnswered: predictions.length,
-      predictionsRight: predictions.filter(Boolean).length,
-      compared: state.compared,
-      recallRight,
-      recallTotal: recall,
-      done: state.scenes.length >= scenes && state.compared && recallRight >= recall,
-    };
-  }
+  const summary = () => summarize(state);
+
+  // Record the totals right away so the rail knows them before any answer.
+  if (!all[id] || JSON.stringify(all[id].totals) !== JSON.stringify(state.totals)) save();
 
   return {
     markScene(sceneId) {
@@ -148,37 +137,86 @@ export function createProgress(id, { scenes = 0, recall = 0, store = defaultStor
       return () => listeners.delete(fn);
     },
     reset() {
-      Object.assign(state, empty());
+      Object.assign(state, empty(), { totals: state.totals });
       save();
     },
   };
 }
 
+function readAll(store) {
+  try {
+    return JSON.parse(store.getItem(STORE_KEY)) || {};
+  } catch {
+    return {};
+  }
+}
+
+function summarize(state) {
+  const totals = state.totals ?? { scenes: 0, recall: 0, compare: true };
+  const recallRight = Object.values(state.recall ?? {}).filter(Boolean).length;
+  const predictions = Object.values(state.predictions ?? {});
+  const scenesSeen = Math.min(state.scenes?.length ?? 0, totals.scenes || (state.scenes?.length ?? 0));
+  const compared = Boolean(state.compared);
+  const total = totals.scenes + (totals.compare ? 1 : 0) + totals.recall;
+  const got = scenesSeen + (totals.compare && compared ? 1 : 0) + Math.min(recallRight, totals.recall);
+  return {
+    scenesSeen,
+    scenesTotal: totals.scenes,
+    predictionsAnswered: predictions.length,
+    predictionsRight: predictions.filter(Boolean).length,
+    compare: totals.compare,
+    compared,
+    recallRight,
+    recallTotal: totals.recall,
+    ratio: total ? got / total : 0,
+    done: total > 0 && got >= total,
+  };
+}
+
+/** Progress id for a lesson: the first lesson keeps the bare explorer id. */
+export function lessonId(explorer, lesson, first) {
+  return !lesson || lesson === first ? explorer : `${explorer}:${lesson}`;
+}
+
+/**
+ * Status of any lesson without opening it: { status: "new" | "progress" | "done", ratio }.
+ */
+export function lessonStatus(id, { store = defaultStore() } = {}) {
+  const state = readAll(store)[id];
+  if (!state) return { status: "new", ratio: 0 };
+  const s = summarize(state);
+  const touched = s.scenesSeen || s.predictionsAnswered || s.compared || s.recallRight;
+  return { status: s.done ? "done" : touched ? "progress" : "new", ratio: s.ratio };
+}
+
 const esc = (s) =>
   String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-/** Dot meter + one line: "핵심 장면 4/6 · 예측 3/4 · 비교 ✓ · 확인 1/2". */
+/** Dot meter + one line: "핵심 장면 4/6 · 예측 3/4 · 비교 완료 · 확인 문제 1/2". */
 export function progressHtml(s) {
   const parts = [`${LABELS.scene} ${s.scenesSeen}/${s.scenesTotal}`];
   if (s.predictionsAnswered) parts.push(`예측 ${s.predictionsRight}/${s.predictionsAnswered}`);
-  parts.push(`비교 ${s.compared ? "완료" : "전"}`);
+  if (s.compare !== false) parts.push(`비교 ${s.compared ? "완료" : "전"}`);
   if (s.recallTotal) parts.push(`${LABELS.recall} ${s.recallRight}/${s.recallTotal}`);
-  const total = s.scenesTotal + 1 + s.recallTotal;
-  const got = s.scenesSeen + (s.compared ? 1 : 0) + s.recallRight;
+  const total = s.scenesTotal + (s.compare !== false ? 1 : 0) + s.recallTotal;
+  const got = s.scenesSeen + (s.compare !== false && s.compared ? 1 : 0) + Math.min(s.recallRight, s.recallTotal);
   const dots = Array.from({ length: total }, (_, i) => `<i class="${i < got ? "is-on" : ""}"></i>`).join("");
   return `<div class="hw-progress"><span class="hw-meter" aria-hidden="true">${dots}</span><span class="hw-label">${esc(LABELS.progress)} · ${esc(parts.join(" · "))}</span></div>`;
 }
 
 /**
  * The 정리 panel: 핵심 정리 (2–3 points), 확인 문제 (asked without the scene:
- * the learner recalls), a link to the next experiment and the progress line.
+ * the learner recalls), a link onward and the progress line.
+ *
+ * next (optional): { href, title } of the next lesson in this explorer, shown
+ * as "다음 레슨: … →". Without it, the last lesson links to the next experiment.
  *
  * recall: [{ id, question, answer?, choices: [{ label, correct?, why }] }]
  * `answer` (optional) is the short form used in "정답은 X입니다." for long labels.
  * Every choice carries `why`: the misconception it reflects, or why it is right.
  */
-export function recapHtml({ id, points = [], recall = [], progress }) {
-  const next = nextExperiment(id);
+export function recapHtml({ id, points = [], recall = [], progress, next: nextLesson }) {
+  const next = nextLesson ? { ...nextLesson, kind: "다음 레슨" } : { ...nextExperiment(id), kind: "다음 실험" };
   const questions = recall
     .map(
       (q) => `<div class="hw-section hw-recall" data-recall="${esc(q.id)}">
@@ -199,7 +237,7 @@ export function recapHtml({ id, points = [], recall = [], progress }) {
     ${questions}
     <div class="hw-section hw-recap-foot">
       ${progress ? progressHtml(progress.summary()) : ""}
-      ${next ? `<a class="hw-key hw-key--sm" href="${esc(next.href)}">다음 실험: ${esc(next.title)} →</a>` : ""}
+      ${next.href ? `<a class="hw-key hw-key--sm" href="${esc(next.href)}">${next.kind}: ${esc(next.title)} →</a>` : ""}
     </div>
   </div>`;
 }

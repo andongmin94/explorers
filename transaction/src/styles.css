@@ -26,46 +26,6 @@ body {
   background: var(--bg);
 }
 
-/* ---------- Header: scenario switch between the two pages ---------- */
-
-.tx-scenarios > a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 10px;
-  color: var(--muted);
-  font-size: var(--fs-2);
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.tx-scenarios > a[aria-current="page"] {
-  background: var(--hw-key);
-  box-shadow: var(--hw-key-shadow);
-  color: var(--ink);
-}
-.tx-scenarios > a:not([aria-current]):hover {
-  color: var(--ink);
-}
-.tx-scenarios > a:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.tx-scenarios .hw-index {
-  font-size: var(--fs-1);
-}
-@media (max-width: 1099px) {
-  .hw-topbar { flex-wrap: wrap; }
-  .tx-scenarios { order: 4; }
-}
-@media (max-width: 759px) {
-  .tx-scenarios { flex-basis: 100%; }
-  .tx-scenarios > a { min-height: 42px; padding: 0 8px; }
-}
-
 /* ---------- Stage ---------- */
 
 .hw-stage .hw-plate-head .hw-tag {

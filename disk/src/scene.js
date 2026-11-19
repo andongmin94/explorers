@@ -214,14 +214,12 @@ export function createDiskScene(host, { onPhase, onHead } = {}) {
       $(`[data-mark="${id}"]`).setAttribute("class", `disk-mark${done ? " is-served" : selected === id ? " is-selected" : ""}`);
     }
   }
-  const routeOf = (heads) => heads.map((c, k) => [c, k]);
-
-  function snap(step, heads) {
-    shown = [step, heads];
+  function snap(step, route) {
+    shown = [step, route];
     setTokens(step.state);
     drawHead(step.state.head, step.index > 0);
     drawTarget(null);
-    drawRoute(routeOf(heads));
+    drawRoute(route);
     setWires(null);
   }
 
@@ -267,14 +265,15 @@ export function createDiskScene(host, { onPhase, onHead } = {}) {
   }
 
   /**
-   * Show a step. heads: head cylinder after steps 0..step.index.
-   * With motion, plays select → controller → seek → arrive.
+   * Show a step. route: [cylinder, k] head positions up to this step
+   * (engine routePoints). With motion, plays select → controller → seek →
+   * arrive; the seek follows step.path (an edge, or a C-SCAN return).
    */
-  async function update(step, { motion = false, speed = 1, heads = [INITIAL_HEAD] } = {}) {
+  async function update(step, { motion = false, speed = 1, route = [[INITIAL_HEAD, 0]] } = {}) {
     cancel();
-    shown = [step, heads];
+    shown = [step, route];
     if (!motion || !step.index || reduced.matches) {
-      snap(step, heads);
+      snap(step, route);
       onPhase?.(step.index ? "done" : "idle", step);
       return;
     }
@@ -286,11 +285,11 @@ export function createDiskScene(host, { onPhase, onHead } = {}) {
     const el = tokens.get(id);
     el.parentNode.append(el); // the carried token draws above the others
     const k = step.index;
-    const before = heads.slice(0, k);
+    const before = route.filter((p) => p[1] <= k - 1);
 
     setTokens(step.before, id);
     drawHead(step.before.head, k > 1);
-    drawRoute(routeOf(before));
+    drawRoute(before);
     drawTarget(null);
     setWires(null);
     onPhase?.("select", step);
@@ -307,19 +306,32 @@ export function createDiskScene(host, { onPhase, onHead } = {}) {
     setWires("seek");
     drawTarget(request.cylinder);
     onPhase?.("seek", step);
-    const a = step.before.head;
-    const b = request.cylinder;
-    await tween(run, 900 + step.distance * 5, (p) => {
-      const e = ease(p);
-      const c = a + (b - a) * e;
+    // Walk the path by length (the C-SCAN return included, counted or not).
+    const path = step.path ?? [step.before.head, request.cylinder];
+    const legs = path.slice(1).map((c, i) => Math.abs(c - path[i]));
+    const length = legs.reduce((x, y) => x + y, 0) || 1;
+    await tween(run, 900 + length * 5, (p) => {
+      let d = ease(p) * length;
+      const passed = [];
+      let i = 0;
+      while (i < legs.length - 1 && d > legs[i]) {
+        d -= legs[i++];
+        passed.push(path[i]);
+      }
+      const f = legs[i] ? Math.min(1, d / legs[i]) : 1;
+      const c = path[i] + (path[i + 1] - path[i]) * f;
+      const k0 = k - 1;
+      const at = (cyl, run2) => [cyl, k0 + run2 / length];
+      let acc = 0;
+      const pts = passed.map((cyl, j) => at(cyl, (acc += legs[j])));
       drawHead(c, true);
-      drawRoute([...routeOf(before), [c, k - 1 + e]]);
+      drawRoute([...before, ...pts, at(c, acc + f * legs[i])]);
     });
     if (run.cancelled) return;
 
     drawTarget(null);
     setWires(null);
-    drawRoute(routeOf(heads));
+    drawRoute(route);
     onPhase?.("arrive", step);
     await carry(run, el, [ctrlPoint, [ctrlPoint[0], ctrlPoint[1], ctrlPoint[2] + lift], [from[0], from[1], from[2] + lift], from], 700);
     if (run.cancelled) return;

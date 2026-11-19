@@ -655,14 +655,15 @@ export function processDetails(frame, result, id) {
   };
 }
 
-export function eventLabel(event) {
+/** One event in words; SRTF preempts on arrival, not on a quantum. */
+export function eventLabel(event, algorithm = "rr") {
   switch (event.type) {
     case "arrive":
       return `${event.id} 도착 → 준비 큐`;
     case "dispatch":
       return `${event.id} CPU 배정`;
     case "preempt":
-      return `${event.id} 할당량 만료 → 준비 큐`;
+      return algorithm === "srtf" ? `${event.id} 선점됨 → 준비 큐` : `${event.id} 할당량 만료 → 준비 큐`;
     case "block":
       return `${event.id} 입출력 대기 시작`;
     case "unblock":

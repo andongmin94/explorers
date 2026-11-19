@@ -513,3 +513,13 @@
   .git-pages .hw-recall-choices > button { min-height: 32px; padding-block: 4px; }
   .git-pages .hw-recall-q { margin: 4px 0 4px; }
 }
+
+/* ---------- Lessons 01, 02, 04 ---------- */
+
+/* After a rebase the original commit stays in the repository, but no branch
+   reaches it: printed faint, its edge dashed. */
+#git-scene .git-slot.is-orphan { opacity: 0.32; }
+.git-edge.is-orphan { stroke-dasharray: 5 5; opacity: 0.45; }
+/* Method comparison: one column per method. */
+.git-compare-table td { vertical-align: top; overflow-wrap: anywhere; }
+.git-compare-table thead th[aria-current="true"] { color: var(--accent); }

@@ -638,6 +638,8 @@ body {
   }
   .hw-deck > .cpu-algorithm { grid-area: 1 / 1 / 2 / 4; align-self: start; }
   .hw-deck > .cpu-quantum { grid-area: 1 / 4 / 2 / 6; align-self: start; width: auto; }
+  /* Lessons without round robin have no quantum: the method switch spans the row. */
+  .hw-deck.cpu-no-quantum > .cpu-algorithm { grid-area: 1 / 1 / 2 / 6; }
   .hw-deck .hw-seg { display: grid; width: 100%; }
   .hw-deck .hw-seg > button { padding: 0 12px; }
   .hw-deck > .cpu-transport,

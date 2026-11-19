@@ -166,7 +166,7 @@ function staticSvg(L, processes) {
     <g class="cpu-io-led">${led({ x: io.x + io.w - 0.5, y: io.y + io.d - 0.35, z: 0.42 })}</g>
     ${module({ ...L.done, well: false }).svg}${pad("done")}
     ${callout({ ...c.arrivals, title: "도착 예정", sub: "NEW" })}
-    ${callout({ ...c.ready, title: "준비 큐", sub: "FIFO · 1번이 다음 차례" })}
+    ${callout({ ...c.ready, title: "준비 큐", sub: "FIFO · 1번이 다음 차례", cls: "cpu-callout-ready" })}
     ${callout({ ...c.cpu, title: "CPU", sub: "-", cls: "cpu-callout-cpu" })}
     ${callout({ ...c.io, title: "입출력 장치", sub: "CPU와 동시에 진행" })}
     ${callout({ ...c.done, title: "완료", sub: "DONE" })}
@@ -182,7 +182,9 @@ function staticSvg(L, processes) {
 export function createSchedulerScene(host, processes, onMove) {
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let L = null;
-  let svg, tokenLayer, tokens, routes, leds, ioLed, cpuSub;
+  let svg, tokenLayer, tokens, routes, leds, ioLed, cpuSub, queueSub;
+  // Callout text for the current method (set by update()).
+  let notes = { algorithm: "rr", cpu: null, queue: null };
   let view = null;
   let currentFrame = null;
   let quantum = 2;
@@ -206,6 +208,7 @@ export function createSchedulerScene(host, processes, onMove) {
     leds = [...svg.querySelectorAll(".cpu-qled")];
     ioLed = svg.querySelector(".cpu-io-led .iso-led");
     cpuSub = svg.querySelector(".cpu-callout-cpu .iso-callout-sub");
+    queueSub = svg.querySelector(".cpu-callout-ready .iso-callout-sub");
     for (const [key, g] of tokens) g.classList.toggle("is-selected", key === selected);
   }
   const pick = (width) => (width < 640 ? NARROW : WIDE);
@@ -247,8 +250,11 @@ export function createSchedulerScene(host, processes, onMove) {
       iso.style.opacity = on && i === left - 1 ? String(1 - progress * 0.75) : "";
     });
     ioLed.classList.toggle("is-on", !!view && view.blocked.length > 0);
-    cpuSub.textContent = quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`;
+    cpuSub.textContent = notes.cpu ?? (quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`);
+    if (notes.queue) queueSub.textContent = notes.queue;
+    // Without a quantum the LEDs are hidden (styles: [data-algorithm="fcfs"]).
     host.dataset.algorithm = quantum == null ? "fcfs" : "rr";
+    host.dataset.policy = notes.algorithm;
   }
 
   function settle(frame) {
@@ -315,11 +321,12 @@ export function createSchedulerScene(host, processes, onMove) {
     activeRun = null;
   }
 
-  function update(frame, previousFrame = null, { animate = true, speed = 1, quantum: configured } = {}) {
+  function update(frame, previousFrame = null, { animate = true, speed = 1, quantum: configured, algorithm, cpuNote, queueNote } = {}) {
     cancelRun();
     currentFrame = frame;
     progress = 0;
     if (configured !== undefined) quantum = configured;
+    if (algorithm) notes = { algorithm, cpu: cpuNote ?? null, queue: queueNote ?? null };
     const events = frame.events.filter((event) => MOVES.has(event.type));
     const canAnimate = animate && !reducedMotion.matches && previousFrame && frame.t > previousFrame.t && events.length;
     if (!canAnimate) {

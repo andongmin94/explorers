@@ -6,28 +6,13 @@ import "../../shared/iso.js";
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs } from "../../shared/fit.js";
 import { followRows } from "./fit-rows.js";
-import { simulate, look, scan, REQUESTS, INITIAL_HEAD } from "./engine.js";
+import { REQUESTS, INITIAL_HEAD, routePoints } from "./engine.js";
 import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
+import { currentLesson, mountRail, nextLesson, progressIdFor } from "../../shared/lesson-rail.js";
 import { josa } from "../../shared/josa.js";
 import { createDiskScene } from "./scene.js";
-import {
-  COMPARE_STORY,
-  FURTHER,
-  MODEL_NOTES,
-  NAMES,
-  RECALL_TOTAL,
-  RULE_SHORT,
-  STAGES,
-  compareNote,
-  guidedStops,
-  lessonAt,
-  milestonesFor,
-  phaseText,
-  predictionFor,
-  recapFor,
-  servicePosition,
-  takeawayAt,
-} from "./lesson.js";
+import { STAGES } from "./lesson.js";
+import { LESSONS, buildLesson } from "./lessons.js";
 
 const $ = (s) => document.querySelector(s);
 const SIDE_TABS = [
@@ -37,13 +22,11 @@ const SIDE_TABS = [
   ["scope", "범위"],
 ];
 const N = REQUESTS.length;
-const runs = { fcfs: simulate("fcfs"), sstf: simulate("sstf") };
-const sweep = look(REQUESTS, INITIAL_HEAD, "down");
-const scanTotal = scan(REQUESTS, INITIAL_HEAD, "down").total;
-const scenes = { fcfs: milestonesFor("fcfs", runs.fcfs), sstf: milestonesFor("sstf", runs.sstf) };
-const stops = { fcfs: guidedStops("fcfs", runs.fcfs), sstf: guidedStops("sstf", runs.sstf) };
-const progress = createProgress("disk", { scenes: scenes.fcfs.length + scenes.sstf.length, recall: RECALL_TOTAL });
-let algorithm = "fcfs",
+// One lesson per URL (?lesson=…); the first lesson is the bare page.
+const lesson = buildLesson(currentLesson(LESSONS).id);
+const { runs, scenes, stops, names: NAMES, ruleShort: RULE_SHORT } = lesson;
+const progress = createProgress(progressIdFor("disk", LESSONS, lesson.id), lesson.totals);
+let algorithm = lesson.algorithms[0],
   index = 0,
   committed = 0,
   busy = false,
@@ -58,7 +41,7 @@ let algorithm = "fcfs",
   phase = "idle";
 const run = () => runs[algorithm];
 const current = () => run().steps[committed];
-const heads = (n) => run().steps.slice(0, n + 1).map((s) => s.state.head);
+const route = (n) => routePoints(run().steps, n);
 
 document.documentElement.dataset.theme = localStorage.getItem("disk-theme") || "light";
 const dark = () => document.documentElement.dataset.theme === "dark";
@@ -67,7 +50,7 @@ $("#app").outerHTML = `
 <div class="hw-page disk-page">
   <header class="hw-topbar">
     <div class="hw-brand"><h1>디스크 스케줄링 탐색기</h1><p>보면서 이해하는 운영체제</p></div>
-    <div class="hw-context"><span class="hw-label"><span class="hw-index">01</span> ${LABELS.scenario}</span><strong>같은 요청, 다른 이동 거리</strong></div>
+    <div class="hw-context"><span class="hw-label"><span class="hw-index">${lesson.number}</span> 레슨</span><strong>${lesson.name}</strong></div>
     <div class="hw-actions">
       <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>${LABELS.compare}</span></button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="${dark() ? "밝은" : "어두운"} 테마로 전환">${icon(dark() ? "sun" : "moon")}</button>
@@ -92,8 +75,9 @@ $("#app").outerHTML = `
       <div class="hw-field">
         <span class="hw-label">다음 요청을 고르는 기준</span>
         <div class="hw-seg" role="group" aria-label="스케줄링 알고리즘">
-          <button data-algorithm="fcfs" aria-pressed="true">FCFS <span class="hw-muted">${RULE_SHORT.fcfs}</span></button>
-          <button data-algorithm="sstf" aria-pressed="false">SSTF <span class="hw-muted">${RULE_SHORT.sstf}</span></button>
+          ${lesson.algorithms
+            .map((alg, i) => `<button data-algorithm="${alg}" aria-pressed="${i === 0}">${NAMES[alg]} <span class="hw-muted">${RULE_SHORT[alg]}</span></button>`)
+            .join("")}
         </div>
       </div>
       <div class="hw-field disk-transport-field">
@@ -135,7 +119,7 @@ $("#app").outerHTML = `
         <div class="hw-fill hw-list disk-milestones" id="milestones" aria-label="${LABELS.jumpToScene}"></div>
       </div>
       <div class="hw-plate-body hw-fit" id="side-scope" data-panel="scope" aria-labelledby="side-tab-scope">
-        <div class="hw-fill disk-pages" id="scope-pages">${MODEL_NOTES.map(
+        <div class="hw-fill disk-pages" id="scope-pages">${lesson.notes.map(
           (n, i) => `<div class="hw-section"><span class="hw-label">모델 ${String(i + 1).padStart(2, "0")}</span><p class="hw-text disk-note">${n}</p></div>`,
         ).join("")}</div>
       </div>
@@ -163,12 +147,15 @@ $("#app").outerHTML = `
 
   <footer class="hw-footer">
     <span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 요청 이동 <kbd>R</kbd> 처음으로</span>
-    <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/file-disks.pdf" target="_blank" rel="noreferrer">학습 근거 · OSTEP: Hard Disk Drives ↗</a>
+    <span class="disk-sources"><a href="https://pages.cs.wisc.edu/~remzi/OSTEP/file-disks.pdf" target="_blank" rel="noreferrer">학습 근거 · OSTEP 37 Hard Disk Drives ↗</a> · Silberschatz 11.2</span>
   </footer>
 
   <dialog class="hw-dialog disk-dialog" id="comparison-dialog" aria-labelledby="comparison-title"></dialog>
   <dialog class="hw-dialog disk-dialog" id="prediction-dialog" aria-labelledby="prediction-title"></dialog>
 </div>`;
+
+const rail = mountRail({ explorer: "disk", title: "디스크 스케줄링", lessons: LESSONS, current: lesson.id });
+rail.watch(progress);
 
 const scene = createDiskScene($("#disk-scene"), {
   onHead(c) {
@@ -176,7 +163,7 @@ const scene = createDiskScene($("#disk-scene"), {
   },
   onPhase(kind, step) {
     phase = kind;
-    const text = phaseText(kind, step, algorithm);
+    const text = lesson.phaseText(kind, step, algorithm);
     $("#status").textContent = text.title;
     $("#foot-led").classList.toggle("is-on", busy || kind === "done");
     const shown = kind === "arrive" || kind === "done" ? step.state : step.before;
@@ -234,13 +221,13 @@ function renderLesson(step, target) {
   const tag = !busy && k >= 0 ? `${end ? `${LABELS.recap} · ` : ""}${LABELS.scene} ${k + 1}/${scenes[algorithm].length} · ` : "";
   const l = busy
     ? { eyebrow: `${index}번째 요청 · 처리 중`, title: `요청 ${target.request.id} · ${target.request.cylinder}번 처리 중`, body: "" }
-    : lessonAt(algorithm, index, step);
+    : lesson.lessonAt(algorithm, index);
   const head = `<div class="hw-section"><span class="hw-label" id="eyebrow">${tag}${l.eyebrow}</span><h2 class="hw-title disk-title" id="lesson-title">${l.title}</h2></div>`;
-  const note = `<div class="hw-section"><span class="hw-label">${LABELS.key}</span><p class="hw-note hw-note--accent" id="takeaway">${takeawayAt(algorithm, committed, runs)}</p></div>`;
+  const note = `<div class="hw-section"><span class="hw-label">${LABELS.key}</span><p class="hw-note hw-note--accent" id="takeaway">${lesson.takeawayAt(algorithm, committed)}</p></div>`;
   if (end) {
-    const recap = recapFor(algorithm, runs, sweep, scanTotal);
+    const recap = lesson.recapFor(algorithm);
     const box = document.createElement("div");
-    box.innerHTML = recapHtml({ id: "disk", points: recap.points, recall: recap.recall, progress });
+    box.innerHTML = recapHtml({ id: "disk", points: recap.points, recall: recap.recall, progress, next: nextLesson(LESSONS, lesson.id) });
     // One page item per point, so the pager fills pages instead of moving the
     // whole list. The 핵심 note is left out here: the points restate it.
     const parts = [...box.firstElementChild.children];
@@ -256,31 +243,28 @@ function renderLesson(step, target) {
       (i ? el : el.querySelector("ul")).append(li);
       return el;
     });
-    // 비교 comes before the questions; further study sits just before the
-    // progress line and the next-experiment key (each its own page item).
+    // 비교 comes before the questions; the progress line and the next-lesson
+    // key close the panel.
     const compare = document.createElement("div");
     compare.className = "hw-section";
     compare.innerHTML = `<button class="hw-key hw-key--accent disk-wide" data-action="compare">${LABELS.compareEnd}</button>`;
-    const further = document.createElement("p");
-    further.className = "hw-text disk-further";
-    further.innerHTML = `${FURTHER.text} <a href="${FURTHER.href}" target="_blank" rel="noreferrer">${FURTHER.source}</a>`;
     // Recall answers are short: print them as small keys in one row.
     for (const el of parts) {
       el.querySelector(".hw-recall-choices")?.classList.remove("hw-list");
       el.querySelectorAll("[data-choice]").forEach((b) => b.classList.add("hw-key", "hw-key--sm"));
     }
-    const lesson = $("#lesson-pages");
-    lesson.innerHTML = head;
-    lesson.append(...points, compare, ...parts, further, foot);
-    bindRecap(lesson, {
+    const pages = $("#lesson-pages");
+    pages.innerHTML = head;
+    pages.append(...points, compare, ...parts, foot);
+    bindRecap(pages, {
       recall: recap.recall,
       progress,
       // The answer's why makes its question taller: lay the pages out again
       // and stay on that question.
       onAnswer(q) {
         pagers.lesson.refresh();
-        pagers.lesson.showItem(lesson.querySelector(`[data-recall="${q.id}"]`));
-        const line = lesson.querySelector(".hw-progress");
+        pagers.lesson.showItem(pages.querySelector(`[data-recall="${q.id}"]`));
+        const line = pages.querySelector(".hw-progress");
         if (line) line.outerHTML = progressHtml(progress.summary());
       },
     });
@@ -329,7 +313,7 @@ function render() {
   // distances are left for the learner to work out (and the prediction).
   const cells = (list, dist) =>
     `<div class="disk-distances">${list
-      .map((r) => `<span${r.id === step.request?.id ? ' class="is-chosen"' : ""}><b class="hw-mono">${r.cylinder}</b><span class="hw-mono hw-muted">${dist(r)}</span></span>`)
+      .map((r) => `<span${r.id === step.request?.id ? ' class="is-chosen"' : ""}><b class="hw-mono">${r.cylinder}</b><span class="hw-mono hw-muted">${r.id === step.request?.id ? `${step.distance}칸` : dist(r)}</span></span>`)
       .join("")}</div>`;
   const last = committed
     ? `<div class="hw-section"><span class="hw-label">직전 선택 · 헤드 ${step.before.head}에서 잰 거리</span>${cells(step.candidates.slice().sort((a, b) => a.id - b.id), (r) => `${r.distance}칸`)}</div>`
@@ -338,7 +322,7 @@ function render() {
     ? `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">${josa(`요청 ${target.request.id}번`, "을/를")} 처리하는 중입니다. 헤드가 도착하면 남은 요청까지 거리를 다시 잽니다.</p></div>`
     : state.pending.length
       ? `<div class="hw-section"><span class="hw-label">다음 후보 · 헤드 ${state.head}</span>${cells(state.pending, () => "?칸")}
-      <p class="hw-text hw-muted disk-small">${algorithm === "fcfs" ? "FCFS는 거리가 아니라 도착 순서로 선택" : "SSTF는 이 거리 중 최솟값을 선택 · 직접 계산한 뒤 맞혀보세요"}</p></div>${last}`
+      <p class="hw-text hw-muted disk-small">${lesson.distanceHint(algorithm)}</p></div>${last}`
       : `${last}<div class="hw-section"><p class="hw-text hw-muted disk-body">남은 요청이 없습니다. 요청 기록과 결과 비교에서 전체 이동을 확인하세요.</p></div>`;
   $('[data-action="predict"]').hidden = busy || committed === N;
   $(".disk-cta").hidden = committed === N && !busy;
@@ -381,7 +365,7 @@ function renderRecords() {
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${TICKS.map((c) => `<line class="disk-plot-row" x1="0" y1="${py(c)}" x2="100" y2="${py(c)}"/>`).join("")}
           ${Array.from({ length: N + 1 }, (_, k) => `<line class="disk-plot-col" x1="${px(k)}" y1="0" x2="${px(k)}" y2="100"/>`).join("")}
-          <polyline class="disk-plot-line" points="${seen.map((s) => `${px(s.index)},${py(s.state.head)}`).join(" ")}"/>
+          <polyline class="disk-plot-line" points="${route(committed).map(([c, k]) => `${px(k)},${py(c)}`).join(" ")}"/>
         </svg>
         ${[0, 100, 199].map((c) => `<span class="disk-plot-cyl" style="--y:${py(c)}%">${c}</span>`).join("")}
         ${seen
@@ -403,6 +387,10 @@ function renderRecords() {
         )
     .join("");
   logRows.refresh();
+  if (lesson.waits) {
+    renderWaits(seen);
+    return;
+  }
   const s = current().state;
   const longest = Math.max(0, ...seen.slice(1).map((x) => x.distance));
   $("#record-results").innerHTML = `<dl class="disk-metrics">
@@ -411,6 +399,44 @@ function renderRecords() {
       <div><dt class="hw-label">가장 긴 한 번 이동</dt><dd class="hw-mono">${committed ? longest : "—"}<small>칸</small></dd></div>
     </dl>
     <p class="hw-text hw-muted disk-small">${committed === N ? "같은 요청 전체를 처리한 결과입니다. 결과 비교에서 이동 경로와 합계를 함께 확인하세요." : "현재까지 완료한 요청의 결과입니다. 누적 이동 거리는 장면의 표시창에 있습니다."}</p>`;
+}
+
+// Sweep lessons: wait per request (head travel until it is served), drawn at
+// its cylinder. Lesson 03 adds, at the end, the worst wait under a steady
+// stream of requests (SCAN depends on the position, C-SCAN does not).
+function renderWaits(seen) {
+  const served = seen.slice(1).map((s) => ({ c: s.request.cylinder, wait: s.state.total, now: s.index === committed }));
+  const end = committed === N;
+  const worst = end && lesson.worstWait ? REQUESTS.map((c) => ({ c, w: lesson.worstWait(algorithm, c) })) : [];
+  const top = Math.max(
+    ...lesson.algorithms.map((a) => runs[a].total),
+    ...(lesson.worstWait ? REQUESTS.flatMap((c) => lesson.algorithms.map((a) => lesson.worstWait(a, c))) : []),
+  );
+  const px = (c) => ((c / 199) * 100).toFixed(2);
+  const py = (w) => (100 - (w / (top * 1.1)) * 100).toFixed(2);
+  // A worst wait that is the same everywhere (C-SCAN) is one line, one label.
+  const flat = worst.length && worst.every((x) => x.w === worst[0].w);
+  const waits = served.map((x) => x.wait);
+  // 65/67 and 122/124 sit close together: print their labels to either side.
+  const side = (c) => {
+    const near = REQUESTS.find((o) => o !== c && Math.abs(o - c) < 8);
+    return near === undefined ? "" : c < near ? " is-l" : " is-r";
+  };
+  $("#record-results").innerHTML = `<div class="hw-screen disk-route-screen disk-wait-screen">
+      <div class="hw-screen-head"><span class="is-on">WAIT · CYL</span><span>${NAMES[algorithm]} · ${committed} / ${N}</span><span>${committed ? `대기 ${Math.min(...waits)}–${Math.max(...waits)}칸` : "처리한 요청만 표시"}${worst.length ? " · ▬ 최악(계속 도착)" : ""}</span></div>
+      <div class="disk-plot disk-waits">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          ${[0.25, 0.5, 0.75, 1].map((f) => `<line class="disk-plot-row" x1="0" y1="${py(top * f)}" x2="100" y2="${py(top * f)}"/>`).join("")}
+          ${served.map((x) => `<line class="disk-wait-bar${x.now ? " is-now" : ""}" x1="${px(x.c)}" y1="100" x2="${px(x.c)}" y2="${py(x.wait)}"/>`).join("")}
+          ${flat ? `<line class="disk-wait-worst" x1="0" y1="${py(worst[0].w)}" x2="100" y2="${py(worst[0].w)}"/>` : ""}
+          ${(flat ? [] : worst).map((x) => `<line class="disk-wait-worst" x1="${(+px(x.c) - 2.2).toFixed(2)}" y1="${py(x.w)}" x2="${(+px(x.c) + 2.2).toFixed(2)}" y2="${py(x.w)}"/>`).join("")}
+        </svg>
+        ${served.map((x) => `<span class="disk-wait-label${side(x.c)}${x.now ? " is-now" : ""}" style="--x:${px(x.c)}%;--y:${py(x.wait)}%">${x.wait}</span>`).join("")}
+        ${flat ? `<span class="disk-wait-label is-worst is-edge" style="--x:100%;--y:${py(worst[0].w)}%">어느 위치든 ${worst[0].w}</span>` : ""}
+        ${(flat ? [] : worst).map((x) => `<span class="disk-wait-label is-worst${side(x.c)}" style="--x:${px(x.c)}%;--y:${py(x.w)}%">${x.w}</span>`).join("")}
+      </div>
+      <div class="disk-plot-axis disk-wait-axis" aria-hidden="true">${REQUESTS.slice().sort((a, b) => a - b).map((c) => `<span class="${side(c).trim()}" style="--x:${px(c)}%">${c}</span>`).join("")}</div>
+    </div>`;
 }
 
 /* ---------- Playback ---------- */
@@ -434,7 +460,7 @@ async function move(next, motion = false) {
   paused = false;
   resumeAutomatically = playing;
   if (motion) render();
-  await scene.update(run().steps[index], { motion, speed, heads: heads(index) });
+  await scene.update(run().steps[index], { motion, speed, route: route(index) });
   if (token !== revision) return;
   committed = index;
   busy = false;
@@ -467,7 +493,7 @@ function play() {
   }
   if (committed === N && !busy) {
     committed = index = 0;
-    scene.update(current(), { heads: heads(0) });
+    scene.update(current(), { route: route(0) });
     render();
   }
   playing = true;
@@ -486,7 +512,7 @@ function changeAlgorithm(name) {
   algorithm = name;
   index = committed = 0;
   busy = paused = false;
-  scene.update(current(), { heads: heads(0) });
+  scene.update(current(), { route: route(0) });
   render();
   focusScene();
 }
@@ -509,7 +535,7 @@ function miniPath(r) {
     h = 132,
     x = (k) => 10 + k * ((w - 20) / N),
     y = (c) => 8 + (c / 199) * (h - 16);
-  const pts = r.steps.map((s) => `${x(s.index).toFixed(1)},${y(s.state.head).toFixed(1)}`).join(" ");
+  const pts = routePoints(r.steps).map(([c, k]) => `${x(k).toFixed(1)},${y(c).toFixed(1)}`).join(" ");
   return `<div class="hw-screen disk-mini-screen">
     <div class="hw-screen-head"><span class="is-on">HEAD ROUTE</span><span>CYL 0 → 199 ↓</span></div>
     <svg class="disk-mini" viewBox="0 0 ${w} ${h}" role="img" aria-label="${r.order.join(", ")} 순서의 헤드 이동 경로">
@@ -531,16 +557,16 @@ function comparison() {
     <div class="disk-compare">${Object.entries(runs)
       .map(
         ([name, r]) => `<section>
-          <span class="hw-label"><span class="hw-index">${name === "fcfs" ? "01" : "02"}</span> ${NAMES[name]} · ${RULE_SHORT[name]}</span>
+          <span class="hw-label"><span class="hw-index">${name === lesson.algorithms[0] ? "01" : "02"}</span> ${NAMES[name]} · ${RULE_SHORT[name]}</span>
           <span class="hw-lcd is-large">${r.total}<small>CYL</small></span>
           ${miniPath(r)}
-          <p class="hw-mono disk-order">${INITIAL_HEAD} → ${r.order.join(" → ")}</p>
-          <p class="hw-text">${COMPARE_STORY[name]} 183번은 ${servicePosition(r, 183)}번째로 처리됩니다.</p>
+          <p class="hw-mono disk-order">${INITIAL_HEAD} → ${r.steps.slice(1).flatMap((s) => [...s.via.map((v) => `(${v})`), s.request.cylinder]).join(" → ")}</p>
+          <p class="hw-text">${lesson.compareStory[name]} ${lesson.compareExtra(name)}</p>
           <button class="hw-key${name === algorithm ? "" : " hw-key--accent"}" data-algorithm="${name}" data-close="true">${LABELS.replayMode} ${icon("arrow")}</button>
         </section>`,
       )
       .join("")}</div>
-    <div class="hw-plate-foot">${compareNote(runs, sweep, scanTotal)}</div>`;
+    <div class="hw-plate-foot">${lesson.compareNote()}</div>`;
   $("#comparison-dialog").showModal();
 }
 
@@ -552,7 +578,7 @@ function prediction() {
   const next = run().steps[committed + 1];
   if (!next) return;
   const head = current().state.head;
-  const p = predictionFor(algorithm, run(), committed + 1);
+  const p = lesson.predictionFor(algorithm, committed + 1);
   choices = p.choices;
   $("#prediction-dialog").innerHTML = `${dialogHead(`${LABELS.predictTitle} · ${NAMES[algorithm]} · 현재 헤드 ${head}`, p.question, "prediction-title")}
     <div class="hw-plate-body">
@@ -694,7 +720,7 @@ if (q.get("algo") in runs) algorithm = q.get("algo");
 index = committed = Math.max(0, Math.min(N, Number(q.get("step")) || 0));
 if (q.get("record")) record = q.get("record");
 bindSliders(document);
-scene.update(current(), { heads: heads(index) });
+scene.update(current(), { route: route(index) });
 render();
 selectRecord(record);
 if (q.get("play") === "next") move(index + 1, true);

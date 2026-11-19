@@ -655,3 +655,43 @@ body {
 @media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px) {
   .disk-stages-section { display: none; }
 }
+
+/* ---------- Sweep lessons: wait per request (records › 누적 결과) ---------- */
+.disk-wait-bar {
+  stroke: var(--hw-screen-ink);
+  stroke-width: 6;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.55;
+}
+.disk-wait-bar.is-now {
+  stroke: var(--accent);
+  opacity: 1;
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.disk-wait-worst {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+}
+.disk-wait-label {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  color: var(--hw-screen-ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 4px));
+}
+.disk-wait-label.is-now { color: var(--hw-lcd-ink); }
+.disk-wait-label.is-worst { color: var(--accent); }
+.disk-wait-label.is-l { transform: translate(calc(-100% - 2px), calc(-100% - 4px)); }
+.disk-wait-label.is-r { transform: translate(2px, calc(-100% - 4px)); }
+.disk-wait-axis > span.is-l { transform: translateX(calc(-100% - 1px)); }
+.disk-wait-axis > span.is-r { transform: translateX(1px); }
+.disk-wait-axis > span:first-child:not(.is-l) { transform: translateX(-50%); }
+.disk-waits { margin-top: 22px; }
+.disk-sources a { color: inherit; }
+.disk-wait-label.is-edge { transform: translate(-100%, calc(-100% - 4px)); }

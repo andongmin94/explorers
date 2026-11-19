@@ -3,7 +3,8 @@ import "../../shared/hw.css";
 import "./styles.css";
 import "../../shared/switcher.js";
 import "../../shared/iso.js";
-import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
+// Lesson 02 · 교착 상태 (deadlock.html).
+import { LABELS, bindRecap, progressHtml, recapHtml } from "../../shared/lesson-kit.js";
 import { ORDERS, simulateDeadlock } from "./deadlock-engine.js";
 import {
   describeDeadlockStep,
@@ -21,6 +22,9 @@ import {
   $$,
   bindConsole,
   createRecap,
+  lessonProgress,
+  mountLessonRail,
+  nextLessonOf,
   createSide,
   followRows,
   createPlayer,
@@ -39,7 +43,8 @@ import {
 } from "./console.js";
 
 const runs = { opposite: simulateDeadlock({ order: "opposite" }), same: simulateDeadlock({ order: "same" }) };
-const progress = createProgress("deadlock", { scenes: 5, recall: DEADLOCK_RECAP.recall.length });
+const LESSON = "deadlock";
+const progress = lessonProgress(LESSON, { scenes: 5, recall: DEADLOCK_RECAP.recall.length });
 let order = "opposite";
 let quiz = null;
 const run = () => runs[order];
@@ -65,7 +70,7 @@ const GROUPS = {
 const plan = (o) => `T1 ${ORDER_PLAN[o].T1} · T2 ${ORDER_PLAN[o].T2}`;
 
 $("#app").outerHTML = `<div class="hw-page tx-page">
-  ${topbar({ page: 1, context: { label: LABELS.scenario, title: "두 행을 줄이는 두 주문" }, compare: true })}
+  ${topbar({ lessonId: LESSON, compare: true })}
   <main class="hw-console">
     ${stage({ label: "잠금과 대기의 연결", sceneId: "scene", total: last() })}
     ${deck({
@@ -367,8 +372,9 @@ function predict() {
   $("#prediction-dialog").showModal();
 }
 
+mountLessonRail(LESSON, progress);
 side = createSide();
-const recapView = createRecap($("#lesson-pages"), { id: "deadlock", recap: DEADLOCK_RECAP, progress, side, recapHtml, bindRecap, progressHtml });
+const recapView = createRecap($("#lesson-pages"), { id: "transaction", recap: DEADLOCK_RECAP, progress, side, recapHtml, bindRecap, progressHtml, next: nextLessonOf(LESSON) });
 const timelineRows = followRows($("#record-timeline"), { current: (tbody) => tbody.querySelector(`[data-step="${player.state.index}"]`) });
 const logRows = followRows($("#record-log"));
 

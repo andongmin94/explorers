@@ -97,3 +97,13 @@ Nouns: **장면** only means a 핵심 장면; **사건** is one event; **단계*
 Progress: `createProgress(id, { scenes, recall })` — call `markScene` when a 핵심 장면 is reached, `markPrediction` on the first answer, `markCompared` when the comparison opens, `markRecall` via `bindRecap`. Ids: `protocol`, `cpu`, `memory`, `transaction`, `deadlock`, `disk`, `git`.
 
 Kept on purpose (subject-specific): the unit (ms·사건 / 접근 / 사건 / 요청 / 사건 / 단계+패킷), CPU's two-step generated prediction, memory's and disk's sub-stage strips, Git's gated resolution choice and `해결안 비교`, protocol's 14-lesson picker, OSI header, packet inspector, V view switch and multi-event steps.
+
+## Lessons and the lesson rail (every explorer)
+
+Every explorer has several lessons (protocol 14, the others 3–4), listed in a rail on the left like the protocol picker: `shared/lesson-rail.js` (`mountRail`, `currentLesson`, `lessonHref`, `nextLesson`, `progressIdFor`) with styles in `hw.css` (`.hw-rail*`). From 1280px the rail is a column left of the stage; below that it is a drawer opened by the "레슨" key the rail adds to the top bar.
+
+- A lesson is one scenario with its own question, guided scenes, predictions, comparison and 정리 (the learning model above). Lessons switch by URL: `?lesson=<id>` (the first lesson is the bare page; a lesson may live on another page via `href`, e.g. `deadlock.html`).
+- Header context: `.hw-label` "NN 레슨" (lesson number) + `strong` the lesson title.
+- Progress per lesson: `createProgress(progressIdFor(explorer, lessons, lesson.id), { scenes, recall })`, then `rail.watch(progress)` so the LEDs follow.
+- 정리 links to the next lesson (`recapHtml({ …, next: nextLesson(lessons, id) })`); the last lesson links to the next experiment.
+- Lesson data lives with the explorer (e.g. `src/lessons.js`): `{ id, name, sub }` for the rail plus whatever the engine needs.

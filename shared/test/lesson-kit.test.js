@@ -31,7 +31,7 @@ test("progress counts scenes, comparison and recall, and persists", () => {
 });
 
 test("experiment order wraps", () => {
-  assert.equal(nextExperiment("transaction").id, "deadlock");
+  assert.equal(nextExperiment("transaction").id, "disk");
   assert.equal(nextExperiment("git").id, "protocol");
   assert.equal(LABELS.wrong("8"), "정답은 8입니다.");
 });
@@ -50,4 +50,25 @@ test("josa after Hangul, digits and Latin", () => {
   assert.equal(ro("길"), "길로");
   assert.equal(ro("밖"), "밖으로");
   assert.equal(josa("P1", "은/는"), "P1은");
+});
+
+test("lesson status and rail helpers", async () => {
+  const { lessonStatus, lessonId } = await import("../lesson-kit.js");
+  const { currentLesson, lessonHref, nextLesson } = await import("../lesson-rail.js");
+  const s = store();
+  const id = lessonId("cpu", "sjf", "rr");
+  assert.equal(id, "cpu:sjf");
+  assert.equal(lessonId("cpu", "rr", "rr"), "cpu");
+  assert.equal(lessonStatus(id, { store: s }).status, "new");
+  const p = createProgress(id, { scenes: 1, recall: 0, compare: false, store: s });
+  assert.equal(lessonStatus(id, { store: s }).status, "new");
+  p.markScene("a");
+  assert.deepEqual(lessonStatus(id, { store: s }), { status: "done", ratio: 1 });
+  const lessons = [{ id: "rr", name: "RR" }, { id: "sjf", name: "SJF" }, { id: "x", name: "X", href: "x.html" }];
+  assert.equal(currentLesson(lessons, "?lesson=sjf").id, "sjf");
+  assert.equal(currentLesson(lessons, "?lesson=nope").id, "rr");
+  assert.equal(lessonHref(lessons, lessons[0]), "./");
+  assert.equal(lessonHref(lessons, lessons[1]), "./?lesson=sjf");
+  assert.deepEqual(nextLesson(lessons, "sjf"), { href: "x.html", title: "X" });
+  assert.equal(nextLesson(lessons, "x"), null);
 });

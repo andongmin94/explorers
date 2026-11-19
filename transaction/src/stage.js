@@ -74,7 +74,7 @@ export const VIEWS = { inventory: "-316 -104 692 285", deadlock: "-318 -105 694 
  * The static scene: floor, routes, devices, callouts and empty groups the
  * page scene fills (dbTop, pending, edges, movers).
  */
-export function sceneSvg({ label, dbTop = "", floorMarks = "", screens, dbSub, view = VIEWS.inventory }) {
+export function sceneSvg({ label, dbTop = "", floorMarks = "", screens, dbSub, dbTitle = "재고 DB", names = { T1: "T1 · 주문 1", T2: "T2 · 주문 2" }, view = VIEWS.inventory }) {
   const lt = LAPTOPS;
   const lanes = Object.entries(ROUTES)
     .map(([id, route]) => `<g class="tx-lane" data-lane="${id}">${floorPath(route, { dashed: true, arrow: false })}</g>`)
@@ -88,9 +88,9 @@ export function sceneSvg({ label, dbTop = "", floorMarks = "", screens, dbSub, v
     <g class="tx-parked"></g>
     ${client("T2", screens)}
     ${client("T1", screens)}
-    ${callout({ x: DB.x + DB.w / 2, y: DB.y, z: DB_TOP, dx: 0, dy: -66, title: "재고 DB", sub: dbSub })}
-    ${callout({ x: lt.T1.x + 1.2, y: lt.T1.y, z: 2.8, dx: -34, dy: -52, title: "T1 · 주문 1", sub: "IDLE", cls: "tx-callout-t1" })}
-    ${callout({ x: lt.T2.x + lt.T2.w - 1.2, y: lt.T2.y, z: 2.8, dx: 34, dy: -52, title: "T2 · 주문 2", sub: "IDLE", cls: "tx-callout-t2" })}
+    ${callout({ x: DB.x + DB.w / 2, y: DB.y, z: DB_TOP, dx: 0, dy: -66, title: dbTitle, sub: dbSub })}
+    ${callout({ x: lt.T1.x + 1.2, y: lt.T1.y, z: 2.8, dx: -34, dy: -52, title: names.T1, sub: "IDLE", cls: "tx-callout-t1" })}
+    ${callout({ x: lt.T2.x + lt.T2.w - 1.2, y: lt.T2.y, z: 2.8, dx: 34, dy: -52, title: names.T2, sub: "IDLE", cls: "tx-callout-t2" })}
     <g class="tx-movers"><g class="tx-mover" data-mover="T1"></g><g class="tx-mover" data-mover="T2"></g></g>
     <g class="tx-hold" aria-hidden="true"></g>
   </svg>`;

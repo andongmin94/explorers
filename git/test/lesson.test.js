@@ -19,6 +19,7 @@ import {
 import { LABELS } from "../../shared/lesson-kit.js";
 
 const main = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
+const lessons = readFileSync(new URL("../src/lessons.js", import.meta.url), "utf8");
 const visible = (lesson) =>
   [lesson.title, lesson.body, lesson.takeaway ?? "", ...(lesson.terminal ?? []), ...lesson.details].join("\n");
 
@@ -29,8 +30,9 @@ test("guided stops are exactly the 핵심 장면 list, including the forced stop
   assert.ok(MILESTONES.length >= 3 && MILESTONES.length <= 6);
   // Every prediction is asked at a 핵심 장면.
   for (const at of Object.keys(PREDICTIONS).map(Number)) assert.ok(GUIDED_STOPS.includes(at), `prediction ${at}`);
-  // main.js stops on that list, not on its own numbers.
-  assert.match(main, /GUIDED_STOPS\.includes\(index\)/);
+  // main.js stops on the lesson's list, not on its own numbers.
+  assert.match(main, /guidedStops\(\)\.includes\(index\)/);
+  assert.match(lessons, /guidedStops: \(\) => conflict\.GUIDED_STOPS/);
   assert.doesNotMatch(main, /\[4, 8, 10, 11\]/);
 });
 
@@ -42,7 +44,8 @@ test("start screen asks a question and states the goal without the result", () =
   assert.ok(start.goal.startsWith(`${LABELS.goal}: `));
   assert.equal(start.takeaway, null);
   assert.doesNotMatch(`${start.body} ${start.goal}`, /git add|두 부모|C3|stage/);
-  assert.match(main, new RegExp(`01</span> \\$\\{LABELS\\.scenario\\} · `));
+  // Header context: "NN 레슨" + the lesson title.
+  assert.match(main, /\$\{lessonNumber\}<\/span> 레슨<\/span><strong>\$\{esc\(lesson\.title\)\}/);
 });
 
 test("eyebrows count events, and name the 핵심 장면 at a stop", () => {
@@ -84,8 +87,9 @@ test("prediction 10 pending: nothing says the file is still unresolved or needs 
     assert.ok(shown.terminal.includes("        both modified:   welcome.txt"));
     assert.match(shown.takeaway, /별개/);
   }
-  // main.js swaps the status line and silences the conflict LED while pending.
-  assert.match(main, /STATE_NAMES\.resolvedPending/);
+  // The lesson swaps the status line and main.js silences the conflict LED while pending.
+  assert.match(lessons, /names\.resolvedPending/);
+  assert.match(main, /pendingAt\(index\) && state\.status === "resolved"/);
 });
 
 test("prediction 11 pending: nothing names the next commit's parents", () => {

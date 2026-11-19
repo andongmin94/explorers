@@ -61,7 +61,7 @@ export function describeDeadlockStep(step) {
   const same = order === "same";
   const s = step.state;
   const base = {
-    eyebrow: step.index ? `${step.index}번째 사건 · ${step.client || "데이터베이스"}` : "02 대표 시나리오",
+    eyebrow: step.index ? `${step.index}번째 사건 · ${step.client || "데이터베이스"}` : "02 레슨 · 시작 전",
     sql: step.sql,
     goal: "",
   };

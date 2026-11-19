@@ -1,6 +1,8 @@
 // The memory explorer's isometric scene: CPU, page table, RAM frames and SSD
 // on one floor. Pages are tokens: the SSD keeps the originals A–E, the RAM
 // frames hold copies, and one access moves them along the floor paths.
+// The RAM has 3 or 4 frames (lesson 03 compares both); under Clock every
+// frame shows its reference bit and the hand sits in front of one frame.
 import { josa } from "../../shared/josa.js";
 import {
   callout,
@@ -31,8 +33,18 @@ const CPU_TOP = 0.75;
 const CPU_SPOT = [2.5, 11.5];
 const TABLE = { x: -0.5, y: 1.2, w: 9, d: 3, h: 0.6 };
 const entryX = (i) => TABLE.x + 1.1 + i * 1.7;
-const RAM = { x: 8, y: 6, w: 10, d: 3.8, h: 0.6 };
-const slotX = (slot) => RAM.x + 1.9 + slot * 3.1;
+// RAM grows to the right with the frame count; three frames keep the original layout.
+let N = 3;
+let RAM = { x: 8, y: 6, w: 10, d: 3.8, h: 0.6 };
+let PITCH = 3.1;
+function setFrameCount(n) {
+  N = n;
+  PITCH = n > 3 ? 2.6 : 3.1;
+  RAM = { x: 8, y: 6, w: 3.8 + PITCH * (n - 1), d: 3.8, h: 0.6 };
+}
+const SLOTS = () => Array.from({ length: N }, (_, slot) => slot);
+const WELL = () => Math.min(2.5, PITCH - 0.25);
+const slotX = (slot) => RAM.x + 1.9 + slot * PITCH;
 const SLOT_Y = RAM.y + 1.45;
 // The SSD is the one device whose place depends on the layout: on a wide
 // desktop stage it stands right of the RAM so the cluster reads as one wide
@@ -54,7 +66,12 @@ const ROUTES = {
   lookup: [[2.5, 9], [2.5, 4.5]],
   read: [[9.2, 10], [9.2, 11.5], [5.5, 11.5]],
 };
-const loadRoute = (wide) => (wide ? [[20.6, DISK.y + DISK.d], [20.6, 7.9], [18.3, 7.9]] : [[19.5, 11], [19.5, 7.9], [18.3, 7.9]]);
+const loadRoute = (wide) => {
+  const end = RAM.x + RAM.w + 0.3;
+  const x = Math.max(wide ? 20.6 : 19.5, end + 1);
+  return wide ? [[x, DISK.y + DISK.d], [x, 7.9], [end, 7.9]] : [[x, 11], [x, 7.9], [end, 7.9]];
+};
+const HAND_Y = () => RAM.y + RAM.d + 0.95;
 
 // Both views are fitted to the devices, callouts and token routes (lifts
 // included), not to the floor, which runs past the stage edges.
@@ -68,12 +85,13 @@ function staticScene(wide) {
   const cpu = chip({ ...CPU, label: "" });
   const disk = ssd({ ...DISK, label: "" });
 
-  const slots = [0, 1, 2]
+  const well = WELL();
+  const slots = SLOTS()
     .map((slot) => {
       const x = slotX(slot);
       return `<g class="mem-slot" data-slot="${slot}">
-        ${socket({ x: x - 1.25, y: SLOT_Y - 1.1, z: RAM.h, w: 2.5, d: 2.2, cls: "mem-slot-well" })}
-        ${quad({ x: x - 1.25, y: SLOT_Y - 1.1, z: RAM.h + 0.004, w: 2.5, d: 2.2, fill: "none", stroke: "var(--accent)", strokeWidth: 2, cls: "mem-slot-ring" })}
+        ${socket({ x: x - well / 2, y: SLOT_Y - 1.1, z: RAM.h, w: well, d: 2.2, cls: "mem-slot-well" })}
+        ${quad({ x: x - well / 2, y: SLOT_Y - 1.1, z: RAM.h + 0.004, w: well, d: 2.2, fill: "none", stroke: "var(--accent)", strokeWidth: 2, cls: "mem-slot-ring" })}
         ${frontText({ x, y: RAM.y + RAM.d, z: RAM.h / 2, text: `F${slot}`, size: 10, fill: "var(--ink)", weight: 700 })}
         <g class="mem-rank"></g>
       </g>`;
@@ -114,21 +132,30 @@ function staticScene(wide) {
     ${callout({ x: RAM.x + RAM.w - 1, y: RAM.y - 1.4, z: 2.05, dx: 30, dy: -64, title: "RAM", sub: "·", cls: "mem-ram-callout", anchor: "middle" })}
     ${callout({ x: DISK.x + DISK.w, y: DISK.y + 0.6, z: DISK_TOP, dx: 34, dy: -64, title: "SSD", sub: "원본 A–E", anchor: "middle" })}
     <g class="mem-originals">${originals}</g>
-    <g class="mem-tokens">${[0, 1, 2].map((slot) => `<g class="mem-token" data-token-slot="${slot}"></g>`).join("")}</g>
+    <g class="mem-hand"></g>
+    <g class="mem-tokens">${SLOTS().map((slot) => `<g class="mem-token" data-token-slot="${slot}"></g>`).join("")}</g>
     <g class="mem-request"></g>
     <g class="mem-movers"></g>
   </svg>`;
 }
 
 const cloneFrames = (frames) => frames.map((frame) => ({ ...frame }));
-const emptyFrames = () => [0, 1, 2].map((slot) => ({ slot, page: null, loadedAt: null, lastUsedAt: null }));
+const emptyFrames = () => SLOTS().map((slot) => ({ slot, page: null, loadedAt: null, lastUsedAt: null, ref: 0 }));
 
-/** Order in which the policy would replace the resident pages; rank 1 goes first. */
+/** Order in which the policy would replace the resident pages; rank 1 goes first. Clock shows its bits instead. */
 function ranks(frames, algorithm) {
-  const key = (frame) => (algorithm === "fifo" ? frame.loadedAt : frame.lastUsedAt ?? frame.loadedAt);
-  const order = frames.filter((frame) => frame.page).toSorted((a, b) => key(a) - key(b));
+  if (algorithm === "clock") return new Map();
+  const key =
+    algorithm === "fifo"
+      ? (frame) => frame.loadedAt
+      : algorithm === "opt"
+        ? (frame) => -(frame.nextUseAt ?? Infinity)
+        : (frame) => frame.lastUsedAt ?? frame.loadedAt;
+  const order = frames.filter((frame) => frame.page).toSorted((a, b) => key(a) - key(b) || a.loadedAt - b.loadedAt);
   return new Map(order.map((frame, i) => [frame.slot, i + 1]));
 }
+const CALLOUT_SUB = { fifo: "#1 다음 교체 · 적재 순서", lru: "#1 다음 교체 · 마지막 접근", opt: "#1 다음 교체 · 다음 접근" };
+const POLICY_NAME = { fifo: "FIFO", lru: "LRU", opt: "OPT", clock: "클럭" };
 
 // Prose names a frame "프레임 0"; "F0" stays a compact label on the device.
 const F = (slot, pair) => (pair ? josa(`프레임 ${slot}`, pair) : `프레임 ${slot}`);
@@ -136,20 +163,26 @@ const F = (slot, pair) => (pair ? josa(`프레임 ${slot}`, pair) : `프레임 $
 export const replacementReason = (policy, frame) =>
   policy === "fifo"
     ? `적재 순서가 가장 앞선 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
-    : `마지막 접근이 가장 이른 ${frame.page} 교체 (마지막 접근 ${frame.lastUsedAt}번째)`;
+    : policy === "opt"
+      ? `다음 접근이 가장 늦은 ${frame.page} 교체 (${frame.nextUseAt ? `다음 접근 ${frame.nextUseAt}번째` : "다시 쓰이지 않음"})`
+      : policy === "clock"
+        ? `참조 비트 0인 ${frame.page} 교체 (${F(frame.slot)})`
+        : `마지막 접근이 가장 이른 ${frame.page} 교체 (마지막 접근 ${frame.lastUsedAt}번째)`;
 
-export function createMemoryScene(host, { onPhase = () => {} } = {}) {
+export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } = {}) {
+  setFrameCount(frameCount);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const narrow = matchMedia("(max-width: 759px)");
-  let svg, slotEls, tokenEls, request, movers;
+  let svg, slotEls, tokenEls, request, movers, handEl;
   const $ = (selector) => svg.querySelector(selector);
   function build() {
     const wide = !narrow.matches;
     DISK = wide ? DISK_WIDE : DISK_NARROW;
     host.innerHTML = staticScene(wide);
     svg = host.querySelector("svg");
-    slotEls = [0, 1, 2].map((slot) => $(`[data-slot="${slot}"]`));
-    tokenEls = [0, 1, 2].map((slot) => $(`[data-token-slot="${slot}"]`));
+    slotEls = SLOTS().map((slot) => $(`[data-slot="${slot}"]`));
+    tokenEls = SLOTS().map((slot) => $(`[data-token-slot="${slot}"]`));
+    handEl = $(".mem-hand");
     request = $(".mem-request");
     movers = $(".mem-movers");
     for (const el of svg.querySelectorAll("[data-original]")) place(el, ...diskPoint(el.dataset.original));
@@ -163,6 +196,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     cancel();
     build();
     frames = step ? cloneFrames(step.frames) : emptyFrames();
+    hand = step ? step.hand : null;
     paintFrames();
     paintRequest("done");
     finalPhase();
@@ -171,6 +205,8 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   let step = null;
   let algorithm = "fifo";
   let frames = emptyFrames();
+  // Clock's hand: the frame it points at (null outside Clock).
+  let hand = null;
   let run = null;
   let revision = 0;
   // Next-victim marks (#1, its LED, the callout) hide while a victim prediction is pending.
@@ -181,6 +217,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
   function paintFrames() {
     const rank = hints ? ranks(frames, algorithm) : new Map();
     const full = frames.every((frame) => frame.page);
+    const clock = algorithm === "clock";
     frames.forEach((frame) => {
       const el = tokenEls[frame.slot];
       if (el.dataset.page !== (frame.page ?? "")) {
@@ -190,10 +227,16 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       el.style.opacity = "";
       const r = rank.get(frame.slot);
       const x = slotX(frame.slot);
-      slotEls[frame.slot].querySelector(".mem-rank").innerHTML = r
-        ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: r === 1 && full })}${topText({ x: x + 0.15, y: SLOT_Y + 1.75, z: RAM.h, text: `#${r}`, size: 13, weight: 800, fill: r === 1 && full ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
-        : "";
+      // Clock: the reference bit is evidence, not the answer, so it always shows.
+      slotEls[frame.slot].querySelector(".mem-rank").innerHTML = clock
+        ? frame.page
+          ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: Boolean(frame.ref) })}${topText({ x: x + 0.2, y: SLOT_Y + 1.75, z: RAM.h, text: `R${frame.ref ? 1 : 0}`, size: 13, weight: 800, fill: frame.ref ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
+          : ""
+        : r
+          ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: r === 1 && full })}${topText({ x: x + 0.15, y: SLOT_Y + 1.75, z: RAM.h, text: `#${r}`, size: 13, weight: 800, fill: r === 1 && full ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
+          : "";
     });
+    paintHand();
     for (const page of PAGES) {
       const frame = frames.find((f) => f.page === page);
       const entry = $(`[data-entry="${page}"]`);
@@ -201,11 +244,21 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       entry.querySelector(".mem-entry-frame text").textContent = frame ? `F${frame.slot}` : "—";
       entry.classList.toggle("is-resident", Boolean(frame));
     }
-    $(".mem-ram-callout .iso-callout-sub").textContent = !hints || !full ? "프레임 3개" : algorithm === "fifo" ? "#1 다음 교체 · 적재 순서" : "#1 다음 교체 · 마지막 접근";
+    $(".mem-ram-callout .iso-callout-sub").textContent = clock ? "R 참조 비트 · ▲ 바늘" : !hints || !full ? `프레임 ${N}개` : CALLOUT_SUB[algorithm];
     host.setAttribute(
       "aria-label",
-      `${step?.index || 0}번째 접근 후. ${frames.map((f) => `${F(f.slot)} ${f.page ? `페이지 ${f.page}` : "비어 있음"}`).join(", ")}.`,
+      `${step?.index || 0}번째 접근 후. ${frames.map((f) => `${F(f.slot)} ${f.page ? `페이지 ${f.page}${clock ? ` 참조 비트 ${f.ref ? 1 : 0}` : ""}` : "비어 있음"}`).join(", ")}.${clock && hand !== null ? ` 바늘은 ${F(hand)}.` : ""}`,
     );
+  }
+
+  function paintHand() {
+    const at = algorithm === "clock" ? hand : null;
+    if (handEl.dataset.at === String(at)) return;
+    handEl.dataset.at = String(at);
+    handEl.innerHTML =
+      at === null
+        ? ""
+        : `${topText({ x: slotX(at), y: HAND_Y(), z: 0, text: "▲", size: 14, weight: 800, fill: "var(--accent)", mono: false })}${topText({ x: slotX(at), y: HAND_Y() + 0.85, z: 0, text: "바늘", size: 11, weight: 700, fill: "var(--accent)", mono: false })}`;
   }
 
   function paintRequest(state = "done") {
@@ -236,7 +289,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
 
   function finalPhase() {
     if (!step?.index) {
-      phase("ready", "RAM 프레임 3개가 비어 있습니다 · 첫 요청은 A", "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.");
+      phase("ready", `RAM 프레임 ${N}개가 비어 있습니다 · 첫 요청은 A`, "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.");
       return;
     }
     let outcome = step.hit ? "적중" : "빈 프레임에 적재";
@@ -301,7 +354,22 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
 
     for (const event of step.events) {
       if (!alive(active)) return;
-      if (event.type === "hit") {
+      if (event.type === "sweep") {
+        emphasis({ ring: "select", slot: event.frameIndex });
+        phase("select", `클럭 · ${event.page}의 참조 비트 1 → 0, 바늘이 넘어갑니다`, `${josa(event.page, "은/는")} 참조 비트가 1이라 두 번째 기회를 얻습니다. 바늘이 다음 프레임으로 갑니다.`);
+        hand = event.frameIndex;
+        paintFrames();
+        await hold(450, active);
+        if (!alive(active)) return;
+        frames[event.frameIndex] = { ...frames[event.frameIndex], ref: 0 };
+        hand = (event.frameIndex + 1) % N;
+        paintFrames();
+        await hold(450, active);
+      } else if (event.type === "hit") {
+        if (algorithm === "clock") {
+          frames[slot] = { ...frames[slot], ref: 1 };
+          paintFrames();
+        }
         emphasis({ ring: "hit", slot, entry: page });
         phase("hit", `적중 · ${josa(page, "이/가")} ${F(slot)}에 있습니다`, `페이지 테이블의 ${page} 항목이 ${F(slot, "을/를")} 가리킵니다. 이 프레임의 주소로 바로 변환합니다.`);
         await hold(600, active);
@@ -316,10 +384,18 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
             ? "빈 프레임을 사용합니다."
             : event.reason === "fifo"
               ? `${josa(event.victim, "이/가")} 적재 순서가 가장 앞섭니다.`
-              : `${event.victim}의 마지막 접근이 가장 이릅니다.`;
+              : event.reason === "opt"
+                ? `${event.victim}의 다음 접근이 가장 늦습니다.`
+                : event.reason === "clock"
+                  ? `바늘이 가리킨 ${event.victim}의 참조 비트가 0입니다.`
+                  : `${event.victim}의 마지막 접근이 가장 이릅니다.`;
+        if (event.reason === "clock") {
+          hand = slot;
+          paintFrames();
+        }
         phase(
           "select",
-          event.reason === "empty" ? `빈 ${F(slot)} 선택` : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
+          event.reason === "empty" ? `빈 ${F(slot)} 선택` : `${POLICY_NAME[event.reason]} · ${replacementReason(event.reason, frames[slot])}`,
           reason,
         );
         await hold(event.victim ? 1500 : 900, active);
@@ -329,7 +405,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         place(gone, ...slotPoint(slot));
         tokenEls[slot].innerHTML = "";
         tokenEls[slot].dataset.page = "";
-        frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null };
+        frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null, ref: 0 };
         paintFrames();
         emphasis({ ring: "select", slot });
         await Promise.all([
@@ -349,6 +425,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         copy.remove();
         if (!alive(active)) return;
         frames[slot] = { ...step.frames[slot], lastUsedAt: null };
+        if (step.hand !== null) hand = step.hand;
         paintFrames();
         emphasis({ ring: "hit", slot });
       } else if (event.type === "access") {
@@ -396,8 +473,14 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     cancel();
     step = next;
     algorithm = policy;
+    if (next.frames.length !== N) {
+      // Lesson 03 switches between 3 and 4 frames: redraw the RAM.
+      setFrameCount(next.frames.length);
+      build();
+    }
     const moving = animate && !reduced.matches && previous && next.index === previous.index + 1 && next.events.length;
     frames = cloneFrames(moving ? next.before : next.frames);
+    hand = moving ? next.handBefore : next.hand;
     paintFrames();
     paintRequest(moving ? "pending" : "done");
     if (!moving) {

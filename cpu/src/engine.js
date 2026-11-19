@@ -8,19 +8,72 @@ export const DEFAULT_PROCESSES = [
 const sum = (values) => values.reduce((total, value) => total + value, 0);
 
 /**
+ * The moment before the first boundary (t = -1): nobody has arrived or been
+ * picked yet. The start screen shows it, so the first CPU pick is not given
+ * away before the learner starts or predicts it.
+ */
+export function preFrame(result) {
+  return {
+    t: -1,
+    running: null,
+    ready: [],
+    blocked: [],
+    completed: [],
+    quantumLeft: null,
+    states: Object.fromEntries(
+      result.processes.map((process) => [
+        process.id,
+        {
+          status: "new",
+          cpuRemaining: sum(process.cpu),
+          burstRemaining: process.cpu[0],
+          cpuDone: 0,
+          readyWait: 0,
+          ioRemaining: 0,
+          firstRun: null,
+          finishedAt: null,
+        },
+      ]),
+    ),
+    events: [],
+  };
+}
+
+/**
  * A frame at t is the state after boundary events and before executing [t, t+1).
  * At a shared boundary, arrivals / I/O returns enter in input order before the
  * expired process rejoins the tail. Finishing a burst takes precedence over an
  * expiring quantum. FCFS keeps the CPU until a burst finishes.
+ *
+ * SJF (non-preemptive) and SRTF (preemptive SJF, OSTEP's STCF) pick the ready
+ * job with the shortest current CPU burst left; ties go to the job that queued
+ * first. SJF runs it until the burst ends. SRTF re-decides whenever a job
+ * enters the ready queue: a newcomer with strictly less left preempts the
+ * running job; otherwise the running job keeps the CPU (recorded as a "keep"
+ * decision). Both assume burst lengths are known in advance (OSTEP 7.4).
+ * The ready queue keeps its arrival order (candidates too): the policy scans
+ * it for the shortest, so queue position never gives the pick away.
  */
+export const ALGORITHMS = ["rr", "fcfs", "sjf", "srtf"];
+export const SHORTEST = new Set(["sjf", "srtf"]);
+
 export function simulate({
   algorithm = "rr",
   quantum = 2,
   processes = DEFAULT_PROCESSES,
 } = {}) {
-  if (!["rr", "fcfs"].includes(algorithm)) {
-    throw new RangeError("algorithm must be rr or fcfs");
+  if (!ALGORITHMS.includes(algorithm)) {
+    throw new RangeError(`algorithm must be one of ${ALGORITHMS.join(", ")}`);
   }
+  const shortest = SHORTEST.has(algorithm);
+  // Pick order: queue order for RR/FCFS; shortest burst left, then queue order.
+  const ordered = (list) =>
+    shortest
+      ? list
+          .map((job, index) => [job, index])
+          .sort((a, b) => a[0].burstRemaining - b[0].burstRemaining || a[1] - b[1])
+          .map(([job]) => job)
+      : list;
   if (!Number.isInteger(quantum) || quantum < 1) {
     throw new RangeError("quantum must be a positive integer");
   }
@@ -142,6 +195,25 @@ export function simulate({
         });
       }
     }
+    // SRTF: a job that just became ready with less left than the running
+    // job's current burst takes the CPU; otherwise the running job keeps it.
+    const joined = events.some((event) => event.type === "arrive" || event.type === "unblock");
+    if (algorithm === "srtf" && running && joined) {
+      const best = ordered(ready)[0];
+      if (best.burstRemaining < running.burstRemaining) {
+        expired = running;
+        finishSegment("preempt");
+        running = null;
+        cause = "preempt";
+      } else {
+        decisions.push({
+          time: t,
+          candidates: [running, ...ready].map((job) => job.id),
+          chosen: running.id,
+          cause: "keep",
+        });
+      }
+    }
     if (expired) {
       expired.status = "ready";
       ready.push(expired);
@@ -156,7 +228,8 @@ export function simulate({
     if (!running && ready.length) {
       if (segment) finishSegment("idle");
       const candidates = ready.map((job) => job.id);
-      running = ready.shift();
+      running = ordered(ready)[0];
+      ready.splice(ready.indexOf(running), 1);
       running.status = "running";
       running.firstRun ??= t;
       quantumLeft = algorithm === "rr" ? quantum : null;

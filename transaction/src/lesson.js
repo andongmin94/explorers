@@ -51,7 +51,7 @@ export function describeStep(step, run) {
   const current = who ? step.state.clients[who] : null;
   const base = {
     eyebrow:
-      step.index === 0 ? "01 대표 시나리오" : `${step.index}번째 사건 · ${who}`,
+      step.index === 0 ? "01 레슨 · 시작 전" : `${step.index}번째 사건 · ${who}`,
     title: "",
     summary: "",
     goal: "",

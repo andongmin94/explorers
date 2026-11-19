@@ -3,6 +3,9 @@
 // common bindings (keyboard, theme, record tabs, dialogs).
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs } from "../../shared/fit.js";
+import { createProgress } from "../../shared/lesson-kit.js";
+import { mountRail, nextLesson, progressIdFor } from "../../shared/lesson-rail.js";
+import { EXPLORER, LESSONS, RAIL_TITLE, lessonById, lessonNumber } from "./lessons.js";
 
 export const $ = (s, root = document) => root.querySelector(s);
 export const $$ = (s, root = document) => [...root.querySelectorAll(s)];
@@ -14,17 +17,15 @@ export const pad = (n) => String(n).padStart(2, "0");
 
 const THEME_KEY = "transaction-theme";
 
-export function topbar({ page, context, compare = false }) {
-  const scenarios = [
-    ["./", "01", "재고 갱신"],
-    ["./deadlock.html", "02", "교착 상태와 롤백"],
-  ];
+/**
+ * The top bar. The lesson rail (mountLessonRail) adds its drawer key in
+ * front; the context names the lesson: "NN 레슨" + its title.
+ */
+export function topbar({ lessonId, compare = false }) {
+  const lesson = lessonById(lessonId);
   return `<header class="hw-topbar">
     <div class="hw-brand"><h1>트랜잭션 탐색기</h1><p>보면서 이해하는 데이터베이스</p></div>
-    <div class="hw-context"><span class="hw-label"><span class="hw-index">${scenarios[page][1]}</span> ${context.label}</span><strong>${context.title}</strong></div>
-    <nav class="hw-seg tx-scenarios" aria-label="트랜잭션 시나리오">${scenarios
-      .map(([href, n, label], i) => `<a href="${href}"${i === page ? ' aria-current="page"' : ""}><span class="hw-index">${n}</span>${label}</a>`)
-      .join("")}</nav>
+    <div class="hw-context"><span class="hw-label"><span class="hw-index">${lessonNumber(lessonId)}</span> 레슨</span><strong>${lesson.title}</strong></div>
     <div class="hw-actions">
       ${compare ? `<button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>두 방식 비교</span></button>` : ""}
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button>
@@ -32,11 +33,11 @@ export function topbar({ page, context, compare = false }) {
   </header>`;
 }
 
-export function stage({ label, sceneId, total }) {
+export function stage({ label, sceneId, total, tag = "READ COMMITTED" }) {
   return `<section class="hw-plate hw-stage" aria-labelledby="stage-label">
     <div class="hw-plate-head">
       <span class="hw-label" id="stage-label"><span class="hw-index">A</span> ${label}</span>
-      <span class="hw-tag">READ COMMITTED</span>
+      <span class="hw-tag" id="stage-tag">${tag}</span>
       <span class="hw-lcd" aria-hidden="true"><span id="step-count">00</span><small>/ ${pad(total)} 사건</small></span>
     </div>
     <div class="hw-scene" id="${sceneId}"></div>
@@ -162,7 +163,7 @@ export function followRows(box, { before = 0.4, current = (tbody) => tbody.query
  * separate item after its question so an answered question never outgrows a
  * page. show(false) takes it out again; the progress line follows progress.
  */
-export function createRecap(host, { id, recap, progress, side, recapHtml, bindRecap, progressHtml }) {
+export function createRecap(host, { id, recap, progress, side, recapHtml, bindRecap, progressHtml, next = null }) {
   progress.onChange((summary) => {
     const line = $(".tx-recap .hw-progress", host);
     if (line) line.outerHTML = progressHtml(summary);
@@ -176,7 +177,7 @@ export function createRecap(host, { id, recap, progress, side, recapHtml, bindRe
       }
       if (parts.length) return;
       const t = document.createElement("template");
-      t.innerHTML = recapHtml({ id, ...recap, progress });
+      t.innerHTML = recapHtml({ id, ...recap, progress, next: next ?? undefined });
       const items = [...t.content.firstElementChild.children];
       for (const el of items) el.classList.add("tx-recap");
       host.append(...items);
@@ -198,6 +199,21 @@ export function createRecap(host, { id, recap, progress, side, recapHtml, bindRe
     },
   };
 }
+
+/** Progress of one lesson, under its own id (progressIdFor). */
+export function lessonProgress(lessonId, { scenes, recall }) {
+  return createProgress(progressIdFor(EXPLORER, LESSONS, lessonId), { scenes, recall });
+}
+
+/** The lesson rail on the left (a drawer below 1280px), following progress. */
+export function mountLessonRail(lessonId, progress) {
+  const rail = mountRail({ explorer: EXPLORER, title: RAIL_TITLE, lessons: LESSONS, current: lessonId });
+  rail.watch(progress);
+  return rail;
+}
+
+/** 정리 links on to the next lesson; the last one gets null (next experiment). */
+export const nextLessonOf = (lessonId) => nextLesson(LESSONS, lessonId);
 
 export function footer(sources) {
   return `<footer class="hw-footer">
