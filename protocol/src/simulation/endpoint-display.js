@@ -1,5 +1,9 @@
-import { escapeHtml, translate } from "../i18n.js";
-import { NETWORK_NODE_LABELS, PACKET_COLORS } from "./network-drawing.js";
+// Endpoint state shown on the devices themselves: mail and port tokens sit on
+// the server, a cached DNS record sits on the resolver or laptop, the laptop's
+// screen shows the terminal / mail app / certificate check, and each device's
+// callout carries one short live state line.
+import { project, token } from "../../../shared/iso-kit.js";
+import { NETWORK_TOKEN_SLOTS, PACKET_COLORS } from "./network-drawing.js";
 
 export function ftpServerPort(packet) {
   const tcp = packet?.row?.wire?.tcp;
@@ -7,159 +11,152 @@ export function ftpServerPort(packet) {
 }
 
 const connectionText = { waiting: "연결 대기", connecting: "연결 중", open: "연결됨", closed: "종료", unset: "미지정" };
-const portIcon = '<path d="M1 2h16v9h-5v3H6v-3H1z M5 5v3m4-3v3m4-3v3"/>';
-const mailIcon = '<path d="M1 2h16v12H1z M2 3l7 6 7-6"/>';
-const terminalIcon = '<path d="m3 2 6 5-6 5m7 0h7"/>';
-const certificateIcon = '<path d="m9 1 7 3v4c0 4-4 6-7 8-3-2-7-4-7-8V4z m-3 7 2 2 5-5"/>';
+const connectionColor = { waiting: "grey", connecting: "amber", open: "green", closed: "slate" };
+const escapeXml = (text) =>
+  String(text).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-// Keep the readable message off the mobile DNS route as the marker moves.
-export function renderDnsReadout(element, state, event) {
-  const packet = event?.type === "packet" ? event : null;
-  const record = state?.client ?? state?.dns;
-  if (!packet && !record) {
-    element.hidden = true;
-    return;
-  }
-  const arrived = record && (!packet || packet.devicesAfter?.[packet.to] === record);
-  let route, lines;
-  if (arrived) {
-    const [name, type, ttl, address] = record;
-    const authoritative = packet?.row.wire.udp.data.dns.aa;
-    route = `${state.client ? "클라이언트" : "DNS 리졸버"} · 캐시 저장`;
-    lines = [`${name} · ${type} ${address}`, `TTL ${ttl}초${authoritative ? " · 권한 있는 응답(AA)" : ""}`];
-  } else {
-    route = [packet.from, packet.to].map(id => translate(NETWORK_NODE_LABELS[id][0])).join(" → ");
-    lines = packet.payload.map(line => translate(line));
-  }
-  element.style.setProperty("--dns-color", PACKET_COLORS[arrived ? "green" : packet.color]);
-  element.innerHTML = `<header><b>${escapeHtml(arrived ? "응답" : translate(packet.label))}</b>${escapeHtml(route)}</header>
-    ${lines.map(line => `<div>${escapeHtml(line)}</div>`).join("")}`;
-  element.hidden = false;
-}
-
-function panel(title, icon, rows, kind = "") {
-  const width = kind === "certificate" ? 248 : 212, header = 23, rowHeight = 25;
-  const height = header + rows.length * rowHeight + 3;
-  return `<g class="endpoint-card ${kind}" data-height="${height}">
-    <rect class="endpoint-shadow" x="3" y="3" width="${width}" height="${height}" rx="3"/>
-    <rect class="endpoint-case" width="${width}" height="${height}" rx="3"/>
-    <path class="endpoint-rule" d="M0 ${header}h${width}"/>
-    <g class="endpoint-icon" transform="translate(9 4)">${icon}</g>
-    <text class="endpoint-heading" x="35" y="16">${title}</text>
-    ${rows.map(([label, value, tone = ""], i) => {
-      const y = header + i * rowHeight;
-      return `<g class="endpoint-row ${tone}">
-        <rect class="endpoint-highlight" x="2" y="${y + 1}" width="${width - 4}" height="${rowHeight - 1}"/>
-        <text class="endpoint-key" x="10" y="${y + 18}">${escapeHtml(label)}</text>
-        <text class="endpoint-value" x="${width - 10}" y="${y + 18}" text-anchor="end">${escapeHtml(value)}</text>
-      </g>`;
-    }).join("")}</g>`;
-}
-
-function devicePanels(lessonId, state, port) {
+/** What each endpoint shows for a lesson's device state. */
+function describeEndpoints(lessonId, state, port) {
   if (!state) return {};
   if (lessonId === "dns") {
-    const cacheBadge = '<g class="endpoint-card cache-badge" data-height="30"><rect class="endpoint-case" width="87" height="30" rx="3"/><text x="43.5" y="21" text-anchor="middle">캐시 저장</text></g>';
-    return { dns: state.dns && cacheBadge, client: state.client && cacheBadge };
+    const cached = (record, where) => ({
+      state: `${where} 캐시: ${record[0]} → ${record[3]} · TTL ${record[2]}초`,
+      tokens: [{ text: record[1], color: "green" }],
+    });
+    return {
+      dns: state.dns && cached(state.dns, "리졸버"),
+      client: state.client && cached(state.client, "노트북"),
+    };
   }
   if (lessonId === "tls" && state.certificate) {
     const verified = state.certificate === "verified";
-    return { client: panel("클라이언트 · 인증서 검증", certificateIcon,
-      verified ? [["서버 인증서", "www.example.com"], ["↓ 발급자", "중간 인증기관"], ["↓ 신뢰 루트", "기기 목록과 일치 ✓"]]
-        : [["암호화된 전송", "수신 완료"]], "certificate") };
+    return {
+      client: verified
+        ? {
+            state: "인증서 검증: 신뢰 루트와 일치 ✓",
+            screen: [
+              ["서버 인증서", "www.example.com", 1],
+              ["↓ 발급자", "중간 인증기관", 2],
+              ["↓ 신뢰 루트", "목록과 일치 ✓", 3],
+            ],
+            tokens: [{ text: "✓", color: "green" }],
+          }
+        : { state: "암호화된 인증서 수신 완료", screen: [["암호화된 전송", "수신 완료"]] },
+    };
   }
   if (lessonId === "ftp") {
     const { control, data, dataPort } = state;
-    return { web: panel("서버 포트", portIcon, [
-      ["제어  21", connectionText[control], port === 21 ? "active" : control],
-      [data === "unset" ? "데이터" : `데이터  ${dataPort}`, connectionText[data], port === dataPort ? "active" : data],
-    ]) };
+    const tokens = [
+      { text: "21", color: connectionColor[control] ?? "grey", active: port === 21 },
+    ];
+    if (data !== "unset") {
+      tokens.push({ text: String(dataPort), color: connectionColor[data] ?? "grey", active: port === dataPort });
+    }
+    return {
+      web: {
+        state: `제어 21 ${connectionText[control]} · ${data === "unset" ? "데이터 미지정" : `데이터 ${dataPort} ${connectionText[data]}`}`,
+        tokens,
+      },
+    };
   }
   if (lessonId === "pop3") {
-    const marked = state.mailbox === "marked", deleted = state.mailbox === "deleted";
-    const rows = deleted ? [] : [["메일 1", marked ? "삭제 예정" : "보관", marked ? "marked" : ""]];
-    rows.push(["메일 2", "보관"]);
+    const marked = state.mailbox === "marked";
+    const deleted = state.mailbox === "deleted";
+    const tokens = deleted ? [] : [{ text: "M1", color: marked ? "amber" : "slate", dim: marked }];
+    tokens.push({ text: "M2", color: "slate" });
     return {
-      web: panel(`서버 메일함 · ${rows.length}통`, mailIcon, rows),
-      client: panel("노트북 메일함", mailIcon, [state.localCopy ? ["메일 1", "사본 보관"] : ["내려받은 메일", "0통"]]),
+      web: {
+        state: `서버 메일함 ${tokens.length}통${marked ? " · 메일 1 삭제 예정" : deleted ? " · 메일 1 삭제됨" : ""}`,
+        tokens,
+      },
+      client: {
+        state: state.localCopy ? "노트북 메일함: 메일 1 사본 보관" : "노트북 메일함: 0통",
+        screen: [state.localCopy ? ["메일 1", "사본 보관"] : ["내려받은 메일", "0통"]],
+        tokens: state.localCopy ? [{ text: "M1", color: "slate" }] : [],
+      },
     };
   }
   if (lessonId === "imap") {
-    const rows = [["메일 1", "읽음"], ["메일 2", state.seen ? "읽음" : "안 읽음"]];
-    if (state.count === 3) rows.push(["메일 3", "새 메일", "fresh"]);
-    const local = [["받은 편지함", `${state.clientCount}통`]];
-    if (state.localCopy) local.push(["메일 2", "읽음"]);
-    if (state.clientCount === 3) local.push(["새 메일 알림", "+1", "fresh"]);
+    const tokens = [
+      { text: "M1", color: "slate" },
+      { text: "M2", color: state.seen ? "slate" : "blue" },
+    ];
+    if (state.count === 3) tokens.push({ text: "M3", color: "green" });
+    const screen = [["받은 편지함", `${state.clientCount}통`]];
+    if (state.localCopy) screen.push(["메일 2", "읽음"]);
+    if (state.clientCount === 3) screen.push(["새 메일 알림", "+1"]);
     return {
-      web: panel(`서버 메일함 · ${state.count}통`, mailIcon, rows, "imap-mailbox"),
-      client: state.clientCount && panel("노트북 메일 앱", mailIcon, local),
+      web: {
+        state: `서버 메일함 ${state.count}통 · 메일 2 ${state.seen ? "읽음" : "안 읽음"}`,
+        tokens,
+      },
+      client: state.clientCount && {
+        state: `메일 앱: 받은 편지함 ${state.clientCount}통`,
+        screen,
+      },
     };
   }
   if (lessonId === "ssh") {
-    const rows = [[`$ ${state.command}`, ""]];
-    if (state.output) rows.push([state.output, ""], ["$ ", ""]);
-    return { client: panel("SSH 터미널", terminalIcon, rows, "terminal") };
+    const screen = [[`$ ${state.command}`, ""]];
+    if (state.output) screen.push([state.output, ""], ["$ ", ""]);
+    return {
+      client: {
+        state: state.output ? `터미널: ${state.output}` : `터미널: $ ${state.command}`,
+        screen,
+        terminal: true,
+      },
+    };
   }
   return {};
 }
 
-// Keep each readout attached to its own device. The physical packet lanes stay visible below.
-export function createEndpointDisplay(nodes) {
-  const readouts = new Map();
-  let scale = 1;
-  function place(id, group) {
-    const card = group.querySelector(".endpoint-card");
-    if (card.classList.contains("cache-badge")) {
-      const resolver = id === "dns";
-      const x = resolver ? 706 : 226, y = resolver ? 93 : 361;
-      group.firstElementChild.setAttribute("d", resolver ? "M706 130V93" : "M207 385l19-24");
-      group.lastElementChild.setAttribute("transform",
-        `translate(${x} ${y}) scale(${1.3 * scale}) translate(-43.5 -30)`);
-      return;
-    }
-    if (card.classList.contains("certificate") && scale > 1.35) {
-      group.firstElementChild.setAttribute("d", "M202 380l-25-37V246");
-      group.lastElementChild.setAttribute("transform",
-        `translate(100 246) scale(${1.35 * scale}) translate(0 ${-Number(card.dataset.height)})`);
-      return;
-    }
-    const belowLaptop = id === "client" && scale > 1.35;
-    const x = id === "web" ? 750 : 146;
-    const serverY = card.classList.contains("imap-mailbox") && scale > 1.35 ? 205 : 165;
-    const y = id === "web" ? serverY : belowLaptop ? 565 : 305;
-    const dy = belowLaptop ? 0 : -Number(card.dataset.height);
-    group.firstElementChild.setAttribute("d", id === "web" ? `M747 ${serverY - 7}h15L787 185` :
-      belowLaptop ? "M253 478l23 25v62" : "M150 305v23l44 54");
-    group.lastElementChild.setAttribute("transform",
-      `translate(${x} ${y}) scale(${scale}) translate(${id === "web" ? -212 : 0} ${dy})`);
+const TOKEN_SIZE = 0.85;
+
+export function createEndpointDisplay(nodes, svg) {
+  const shown = new Map();
+
+  function renderTokens(id, tokens = []) {
+    const holder = nodes[id].querySelector(".node-tokens");
+    const slots = NETWORK_TOKEN_SLOTS[id];
+    holder.innerHTML = tokens
+      .slice(0, slots.length)
+      .map((item, index) => {
+        const offset = (slots.length - tokens.length) / 2;
+        const slot = slots[Math.min(slots.length - 1, Math.floor(index + offset))];
+        const [sx, sy] = project(...slot);
+        return `<g class="state-token${item.active ? " is-active" : ""}${item.dim ? " is-dim" : ""}" transform="translate(${sx.toFixed(1)} ${sy.toFixed(1)})">${token({ text: item.text, color: PACKET_COLORS[item.color], size: TOKEN_SIZE, h: 0.42 })}</g>`;
+      })
+      .join("");
   }
+
+  function renderScreen(lines, terminal) {
+    const client = nodes.client;
+    const group = client.querySelector(".screen-lines");
+    client.classList.toggle("has-screen", !!lines);
+    client.classList.toggle("is-terminal", !!terminal);
+    group.innerHTML = (lines ?? [])
+      .map(([key, value, check], index) => {
+        const y = 23 + index * 8.5;
+        return `<g${check ? ` data-check="${check}"` : ""}><text class="screen-key" x="5" y="${y}">${escapeXml(key)}</text>${value ? `<text class="screen-value" x="86" y="${y}" text-anchor="end">${escapeXml(value)}</text>` : ""}</g>`;
+      })
+      .join("");
+  }
+
   return {
-    setScale(value) {
-      scale = value;
-      for (const [id, group] of readouts) place(id, group);
-    },
+    setScale() {},
     update(lessonId, state, port) {
-      const panels = devicePanels(lessonId, state, port);
+      const endpoints = describeEndpoints(lessonId, state, port);
+      const key = JSON.stringify(endpoints);
+      if (shown.get("key") === key) return;
+      shown.set("key", key);
       for (const id of ["client", "web", "dns"]) {
-        let group = readouts.get(id);
-        if (!panels[id]) {
-          group?.remove();
-          readouts.delete(id);
-          continue;
-        }
-        if (!group) {
-          group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-          group.setAttribute("class", "endpoint-display");
-          group.innerHTML = '<path class="endpoint-leader"/><g></g>';
-          nodes[id].append(group);
-          readouts.set(id, group);
-        }
-        if (group._panel !== panels[id]) {
-          group.lastElementChild.innerHTML = panels[id];
-          group._panel = panels[id];
-          place(id, group);
-        }
+        const endpoint = endpoints[id] || null;
+        const stateText = nodes[id].querySelector(".node-state");
+        stateText.textContent = endpoint?.state ?? "";
+        renderTokens(id, endpoint?.tokens);
+        if (id === "client") renderScreen(endpoint?.screen, endpoint?.terminal);
       }
+      svg.classList.toggle("has-endpoint-state", Object.values(endpoints).some(Boolean));
     },
   };
 }

@@ -1,15 +1,18 @@
 // Reconstructed from the distributed Protocol Explorer JavaScript.
 import { translate } from "../i18n.js";
-import { createEndpointDisplay, ftpServerPort, renderDnsReadout } from "./endpoint-display.js";
+import { createEndpointDisplay, ftpServerPort } from "./endpoint-display.js";
 import {
   NETWORK_FOCUS_GROUPS,
   NETWORK_LANES,
   NETWORK_NODE_CENTERS,
   NETWORK_NODE_LABELS,
+  NETWORK_NODE_RADII,
   NETWORK_NOTE_ANCHORS,
   NETWORK_ROUTES,
   PACKET_COLORS,
+  SCREEN_WIDTH,
 } from "./network-drawing.js";
+import { token } from "../../../shared/iso-kit.js";
 import { animateWithClock, waitWithClock } from "./clock.js";
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
 const NETWORK_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -26,8 +29,6 @@ const PACKET_TRAIL_OFFSETS = [10, 20, 30];
 const NETWORK_NOTE_HOLD_MS = 1500;
 const NETWORK_LABEL_SCALE_WIDTH = 700;
 const NETWORK_MAX_LABEL_SCALE = 1.8;
-const URL_BAR_SCALE_ORIGIN = [140, 58];
-const URL_BAR_POSITION = [60, 334];
 const WIDE_CHARACTER_PATTERN =
   /[\u1100-\u115f\u2e80-\u303e\u3041-\u33ff\u3400-\u4dbf\u4e00-\u9fff\ua960-\ua97f\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/;
 const estimateTextUnits = (text) =>
@@ -61,12 +62,29 @@ function createNetworkSvgElement(tagName, attributes, parent) {
   parent?.appendChild(element);
   return element;
 }
-const interpolateLinePoint = ([startX, startY, endX, endY], progress) => ({
-  x: startX + (endX - startX) * progress,
-  y: startY + (endY - startY) * progress,
-});
-const getLineLength = ([startX, startY, endX, endY]) =>
-  Math.hypot(endX - startX, endY - startY);
+// A lane is a polyline of screen points; positions are fractions of its length.
+const getLineLength = (points) =>
+  points
+    .slice(1)
+    .reduce(
+      (sum, [x, y], index) =>
+        sum + Math.hypot(x - points[index][0], y - points[index][1]),
+      0,
+    );
+function interpolateLinePoint(points, progress) {
+  let remaining = Math.max(0, Math.min(1, progress)) * getLineLength(points);
+  for (let index = 1; index < points.length; index++) {
+    const [startX, startY] = points[index - 1];
+    const [endX, endY] = points[index];
+    const segment = Math.hypot(endX - startX, endY - startY);
+    if (remaining <= segment || index === points.length - 1) {
+      const t = segment ? Math.min(1, remaining / segment) : 1;
+      return { x: startX + (endX - startX) * t, y: startY + (endY - startY) * t, index };
+    }
+    remaining -= segment;
+  }
+  return { x: points[0][0], y: points[0][1], index: 1 };
+}
 /**
  * Animate lesson events over the static network SVG.
  * Clock-driven work receives a shared cancellation token from the lesson player.
@@ -85,8 +103,7 @@ function createNetworkAnimation(networkSvg) {
       nodeElement,
     ]),
   );
-  const endpointDisplay = createEndpointDisplay(nodeElements);
-  const dnsReadout = networkSvg.parentElement.querySelector(".dns-readout");
+  const endpointDisplay = createEndpointDisplay(nodeElements, networkSvg);
   let currentLessonId;
   const packetLayer = networkSvg.querySelector(".packet-layer");
   const pulseLayer = networkSvg.querySelector(".pulse-layer");
@@ -108,7 +125,6 @@ function createNetworkAnimation(networkSvg) {
     .split(" ")
     .map(Number);
   const nodeLabelElements = [...networkSvg.querySelectorAll(".node-label")];
-  const urlHolder = networkSvg.querySelector(".url-holder");
   let labelScale = 1;
   let annotationScale = 1;
   function scaleNodeLabel(labelElement) {
@@ -149,12 +165,6 @@ function createNetworkAnimation(networkSvg) {
     annotationScale = 1 + (nextLabelScale - 1) * 0.6;
     networkSvg.classList.toggle("is-scaled", nextLabelScale > 1);
     nodeLabelElements.forEach(scaleNodeLabel);
-    endpointDisplay.setScale(nextLabelScale);
-    const [originX, originY] = URL_BAR_SCALE_ORIGIN;
-    urlHolder.setAttribute(
-      "transform",
-      `translate(${URL_BAR_POSITION[0] + originX} ${URL_BAR_POSITION[1] + originY}) scale(${annotationScale.toFixed(3)}) translate(${-originX} ${-originY})`,
-    );
   }
   function getTransformedBounds(element) {
     const bounds = element.getBBox();
@@ -231,6 +241,8 @@ function createNetworkAnimation(networkSvg) {
     ];
   }
   function setViewBox(viewBox) {
+    // A hidden or zero-sized scene has no camera to fit; keep the last view.
+    if (!viewBox.every(Number.isFinite)) return;
     currentViewBox = viewBox;
     networkSvg.setAttribute(
       "viewBox",
@@ -348,11 +360,12 @@ function createNetworkAnimation(networkSvg) {
     });
   }
   function setLaneProgress(laneId, progress) {
-    const [startX, startY] = NETWORK_LANES[laneId];
-    const endpoint = interpolateLinePoint(NETWORK_LANES[laneId], progress);
+    const points = NETWORK_LANES[laneId];
+    const endpoint = interpolateLinePoint(points, progress);
+    const passed = points.slice(0, endpoint.index);
     laneElements[laneId].setAttribute(
       "d",
-      `M${startX},${startY} L${endpoint.x.toFixed(1)},${endpoint.y.toFixed(1)}`,
+      `M${passed.map(([x, y]) => `${x},${y}`).join(" L")} L${endpoint.x.toFixed(1)},${endpoint.y.toFixed(1)}`,
     );
     laneElements[laneId].style.visibility = progress > 0.01 ? "" : "hidden";
   }
@@ -576,21 +589,26 @@ function createNetworkAnimation(networkSvg) {
     }
   }
   async function pulseNode(nodeId, color, cancellation) {
+    // An arrival ring on the floor around the device's footprint.
     const [centerX, centerY] = NETWORK_NODE_CENTERS[nodeId];
+    const radius = NETWORK_NODE_RADII[nodeId];
     const pulseElement = createNetworkSvgElement(
-      "circle",
+      "ellipse",
       {
         cx: centerX,
         cy: centerY,
         fill: "none",
         stroke: PACKET_COLORS[color],
         "stroke-width": 2,
+        class: "pulse-ring",
       },
       pulseLayer,
     );
     await animateWithClock(700, cancellation, (progress) => {
-      pulseElement.setAttribute("r", 14 + progress * 46);
-      pulseElement.setAttribute("opacity", 0.6 * (1 - progress));
+      const r = radius * (0.8 + progress * 0.7);
+      pulseElement.setAttribute("rx", r);
+      pulseElement.setAttribute("ry", r / 2);
+      pulseElement.setAttribute("opacity", 0.7 * (1 - progress));
     });
     pulseElement.remove();
   }
@@ -598,13 +616,16 @@ function createNetworkAnimation(networkSvg) {
   function createPacketVisual(color, label, payload = [], locked = false) {
     const translatedLabel = translate(label);
     const translatedPayload = payload.map((fieldText) => translate(fieldText));
+    // A few fading marks on the floor behind the token.
     const trail = PACKET_TRAIL_OFFSETS.map((trailOffset, index) =>
       createNetworkSvgElement(
-        "circle",
+        "ellipse",
         {
-          r: 3.6 - index,
+          rx: 4.4 - index,
+          ry: 2.2 - index * 0.5,
           fill: PACKET_COLORS[color],
           opacity: 0.45 - index * 0.12,
+          class: "packet-trail",
         },
         packetLayer,
       ),
@@ -612,29 +633,13 @@ function createNetworkAnimation(networkSvg) {
     const packetGroup = createNetworkSvgElement(
       "g",
       {
-        class: "packet",
+        class: `packet c-${color}`,
       },
       packetLayer,
     );
-    createNetworkSvgElement(
-      "circle",
-      {
-        r: 13,
-        fill: PACKET_COLORS[color],
-        opacity: 0.18,
-      },
-      packetGroup,
-    );
-    createNetworkSvgElement(
-      "circle",
-      {
-        r: 6,
-        fill: PACKET_COLORS[color],
-        stroke: "var(--panel)",
-        "stroke-width": 2,
-      },
-      packetGroup,
-    );
+    // The packet itself: a kit token in the packet's colour, on the floor.
+    const tokenHolder = createNetworkSvgElement("g", { class: "packet-token" }, packetGroup);
+    tokenHolder.innerHTML = token({ color: PACKET_COLORS[color], text: "", size: 1.05, h: 0.5 });
     const lineHeight = 15;
     const lockWidth = locked ? 14 : 0;
     const payloadHeight = translatedPayload.length
@@ -644,7 +649,7 @@ function createNetworkAnimation(networkSvg) {
       "g",
       {
         class: `packet-tag ${color}`,
-        transform: `translate(0 -16) scale(${annotationScale.toFixed(3)})`,
+        transform: `translate(0 -22) scale(${annotationScale.toFixed(3)})`,
       },
       packetGroup,
     );
@@ -791,6 +796,10 @@ function createNetworkAnimation(networkSvg) {
     const port = currentLessonId === "ftp" ? ftpServerPort({ from: fromNode, row }) : null;
     const visual = createPacketVisual(color, port ? `${translate(label)} · ${port}` : label, payload, locked);
     const startPosition = interpolateLinePoint(NETWORK_LANES[route[0]], 0);
+    visual.trail.forEach((trailElement) => {
+      trailElement.setAttribute("cx", startPosition.x);
+      trailElement.setAttribute("cy", startPosition.y);
+    });
     await animateWithClock(appearTime * flightScale, cancellation, (progress) =>
       positionPacket(visual.g, startPosition, easeOutBack(progress)),
     );
@@ -940,17 +949,14 @@ function createNetworkAnimation(networkSvg) {
   function setUrlText(text, secure) {
     urlBar.classList.toggle("is-secure", !!secure);
     urlText.textContent = text;
-    const textWidth = urlText.getComputedTextLength();
-    urlBox.setAttribute("width", (textWidth + 58).toFixed(1));
-    urlCheck.setAttribute(
-      "transform",
-      `translate(${(textWidth + 38).toFixed(1)} 0)`,
-    );
+    // The bar spans the laptop screen; the check mark sits at its right end.
+    urlCheck.setAttribute("transform", `translate(${(SCREEN_WIDTH - 15).toFixed(1)} 0)`);
+    urlBox.dataset.width = SCREEN_WIDTH;
   }
   async function typeUrl(text, secure, cancellation) {
     setUrlText(text, secure);
     urlText.textContent = "";
-    urlCaret.setAttribute("x", 29);
+    urlCaret.setAttribute("x", 15);
     urlBar.classList.add("is-visible", "is-typing");
     await waitWithClock(400, cancellation);
     for (
@@ -962,7 +968,7 @@ function createNetworkAnimation(networkSvg) {
         return;
       }
       urlText.textContent = text.slice(0, characterCount);
-      urlCaret.setAttribute("x", 30 + urlText.getComputedTextLength());
+      urlCaret.setAttribute("x", 15.5 + urlText.getComputedTextLength());
       await waitWithClock(URL_TYPING_INTERVAL_MS, cancellation);
     }
     if (!cancellation.cancelled) {
@@ -1019,8 +1025,6 @@ function createNetworkAnimation(networkSvg) {
       networkSvg.dataset.lesson = lessonId;
       const packet = event?.type === "stream" ? event.packets[0] : event;
       endpointDisplay.update(lessonId, state, lessonId === "ftp" && running ? ftpServerPort(packet) : null);
-      if (lessonId === "dns") renderDnsReadout(dnsReadout, state, event);
-      else dnsReadout.hidden = true;
     },
     setLabels(labels) {
       if (labels !== labelOverrides) updateNodeLabels(labels);

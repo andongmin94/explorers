@@ -21,7 +21,12 @@ import { playbackClock } from "../simulation/clock.js";
 const SEQUENCE_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const SEQUENCE_LEFT_PADDING = 78;
 const SEQUENCE_RIGHT_PADDING = 30;
+// On the desktop console the diagram never scrolls sideways: narrower lanes.
 const SEQUENCE_MIN_LANE_WIDTH = 124;
+const SEQUENCE_FIT_LANE_WIDTH = 100;
+const fitsDesktopConsole = () =>
+  typeof matchMedia === "function" &&
+  matchMedia("(min-width: 1100px) and (min-height: 700px)").matches;
 const SEQUENCE_LOCK_PATH =
   "M-3.2 -1 V-2.6 a3.2 3.2 0 0 1 6.4 0 V-1 M-4.4 -1 h8.8 v6.4 h-8.8 z";
 function renderSequencePanel() {
@@ -290,7 +295,8 @@ function drawSequenceDiagram(panel, lesson) {
     scrollArea.clientWidth,
     SEQUENCE_LEFT_PADDING +
       SEQUENCE_RIGHT_PADDING +
-      layout.lifelines.length * SEQUENCE_MIN_LANE_WIDTH,
+      layout.lifelines.length *
+        (fitsDesktopConsole() ? SEQUENCE_FIT_LANE_WIDTH : SEQUENCE_MIN_LANE_WIDTH),
   );
   const laneWidth =
     (width - SEQUENCE_LEFT_PADDING - SEQUENCE_RIGHT_PADDING) /

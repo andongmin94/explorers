@@ -6,6 +6,9 @@ import {
   translate,
   translatedElementContent,
 } from "../i18n.js";
+import { icon } from "../../../shared/hw.js";
+import { paginate, plateTabs } from "../../../shared/fit.js";
+import { PACKET_COLORS } from "../simulation/network-drawing.js";
 import {
   getEncodedLessonPackets,
   getLessonPackets,
@@ -35,23 +38,25 @@ const PACKET_LAYER_NAMES = {
 
 function renderPacketInspector() {
   return `
-  <div class="inspector" hidden data-t-label="Packet inspector" aria-label="${translate("Packet inspector")}">
+  <div class="inspector" hidden role="region" aria-label="${translate("Packet inspector")}">
     <div class="ins-head">
-      <span class="ins-badge step-badge"></span>
-      <div class="ins-title"><b></b><span></span></div>
+      <span class="hw-led is-on ins-led"></span>
+      <span class="ins-badge hw-mono"></span>
+      <div class="ins-title"><b></b><span class="hw-mono hw-muted"></span></div>
       <div class="ins-nav">
-        <button type="button" data-ins="prev" data-t-label="Previous packet" aria-label="${translate("Previous packet")}" data-t-title="Previous packet (←)" title="${translate("Previous packet (←)")}">‹</button>
-        <button type="button" data-ins="next" data-t-label="Next packet" aria-label="${translate("Next packet")}" data-t-title="Next packet (→)" title="${translate("Next packet (→)")}">›</button>
-        <button type="button" data-ins="close" data-t-label="Close" aria-label="${translate("Close")}" data-t-title="Close (Esc)" title="${translate("Close (Esc)")}">✕</button>
+        <button class="hw-key hw-key--sm hw-key--icon" type="button" data-ins="prev" aria-label="${translate("Previous packet")}" title="${translate("Previous packet (←)")}">${icon("back")}</button>
+        <button class="hw-key hw-key--sm hw-key--icon" type="button" data-ins="next" aria-label="${translate("Next packet")}" title="${translate("Next packet (→)")}">${icon("next")}</button>
+        <button class="hw-key hw-key--sm hw-key--icon" type="button" data-ins="close" aria-label="${translate("Close")}" title="${translate("Close (Esc)")}">${icon("close")}</button>
       </div>
     </div>
-    <div class="ins-where"></div>
+    <p class="ins-where hw-muted"></p>
     <div class="ins-bar"></div>
+    <div class="hw-tabs ins-tabs" role="tablist" aria-label="검사 보기"><button type="button" data-tab="tree" aria-selected="true">필드</button><button type="button" data-tab="hex" aria-selected="false">바이트</button></div>
     <div class="ins-body">
-      <div class="ins-tree"></div>
-      <div class="ins-hex"></div>
+      <div class="ins-tree" data-panel="tree"><div class="ins-rows"></div><p class="ins-field-note hw-muted" aria-live="polite"></p><div class="hw-pager ins-pager" hidden></div></div>
+      <div class="ins-hex" data-panel="hex"></div>
     </div>
-    <div class="ins-foot"><span><i class="eg" ${translatedElementContent("E.G.")}</i> <span ${translatedElementContent("an example value: it differs in every real capture")}</span></span><span><b>··</b> <span ${translatedElementContent("bytes the lesson can’t show: encrypted, random, or a file’s contents")}</span></span></div>
+    <div class="ins-foot hw-muted"><span><i class="eg">${translate("E.G.")}</i> ${translate("an example value: it differs in every real capture")}</span><span><b>··</b> ${translate("bytes the lesson can’t show: encrypted, random, or a file’s contents")}</span></div>
   </div>`;
 }
 
@@ -61,9 +66,9 @@ function renderPacketField(field, fieldIndex) {
       ? ` data-from="${field.from}" data-to="${field.to}"`
       : "";
   return `
-    <div class="ins-field ${[`d${field.depth ?? 0}`, field.heading && "is-heading", field.hidden && "is-hidden", field.inside && "is-inside", field.mono && "is-mono"].filter(Boolean).join(" ")}" data-field="${fieldIndex}"${rangeAttributes}>
+    <div class="ins-field ${[`d${field.depth ?? 0}`, field.heading && "is-heading", field.hidden && "is-hidden", field.inside && "is-inside", field.mono && "is-mono"].filter(Boolean).join(" ")}" data-field="${fieldIndex}"${rangeAttributes}${field.note ? ` tabindex="0" data-note="${escapeHtml(translate(field.note))}"` : ""}>
       <span class="ins-name">${escapeHtml(translate(field.name))}</span>
-      <span class="ins-value">${escapeHtml(translate(field.value))}${field.example ? ` <i class="eg">${translate("E.G.")}</i>` : ""}</span>
+      <span class="ins-value">${escapeHtml(translate(field.value))}${field.example ? ` <i class="eg" title="${escapeHtml(translate("an example value: it differs in every real capture"))}">${translate("E.G.")}</i>` : ""}</span>
       ${field.note ? `<p class="ins-note">${escapeHtml(translate(field.note))}</p>` : ""}
     </div>`;
 }
@@ -74,12 +79,10 @@ function renderPacketTree(frame) {
       const fields = frame.fields
         .map((field, index) => [field, index])
         .filter(([field]) => field.layer === layer.id);
+      // One flat list of rows (layer heads, then their fields) so the tree can page.
       return `
-      <section class="ins-layer c-${getPacketLayerColor(layer.id)}" data-layer="${layer.id}">
-        <h4><span>${escapeHtml(translate(layer.name))}</span>${layer.summary ? `<em>${escapeHtml(translate(layer.summary))}</em>` : ""}</h4>
-        ${fields.map(([field, index]) => renderPacketField(field, index)).join("")}
-        
-      </section>`;
+      <h4 class="ins-layer c-${getPacketLayerColor(layer.id)}" data-layer="${layer.id}"><span>${escapeHtml(translate(layer.name))}</span>${layer.summary ? `<em>${escapeHtml(translate(layer.summary))}</em>` : ""}</h4>
+        ${fields.map(([field, index]) => renderPacketField(field, index)).join("")}`;
     })
     .join("");
 }
@@ -108,7 +111,7 @@ function renderHexDump(frame) {
       `<div class="hx-row"><span class="hx-at">${rowOffset.toString(16).padStart(4, "0")}</span><span class="hx-bytes">${hexCells}</span><span class="hx-text">${asciiCells}</span></div>`,
     );
   }
-  return `<div class="hx-head">${translate("BYTES")} <span>${translate(
+  return `<div class="hx-head" title="·· ${escapeHtml(translate("bytes the lesson can’t show: encrypted, random, or a file’s contents"))}">${translate("BYTES")} <span class="hx-range"></span><span>${translate(
     "{n} in this frame",
     {
       n: frame.bytes.length,
@@ -136,9 +139,8 @@ function updateInspectorHeader(inspector, lesson, packetIndex, lost) {
   const packet = getLessonPackets(lesson)[packetIndex];
   const row = packet.row;
   inspector.dataset.index = packetIndex;
-  const badge = inspector.querySelector(".ins-badge");
-  badge.className = `ins-badge step-badge ${packet.color}`;
-  badge.textContent = packetIndex + 1;
+  inspector.querySelector(".ins-led").style.setProperty("--led", PACKET_COLORS[packet.color]);
+  inspector.querySelector(".ins-badge").textContent = `#${packetIndex + 1}`;
   inspector.querySelector(".ins-title b").textContent = translate(packet.label);
   inspector.querySelector(".ins-title span").textContent = isolateLtrText(
     `${row.time} · ${row.src} → ${row.dst} · ${row.proto} · ${row.len}`,
@@ -159,16 +161,56 @@ function updateInspectorHeader(inspector, lesson, packetIndex, lost) {
     notes.push(translate("This packet was lost on the way"));
   }
   inspector.querySelector(".ins-where").textContent = notes.join(" · ");
+  inspector.querySelector(".ins-where").title = notes.join(" · ");
+  inspector.querySelector(".ins-title").title = notes.join(" · ");
   inspector.querySelector(".ins-bar").innerHTML = renderPacketLayerBar(frame);
 }
 
 function updateInspectorBody(inspector, lesson, packetIndex) {
   const frame = getEncodedLessonPackets(lesson)[packetIndex];
-  inspector.querySelector(".ins-tree").innerHTML = renderPacketTree(frame);
+  inspector.querySelector(".ins-rows").innerHTML = renderPacketTree(frame);
   inspector.querySelector(".ins-hex").innerHTML = renderHexDump(frame);
   inspector.querySelector(".ins-tree").scrollTop = 0;
   inspector.querySelector(".ins-hex").scrollTop = 0;
   inspector._frame = frame;
+  inspector._pages?.refresh();
+  inspector._pages?.show(0);
+  fitHexRows(inspector);
+}
+
+// On the desktop console the inspector never scrolls: the field tree pages
+// (shared/fit.js) and the byte view shows the rows that fit, starting at the
+// first field on the tree's current page.
+const fitsDesktopConsole = () => matchMedia("(min-width: 1100px) and (min-height: 700px)").matches;
+
+function fitHexRows(inspector) {
+  const hex = inspector.querySelector(".ins-hex");
+  const rows = [...hex.querySelectorAll(".hx-row")];
+  const range = hex.querySelector(".hx-range");
+  rows.forEach((row) => row.classList.remove("is-out"));
+  if (range) range.textContent = "";
+  if (!fitsDesktopConsole() || inspector.hidden || !rows.length) return;
+  const style = getComputedStyle(hex);
+  const head = hex.querySelector(".hx-head");
+  const room =
+    hex.clientHeight -
+    parseFloat(style.paddingTop) -
+    parseFloat(style.paddingBottom) -
+    head.offsetHeight -
+    parseFloat(getComputedStyle(head).marginBottom);
+  const rowHeight = rows[0].getBoundingClientRect().height || 1;
+  const fit = Math.max(1, Math.floor(room / rowHeight));
+  if (rows.length <= fit) return;
+  const firstShown = [...inspector.querySelectorAll(".ins-rows > .ins-field[data-from]")].find(
+    (field) => !field.hidden && !field.classList.contains("is-hidden"),
+  );
+  const firstRow = Math.floor(Number(firstShown?.dataset.from ?? 0) / 16);
+  const start = Math.max(0, Math.min(firstRow, rows.length - fit));
+  rows.forEach((row, index) => row.classList.toggle("is-out", index < start || index >= start + fit));
+  const offset = (n) => n.toString(16).padStart(4, "0");
+  if (range) {
+    range.textContent = `${offset(start * 16)}–${offset(Math.min((start + fit) * 16, inspector._frame.bytes.length) - 1)}`;
+  }
 }
 
 function highlightPacketBytes(inspector, startOffset, endOffset, fieldElement) {
@@ -193,12 +235,16 @@ function bindInspectorEvents(inspector, actions) {
     }
     const segment = event.target.closest(".ins-seg");
     if (segment) {
-      inspector
-        .querySelector(`.ins-layer[data-layer="${segment.dataset.layer}"]`)
-        ?.scrollIntoView({
+      const layerHead = inspector.querySelector(`.ins-layer[data-layer="${segment.dataset.layer}"]`);
+      if (fitsDesktopConsole() && inspector._pages) {
+        inspector._pages.showItem(layerHead);
+        fitHexRows(inspector);
+      } else {
+        layerHead?.scrollIntoView({
           block: "start",
           behavior: prefersReducedMotion() ? "auto" : "smooth",
         });
+      }
     }
   });
   inspector.addEventListener("mouseover", (event) => {
@@ -232,9 +278,13 @@ function bindInspectorEvents(inspector, actions) {
         `.ins-field[data-field="${fieldIndex}"]`,
       );
       highlightPacketBytes(inspector, field.from, field.to, matchedElement);
-      matchedElement?.scrollIntoView({
-        block: "nearest",
-      });
+      if (fitsDesktopConsole()) {
+        if (matchedElement?.hidden) inspector._pages?.showItem(matchedElement);
+      } else {
+        matchedElement?.scrollIntoView({
+          block: "nearest",
+        });
+      }
     }
   });
   inspector.addEventListener("mouseleave", () =>
@@ -248,6 +298,33 @@ function createPacketInspector(
   { visible: getVisibleIndices, isLost, onChange },
 ) {
   let currentLesson = null;
+  // In a narrow inspector the field tree and the bytes take turns (tabs);
+  // a wide one shows both side by side and the tabs are hidden by CSS.
+  plateTabs(inspector, {
+    onChange: () => requestAnimationFrame(() => {
+      inspector._pages?.refresh();
+      fitHexRows(inspector);
+    }),
+  });
+  inspector._pages = paginate(inspector.querySelector(".ins-rows"), {
+    label: "필드 쪽",
+    pager: inspector.querySelector(".ins-pager"),
+  });
+  // Paging the tree moves the byte view along (after the pager's own click).
+  inspector.querySelector(".ins-pager").addEventListener("click", () => fitHexRows(inspector));
+  // On the desktop console a field's note is shown in one line under the
+  // tree for the field under the pointer or focus, instead of under every
+  // field, so a packet's fields fit on few pages.
+  const noteLine = inspector.querySelector(".ins-field-note");
+  const showNote = (event) => {
+    const field = event.target.closest?.(".ins-field");
+    if (!field || !inspector.contains(field)) return;
+    noteLine.textContent = field.dataset.note ?? "";
+  };
+  inspector.addEventListener("mouseover", showNote);
+  inspector.addEventListener("focusin", showNote);
+  inspector.addEventListener("click", showNote);
+  new ResizeObserver(() => fitHexRows(inspector)).observe(inspector.querySelector(".ins-hex"));
   const isOpen = () =>
     !inspector.hidden && !inspector.classList.contains("is-closing");
   function open(lesson, packetIndex) {

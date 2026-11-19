@@ -1,780 +1,364 @@
-import "./scene.css";
-import { memoryDrawing, cpuDrawing, ssdDrawing } from "./devices.js";
+// The CPU scheduler as one isometric scene built from shared/iso-kit.js.
+//
+// Five places on one floor: the arrival bay (not yet arrived), the ready queue
+// (front slot nearest the CPU), the CPU chip (the running process sits on it and
+// LEDs on the board count the quantum left), the I/O drive (blocked processes)
+// and the done tray. P1–P3 are tokens that travel between those places along
+// floor routes; the route in use lights up.
+import {
+  callout,
+  chip,
+  defs,
+  fitViewBox,
+  floor,
+  floorPath,
+  led,
+  module,
+  project,
+  quad,
+  socket,
+  ssd,
+  token,
+  topText,
+} from "../../shared/iso-kit.js";
 
-const COLORS = {
-  P1: "var(--p1, #3971d9)",
-  P2: "var(--p2, #168264)",
-  P3: "var(--p3, #8055c6)",
-};
-const STATE_NAMES = {
-  new: "도착 예정",
-  ready: "준비 큐",
-  running: "CPU 실행",
-  blocked: "입출력 진행",
-  done: "완료",
-};
-const MOVES = new Set([
-  "arrive",
-  "unblock",
-  "preempt",
-  "dispatch",
-  "block",
-  "complete",
-]);
-const escape = (value) =>
-  String(value).replace(
-    /[&<>"']/g,
-    (char) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        char
-      ],
-  );
-let sceneSerial = 0;
+const COLORS = { P1: "var(--p1)", P2: "var(--p2)", P3: "var(--p3)" };
+const MOVES = new Set(["arrive", "unblock", "preempt", "dispatch", "block", "complete"]);
+const MAX_QUANTUM = 5;
 
-function layoutFor(width) {
-  const mobile = width < 540;
-  const tokenWidth = mobile
-    ? Math.min(142, (width - 96) / 2)
-    : Math.min(168, (width - 180) / 3);
-  const readyX = mobile ? 34 : 26;
-  const cpuX = mobile ? width - 24 - tokenWidth / 2 : width / 2;
-  const ioX = mobile ? cpuX : width - 26 - tokenWidth / 2;
-  const cardY = mobile ? 250 : 238;
+/* Two world layouts (iso-kit units): a wide one for the desktop stage and a
+   compact one stacked down the screen for phones. Slot 0 of the ready queue is
+   always the front, nearest the CPU. */
+function makeLayout({ arrivals, ready, cpu, io, done, readyStep, routes, callouts, bounds, floorRect, viewBox }) {
+  const center = [cpu.x + cpu.size / 2, cpu.y + cpu.size / 2];
   return {
-    width,
-    mobile,
-    height: mobile ? 766 : 488,
-    tokenWidth,
-    tokenHeight: 50,
-    queueGap: 58,
-    arrival: {
-      x: mobile ? 26 : width - 200,
-      y: mobile ? 59 : 19,
-      gap: 90,
-      width: 82,
+    arrivals, ready, cpu, io, done, routes, callouts, floorRect, center,
+    viewBox: viewBox ?? fitViewBox(bounds, 12),
+    slots: {
+      new: (i) => [arrivals.x + 1.2 + i * 2, arrivals.y + arrivals.d / 2, arrivals.h],
+      ready: (i) => [ready.x + ready.w - 1.2 - i * readyStep, ready.y + 1.2, ready.h],
+      running: () => [...center, 0.75],
+      blocked: (i) => [io.x + 1.3 + i * 1.5, io.y + io.d / 2, 0.42],
+      done: (i) => [done.x + 1.3 + i * 2, done.y + done.d / 2, done.h],
     },
-    ready: { x: readyX, y: cardY, gap: 58 },
-    running: { x: cpuX - tokenWidth / 2, y: cardY },
-    blocked: { x: ioX - tokenWidth / 2, y: mobile ? 558 : cardY, gap: 58 },
-    done: {
-      x: mobile ? Math.max(26, width / 2 - 136) : width / 2 - 70,
-      y: mobile ? 726 : 448,
-      gap: mobile ? (width - 52) / 3 : 92,
-      width: mobile ? Math.min(82, (width - 64) / 3) : 82,
-    },
-    cpu: {
-      x: cpuX,
-      y: mobile ? 171 : 151,
-      width: mobile ? Math.min(156, width * 0.43) : Math.min(218, width * 0.32),
-    },
-    memory: {
-      x: readyX - 2,
-      y: mobile ? 120 : 96,
-      width: tokenWidth + 10,
-      height: mobile ? 126 : 132,
-    },
-    ssd: {
-      x: ioX,
-      y: mobile ? 493 : 153,
-      width: mobile ? 148 : Math.min(176, width * 0.26),
-    },
-    meter: {
-      x: mobile ? cpuX - tokenWidth / 2 + 4 : cpuX - 86,
-      y: mobile ? 314 : 326,
-      width: mobile ? Math.min(146, tokenWidth + 16) : 172,
-    },
-    callout: { x: 18, y: 6, width: mobile ? width - 36 : width - 242 },
-    returnY: mobile ? 688 : 418,
-    preemptY: mobile ? 308 : 306,
-    titleY: mobile ? 108 : 76,
-    ioTitleY: mobile ? 428 : 76,
+    led: (i, n) => [center[0] + (i - (n - 1) / 2) * 0.8, cpu.y + cpu.size - 0.42, 0.3],
   };
 }
 
-const center = (position) => ({
-  x: position.x + position.width / 2,
-  y: position.y + position.height / 2,
+const WIDE = makeLayout({
+  arrivals: { x: 0, y: 0, w: 6.4, d: 2.2, h: 0.4 },
+  ready: { x: 0, y: 5.4, w: 7.4, d: 2.4, h: 0.45 },
+  cpu: { x: 9.6, y: 4.2, size: 5 },
+  io: { x: 17.2, y: 1.8, w: 5.6, d: 3.6 },
+  done: { x: 9, y: 11, w: 6.6, d: 2.2, h: 0.35 },
+  readyStep: 2.2,
+  routes: {
+    arrive: [[0.7, 2.4], [0.7, 5.2]],
+    unblock: [[17, 2.8], [1.5, 2.8], [1.5, 5.2]],
+    preempt: [[11.5, 4], [11.5, 3.7], [2.3, 3.7], [2.3, 5.2]],
+    dispatch: [[7.6, 6.6], [9.4, 6.6]],
+    block: [[14.8, 5], [17, 5]],
+    complete: [[12.1, 9.4], [12.1, 10.8]],
+  },
+  callouts: {
+    arrivals: { x: 1.2, y: 0.8, z: 0.4, dx: -36, dy: -46 },
+    ready: { x: 0.8, y: 7.4, z: 0.45, dx: -40, dy: -52 },
+    cpu: { x: 13.3, y: 5.2, z: 0.75, dx: 34, dy: -86 },
+    io: { x: 22.55, y: 2.05, z: 0.42, dx: 20, dy: -48 },
+    done: { x: 15.2, y: 12.1, z: 0.35, dx: 70, dy: 6, anchor: "start" },
+  },
+  // Fitted to the devices, tokens, routes and callouts (measured with
+  // getBBox), not to the floor: the floor runs past the stage and is clipped.
+  viewBox: "-250 -60 742 372",
+  floorRect: { x: -24, y: -24, w: 72, d: 62 },
 });
 
+const NARROW = makeLayout({
+  arrivals: { x: 0, y: 0, w: 6.4, d: 2.2, h: 0.4 },
+  ready: { x: 2, y: 4.2, w: 7.4, d: 2.4, h: 0.45 },
+  cpu: { x: 6, y: 9, size: 5 },
+  io: { x: 13, y: 9.6, w: 5.4, d: 3.4 },
+  done: { x: 10, y: 16.2, w: 6.4, d: 2.2, h: 0.35 },
+  readyStep: 2.2,
+  routes: {
+    arrive: [[1.4, 2.4], [1.4, 3.4], [2.6, 3.4], [2.6, 4]],
+    unblock: [[14.5, 9.4], [14.5, 8.2], [2.6, 8.2], [2.6, 6.8]],
+    preempt: [[6.8, 8.8], [6.8, 7.6], [3.6, 7.6], [3.6, 6.8]],
+    dispatch: [[8.2, 6.8], [8.2, 8.8]],
+    block: [[11.2, 11.3], [12.8, 11.3]],
+    complete: [[10.4, 14.2], [10.4, 16]],
+  },
+  callouts: {
+    arrivals: { x: 0, y: 1.1, z: 0.4, dx: -70, dy: -18 },
+    ready: { x: 2.3, y: 5.4, z: 0.45, dx: -34, dy: -30 },
+    cpu: { x: 10.4, y: 9.6, z: 0.75, dx: 104, dy: -15 },
+    io: { x: 18.2, y: 12.8, z: 0.42, dx: 30, dy: 30 },
+    done: { x: 16.2, y: 17.4, z: 0.35, dx: 30, dy: 2, anchor: "start" },
+  },
+  viewBox: "-178 -42 376 432",
+  floorRect: { x: -8, y: -6, w: 34, d: 32 },
+});
+const DASHED = new Set(["unblock", "preempt"]);
+
+function zoneOf(id, view) {
+  if (view.running === id) return ["running", 0];
+  for (const zone of ["new", "ready", "blocked", "done"]) {
+    const index = view[zone].indexOf(id);
+    if (index >= 0) return [zone, index];
+  }
+  return ["new", 0];
+}
+const translate = ([x, y, z]) => {
+  const [sx, sy] = project(x, y, z);
+  return `translate(${Math.round(sx * 100) / 100}px, ${Math.round(sy * 100) / 100}px)`;
+};
+
 const copyView = (frame, processes) => ({
-  new: processes
-    .filter((p) => frame.states[p.id].status === "new")
-    .map((p) => p.id),
+  new: processes.filter((p) => frame.states[p.id].status === "new").map((p) => p.id),
   ready: [...frame.ready],
   running: frame.running,
   blocked: frame.blocked.map((p) => p.id),
   done: [...frame.completed],
 });
 
-function positionFor(id, view, layout) {
-  const state =
-    view.running === id
-      ? "running"
-      : ["new", "ready", "blocked", "done"].find((key) =>
-          view[key].includes(id),
-        );
-  const index = state === "running" ? 0 : view[state].indexOf(id);
-  const width =
-      state === "done"
-        ? layout.done.width
-        : state === "new"
-          ? layout.arrival.width
-          : layout.tokenWidth,
-    height = state === "done" ? 28 : state === "new" ? 32 : layout.tokenHeight;
-  if (state === "running") return { ...layout.running, width, height, state };
-  const zone = state === "new" ? layout.arrival : layout[state];
-  const horizontal = state === "new" || (state === "done" && !zone.vertical);
-  return {
-    x: zone.x + (horizontal ? zone.gap * index : 0),
-    y: zone.y + (horizontal ? 0 : zone.gap * index),
-    width,
-    height,
-    state,
-  };
-}
-
 function mutateView(view, event) {
-  for (const key of ["new", "ready", "blocked", "done"])
-    view[key] = view[key].filter((id) => id !== event.id);
+  for (const key of ["new", "ready", "blocked", "done"]) view[key] = view[key].filter((id) => id !== event.id);
   if (view.running === event.id) view.running = null;
   if (event.to === "running") view.running = event.id;
   else view[event.to].push(event.id);
 }
 
-function burstLength(process, cpuDone) {
-  let consumed = cpuDone;
-  for (const burst of process.cpu) {
-    if (consumed < burst) return burst;
-    consumed -= burst;
-  }
-  return process.cpu.at(-1);
+function staticSvg(L, processes) {
+  const pad = (zone) =>
+    [0, 1, 2]
+      .map((i) => {
+        const [x, y, z] = L.slots[zone](i);
+        return socket({ x: x - 0.75, y: y - 0.75, z, w: 1.5, d: 1.5, cls: "cpu-slot" });
+      })
+      .join("");
+  const readyNumbers = [0, 1, 2]
+    .map((i) => {
+      const [x, y, z] = L.slots.ready(i);
+      return topText({ x, y: y + 0.98, z, text: String(i + 1), size: 9, weight: 600, fill: "var(--muted)" });
+    })
+    .join("");
+  const routes = Object.entries(L.routes)
+    .map(([type, points]) => `<g class="cpu-route" data-route="${type}">${floorPath(points, { dashed: DASHED.has(type) })}</g>`)
+    .join("");
+  const leds = Array.from({ length: MAX_QUANTUM }, () => `<g class="cpu-qled">${led({ x: 0, y: 0, z: 0 })}</g>`).join("");
+  const io = L.io;
+  const tokens = processes
+    .map(
+      (p) =>
+        `<g class="cpu-token" data-process="${p.id}" role="button" tabindex="0" aria-label="${p.id} ${p.name} 작업 상세 보기">${token({ id: p.id, color: COLORS[p.id] })}</g>`,
+    )
+    .join("");
+  const c = L.callouts;
+  return `<svg class="cpu-scene-svg" viewBox="${L.viewBox}" xmlns="http://www.w3.org/2000/svg">
+    ${defs()}
+    ${floor(L.floorRect)}
+    <g class="cpu-routes">${routes}</g>
+    ${module({ ...L.arrivals, well: false }).svg}${pad("new")}
+    ${module({ ...L.ready, well: false }).svg}${pad("ready")}${readyNumbers}
+    ${chip({ x: L.cpu.x, y: L.cpu.y, size: L.cpu.size }).svg}
+    <g class="cpu-qleds">${leds}</g>
+    ${ssd({ ...io, label: "I/O" }).svg}
+    <g class="cpu-io-led">${led({ x: io.x + io.w - 0.5, y: io.y + io.d - 0.35, z: 0.42 })}</g>
+    ${module({ ...L.done, well: false }).svg}${pad("done")}
+    ${callout({ ...c.arrivals, title: "도착 예정", sub: "NEW" })}
+    ${callout({ ...c.ready, title: "준비 큐", sub: "FIFO · 1번이 다음 차례" })}
+    ${callout({ ...c.cpu, title: "CPU", sub: "-", cls: "cpu-callout-cpu" })}
+    ${callout({ ...c.io, title: "입출력 장치", sub: "CPU와 동시에 진행" })}
+    ${callout({ ...c.done, title: "완료", sub: "DONE" })}
+    <g class="cpu-tokens">${tokens}</g>
+  </svg>`;
 }
 
-function ioLength(process, cpuDone) {
-  let consumed = 0;
-  for (let index = 0; index < process.io.length; index++) {
-    consumed += process.cpu[index];
-    if (consumed >= cpuDone) return process.io[index];
+/**
+ * update(frame, previous, { animate, speed, quantum }) → Promise that settles
+ * once every move in the frame has travelled. onMove(frame, viewBefore, event)
+ * fires before each move so the page can present the scene move by move.
+ */
+export function createSchedulerScene(host, processes, onMove) {
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  let L = null;
+  let svg, tokenLayer, tokens, routes, leds, ioLed, cpuSub;
+  let view = null;
+  let currentFrame = null;
+  let quantum = 2;
+  let activeRun = null;
+  let progress = 0;
+  let selected = null;
+
+  const slotFor = (id, v) => {
+    const [zone, index] = zoneOf(id, v);
+    return L.slots[zone](index);
+  };
+
+  function build(layout) {
+    L = layout;
+    host.innerHTML = staticSvg(L, processes);
+    host.dataset.layout = L === NARROW ? "narrow" : "wide";
+    svg = host.querySelector("svg");
+    tokenLayer = svg.querySelector(".cpu-tokens");
+    tokens = new Map([...svg.querySelectorAll(".cpu-token")].map((g) => [g.dataset.process, g]));
+    routes = [...svg.querySelectorAll(".cpu-route")];
+    leds = [...svg.querySelectorAll(".cpu-qled")];
+    ioLed = svg.querySelector(".cpu-io-led .iso-led");
+    cpuSub = svg.querySelector(".cpu-callout-cpu .iso-callout-sub");
+    for (const [key, g] of tokens) g.classList.toggle("is-selected", key === selected);
   }
-  return process.io.at(-1) || 1;
-}
+  const pick = (width) => (width < 640 ? NARROW : WIDE);
+  build(pick(host.clientWidth || innerWidth));
 
-export function createSchedulerScene(hostElement, processes, onMove) {
-  const serial = ++sceneSerial,
-    reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  const processById = new Map(
-    processes.map((process) => [process.id, process]),
-  );
-  hostElement.classList.add("scheduler-scene");
-  hostElement.setAttribute("role", "group");
-  hostElement.innerHTML = `<svg class="scene-map" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
-    <div class="scene-tokens"></div>
-    <div class="scene-cpu-readout" aria-hidden="true">
-      <div class="scene-meter-row"><span>이번 CPU 구간</span><b data-value="burst"></b><div class="scene-meter"><i data-fill="burst"></i></div></div>
-      <div class="scene-meter-row" data-quantum-row><span>시간 할당량</span><b data-value="quantum"></b><div class="scene-meter"><i data-fill="quantum"></i></div></div>
-      <p class="scene-cpu-idle"></p>
-    </div>
-    <div class="scene-callout" aria-hidden="true"><i></i><span></span></div>`;
-  const svg = hostElement.querySelector(".scene-map"),
-    tokensLayer = hostElement.querySelector(".scene-tokens");
-  const readout = hostElement.querySelector(".scene-cpu-readout"),
-    callout = hostElement.querySelector(".scene-callout");
-  const tokens = new Map(
-    processes.map((process) => {
-      const token = document.createElement("button");
-      token.type = "button";
-      token.className = "scene-process";
-      token.dataset.process = process.id;
-      token.style.setProperty("--process-color", COLORS[process.id]);
-      token.innerHTML = `<b class="scene-pid">${escape(process.id)}</b><span class="scene-token-copy"><strong>${escape(process.name)}</strong><small></small></span><span class="scene-token-check">✓</span><span class="scene-io-meter"><i></i></span>`;
-      tokensLayer.append(token);
-      return [process.id, token];
-    }),
-  );
-  let layout,
-    currentFrame = null,
-    view = null,
-    quantum = 2,
-    intervalProgress = 0;
-  let activeRun = null,
-    revision = 0,
-    destroyed = false;
-
-  function route(type, from, to) {
-    const a = center(from),
-      b = center(to);
-    const left = 17,
-      right = layout.width - 18;
-    const queueSide = layout.ready.x + layout.tokenWidth + 18;
-    if (type === "preempt")
-      return `M${a.x} ${a.y}V${layout.preemptY}H${queueSide}V${b.y}H${b.x}`;
-    if (type === "unblock")
-      return layout.mobile
-        ? `M${a.x} ${a.y}V${layout.returnY}H${left}V${b.y}H${b.x}`
-        : `M${a.x} ${a.y}H${right}V${layout.returnY}H${left}V${b.y}H${b.x}`;
-    if (type === "arrive") return `M${a.x} ${a.y}H${left}V${b.y}H${b.x}`;
-    if (type === "block") {
-      const corridor = layout.mobile
-        ? right
-        : (layout.running.x + layout.tokenWidth + layout.blocked.x) / 2;
-      return `M${a.x} ${a.y}H${corridor}V${b.y}H${b.x}`;
-    }
-    if (type === "complete") {
-      const side = layout.mobile
-        ? right
-        : layout.running.x + layout.tokenWidth + 19;
-      return `M${a.x} ${a.y}H${side}V${layout.done.y - 15}H${b.x}V${b.y}`;
-    }
-    return `M${a.x} ${a.y}L${b.x} ${b.y}`;
-  }
-
-  function slot(position, label, extra = "") {
-    return `<g class="scene-slot" ${extra}><rect x="${position.x}" y="${position.y}" width="${layout.tokenWidth}" height="${layout.tokenHeight}" rx="3"/><text x="${position.x + layout.tokenWidth / 2}" y="${position.y + layout.tokenHeight / 2 + 4}" text-anchor="middle">${label}</text></g>`;
-  }
-
-  function routeBadge(type, x, y, lines, width) {
-    const height = lines.length === 1 ? 26 : 38;
-    return `<g class="scene-route-badge" data-route-label="${type}" transform="translate(${x} ${y})"><rect class="route-badge-shadow" x="${-width / 2 + 2}" y="${-height / 2 + 2}" width="${width}" height="${height}" rx="2"/><rect x="${-width / 2}" y="${-height / 2}" width="${width}" height="${height}" rx="2"/><text text-anchor="middle">${lines.map((line, index) => `<tspan x="0" y="${lines.length === 1 ? 4 : index * 14 - 3}">${line}</tspan>`).join("")}</text></g>`;
-  }
-
-  function drawMap() {
-    layout = layoutFor(Math.max(280, Math.round(hostElement.clientWidth)));
-    hostElement.style.height = `${layout.height}px`;
-    hostElement.dataset.compact = String(layout.mobile);
-    svg.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
-    svg.setAttribute("preserveAspectRatio", "xMinYMin meet");
-    const readyCenter = layout.ready.x + layout.tokenWidth / 2;
-    const cpu = layout.cpu,
-      ssd = layout.ssd;
-    const labelX = (layout.ready.x + layout.tokenWidth + layout.running.x) / 2;
-    const ioLabelX = layout.mobile
-      ? layout.width - 29
-      : (layout.running.x + layout.tokenWidth + layout.blocked.x) / 2;
-    const deviceTitle = (x, y, title, sub) =>
-      `<text class="scene-device-title" x="${x}" y="${y}" text-anchor="middle">${title}</text><text class="scene-device-sub" x="${x}" y="${y + 16}" text-anchor="middle">${sub}</text>`;
-    svg.innerHTML = `<defs>
-      <marker id="scene-arrow-${serial}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z"/></marker>
-    </defs>
-    <g class="scene-lanes">${["dispatch", "block", "preempt", "unblock"].map((type) => `<path class="scene-lane" data-route="${type}" marker-end="url(#scene-arrow-${serial})"/>`).join("")}<path class="scene-flow"/></g>
-    <g class="scene-station" data-station="ready">
-      ${deviceTitle(readyCenter, layout.titleY, "준비 큐", "메모리 · 위에서부터 배정")}
-      ${memoryDrawing(layout.memory)}
-      <path class="scene-dock" d="M${readyCenter} ${layout.ready.y - 34}V${layout.ready.y}M${layout.ready.x + 5} ${layout.ready.y - 4}H${layout.ready.x + layout.tokenWidth - 5}"/>
-      ${[0, 1, 2].map((index) => slot({ x: layout.ready.x, y: layout.ready.y + index * layout.queueGap }, index ? "" : "CPU를 기다리는 자리", `data-slot="${index}"`)).join("")}
-      <g class="scene-queue-order">${[0, 1, 2].map((index) => `<text x="${layout.ready.x - 8}" y="${layout.ready.y + index * layout.queueGap + layout.tokenHeight / 2 + 4}" text-anchor="end" data-order="${index}">${index + 1}</text>`).join("")}</g>
-    </g>
-    <g class="scene-station" data-station="running">
-      ${deviceTitle(cpu.x, layout.titleY, "CPU", "한 번에 한 작업 실행")}
-      ${cpuDrawing(cpu)}
-      <path class="scene-dock" d="M${cpu.x} ${layout.running.y - 20}V${layout.running.y}M${layout.running.x + 5} ${layout.running.y - 4}H${layout.running.x + layout.tokenWidth - 5}"/>
-      ${slot(layout.running, "CPU 대기")}
-    </g>
-    <g class="scene-station" data-station="blocked">
-      ${deviceTitle(ssd.x, layout.ioTitleY, "입출력", "CPU와 동시에 진행")}
-      ${ssdDrawing(ssd)}
-      <path class="scene-dock" d="M${ssd.x} ${layout.blocked.y - 23}V${layout.blocked.y}M${layout.blocked.x + 5} ${layout.blocked.y - 4}H${layout.blocked.x + layout.tokenWidth - 5}"/>
-      ${[0, 1].map((index) => slot({ x: layout.blocked.x, y: layout.blocked.y + index * layout.queueGap }, "", `data-io-slot="${index}"`)).join("")}
-    </g>
-    <g class="scene-route-labels">
-      ${routeBadge("dispatch", labelX, layout.running.y - 21, ["CPU", "배정 →"], 58)}
-      ${routeBadge("block", layout.mobile ? cpu.x : ioLabelX, layout.mobile ? 392 : layout.running.y - 21, layout.mobile ? ["입출력 요청 ↓"] : ["입출력", "요청 →"], layout.mobile ? 110 : 58)}
-      ${routeBadge("preempt", labelX, layout.preemptY + (layout.mobile ? 18 : 14), layout.mobile ? ["시간", "만료"] : ["할당량", "만료"], layout.mobile ? 34 : 58)}
-      ${routeBadge("unblock", layout.width / 2, layout.returnY, ["입출력 완료 · 큐 뒤로"], 172)}
-    </g>
-    <text class="scene-rail-label scene-arrival-label" x="${layout.arrival.x}" y="${layout.arrival.y - 6}">도착 예정</text>
-    <text class="scene-arrived-note" x="${layout.arrival.x + 59}" y="${layout.arrival.y - 6}"></text>
-    <rect class="scene-completion-track" x="${layout.mobile ? 18 : layout.width / 2 - 215}" y="${layout.done.y - 4}" width="${layout.mobile ? layout.width - 36 : 430}" height="36" rx="3"/>
-    <text class="scene-completion-empty" x="${layout.mobile ? layout.width / 2 : layout.done.x + 8}" y="${layout.done.y + 19}" text-anchor="${layout.mobile ? "middle" : "start"}">아직 완료된 작업 없음</text>
-    <text class="scene-rail-label" x="${layout.mobile ? layout.done.x : layout.done.x - 120}" y="${layout.mobile ? layout.done.y - 10 : layout.done.y + 19}">완료</text>
-    <text class="scene-done-note" x="${layout.mobile ? layout.done.x + 36 : layout.done.x - 82}" y="${layout.mobile ? layout.done.y - 10 : layout.done.y + 19}"></text>
-    <path class="scene-motion-measure"/>`;
-    Object.assign(readout.style, {
-      left: `${layout.meter.x}px`,
-      top: `${layout.meter.y}px`,
-      width: `${layout.meter.width}px`,
-    });
-    if (currentFrame && view && !activeRun) {
-      snapTokens(view);
-      renderProgress();
-      showCallout(finalEvent(currentFrame));
-      paintPresence();
-    }
-  }
-
-  function paintPresence(event) {
-    if (!view) return;
-    hostElement.dataset.running = view.running || "";
-    hostElement.dataset.io = view.blocked.length ? "active" : "idle";
-    svg.querySelector('[data-io-slot="0"] text').textContent =
-      view.blocked.length ? "" : "입출력 요청 없음";
-    const arriving = event?.type === "arrive";
-    svg.querySelector(".scene-arrival-label").textContent =
-      arriving ? "도착 중" : view.new.length ? "도착 예정" : "도착 완료";
-    svg.querySelector(".scene-arrived-note").textContent = arriving
-      ? `${event.id}${view.new.length ? ` · 남은 ${view.new.length}개` : ""}`
-      : view.new.length ? `${view.new.length}개` : `${processes.length} / ${processes.length}`;
-    svg.querySelector(".scene-done-note").textContent =
-      `${view.done.length} / ${processes.length}`;
-    svg.querySelector(".scene-completion-empty").style.display = view.done
-      .length
-      ? "none"
-      : "";
-    const emptyPosition = (zone, index = 0) => ({
-      ...zone,
-      y: zone.y + (zone.gap || 0) * index,
-      width: layout.tokenWidth,
-      height: layout.tokenHeight,
-    });
-    const queueTail = emptyPosition(
-      layout.ready,
-      Math.min(2, view.ready.length),
-    );
-    const main = emptyPosition(layout.running),
-      io = emptyPosition(layout.blocked);
-    for (const type of ["dispatch", "block", "preempt", "unblock"]) {
-      const from =
-        type === "dispatch"
-          ? emptyPosition(layout.ready)
-          : type === "unblock"
-            ? io
-            : main;
-      const to = type === "dispatch" ? main : type === "block" ? io : queueTail;
-      const entersFromLeft =
-        type === "dispatch" ||
-        type === "unblock" ||
-        (type === "block" && !layout.mobile);
-      const arrowEnd = {
-        ...to,
-        x: to.x + (entersFromLeft ? -1 : 1) * (layout.tokenWidth / 2 + 4),
-      };
-      svg
-        .querySelector(`[data-route="${type}"]`)
-        .setAttribute("d", route(type, from, arrowEnd));
-    }
-    svg.querySelectorAll("[data-slot]").forEach((slot) => {
-      const index = Number(slot.dataset.slot);
-      slot.style.opacity = index <= view.ready.length ? 1 : 0;
-      slot.querySelector("text").textContent =
-        index === view.ready.length && event?.from !== "ready"
-          ? view.ready.length
-            ? "큐 뒤 · 여기에 합류"
-            : "CPU를 기다리는 자리"
-          : "";
-    });
-    svg
-      .querySelectorAll("[data-io-slot]")
-      .forEach(
-        (slot) =>
-          (slot.style.opacity =
-            Number(slot.dataset.ioSlot) < Math.max(1, view.blocked.length)
-              ? 1
-              : 0),
-      );
-    for (const [state, id] of [
-      ["ready", view.ready[0]],
-      ["running", view.running],
-      ["blocked", view.blocked[0]],
-    ]) {
-      const station = svg.querySelector(`[data-station="${state}"]`);
-      station.dataset.occupied = String(!!id);
-      station.style.setProperty(
-        "--station-color",
-        id ? COLORS[id] : "var(--scene-muted)",
-      );
-    }
-    svg
-      .querySelectorAll("[data-order]")
-      .forEach(
-        (label) =>
-          (label.style.opacity =
-            Number(label.dataset.order) < view.ready.length ? 1 : 0),
-      );
-  }
-
-  function setTokenPresentation(id, position) {
-    const token = tokens.get(id),
-      state = currentFrame.states[id],
-      process = processById.get(id);
-    token.dataset.state = position.state;
-    token.style.width = `${position.width}px`;
-    token.style.height = `${position.height}px`;
-    token.querySelector("small").textContent =
-      position.state === "new"
-        ? `${process.arrival} ms`
-        : position.state === "blocked"
-          ? `입출력 ${state.ioRemaining} ms 남음`
-          : position.state === "done"
-            ? `${state.finishedAt ?? currentFrame.t} ms`
-            : `CPU ${state.cpuRemaining} ms 남음`;
-    token.setAttribute(
-      "aria-label",
-      `${id} ${process.name}. ${STATE_NAMES[position.state]}. ${token.querySelector("small").textContent}. 작업 상세 보기`,
-    );
-  }
-
-  function snapTokens(nextView) {
-    for (const process of processes) {
-      const position = positionFor(process.id, nextView, layout);
-      setTokenPresentation(process.id, position);
-      tokens.get(process.id).style.transform =
-        `translate(${position.x}px, ${position.y}px)`;
-    }
-  }
-
-  function finalEvent(frame) {
-    if (frame.completed.length === processes.length)
-      return { type: "all-done" };
-    if (!frame.running) return { type: "idle" };
-    return (
-      [...frame.events].reverse().find((event) => MOVES.has(event.type)) || {
-        type: frame.blocked.length ? "concurrent" : "running",
-        id: frame.running,
-      }
-    );
-  }
-
-  function showCallout(event) {
-    const labels = {
-      arrive: `${event.id} 도착 · 준비 큐 뒤에 합류`,
-      unblock: `${event.id} 입출력 완료 · 큐 뒤로`,
-      preempt: `${event.id} 시간 만료 · 실행권 반납`,
-      dispatch: `준비 큐 맨 앞의 ${event.id} 실행`,
-      block: `${event.id} 입출력 요청 · CPU 반납`,
-      complete: `${event.id}의 모든 작업 완료`,
-      idle: "준비된 작업이 없어 CPU가 대기합니다",
-      "all-done": "세 작업을 모두 처리했습니다",
-      concurrent: "CPU 실행과 입출력이 동시에 진행됩니다",
-      running: `${event.id}의 CPU 구간을 처리하고 있습니다`,
+  function sortTokens() {
+    const depth = (id) => {
+      const [x, y, z] = slotFor(id, view);
+      return x + y + z;
     };
-    const point = layout.callout;
-    callout.style.setProperty(
-      "--callout-color",
-      event.id ? COLORS[event.id] : "var(--scene-ink)",
-    );
-    Object.assign(callout.style, {
-      left: `${point.x}px`,
-      top: `${point.y}px`,
-      width: `${point.width}px`,
+    [...tokens.keys()].sort((a, b) => depth(a) - depth(b)).forEach((id) => tokenLayer.append(tokens.get(id)));
+  }
+
+  function snap() {
+    for (const [id, g] of tokens) {
+      g.style.transform = translate(slotFor(id, view));
+      g.classList.remove("is-moving");
+    }
+    sortTokens();
+  }
+
+  function lightRoutes(types) {
+    for (const g of routes) g.firstElementChild.classList.toggle("is-active", types.has(g.dataset.route));
+  }
+
+  function paintDevices() {
+    const frame = currentFrame;
+    const n = quantum ?? 0;
+    const stable = frame && view && view.running && view.running === frame.running && !activeRun;
+    const left = stable && frame.quantumLeft != null ? frame.quantumLeft : 0;
+    leds.forEach((g, i) => {
+      g.style.display = i < n ? "" : "none";
+      if (i >= n) return;
+      g.style.transform = `${translate(L.led(i, n))} scale(1.5)`;
+      const on = i < left;
+      const iso = g.firstElementChild;
+      iso.classList.toggle("is-on", on);
+      // The LED being spent dims through the current millisecond.
+      iso.style.opacity = on && i === left - 1 ? String(1 - progress * 0.75) : "";
     });
-    callout.querySelector("span").textContent = labels[event.type];
+    ioLed.classList.toggle("is-on", !!view && view.blocked.length > 0);
+    cpuSub.textContent = quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`;
+    host.dataset.algorithm = quantum == null ? "fcfs" : "rr";
   }
 
-  function renderProgress() {
-    if (!currentFrame || !view) return;
-    const id = view.running,
-      stableCPU =
-        id && id === currentFrame.running && !tokens.get(id).dataset.moving;
-    readout
-      .querySelectorAll(".scene-meter-row")
-      .forEach((row) => (row.hidden = !stableCPU));
-    const idle = readout.querySelector(".scene-cpu-idle");
-    idle.hidden = !!stableCPU;
-    idle.textContent =
-      view.done.length === processes.length
-        ? "CPU 처리 완료"
-        : view.running || activeRun
-          ? "실행권을 옮기는 중"
-          : "CPU 유휴 · 입출력 완료를 기다립니다";
-    if (stableCPU) {
-      const state = currentFrame.states[id],
-        total = burstLength(processById.get(id), state.cpuDone),
-        done = total - state.burstRemaining + intervalProgress;
-      readout.style.setProperty("--running-color", COLORS[id]);
-      readout.querySelector('[data-value="burst"]').textContent =
-        `${Number(done.toFixed(1))} / ${total} ms`;
-      readout.querySelector('[data-fill="burst"]').style.transform =
-        `scaleX(${Math.min(1, done / total)})`;
-      const quantumRow = readout.querySelector("[data-quantum-row]");
-      quantumRow.hidden = currentFrame.quantumLeft == null;
-      if (!quantumRow.hidden) {
-        const spent = quantum - currentFrame.quantumLeft + intervalProgress;
-        readout.querySelector('[data-value="quantum"]').textContent =
-          `${Number(spent.toFixed(1))} / ${quantum} ms`;
-        readout.querySelector('[data-fill="quantum"]').style.transform =
-          `scaleX(${Math.min(1, spent / quantum)})`;
-      }
-    }
-    for (const id of view.blocked) {
-      const state = currentFrame.states[id],
-        token = tokens.get(id);
-      if (state.status !== "blocked") continue;
-      const total = ioLength(processById.get(id), state.cpuDone),
-        left = Math.max(0, state.ioRemaining - intervalProgress);
-      token.querySelector("small").textContent =
-        `입출력 ${Number(left.toFixed(1))} ms 남음`;
-      token.querySelector(".scene-io-meter i").style.transform =
-        `scaleX(${Math.min(1, 1 - left / total)})`;
-    }
+  function settle(frame) {
+    view = copyView(frame, processes);
+    snap();
+    lightRoutes(new Set(frame.events.filter((e) => MOVES.has(e.type)).map((e) => e.type)));
+    paintDevices();
   }
 
-  function cancelTransition() {
+  function track(run, animation, waits) {
+    run.animations.add(animation);
+    animation.playbackRate = run.speed;
+    if (run.paused) animation.pause();
+    waits.push(animation.finished.catch(() => {}).then(() => run.animations.delete(animation)));
+  }
+
+  async function animateEvent(event, run, before) {
+    lightRoutes(new Set([event.type]));
+    paintDevices();
+    const from = slotFor(event.id, before);
+    const to = slotFor(event.id, view);
+    const points = [from, ...L.routes[event.type].map(([x, y]) => [x, y, 0.05]), to];
+    const screen = points.map(([x, y, z]) => project(x, y, z));
+    const lengths = screen.slice(1).map((p, i) => Math.hypot(p[0] - screen[i][0], p[1] - screen[i][1]));
+    const total = lengths.reduce((a, b) => a + b, 0) || 1;
+    const duration = Math.min(1500, Math.max(650, 420 + total * 1.7));
+    let walked = 0;
+    const keyframes = points.map((p, i) => {
+      if (i) walked += lengths[i - 1];
+      return { transform: translate(p), offset: walked / total };
+    });
+    const waits = [];
+    const mover = tokens.get(event.id);
+    mover.classList.add("is-moving");
+    tokenLayer.append(mover);
+    mover.style.transform = translate(to);
+    track(run, mover.animate(keyframes, { duration, easing: "cubic-bezier(.45,.05,.35,1)" }), waits);
+    // Everyone else who changes slot (the queue moving up) slides into place.
+    for (const [id, g] of tokens) {
+      if (id === event.id) continue;
+      const a = slotFor(id, before);
+      const b = slotFor(id, view);
+      if (a.every((v, i) => v === b[i])) continue;
+      g.style.transform = translate(b);
+      track(
+        run,
+        g.animate([{ transform: translate(a) }, { transform: translate(b) }], {
+          duration: duration * 0.5,
+          delay: duration * 0.35,
+          easing: "cubic-bezier(.2,.8,.2,1)",
+          fill: "backwards",
+        }),
+        waits,
+      );
+    }
+    await Promise.all(waits);
+    if (!run.cancelled) mover.classList.remove("is-moving");
+  }
+
+  function cancelRun() {
     if (!activeRun) return;
     activeRun.cancelled = true;
     for (const animation of activeRun.animations) animation.cancel();
-    for (const token of tokens.values()) delete token.dataset.moving;
-    svg
-      .querySelectorAll("[data-active], [data-receiving]")
-      .forEach((element) => {
-        delete element.dataset.active;
-        delete element.dataset.receiving;
-      });
     activeRun = null;
   }
 
-  async function animateEvent(event, run, before, progress) {
-    const previousPositions = new Map(
-      processes.map((process) => [
-        process.id,
-        positionFor(process.id, before, layout),
-      ]),
-    );
-    showCallout(event);
-    paintPresence(event);
-    const flow = svg.querySelector(".scene-flow"),
-      end = positionFor(event.id, view, layout);
-    const pathData = route(event.type, previousPositions.get(event.id), end);
-    flow.setAttribute("d", pathData);
-    flow.style.setProperty("--flow-color", COLORS[event.id]);
-    flow.style.opacity = 1;
-    const measure = svg.querySelector(".scene-motion-measure");
-    measure.setAttribute("d", pathData);
-    if (layout.mobile && matchMedia("(max-width: 759px)").matches) {
-      const routeBounds = measure.getBoundingClientRect();
-      const padding = layout.tokenHeight / 2 + 5;
-      const viewportBottom = innerHeight - hostElement.parentElement.querySelector(".playback-buttons").offsetHeight;
-      const deviceTop = hostElement.getBoundingClientRect().top + layout.titleY - 22;
-      const startsOrEndsAtCPU = event.from === "running" || event.to === "running";
-      const topOfTrip = startsOrEndsAtCPU
-        ? Math.min(deviceTop, routeBounds.top - padding)
-        : routeBounds.top - padding;
-      if (topOfTrip < 0 || routeBounds.bottom > viewportBottom - padding) {
-        const top = Math.max(
-          routeBounds.bottom + padding - viewportBottom,
-          Math.min(deviceTop, topOfTrip),
-        );
-        window.scrollBy({ top, behavior: "instant" });
-      }
-    }
-    const length = measure.getTotalLength(),
-      waits = [];
-    const milliseconds = 510 + length * 0.75;
-    const lane = svg.querySelector(`[data-route="${event.type}"]`);
-    if (lane) {
-      const entersFromLeft =
-        event.type === "dispatch" ||
-        event.type === "unblock" ||
-        (event.type === "block" && !layout.mobile);
-      const arrowEnd = {
-        ...end,
-        x: end.x + (entersFromLeft ? -1 : 1) * (end.width / 2 + 4),
-      };
-      lane.setAttribute(
-        "d",
-        route(event.type, previousPositions.get(event.id), arrowEnd),
-      );
-    }
-    const routeLabel = svg.querySelector(`[data-route-label="${event.type}"]`);
-    for (const element of [lane, routeLabel].filter(Boolean)) {
-      element.dataset.active = "true";
-      element.style.setProperty("--flow-color", COLORS[event.id]);
-    }
-    const destination = svg.querySelector(`[data-station="${event.to}"]`);
-    const slotIndex =
-      event.to === "ready"
-        ? view.ready.indexOf(event.id)
-        : event.to === "blocked"
-          ? view.blocked.indexOf(event.id)
-          : 0;
-    const receivingSlot =
-      destination?.querySelectorAll(".scene-slot")[slotIndex];
-    if (receivingSlot) {
-      receivingSlot.dataset.receiving = "true";
-      receivingSlot.style.setProperty("--slot-color", COLORS[event.id]);
-    }
-    function track(animation) {
-      run.animations.add(animation);
-      animation.playbackRate = run.speed;
-      animation.currentTime = progress * milliseconds;
-      if (run.paused) animation.pause();
-      waits.push(
-        animation.finished
-          .catch(() => {})
-          .then(() => run.animations.delete(animation)),
-      );
-    }
-    for (const process of processes) {
-      const id = process.id,
-        from = previousPositions.get(id),
-        to = positionFor(id, view, layout),
-        token = tokens.get(id);
-      setTokenPresentation(id, to);
-      token.style.transform = `translate(${to.x}px, ${to.y}px)`;
-      if (from.x === to.x && from.y === to.y && from.width === to.width)
-        continue;
-      if (id === event.id) {
-        const keyframes = [
-          {
-            transform: `translate(${from.x}px, ${from.y}px)`,
-            width: `${from.width}px`,
-            height: `${from.height}px`,
-            offset: 0,
-          },
-          ...Array.from({ length: 25 }, (_, index) => {
-            const p = index / 24,
-              point = measure.getPointAtLength(length * p);
-            return {
-              transform: `translate(${point.x - 18}px, ${point.y - 17}px)`,
-              width: "36px",
-              height: "34px",
-              offset: 0.14 + p * 0.64,
-            };
-          }),
-          {
-            transform: token.style.transform,
-            width: `${to.width}px`,
-            height: `${to.height}px`,
-            offset: 0.88,
-          },
-          {
-            transform: token.style.transform,
-            width: `${to.width}px`,
-            height: `${to.height}px`,
-            offset: 1,
-          },
-        ];
-        token.dataset.moving = "true";
-        token.dataset.state = "moving";
-        token.setAttribute(
-          "aria-label",
-          `${id} ${process.name}. ${STATE_NAMES[event.from]}에서 ${STATE_NAMES[event.to]}로 이동 중`,
-        );
-        const animation = token.animate(keyframes, {
-          duration: milliseconds,
-          easing: "linear",
-        });
-        run.motion = animation;
-        track(animation);
-        waits.push(
-          animation.finished
-            .catch(() => {})
-            .then(() => {
-              if (!run.cancelled && run.resizeAt === null) {
-                delete token.dataset.moving;
-                setTokenPresentation(id, to);
-              }
-            }),
-        );
-      } else {
-        track(
-          token.animate(
-            [
-              { transform: `translate(${from.x}px, ${from.y}px)` },
-              { transform: token.style.transform },
-            ],
-            {
-              delay: milliseconds * 0.36,
-              duration: milliseconds * 0.64,
-              easing: "cubic-bezier(.2,.8,.2,1)",
-              fill: "backwards",
-            },
-          ),
-        );
-      }
-    }
-    track(
-      flow.animate([{ strokeDashoffset: 18 }, { strokeDashoffset: 0 }], {
-        duration: milliseconds,
-        easing: "linear",
-      }),
-    );
-    renderProgress();
-    await Promise.all(waits);
-    if (!run.cancelled && run.resizeAt === null) {
-      for (const element of [lane, routeLabel].filter(Boolean))
-        delete element.dataset.active;
-      if (receivingSlot) delete receivingSlot.dataset.receiving;
-      paintPresence();
-    }
-  }
-
-  function update(
-    frame,
-    previousFrame = null,
-    { animate = true, speed = 1, quantum: configuredQuantum } = {},
-  ) {
-    if (destroyed) return Promise.resolve();
-    revision += 1;
-    cancelTransition();
-    for (const token of tokens.values()) delete token.dataset.moving;
+  function update(frame, previousFrame = null, { animate = true, speed = 1, quantum: configured } = {}) {
+    cancelRun();
     currentFrame = frame;
-    intervalProgress = 0;
-    if (configuredQuantum !== undefined) quantum = configuredQuantum;
-    else if (frame.t === 0) quantum = frame.quantumLeft;
-    hostElement.dataset.algorithm = quantum == null ? "fcfs" : "rr";
+    progress = 0;
+    if (configured !== undefined) quantum = configured;
     const events = frame.events.filter((event) => MOVES.has(event.type));
-    const canAnimate =
-      animate &&
-      !reducedMotion.matches &&
-      previousFrame &&
-      frame.t > previousFrame.t &&
-      events.length;
+    const canAnimate = animate && !reducedMotion.matches && previousFrame && frame.t > previousFrame.t && events.length;
     if (!canAnimate) {
-      view = copyView(frame, processes);
-      snapTokens(view);
-      paintPresence();
-      renderProgress();
-      svg.querySelector(".scene-flow").style.opacity = 0;
-      showCallout(finalEvent(frame));
+      settle(frame);
       return Promise.resolve();
     }
-    const run = {
-      revision,
-      speed,
-      animations: new Set(),
-      paused: false,
-      cancelled: false,
-    };
+    const run = { speed, animations: new Set(), paused: false, cancelled: false };
     activeRun = run;
     view = copyView(previousFrame, processes);
-    snapTokens(view);
+    snap();
     return (async () => {
       for (const event of events) {
-        if (run.cancelled || run.revision !== revision) return;
-        // mutateView replaces each zone array, so this snapshot retains the
-        // departure slots even when a resize changes their screen coordinates.
+        if (run.cancelled) return;
         const before = { ...view };
         onMove(currentFrame, before, event);
         mutateView(view, event);
-        let progress = 0;
-        do {
-          run.resizeAt = null;
-          await animateEvent(event, run, before, progress);
-          if (run.cancelled || run.revision !== revision) return;
-          progress = run.resizeAt;
-        } while (progress !== null);
+        await animateEvent(event, run, before);
       }
-      if (run.cancelled || run.revision !== revision) return;
+      if (run.cancelled) return;
       activeRun = null;
-      view = copyView(frame, processes);
-      snapTokens(view);
-      paintPresence();
-      renderProgress();
-      svg.querySelector(".scene-flow").style.opacity = 0;
-      showCallout(finalEvent(frame));
+      settle(frame);
     })();
   }
 
-  drawMap();
-  const observer = new ResizeObserver((entries) => {
-    if (Math.abs(entries[0].contentRect.width - layout.width) <= 1) return;
-    if (activeRun?.motion) {
-      const motion = activeRun.motion;
-      activeRun.resizeAt = Math.min(1, (motion.currentTime ?? 0) / motion.effect.getTiming().duration);
-      for (const animation of activeRun.animations) animation.cancel();
+  // Switch between the wide and the compact layout when the stage resizes.
+  // Tokens jump to their slots in the new layout; a move in flight completes.
+  new ResizeObserver(([entry]) => {
+    const next = pick(entry.contentRect.width);
+    if (next === L) return;
+    const run = activeRun;
+    build(next);
+    if (run) for (const animation of run.animations) animation.finish();
+    if (currentFrame && view) {
+      snap();
+      lightRoutes(new Set());
+      paintDevices();
     }
-    drawMap();
-  });
-  observer.observe(hostElement);
+  }).observe(host);
+
   return {
     update,
     setSpeed(speed) {
@@ -782,28 +366,23 @@ export function createSchedulerScene(hostElement, processes, onMove) {
       activeRun.speed = speed;
       for (const animation of activeRun.animations) animation.updatePlaybackRate(speed);
     },
-    setProgress(progress) {
-      intervalProgress = Math.max(0, Math.min(1, progress));
-      renderProgress();
+    setProgress(value) {
+      progress = Math.max(0, Math.min(1, value));
+      if (!activeRun && currentFrame) paintDevices();
     },
     pause() {
-      if (activeRun) {
-        activeRun.paused = true;
-        for (const animation of activeRun.animations) animation.pause();
-      }
+      if (!activeRun) return;
+      activeRun.paused = true;
+      for (const animation of activeRun.animations) animation.pause();
     },
     resume() {
-      if (activeRun) {
-        activeRun.paused = false;
-        for (const animation of activeRun.animations) animation.play();
-      }
+      if (!activeRun) return;
+      activeRun.paused = false;
+      for (const animation of activeRun.animations) animation.play();
     },
-    destroy() {
-      destroyed = true;
-      revision += 1;
-      cancelTransition();
-      observer.disconnect();
-      hostElement.replaceChildren();
+    select(id) {
+      selected = id;
+      for (const [key, g] of tokens) g.classList.toggle("is-selected", key === id);
     },
   };
 }

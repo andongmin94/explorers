@@ -62,11 +62,10 @@ CPU는 하나, I/O는 서로 독립적으로 진행되며 문맥 교환 비용�
 | 파일 | 역할 |
 | --- | --- |
 | `src/engine.js` | 순수 함수 기반 RR·FCFS 계산, 프레임·사건·통계 |
-| `src/scene.js`, `src/scene.css` | CPU 그림, 프로세스 이동, 상태별 배치 |
-| `src/devices.js` | 공통 30° 아이소메트릭 투영의 CPU·DIMM 메모리·SSD |
+| `src/scene.js` | `shared/iso-kit.js`로 그린 아이소메트릭 장면(도착 대기·준비 큐·CPU·입출력·완료)과 작업 블록 이동 |
 | `src/lesson.js` | 장면별 고정 해설, 동적 핵심 장면, 작업별 구간 진행·시간 분해 |
 | `src/main.js` | 재생·탐색·예측·비교 UI, 시간표와 사건 기록 |
-| `src/styles.css` | 네오브루탈 Mono·Pretendard·반응형 스타일 |
+| `src/styles.css` | 공통 하드웨어 키트(`shared/hw.css`) 위의 CPU 탐색기 전용 스타일 |
 | `test/engine.test.js` | 수동 검산, FIFO 순서, CPU 보존, 지표·대기·유휴 검사 |
 | `test/lesson.test.js` | 장면 해설 안정성, 경과 시간 분해, 입출력 경계, 미래 지표 미노출 검사 |
 
@@ -76,5 +75,5 @@ CPU는 하나, I/O는 서로 독립적으로 진행되며 문맥 교환 비용�
 
 - [OSTEP 7장 — Scheduling: Introduction](https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf): RR·FCFS, 응답·반환 시간, 입출력과 CPU 실행의 중첩
 - [University of Illinois CS341 — Scheduling](https://cs341.cs.illinois.edu/coursebook/Scheduling): 작업 상태와 대기·응답·반환 시간
-- UI는 이전 프로젝트의 네오브루탈 Mono 팔레트를 이어가며, CPU·연결선·장면은 이 프로젝트의 SVG/CSS로 작성했습니다.
+- UI와 장면은 탐색기 모음의 공통 하드웨어 디자인(`shared/DESIGN.md`)을 따릅니다.
 - Pretendard는 로컬 파일을 사용하며 라이선스는 `public/fonts/Pretendard-LICENSE.txt`에 있습니다.

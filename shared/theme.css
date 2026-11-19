@@ -1,0 +1,290 @@
+/*
+ * Shared hardware theme for every explorer, after SPEC-01/HARDWARE.
+ *
+ * Panels are matte plastic plates with a fine grain and a soft, layered drop
+ * shadow. Buttons are keycaps: a slight vertical gradient, a 3px lip under the
+ * face, and a glow under the accent key. Labels and readouts use a monospace
+ * face. The parts built from these tokens are in hw.css; see DESIGN.md.
+ *
+ * Every page imports this first, then hw.css, then its own small stylesheet.
+ */
+
+@font-face {
+  font-family: Iosevka;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(/fonts/iosevka-500-C4FA_zML.woff2) format("woff2");
+  /* Latin and digits only: Hangul (and the spaces between Hangul words) fall
+     through to Pretendard, so mono labels in Korean keep normal word spacing. */
+  unicode-range: U+0021-007E, U+00A0-00FF, U+2010-2027, U+2190-21FF, U+00D7;
+}
+@font-face {
+  font-family: Iosevka;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(/fonts/iosevka-700-BxdwZZnN.woff2) format("woff2");
+  unicode-range: U+0021-007E, U+00A0-00FF, U+2010-2027, U+2190-21FF, U+00D7;
+}
+
+:root,
+:root[data-theme] {
+  /* Type */
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 20px;
+  --fs-5: 28px;
+  --font-sans: Pretendard, "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-mono: Iosevka, Pretendard, "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  /* Shape */
+  --r-panel: 28px;
+  --r-key: 12px;
+  --r-small: 7px;
+
+  /* Plastic, ink and hairlines */
+  --bg: #eeeeec;
+  --surface: #fbfbfa;
+  --soft: #f2f2f0;
+  --ink: #1d1d1c;
+  --muted: #6b6964;
+  --border: #d4d3ce;
+  --rule: #e6e5e1;
+  --inverse: #fbfbfa;
+  --grid: #e3e2de;
+  --hw-edge: rgb(83 80 70 / 0.12);
+  --hw-lip: #dcdcd8;
+  --shadow: var(--hw-lip);
+
+  /* Grain laid over plates, drawn once as an SVG noise tile */
+  --hw-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .33 0 0 0 0 .31 0 0 0 0 .27 0 0 0 .055 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* Plate: a panel, card or dialog */
+  --hw-plate: #fbfbfa;
+  --hw-panel: var(--hw-grain), var(--hw-plate);
+  --hw-panel-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgb(83 80 70 / 0.055),
+    0.5px 1px 1px rgb(83 80 70 / 0.07),
+    1px 2px 2px rgb(83 80 70 / 0.07),
+    2px 4px 4px rgb(83 80 70 / 0.07),
+    4px 8px 8px rgb(83 80 70 / 0.07),
+    8px 16px 16px rgb(83 80 70 / 0.063);
+
+  /* Keycap: neutral */
+  --hw-key: linear-gradient(#ececE9, #efefec 30%, #fdfdfc);
+  --hw-key-drop:
+    0 3.5px 1px rgb(83 80 70 / 0.118),
+    0 4.5px 3px rgb(83 80 70 / 0.063),
+    0.5px 6px 9px -3px rgb(83 80 70 / 0.082);
+  --hw-key-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.95),
+    inset 0 -1px 1px rgb(0 0 0 / 0.035),
+    0 0 0 1px rgb(83 80 70 / 0.07),
+    0 3px 0 var(--hw-lip),
+    var(--hw-key-drop);
+
+  /* Keycap: accent. Its face, lip and glow all come from --accent. */
+  --hw-key-accent: linear-gradient(
+    0deg,
+    color-mix(in oklch, var(--accent) 86%, white),
+    var(--accent) 70%,
+    color-mix(in oklch, var(--accent) 94%, black)
+  );
+  --hw-key-accent-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 3px 0 color-mix(in oklch, var(--accent) 62%, black),
+    0 3.5px 1px rgb(0 0 0 / 0.11),
+    0 6px 10px -3px color-mix(in srgb, var(--accent) 47%, transparent),
+    0 11px 20px -8px color-mix(in srgb, var(--accent) 34%, transparent);
+
+  /* Recessed well and LCD */
+  --hw-well: linear-gradient(#0b0b0a, #1a1a19);
+  --hw-well-shadow:
+    inset 0 3px 6px rgb(0 0 0 / 0.765),
+    inset 0 -1px 0 rgb(255 255 255 / 0.06),
+    0 1px 0 #fff,
+    0 -1px 0 rgb(0 0 0 / 0.07);
+  --hw-lcd-ink: color-mix(in oklch, var(--accent) 70%, white);
+  --hw-led-off: #cfceca;
+
+  /* Table sheet (SPEC-01 item list): white, printed in the mono face with
+     dashed rules; the current row in the accent between two dashes. */
+  --hw-paper: #fcfcfb;
+  --hw-paper-ink: #1d1d1c;
+  --hw-paper-muted: #8a8780;
+  --hw-paper-rule: rgb(83 80 70 / 0.16);
+  --hw-paper-hot: color-mix(in oklch, var(--accent) 92%, black);
+  --hw-paper-shadow:
+    inset 0 0 0 1px rgb(83 80 70 / 0.08),
+    inset 0 1px 2px rgb(83 80 70 / 0.06);
+
+  /* Recessed light screen (SPEC-01 select), for charts and route graphs. */
+  --hw-screen: linear-gradient(#e7e7e4, #efefec 45%, #f3f3f0);
+  --hw-screen-ink: #2a2927;
+  --hw-screen-muted: #8a8780;
+  --hw-screen-rule: rgb(83 80 70 / 0.14);
+  --hw-screen-shadow:
+    inset 0 2px 6px rgb(83 80 70 / 0.16),
+    inset 0 0 0 1px rgb(83 80 70 / 0.1),
+    0 1px 0 #fff;
+  --hw-screen-lit: var(--accent);
+
+  /* Empty sockets and bays on the devices */
+  --iso-socket: #ebebe8;
+  --iso-socket-wall: #dcdbd6;
+  --iso-bay: #d9d8d3;
+
+  /* The roles each explorer already reads */
+  --control-card: var(--hw-plate);
+  --control-neutral: #f6f6f4;
+  --control-ink: var(--ink);
+  --control-border: var(--hw-edge);
+  --control-shadow: var(--hw-lip);
+  --selected: var(--accent);
+  --on-selected: var(--on-accent);
+
+  /* Faces of the isometric devices. shared/iso.js turns each hi/lo pair into
+     a gradient lit from the upper left; -fill falls back to the flat colour. */
+  --iso-top: #f9f9f7;
+  --iso-front: #e4e3df;
+  --iso-side: #cdccc6;
+  --iso-top-hi: #ffffff;
+  --iso-top-lo: #efefec;
+  --iso-front-hi: #eeede9;
+  --iso-front-lo: #d8d7d1;
+  --iso-side-hi: #d6d5cf;
+  --iso-side-lo: #bdbcb5;
+  --iso-top-fill: url(#hw-iso-top) var(--iso-top);
+  --iso-front-fill: url(#hw-iso-front) var(--iso-front);
+  --iso-side-fill: url(#hw-iso-side) var(--iso-side);
+  --iso-line: #8f8c84;
+  --iso-rim: #e9e8e3;
+  --iso-guide: #8f8c84;
+  --iso-spec: #ffffff;
+  --iso-falloff: .1;
+  --iso-shadow: rgb(83 80 70 / 0.5);
+
+  --accent: oklch(0.62 0.24 38);
+  --on-accent: #fff;
+
+  background: var(--hw-grain), var(--bg);
+  color: var(--ink);
+}
+
+/* One vivid accent per explorer, like the colour keys on SPEC-01's lid. */
+:root[data-explorer="protocol"] { --accent: oklch(0.57 0.19 256); }
+:root[data-explorer="cpu"] { --accent: oklch(0.62 0.24 38); }
+:root[data-explorer="memory"] { --accent: oklch(0.56 0.15 160); }
+:root[data-explorer="transaction"] { --accent: oklch(0.58 0.22 2); }
+:root[data-explorer="disk"] { --accent: oklch(0.83 0.16 88); --on-accent: #1d1d1c; }
+:root[data-explorer="git"] { --accent: oklch(0.55 0.21 296); }
+
+/* Dark: anodised metal instead of white plastic. */
+:root[data-theme="dark"] {
+  --bg: #171716;
+  --surface: #222221;
+  --soft: #2a2a28;
+  --ink: #f1f0ec;
+  --muted: #a9a7a0;
+  --border: #45443f;
+  --rule: #33322f;
+  --inverse: #222221;
+  --grid: #262624;
+  --hw-edge: rgb(255 255 255 / 0.08);
+  --hw-lip: #0c0c0b;
+
+  --hw-plate: #222221;
+  --hw-panel-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.07),
+    0 0 0 1px rgb(0 0 0 / 0.5),
+    0 2px 2px rgb(0 0 0 / 0.25),
+    0 6px 10px rgb(0 0 0 / 0.25),
+    0 14px 24px rgb(0 0 0 / 0.25);
+  --hw-key: linear-gradient(#323230, #363634 30%, #42423f);
+  --hw-key-drop: 0 4px 6px rgb(0 0 0 / 0.35);
+  --hw-key-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    0 0 0 1px rgb(0 0 0 / 0.6),
+    0 3px 0 var(--hw-lip),
+    var(--hw-key-drop);
+  --hw-well-shadow:
+    inset 0 3px 6px rgb(0 0 0 / 0.8),
+    inset 0 -1px 0 rgb(255 255 255 / 0.05),
+    0 1px 0 rgb(255 255 255 / 0.06);
+  --hw-led-off: #3d3c39;
+
+  --hw-paper: linear-gradient(#30312b, #2a2b25 55%, #262721);
+  --hw-paper-ink: #d9d8cc;
+  --hw-paper-muted: #9a998d;
+  --hw-paper-rule: rgb(217 216 204 / 0.2);
+  --hw-paper-hot: color-mix(in oklch, var(--accent) 80%, white);
+  --hw-paper-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 0.6),
+    inset 0 0 0 1px rgb(0 0 0 / 0.4),
+    0 1px 0 rgb(255 255 255 / 0.06);
+  --hw-screen: radial-gradient(130% 100% at 25% 0%, #262624, #0d0d0c 58%, #080808);
+  --hw-screen-ink: #ecebe5;
+  --hw-screen-muted: #8f8d85;
+  --hw-screen-rule: rgb(255 255 255 / 0.09);
+  --hw-screen-lit: color-mix(in oklch, var(--accent) 70%, white);
+  --hw-screen-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.05),
+    inset 0 2px 12px rgb(0 0 0 / 0.85),
+    0 0 0 1px #000,
+    0 0 0 5px #121211,
+    0 0 0 6px rgb(255 255 255 / 0.06),
+    0 10px 22px -8px rgb(0 0 0 / 0.7);
+
+  --control-neutral: #333331;
+
+  --iso-top: #4b4a46;
+  --iso-front: #383734;
+  --iso-side: #2a2927;
+  --iso-socket-lip: rgb(255 255 255 / .12);
+  --iso-socket: #2c2b28;
+  --iso-socket-wall: #1f1e1c;
+  --iso-bay: #242321;
+  --iso-key: #4e4d48;
+  --iso-top-hi: #585752;
+  --iso-top-lo: #46453f;
+  --iso-front-hi: #3e3d39;
+  --iso-front-lo: #2f2e2b;
+  --iso-side-hi: #2d2c29;
+  --iso-side-lo: #222120;
+  --iso-line: #0d0d0c;
+  --iso-rim: #3f3e3a;
+  --iso-cavity: #1c1b19;
+  --iso-cavity-floor: #141412;
+  --iso-guide: #8a877f;
+  --iso-spec: #7a7870;
+  --iso-falloff: .35;
+  --iso-edge-lit: rgb(255 255 255 / .22);
+  --iso-edge-corner: rgb(255 255 255 / .1);
+  --platter-hi: #8a8882;
+  --platter-mid: #5c5a55;
+  --platter-lo: #3c3b38;
+  --iso-shadow: rgb(0 0 0 / 0.75);
+}
+
+/* Protocol explorer names the same roles with a --neo- prefix. */
+:root,
+:root[data-theme] {
+  --neo-bg: var(--bg);
+  --neo-surface: var(--surface);
+  --neo-soft: var(--soft);
+  --neo-text: var(--ink);
+  --neo-muted: var(--muted);
+  --neo-border: var(--border);
+  --neo-rule: var(--rule);
+  --neo-shadow: var(--hw-lip);
+  --neo-accent: var(--accent);
+  --neo-on-accent: var(--on-accent);
+}
+
+body {
+  background: var(--hw-grain), var(--bg);
+  color: var(--ink);
+}

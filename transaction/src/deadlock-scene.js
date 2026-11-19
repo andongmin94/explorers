@@ -1,582 +1,245 @@
+// Page 2 scene: the same two laptops and database. The database top holds rows
+// A and B, each with its committed stock (LCD), an uncommitted write (token in
+// the writer's colour) and a lock LED in the owner's colour. A blocked UPDATE
+// parks at the database edge, and the wait-for relation is drawn on the floor
+// as a lit path from the waiting transaction to the one it waits for. Two such
+// paths close the cycle; the rollback of T2 removes its write, its lock and its
+// parked request, and the cycle opens.
+import { floorPath, topText } from "../../shared/iso-kit.js";
 import { getDeadlockPresentationState } from "./deadlock-engine.js";
+import {
+  COLORS,
+  DB,
+  DB_TOP,
+  PARK,
+  VIEWS,
+  ROUTES,
+  createMoves,
+  eul,
+  ga,
+  neun,
+  createRunner,
+  lamp,
+  place,
+  printed,
+  sceneSvg,
+  setLamp,
+  setScreen,
+  setStatus,
+  slot,
+  sqlToken,
+  well,
+} from "./stage.js";
 
-function housing(x, y, width, height, depth = 14) {
-  const rise = depth / Math.sqrt(3),
-    bottom = y + height;
-  return `<g>
-    <path class="dl-device-shadow" d="M${x + 5} ${y + 5}H${x + width + depth + 5}V${bottom + 6}H${x + 5}Z"/>
-    <path class="dl-device-top" d="M${x} ${y}L${x + depth} ${y - rise}H${x + width + depth}L${x + width} ${y}Z"/>
-    <path class="dl-device-side" d="M${x + width} ${y}L${x + width + depth} ${y - rise}V${bottom - rise}L${x + width} ${bottom}Z"/>
-    <rect class="dl-device-front" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>
-  </g>`;
-}
-function terminal(x, y, width) {
-  const bottom = y + 140;
-  return `${housing(x, y, width, 140)}
-    <path class="dl-device-top" d="M${x} ${bottom}H${x + width}L${x + width - 16} ${bottom + 23}H${x - 16}Z"/>
-    <path class="dl-device-side" d="M${x - 16} ${bottom + 23}H${x + width - 16}L${x + width} ${bottom}V${bottom + 5}L${x + width - 16} ${bottom + 28}H${x - 16}Z"/>
-    <path class="dl-device-keys" d="M${x + 10} ${bottom + 5}H${x + width - 20}L${x + width - 27} ${bottom + 16}H${x + 3}Z"/>
-    ${[0, 1].map((i) => `<path class="dl-device-detail" d="M${x + 9 - i * 3} ${bottom + 8 + i * 4}H${x + width - 23 - i * 3}"/>`).join("")}
-    ${[1, 2, 3, 4, 5].map((i) => `<path class="dl-device-detail" d="M${x + 10 + ((width - 30) * i) / 6} ${bottom + 5}l-7 11"/>`).join("")}`;
-}
-const socketPort = (x, y) =>
-  `<rect x="${x - 4}" y="${y - 4}" width="8" height="8" fill="var(--ink)" stroke="var(--surface)" stroke-width="1.5"/>`;
-
-const ids = ["T1", "T2"],
-  rowIds = ["A", "B"];
-const color = (id) => `var(--${id.toLowerCase()})`;
-const badge = (id) => `<b class="tx-id ${id.toLowerCase()}">${id}</b>`;
-const statusLabel = {
-  idle: "시작 전",
-  active: "진행 중",
-  waiting: "잠금 대기",
-  aborted: "롤백됨",
-  committed: "커밋 완료",
+const IDS = ["T1", "T2"];
+const ROWS = { A: DB.y + 1.65, B: DB.y + 4.35 };
+const PENDING_X = DB.x + 4.5;
+const LCD_X = DB.x + 2.45;
+const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", committed: "COMMITTED", aborted: "ROLLED BACK" };
+const other = (id) => (id === "T1" ? "T2" : "T1");
+// Wait-for edges run in front of the database, laptop to laptop.
+const EDGES = {
+  T1: [[3.15, 12.15], [12.85, 12.15], [12.85, 1.55]],
+  T2: [[13.5, 1.55], [13.5, 12.8], [3.15, 12.8]],
 };
 
-export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
-  host.className = "dl-scene";
-  host.innerHTML = `<svg class="dl-map" aria-hidden="true"></svg><div class="dl-callout"></div>
-    ${ids.map((id, i) => `<div class="dl-client" data-client="${id}" style="--actor:${color(id)}"><div class="dl-client-head"><span class="dl-client-name">${badge(id)}<span>주문 ${i + 1}</span></span><strong data-status>시작 전</strong></div><div class="dl-client-line"><span>보유 잠금</span><b data-held>없음</b></div><div class="dl-client-line dl-client-wait"><span>요청 대기</span><b data-waiting>없음</b></div></div>`).join("")}
-    <div class="dl-cycle"><div class="dl-cycle-heading"><span class="dl-cycle-mark" aria-hidden="true">⇄</span><strong data-cycle-title>대기 관계 없음</strong></div><div data-cycle-edges></div></div>
-    <div class="dl-db-heading"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5c0-4 16-4 16 0v14c0 4-16 4-16 0V5m0 0c0 4 16 4 16 0M4 12c0 4 16 4 16 0"/></svg>공유 데이터베이스</span><b>재고 테이블</b></div>
-    ${rowIds.map((row) => `<div class="dl-row" data-row="${row}"><div class="dl-row-head"><b>행 ${row}</b><span data-owner>잠금 없음</span></div><div class="dl-row-values"><span>확정 재고<strong data-stock></strong></span><span>미확정 변경<b data-pending>없음</b></span></div><div class="dl-row-note" data-note>변경 없음</div></div><div class="dl-queued" data-queue="${row}" hidden></div>`).join("")}
-    <div class="dl-packet" hidden></div>`;
-  const svg = host.querySelector(".dl-map"),
-    packet = host.querySelector(".dl-packet"),
-    callout = host.querySelector(".dl-callout"),
-    cycle = host.querySelector(".dl-cycle");
-  const cards = Object.fromEntries(
-    ids.map((id) => [id, host.querySelector(`[data-client="${id}"]`)]),
-  );
-  const rows = Object.fromEntries(
-    rowIds.map((row) => [row, host.querySelector(`[data-row="${row}"]`)]),
-  );
-  const queues = Object.fromEntries(
-    rowIds.map((row) => [row, host.querySelector(`[data-queue="${row}"]`)]),
-  );
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  let layout,
-    active = null,
-    lastStep = null,
-    paintedState = null;
+const dbTop = Object.entries(ROWS)
+  .map(
+    ([row, y]) => `
+  ${topText({ x: DB.x + 0.85, y, z: DB_TOP + 0.01, text: row, size: 20, weight: 800, fill: "var(--ink)" })}
+  ${well({ x: DB.x + 1.4, y: y - 0.8, w: 2.1, d: 1.6 })}
+  <g data-lcd="${row}">${printed({ x: DB.x + 2.45, y, text: "", anchor: "middle", size: 20, weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>
+  ${slot({ x: DB.x + 3.85, y: y - 0.7, w: 1.25, d: 1.4 })}
+  <g data-lock-led="${row}">${lamp({ x: DB.x + 5.5, y })}</g>`,
+  )
+  .join("");
 
-  function requestPath(id, row, stop = false, returning = false) {
-    const sx = layout.clients[id],
-      bridge = id === "T1" ? 257 : 266,
-      lane = layout.lanes[row || (id === "T1" ? "A" : "B")];
-    const points = [[sx, 246], [sx, bridge], [lane, bridge]];
-    if (row) {
-      const target = stop ? layout.park[row] : layout.ports[row];
-      points.push([lane, target.y], [target.x, target.y]);
-    } else {
-      const port = layout.databasePort;
-      points.push([lane, port.y - 16], [port.x, port.y - 16], [port.x, port.y]);
+const floorMarks = `
+  ${Object.entries(EDGES)
+    .map(([id, route]) => `<g class="tx-edge" data-edge="${id}" style="--edge:${COLORS[id]}">${floorPath(route)}</g>`)
+    .join("")}
+  ${topText({ x: 8.2, y: 13.55, z: 0.01, text: "WAIT-FOR", size: 12, weight: 600, fill: "var(--muted)", cls: "tx-floor-mark" })}
+`;
+
+function completedTitle(step) {
+  const s = step.state;
+  switch (step.action) {
+    case "initial":
+      return "T1은 A→B, T2는 B→A 순서로 두 행을 줄이려 합니다";
+    case "begin":
+      return `${step.client} 트랜잭션을 시작했습니다`;
+    case "write":
+    case "resume":
+      return `${ga(step.client)} ${step.row} 잠금 보유 · 미확정 ${s.rows[step.row].pending.value}`;
+    case "wait":
+      return s.deadlocked ? "순환 대기 · T1과 T2가 서로의 잠금을 기다립니다" : `${ga(step.client)} ${step.row} 잠금 해제를 기다립니다`;
+    case "detect":
+      return `DB가 순환을 감지 · ${eul(s.victim)} 중단 대상으로 선택`;
+    case "rollback":
+      return `${step.client} 롤백 · ${step.row}의 미확정 값과 잠금, 대기 요청 취소`;
+    case "commit":
+      return `${step.client} 커밋 · A ${s.rows.A.committed}, B ${s.rows.B.committed} 확정`;
+  }
+  return "";
+}
+
+export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
+  host.innerHTML = sceneSvg({
+    label: "두 클라이언트가 재고 행 A와 B의 잠금을 서로 기다리는 장면",
+    dbTop,
+    floorMarks,
+    view: VIEWS.deadlock,
+    screens: ["HOLD", "WAIT"],
+    dbSub: "ROWS A · B",
+  });
+  const svg = host.querySelector("svg");
+  const runner = createRunner(svg);
+  const moves = createMoves(svg, runner);
+  const $ = (s) => svg.querySelector(s);
+  const mobile = matchMedia("(max-width: 759px)");
+  let painted = null;
+
+  function paint(state, { hideParked = null, keepEdges = false } = {}) {
+    painted = state;
+    for (const id of IDS) {
+      const c = state.clients[id];
+      setScreen(svg, id, [c.held.join("·") || "—", c.waitingFor ?? "—"]);
+      const victim = state.detected && state.victim === id && c.status !== "aborted";
+      setStatus(svg, id, victim ? "VICTIM" : STATUS[c.status]);
+      $(`[data-client="${id}"]`).dataset.status = victim ? "aborted" : c.status;
     }
-    if (returning) points.reverse();
-    return "M" + points.map(([x, y]) => `${x} ${y}`).join("L");
-  }
-  function ownershipPath(id, row) {
-    const outside =
-      row === "A" ? layout.dbLeft - 10 : layout.dbLeft + layout.dbWidth + 24;
-    return `M${layout.clients[id]} 246V${id === "T1" ? 259 : 269}H${outside}V${layout.ports[row].y}H${layout.ports[row].x}`;
-  }
-  function resumePath(row) {
-    const park = layout.park[row], port = layout.ports[row];
-    return `M${park.x} ${park.y}H${layout.lanes[row]}V${port.y}H${port.x}`;
-  }
-  function draw() {
-    const width = Math.round(host.clientWidth),
-      compact = width < 560,
-      cycleWidth = Math.min(356, width - 108),
-      cycleLeft = (width - cycleWidth) / 2,
-      dbWidth = Math.min(580, width - 42),
-      dbLeft = (width - dbWidth) / 2 - 5,
-      rowWidth = (dbWidth - 36) / 2;
-    layout = {
-      width,
-      compact,
-      dbWidth,
-      dbLeft,
-      rowWidth,
-      height: 628,
-      cardWidth: Math.min(228, (width - 80) / 2),
-      clients: { T1: width * 0.25, T2: width * 0.75 - 6 },
-      rowX: { A: dbLeft + 12, B: dbLeft + 24 + rowWidth },
-      rowY: 456,
-      databasePort: { x: dbLeft + dbWidth / 2, y: 413 },
-      lanes: {
-        A: Math.max(compact ? 25 : 36, dbLeft - 36),
-        B: Math.min(width - (compact ? 25 : 36), dbLeft + dbWidth + 36),
-      },
-      park: {
-        A: { x: dbLeft + 53, y: 398 },
-        B: { x: dbLeft + dbWidth - 53, y: 398 },
-      },
-      ports: {
-        A: { x: dbLeft + 6, y: 456 },
-        B: { x: dbLeft + dbWidth - 6, y: 456 },
-      },
-    };
-    host.style.height = `${layout.height}px`;
-    host.dataset.compact = String(compact);
-    svg.setAttribute("viewBox", `0 0 ${width} ${layout.height}`);
-    svg.innerHTML = `<defs><marker id="dl-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z" fill="context-stroke"/></marker></defs>
-      ${ids.map((id) => rowIds.map((row) => `<path class="dl-route" data-route="${id}-${row}" d="${requestPath(id, row)}" style="--actor:${color(id)}" marker-end="url(#dl-arrow)"/>`).join("")).join("")}
-      ${ids.map((id) => `<g class="dl-device" data-device="${id}">${terminal(layout.clients[id] - layout.cardWidth / 2 - 7, 79, layout.cardWidth + 14)}${socketPort(layout.clients[id], 246)}</g>`).join("")}
-      <g class="dl-database">${housing(dbLeft, 419, dbWidth, 190, 16)}${socketPort(layout.databasePort.x, layout.databasePort.y)}${rowIds.map((row) => socketPort(layout.ports[row].x, layout.ports[row].y)).join("")}</g>
-      ${rowIds.map((row) => `<g class="dl-gate" data-gate="${row}" transform="translate(${layout.ports[row].x} ${layout.ports[row].y})"><path d="M-4 14H4"/><path class="dl-gate-arm" d="M0 13V-13"/></g>`).join("")}<path class="dl-motion-path"/>`;
-    for (const id of ids)
-      Object.assign(cards[id].style, {
-        left: `${layout.clients[id] - layout.cardWidth / 2}px`,
-        top: "86px",
-        width: `${layout.cardWidth}px`,
-      });
-    for (const row of rowIds) {
-      Object.assign(rows[row].style, {
-        left: `${layout.rowX[row]}px`,
-        top: `${layout.rowY}px`,
-        width: `${rowWidth}px`,
-      });
-      Object.assign(queues[row].style, {
-        left: `${layout.park[row].x - 53}px`,
-        top: `${layout.park[row].y - 17}px`,
-      });
+    const pending = $(".tx-pending");
+    for (const [row, y] of Object.entries(ROWS)) {
+      const r = state.rows[row];
+      $(`[data-lcd="${row}"] text`).textContent = r.committed;
+      setLamp($(`[data-lock-led="${row}"] .iso-led`), r.owner);
+      const key = r.pending ? `${r.pending.client}:${r.pending.value}` : "";
+      let token = pending.querySelector(`[data-pend="${row}"]`);
+      if (token?.dataset.key === key) continue;
+      token?.remove();
+      if (!key) continue;
+      pending.insertAdjacentHTML("beforeend", `<g class="tx-pend" data-pend="${row}" data-key="${key}">${sqlToken({ text: r.pending.value, color: COLORS[r.pending.client], w: 1.15, d: 1 })}</g>`);
+      place(pending.lastElementChild, PENDING_X, y, DB_TOP);
     }
-    Object.assign(host.querySelector(".dl-db-heading").style, {
-      left: `${dbLeft + 12}px`,
-      top: "424px",
-      width: `${dbWidth - 24}px`,
-    });
-    Object.assign(cycle.style, {
-      left: `${cycleLeft}px`,
-      width: `${cycleWidth}px`,
-      top: "285px",
-    });
-    if (paintedState) paintRoutes(paintedState);
-    active?.updateRoute?.();
-  }
-  function paintRoutes(state) {
-    for (const row of rowIds) {
-      const data = state.rows[row];
-      const gate = svg.querySelector(`[data-gate="${row}"]`);
-      gate.dataset.open = String(!data.owner);
-      gate.dataset.waiting = String(data.waiting.length > 0);
-      for (const id of ids) {
-        const route = svg.querySelector(`[data-route="${id}-${row}"]`);
-        route.dataset.owned = String(data.owner === id);
-        route.dataset.waiting = String(data.waiting.includes(id));
-        route.setAttribute("d", data.owner === id
-          ? ownershipPath(id, row)
-          : requestPath(id, row, data.waiting.includes(id)));
-      }
+    const parked = $(".tx-parked");
+    parked.innerHTML = IDS.filter((id) => state.clients[id].waitingFor && id !== hideParked)
+      .map((id) => {
+        const row = state.clients[id].waitingFor;
+        return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: `UPD ${row}`, color: COLORS[id], w: 2.4 })}</g>`;
+      })
+      .join("");
+    for (const g of parked.children) place(g, ...PARK[g.dataset.park], 0);
+    // Wait-for edges: lit while the waiter's row is held by the other transaction.
+    for (const id of IDS) {
+      const row = state.clients[id].waitingFor;
+      const on = Boolean(row && state.rows[row].owner === other(id));
+      const edge = $(`[data-edge="${id}"]`);
+      if (!keepEdges) edge.classList.toggle("is-on", on);
+      edge.classList.toggle("is-cycle", state.deadlocked);
+      edge.classList.toggle("is-detected", state.deadlocked && state.detected);
     }
   }
-  function snap(state) {
-    paintedState = state;
-    paintRoutes(state);
-    host.dataset.deadlocked = String(state.deadlocked);
-    for (const id of ids) {
-      const client = state.clients[id],
-        waiting = client.waitingFor,
-        waitingRow = waiting ? state.rows[waiting] : null,
-        ready = !!waitingRow && !waitingRow.owner,
-        held = client.held.length
-          ? client.held.map((row) => `행 ${row}`).join(" · ")
-          : "없음";
-      let label = statusLabel[client.status];
-      if (ready) label = "재개 가능";
-      if (state.detected && state.victim === id && client.status !== "aborted")
-        label = "중단 대상";
-      cards[id].dataset.status = client.status;
-      cards[id].dataset.ready = String(ready);
-      cards[id].dataset.victim = String(
-        state.detected && state.victim === id && client.status !== "aborted",
-      );
-      cards[id].querySelector("[data-status]").textContent = label;
-      cards[id].querySelector("[data-held]").textContent = held;
-      cards[id].querySelector("[data-waiting]").textContent = waiting
-        ? `${waiting} · ${ready ? "재개 가능" : waitingRow.owner + " 보유"}`
-        : "없음";
-      cards[id].setAttribute(
-        "aria-label",
-        `${id} ${label}. 보유 ${held}. ${waiting ? waiting + " 대기, " + (ready ? "재개 가능" : "보유자 " + waitingRow.owner) : "대기 없음"}`,
-      );
-    }
-    for (const row of rowIds) {
-      const data = state.rows[row],
-        card = rows[row],
-        waiting = data.waiting[0],
-        ready = waiting && !data.owner;
-      card.style.setProperty(
-        "--owner",
-        data.owner ? color(data.owner) : "var(--border)",
-      );
-      card.dataset.owned = String(!!data.owner);
-      card.dataset.transition =
-        lastStep.action === "rollback" &&
-        row === "B" &&
-        state.rollbacks > lastStep.before.rollbacks
-          ? "rollback"
-          : lastStep.action === "commit" &&
-              state.commits > lastStep.before.commits
-            ? "commit"
-            : "none";
-      card.querySelector("[data-stock]").textContent = data.committed;
-      card.querySelector("[data-owner]").textContent = data.owner
-        ? `${data.owner} 보유`
-        : "잠금 없음";
-      card.querySelector("[data-pending]").textContent = data.pending
-        ? `${data.pending.client} · ${data.pending.value}`
-        : "없음";
-      const note = card.querySelector("[data-note]");
-      if (card.dataset.transition === "rollback")
-        note.innerHTML = `<s>${lastStep.before.rows[row].pending.value}</s> 폐기 · 확정 ${data.committed} 유지`;
-      else if (
-        lastStep.action === "rollback" &&
-        state.rollbacks > lastStep.before.rollbacks
-      )
-        note.textContent = "T2 대기 취소 · T1 보유";
-      else if (card.dataset.transition === "commit")
-        note.textContent = `${lastStep.before.rows[row].committed} → ${data.committed} 확정 · 잠금 해제`;
-      else
-        note.textContent = data.pending
-          ? "커밋 전 · 확정 값 유지"
-          : data.owner
-            ? "행 잠금 유지"
-            : "변경 없음";
-      queues[row].hidden = !waiting;
-      queues[row].dataset.ready = String(!!ready);
-      queues[row].innerHTML = waiting
-        ? `${badge(waiting)}<span>${row} ${ready ? "재개 가능" : "대기 중"}</span>`
-        : "";
-    }
-    cycle.dataset.cycle = String(state.deadlocked);
-    cycle.querySelector("[data-cycle-title]").textContent = state.deadlocked
-      ? state.detected
-        ? "교착 감지 · T2 중단 선택"
-        : "순환 대기 · 서로 진행 불가"
-      : ids.some(
-            (id) =>
-              state.clients[id].waitingFor &&
-              state.rows[state.clients[id].waitingFor].owner,
-          )
-        ? "잠금 해제를 기다리는 중"
-        : ids.some((id) => state.clients[id].waitingFor)
-          ? "교착 해소 · 요청 재개 가능"
-          : state.commits
-            ? "완료 · 모든 잠금 해제"
-            : state.rollbacks
-              ? "교착 해소 · T1 실행 중"
-              : "대기 관계 없음";
-    cycle.querySelector("[data-cycle-edges]").innerHTML =
-      ids
-        .filter((id) => state.clients[id].waitingFor)
-        .map((id) => {
-          const row = state.clients[id].waitingFor,
-            owner = state.rows[row].owner;
-          return id === "T2" && owner
-            ? `<div class="dl-reverse" aria-label="T2는 T1의 A 잠금을 기다림">${badge(owner)}<b class="dl-wait-arrow" aria-hidden="true">←</b><span>${row} 잠금 기다림</span>${badge(id)}</div>`
-            : `<div>${badge(id)}<span>${row} 잠금 ${owner ? "기다림" : "해제됨"}</span><b class="dl-wait-arrow" aria-hidden="true">→</b>${owner ? badge(owner) : '<b class="dl-free-label">재개</b>'}</div>`;
-        })
-        .join("") ||
-      `<p>${state.commits ? "커밋 완료 · 모든 잠금이 풀렸습니다" : state.rollbacks ? "순환이 풀리고 T1이 작업을 이어갑니다" : "실선은 잠금 보유 · 화살표는 대기 관계"}</p>`;
-  }
-  function phase(step, title, body, kind) {
-    callout.innerHTML = `${step.client ? badge(step.client) : ""}<strong>${title}</strong>`;
-    if (step.action === "commit" && ["database", "response"].includes(kind)) {
-      cards.T1.querySelector("[data-status]").textContent = "커밋 응답 대기";
-      cards.T1.setAttribute(
-        "aria-label",
-        "T1 커밋 응답 대기. 보유 없음. 대기 없음",
-      );
-    }
-    onPhase({ title, body, kind, snapshot: paintedState });
-  }
-  function completeTitle(step) {
-    switch (step.action) {
-      case "initial":
-        return "서로 다른 순서로 두 행을 갱신합니다";
-      case "begin":
-        return `${step.client} 트랜잭션 시작`;
-      case "write":
-        return `${step.client} · ${step.row} 쓰기 후 잠금 보유`;
-      case "wait":
-        return step.state.deadlocked
-          ? "T1 → T2 → T1 · 순환 대기"
-          : "T1은 B를 기다리며 A를 계속 보유";
-      case "detect":
-        return "교착 상태 감지 · 예제에서는 T2 선택";
-      case "rollback":
-        return "T2 롤백 · B 잠금 해제 · T1 재개 가능";
-      case "resume":
-        return "T1의 B 요청 재개 · A와 B 모두 보유";
-      case "commit":
-        return "A 9 · B 19 확정 · 모든 잠금 해제";
-    }
-  }
-  function cancel() {
-    if (active) {
-      active.cancelled = true;
-      for (const animation of active.animations) animation.cancel();
-    }
-    active = null;
-    packet.hidden = true;
-    host
-      .querySelectorAll("[data-active]")
-      .forEach((e) => delete e.dataset.active);
-  }
-  async function animate(run, element, keyframes, options) {
-    const animation = element.animate(keyframes, options);
-    animation.playbackRate = run.speed;
-    run.animations.add(animation);
-    if (run.paused) animation.pause();
-    await animation.finished.catch(() => {});
-    run.animations.delete(animation);
-  }
-  async function travel(run, id, label, route) {
-    if (run.cancelled) return;
-    run.updateRoute = () => {
-      const data = route();
-      const line = svg.querySelector(".dl-motion-path");
-      line.setAttribute("d", data);
-      line.dataset.active = "true";
-      line.dataset.response = String(["확인", "확정"].includes(label));
-      line.style.setProperty("--actor", color(id));
-      packet.style.offsetPath = `path("${data}")`;
-      return line.getTotalLength();
-    };
-    const length = run.updateRoute();
-    packet.textContent = label;
-    packet.style.setProperty("--actor", color(id));
-    packet.hidden = false;
-    await animate(run, packet, [
-      { offsetDistance: "0%", opacity: 0 },
-      { opacity: 1, offset: 0.04 },
-      { opacity: 1, offset: 0.96 },
-      { offsetDistance: "100%", opacity: 0 },
-    ], {
-      duration: 320 + length * 1.1,
-      easing: "linear",
-    });
-    if (!run.cancelled) {
-      packet.hidden = true;
-      run.updateRoute = null;
-      delete svg.querySelector(".dl-motion-path").dataset.active;
-    }
-  }
-  async function update(
-    step,
-    previous = null,
-    { animate: motion = true, speed = 1 } = {},
-  ) {
-    cancel();
-    lastStep = step;
-    if (motion && matchMedia("(max-width: 759px)").matches) {
-      host.scrollIntoView({ block: "end", behavior: "instant" });
-    }
-    if (!motion || !previous || reduced.matches || step.index === 0) {
-      snap(getDeadlockPresentationState(step, "complete"));
-      phase(step, completeTitle(step), "", "complete");
+
+  const phase = (title, body = "") => onPhase({ title, body, snapshot: painted });
+  const slotOf = (row) => [PENDING_X, ROWS[row], DB_TOP];
+
+  async function update(step, previous = null, { animate = true, speed = 1 } = {}) {
+    runner.cancel();
+    moves.reset();
+    if (!animate || !previous || runner.reduced || step.index === 0) {
+      paint(getDeadlockPresentationState(step, "complete"));
+      phase(completedTitle(step));
       return;
     }
-    const run = { cancelled: false, paused: false, speed, animations: new Set() };
-    active = run;
-    const row = step.row;
-    snap(getDeadlockPresentationState(step, "request"));
-    if (step.action === "detect") {
-      phase(
-        step,
-        "DB가 순환 대기를 확인합니다",
-        "T1은 T2가 가진 B를, T2는 T1이 가진 A를 기다립니다. 둘 다 스스로 진행할 수 없습니다.",
-        "request",
-      );
-      await animate(
-        run,
-        cycle,
-        [
-          { outlineColor: "var(--warning)" },
-          { outlineColor: "var(--warning)" },
-        ],
-        { duration: 1100 },
-      );
-      if (run.cancelled) return;
-      snap(getDeadlockPresentationState(step, "database"));
-      phase(
-        step,
-        "예제에서는 T2를 중단 대상으로 선택",
-        "실제 PostgreSQL이 어느 트랜잭션을 중단할지는 미리 보장할 수 없습니다.",
-        "database",
-      );
-      await animate(
-        run,
-        cards.T2,
-        [{ transform: "translateY(-3px)" }, { transform: "translateY(0)" }],
-        { duration: 650 },
-      );
-    } else if (step.action === "rollback") {
-      phase(
-        step,
-        "DB가 T2를 중단합니다",
-        "T2의 미확정 쓰기, 보유 잠금, 기다리던 요청을 함께 정리합니다. 클라이언트가 새 ROLLBACK 요청을 보내는 장면은 아닙니다.",
-        "request",
-      );
-      await animate(
-        run,
-        cards.T2,
-        [
-          { outlineColor: "var(--warning)" },
-          { outlineColor: "var(--warning)" },
-        ],
-        { duration: 650 },
-      );
-      if (run.cancelled) return;
-      snap(getDeadlockPresentationState(step, "database"));
-      phase(
-        step,
-        "T2의 19 폐기 · B의 확정 20 유지",
-        "B 잠금과 A 대기를 함께 해제했습니다. T1의 A 미확정 9는 그대로이며, B 요청이 이제 진행할 수 있습니다.",
-        "database",
-      );
-      await animate(
-        run,
-        rows.B.querySelector("[data-note]"),
-        [
-          { opacity: 0.35, transform: "translateY(-4px)" },
-          { opacity: 1, transform: "translateY(0)" },
-          { opacity: 1 },
-        ],
-        { duration: 1300 },
-      );
-    } else {
-      if (step.action === "resume") {
+    if (mobile.matches) host.scrollIntoView({ block: "nearest", behavior: "instant" });
+    runner.start(speed);
+    const id = step.client;
+    const { action, row } = step;
+    paint(getDeadlockPresentationState(step, "request"));
+
+    switch (action) {
+      case "begin":
+      case "write":
+      case "wait":
+      case "commit": {
+        const label = action === "begin" ? "BEGIN" : action === "commit" ? "COMMIT" : `UPD ${row}`;
         phase(
-          step,
-          "DB에서 대기하던 B 요청을 이어서 처리",
-          "새 SQL을 보내지 않습니다. T2가 놓은 B 잠금 앞에서 기존 요청이 재개됩니다.",
-          "request",
+          action === "begin" ? `${id} → DB · 트랜잭션 시작 요청` : action === "commit" ? `${id} → DB · COMMIT 요청` : `${id} → DB · ${row} 재고 감소 요청`,
+          action === "begin"
+            ? "BEGIN만으로 재고 행 잠금을 얻지는 않습니다."
+            : action === "commit"
+              ? "커밋이 도착하면 이 트랜잭션의 미확정 값이 확정되고 잠금이 풀립니다."
+              : step.state.rows[row].owner === id
+                ? `${row} 행에 잠금이 없으면 UPDATE가 잠금을 얻고 stock − 1을 계산합니다.`
+                : `${row} 행은 ${ga(step.before.rows[row].owner)} 잠갔습니다. 이 UPDATE는 DB 앞에서 기다립니다.`,
         );
-        queues[row].hidden = true;
-        await travel(run, step.client, "B 재개", () => resumePath(row));
-      } else {
-        phase(
-          step,
-          step.action === "wait"
-            ? `${step.client} · ${row} 잠금 요청`
-            : step.action === "commit"
-              ? "두 행의 변경을 COMMIT 요청"
-              : step.action === "begin"
-                ? "트랜잭션 시작 요청"
-                : `${row} 재고를 1 줄이는 요청`,
-          step.action === "commit"
-            ? "DB에 도착하기 전에는 A와 B의 값이 미확정이며 T1이 두 잠금을 보유합니다."
-            : step.action === "begin"
-              ? "트랜잭션을 시작합니다. BEGIN만으로 A나 B의 행 잠금을 얻지는 않습니다."
-              : "요청이 DB에 도착하면 해당 행의 잠금 상태를 확인합니다.",
-          "request",
-        );
-        await travel(
-          run,
-          step.client,
-          step.action === "begin"
-            ? "시작"
-            : step.action === "commit"
-              ? "커밋"
-              : `${row} 쓰기`,
-          () => requestPath(step.client, row, step.action === "wait"),
-        );
-      }
-      if (run.cancelled) return;
-      snap(getDeadlockPresentationState(step, "database"));
-      if (step.action === "wait") {
-        phase(
-          step,
-          step.state.deadlocked
-            ? "서로 상대 잠금을 기다립니다"
-            : `${step.client}의 ${row} 요청 대기`,
-          step.state.deadlocked
-            ? "T1은 A를 쥔 채 B를, T2는 B를 쥔 채 A를 기다립니다. 대기 경로가 원을 이룹니다."
-            : "T1이 A를 놓고 기다리는 것이 아닙니다. A 잠금을 유지한 채 T2의 B를 기다립니다.",
-          "database",
-        );
-        await animate(
-          run,
-          queues[row],
-          [{ transform: "translateY(-4px)" }, { transform: "translateY(0)" }],
-          { duration: 450 },
-        );
-      } else {
-        if (step.action === "commit") {
+        const route = action === "wait" ? [...ROUTES[id].slice(0, -1), PARK[id]] : ROUTES[id];
+        if (!(await moves.send(id, label, route))) return;
+        if (action === "wait") {
+          moves.reset();
+          paint(getDeadlockPresentationState(step, "database"));
           phase(
-            step,
-            "A 10 → 9 · B 20 → 19 확정",
-            "두 미확정 값이 함께 확정되고 T1의 모든 행 잠금이 해제됩니다. T2는 롤백된 상태로 남습니다.",
-            "database",
+            step.state.deadlocked ? "순환 대기 · 서로가 가진 잠금을 기다립니다" : `${neun(id)} ${row} 잠금을 기다리며 ${step.state.clients[id].held.join("·")} 잠금을 유지합니다`,
+            step.state.deadlocked
+              ? "T1은 B를 가진 T2를, T2는 A를 가진 T1을 기다립니다. 둘 다 잠금을 놓지 않아 진행할 수 없습니다."
+              : "기다리는 동안 먼저 얻은 잠금과 미확정 쓰기는 유지됩니다.",
           );
-          await Promise.all(
-            rowIds.map((r) =>
-              animate(
-                run,
-                rows[r].querySelector("[data-stock]"),
-                [
-                  { backgroundColor: "var(--selected)", color: "var(--on-selected)" },
-                  { backgroundColor: "var(--selected)", color: "var(--on-selected)", offset: 0.6 },
-                  { backgroundColor: "transparent", color: "var(--ink)" },
-                ],
-                { duration: 1200 },
-              ),
-            ),
-          );
-          if (run.cancelled) return;
+          if (!(await runner.hold(step.state.deadlocked ? 700 : 420))) return;
+          break;
         }
-        phase(
-          step,
-          step.action === "resume"
-            ? "T1이 B도 보유 · 재고 19는 미확정"
-            : step.action === "commit"
-              ? "커밋 완료 응답이 돌아갑니다"
-              : "DB 처리 결과가 돌아갑니다",
-          step.action === "resume"
-            ? "롤백으로 남은 확정 값 20에서 1을 줄였습니다. T1은 A와 B를 모두 커밋까지 보유합니다."
-            : "DB에 적용된 상태를 클라이언트에 알립니다.",
-          "response",
-        );
-        await travel(
-          run,
-          step.client,
-          step.action === "commit" ? "확정" : "확인",
-          () => requestPath(step.client, row, false, true),
-        );
+        if (action === "write") {
+          if (!(await moves.rise(id, slotOf(row)))) return;
+          paint(getDeadlockPresentationState(step, "database"));
+        } else if (action === "commit") {
+          moves.reset();
+          phase(`${id} 커밋 · 두 행의 미확정 값을 확정`, "T1의 A·B 쓰기가 함께 확정되고 두 행 잠금이 해제됩니다.");
+          const merges = [...svg.querySelectorAll(".tx-pend")].map((el) => moves.merge(el, slotOf(el.dataset.pend), [LCD_X, ROWS[el.dataset.pend], DB_TOP]));
+          if (!(await Promise.all(merges)).every(Boolean)) return;
+          paint(getDeadlockPresentationState(step, "database"));
+        } else {
+          moves.reset();
+          if (!(await moves.flashDatabase())) return;
+          paint(getDeadlockPresentationState(step, "database"));
+        }
+        phase(`DB → ${id} · 처리 완료`, action === "write" ? `${row}의 미확정 값은 ${step.state.rows[row].pending.value}입니다. 확정 재고는 그대로입니다.` : "클라이언트에 처리 결과를 알립니다.");
+        if (!(await moves.respond(id, "OK"))) return;
+        break;
+      }
+      case "detect": {
+        phase("DB가 대기 관계의 순환을 확인합니다", "기다림의 방향을 따라가면 원래 트랜잭션으로 돌아옵니다.");
+        if (!(await moves.flashDatabase(3))) return;
+        paint(getDeadlockPresentationState(step, "database"));
+        phase(`${eul(step.state.victim)} 중단 대상으로 선택`, "아직 롤백 전이므로 잠금과 미확정 값은 그대로입니다.");
+        if (!(await runner.hold(500))) return;
+        break;
+      }
+      case "rollback": {
+        phase(`${id} 롤백 · 미확정 쓰기와 잠금을 버립니다`, `${id}의 B 미확정 값과 B 잠금, A에 걸린 대기 요청이 함께 취소됩니다.`);
+        const mine = [...svg.querySelectorAll(".tx-pend")].filter((el) => el.dataset.key.startsWith(`${id}:`));
+        const fades = mine.map((el) => runner.animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: 520, fill: "forwards" }));
+        if (!(await Promise.all(fades)).every(Boolean)) return;
+        const state = getDeadlockPresentationState(step, "database");
+        paint(state, { hideParked: null });
+        // The parked request goes back to T2 as an error, not as a new SQL.
+        phase(`DB → ${id} · 교착 상태 오류 (40P01)`, "DB가 T2를 중단했습니다. T2를 자동으로 재시도하지 않습니다.");
+        if (!(await moves.respond(id, "ERROR", PARK[id]))) return;
+        break;
+      }
+      case "resume": {
+        phase(`${id} · 대기하던 ${row} UPDATE를 이어서 실행`, "새 SQL을 보내지 않고 DB에 대기 중이던 UPDATE가 이어집니다.");
+        paint(getDeadlockPresentationState(step, "request"), { hideParked: id });
+        if (!(await moves.send(id, `UPD ${row}`, [PARK[id], moves.edge(id)]))) return;
+        if (!(await moves.rise(id, slotOf(row)))) return;
+        paint(getDeadlockPresentationState(step, "database"));
+        phase(`DB → ${id} · 처리 완료`, `${row}의 미확정 값 ${neun(step.state.rows[row].pending.value)} ${ga(id)} 새로 만든 값입니다.`);
+        if (!(await moves.respond(id, "OK"))) return;
+        break;
       }
     }
-    if (run.cancelled) return;
-    snap(getDeadlockPresentationState(step, "complete"));
-    phase(step, completeTitle(step), "", "complete");
-    active = null;
+    paint(getDeadlockPresentationState(step, "complete"));
+    phase(completedTitle(step));
+    runner.end();
   }
-  draw();
-  const observer = new ResizeObserver(() => {
-    if (Math.abs(host.clientWidth - layout.width) > 1) draw();
-  });
-  observer.observe(host);
-  return {
-    update,
-    setSpeed(speed) {
-      if (!active) return;
-      active.speed = speed;
-      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
-    },
-    pause() {
-      if (active) {
-        active.paused = true;
-        active.animations.forEach((a) => a.pause());
-      }
-    },
-    resume() {
-      if (active) {
-        active.paused = false;
-        active.animations.forEach((a) => a.play());
-      }
-    },
-  };
+
+  return { update, pause: runner.pause, resume: runner.resume, setSpeed: runner.setSpeed };
 }

@@ -1,37 +1,35 @@
-// Reconstructed from the distributed Protocol Explorer JavaScript.
-import { translate, translatedElementContent } from "../i18n.js";
+// Stage plate: one scene that shows either the isometric network or the
+// sequence diagram. Both views read the same playback and share packet flights.
+import { translate } from "../i18n.js";
 import { renderNetworkDiagram } from "../simulation/network-drawing.js";
 import { renderSequencePanel } from "./sequence.js";
-import { renderPacketInspector } from "./inspector.js";
+
 const SIMULATION_VIEWS = [
-  [
-    "network",
-    "NETWORK",
-    '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 1.8 L14 5 L8 8.2 L2 5 Z M2 8.4 L8 11.6 L14 8.4 M2 11.6 L8 14.8 L14 11.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>',
-  ],
-  [
-    "sequence",
-    "SEQUENCE",
-    '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 1.5 V14.5 M13 1.5 V14.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/><path d="M3 4.5 L12 6.5 M12 6.5 L9.6 7.4 M12 6.5 L10.2 4.6 M13 9.5 L4 11.5 M4 11.5 L5.8 9.6 M4 11.5 L6.4 12.4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg>',
-  ],
+  ["network", "NETWORK"],
+  ["sequence", "SEQUENCE"],
 ];
 
 function renderSimulationPanel() {
   const viewButtons = SIMULATION_VIEWS.map(
-    ([view, label, icon], index) =>
-      `<button type="button" role="tab" data-view="${view}" aria-selected="${index === 0}" class="${index === 0 ? "is-active" : ""}">${icon}<span ${translatedElementContent(label)}</span></button>`,
+    ([view, label], index) =>
+      `<button type="button" role="tab" data-view="${view}" aria-selected="${index === 0}">${translate(label)}</button>`,
   ).join("");
   return `
-  <section class="panel simulation">
-    ${renderNetworkDiagram()}
-    <div class="dns-readout" hidden></div>
-    ${renderSequencePanel()}
-    <div class="view-switch" role="tablist" data-t-label="View" aria-label="${translate("View")}" data-t-title="Switch view (V)" title="${translate("Switch view (V)")}">${viewButtons}<i class="view-indicator"></i></div>
-    ${renderPacketInspector()}
+  <section class="hw-plate hw-stage pe-stage">
+    <div class="hw-plate-head">
+      <span class="hw-label"><span class="hw-index">A</span> 통신 장면</span>
+      <div class="hw-seg view-switch" role="tablist" aria-label="${translate("View")}" title="${translate("Switch view (V)")}">${viewButtons}</div>
+      <span class="hw-lcd stage-lcd" aria-hidden="true"><span class="stage-lcd-value">--</span><small class="stage-lcd-unit">STEP</small></span>
+    </div>
+    <div class="hw-scene pe-scene simulation">
+      ${renderNetworkDiagram()}
+      ${renderSequencePanel()}
+    </div>
+    <div class="hw-plate-foot stage-foot" aria-live="polite"><span class="hw-led stage-led"></span><span class="stage-status"></span></div>
   </section>`;
 }
-const VIEW_STORAGE_KEY = "protocol-explorer:view";
 
+const VIEW_STORAGE_KEY = "protocol-explorer:view";
 const readSavedView = () => {
   try {
     return localStorage.getItem(VIEW_STORAGE_KEY);
@@ -40,19 +38,13 @@ const readSavedView = () => {
   }
 };
 
-function createViewSwitcher(panel, onViewChange = () => {}) {
-  const indicator = panel.querySelector(".view-indicator");
+function createViewSwitcher(stage, onViewChange = () => {}) {
+  const scene = stage.querySelector(".simulation");
   function selectView(view, persist = true) {
-    panel.classList.toggle("is-sequence", view === "sequence");
-    panel.querySelectorAll(".view-switch button").forEach((button) => {
-      const selected = button.dataset.view === view;
-      button.classList.toggle("is-active", selected);
-      button.setAttribute("aria-selected", selected);
-      if (selected) {
-        indicator.style.left = `${button.offsetLeft}px`;
-        indicator.style.width = `${button.offsetWidth}px`;
-      }
-    });
+    scene.classList.toggle("is-sequence", view === "sequence");
+    stage.querySelectorAll(".view-switch button").forEach((button) =>
+      button.setAttribute("aria-selected", button.dataset.view === view),
+    );
     onViewChange(view);
     if (persist) {
       try {
@@ -60,30 +52,16 @@ function createViewSwitcher(panel, onViewChange = () => {}) {
       } catch {}
     }
   }
-  panel.querySelector(".view-switch").addEventListener("click", (event) => {
+  stage.querySelector(".view-switch").addEventListener("click", (event) => {
     const button = event.target.closest("button");
-    if (button) {
-      selectView(button.dataset.view);
-    }
+    if (button) selectView(button.dataset.view);
   });
   selectView(readSavedView() === "sequence" ? "sequence" : "network", false);
-  requestAnimationFrame(() => indicator.classList.add("is-ready"));
-  const positionIndicator = () => {
-    const selectedButton = panel.querySelector(".view-switch button.is-active");
-    indicator.style.left = `${selectedButton.offsetLeft}px`;
-    indicator.style.width = `${selectedButton.offsetWidth}px`;
-  };
-  const resizeObserver = new ResizeObserver(positionIndicator);
-  panel
-    .querySelectorAll(".view-switch button")
-    .forEach((button) => resizeObserver.observe(button));
   return {
     toggle: () =>
-      selectView(
-        panel.classList.contains("is-sequence") ? "network" : "sequence",
-      ),
-    view: () =>
-      panel.classList.contains("is-sequence") ? "sequence" : "network",
+      selectView(scene.classList.contains("is-sequence") ? "network" : "sequence"),
+    view: () => (scene.classList.contains("is-sequence") ? "sequence" : "network"),
   };
 }
+
 export { createViewSwitcher, renderSimulationPanel };

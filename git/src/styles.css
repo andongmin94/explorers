@@ -1,1442 +1,454 @@
-@font-face {
-  font-family: Pretendard;
-  src: url("/fonts/PretendardVariable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-:root {
-  font-family: Pretendard, sans-serif;
-  font-synthesis: none;
-  font-weight: 450;
-  color: var(--ink);
-  background: var(--bg);
-  --bg: #f2f2f4;
-  --surface: #fff;
-  --soft: #edeef0;
-  --selected: #27282b;
-  --on-selected: #f4f5f7;
-  --control-card: #f4f5f7;
-  --control-neutral: #fff;
-  --control-ink: #000;
-  --control-border: #000;
-  --control-shadow: var(--control-border);
-  --ink: #34363b;
-  --border: #65676d;
-  --muted: #656771;
-  --rule: #d4d5da;
-  --shadow: #787a80;
-  --inverse: #fff;
-  --main: #3971d9;
-  --feature: #168264;
-  --warning: #956112;
-  --grid: #dcdde2;
-  --top: #fafafa;
-  --front: #e6e7ea;
-  --side: #c4c6cc;
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #191a1d;
-  --surface: #24252a;
-  --soft: #303138;
-  --selected: #e4e7ec;
-  --on-selected: #000;
-  --control-card: #18191c;
-  --control-neutral: oklch(23.93% 0 0);
-  --control-ink: oklch(92.49% 0 0);
-  --ink: #ebecef;
-  --border: #898c96;
-  --muted: #b1b4bd;
-  --rule: #454750;
-  --shadow: #0c0d10;
-  --inverse: #24252a;
-  --main: #8eb0ff;
-  --feature: #6ccead;
-  --warning: #e2b467;
-  --grid: #3d3f46;
-  --top: #62656e;
-  --front: #454750;
-  --side: #35373e;
-}
-* {
-  box-sizing: border-box;
-}
-body {
-  margin: 0;
-}
-h1,
-h2,
-h3,
-h4,
-p {
-  margin: 0;
-}
-button,
-input,
-code {
-  font: inherit;
-}
-button {
-  color: inherit;
-  cursor: pointer;
-  touch-action: manipulation;
-}
-button:disabled {
-  opacity: 0.42;
-  cursor: default;
-}
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-summary:focus-visible {
-  outline: 3px solid var(--ink);
-  outline-offset: 4px;
-}
-[hidden] {
-  display: none !important;
-}
-a {
-  color: inherit;
-  text-underline-offset: 3px;
-}
-button:is(.button, .resolution-options > button, .record-tabs > button):enabled {
-  --travel: var(--rest, 0px);
-  --edge: calc(var(--depth, 4px) - var(--travel));
-  box-shadow: var(--edge) var(--edge) 0 var(--control-shadow);
+/* Git explorer: only what the shared kit (hw.css, iso-kit.js) does not cover. */
 
-  @media (prefers-reduced-motion: no-preference) {
-    translate: var(--travel) var(--travel);
-    transition: translate 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
-  }
-  @media (hover: hover) and (pointer: fine) {
-    &:hover { --travel: var(--hover-depth, 2px); }
-  }
-  &:active {
-    --travel: var(--depth, 4px);
-    transition-duration: 65ms;
-  }
-}
-@media (prefers-reduced-motion: no-preference) {
-  :is(button.milestone, .learning-mode button, .setup-toggle, .text-button, .log-entry):enabled {
-    transition: translate 140ms ease;
-    @media (hover: hover) and (pointer: fine) {
-      &:hover { translate: 1px 1px; }
-    }
-    &:active { translate: 2px 2px; transition-duration: 65ms; }
-  }
-}
-button svg {
-  width: 19px;
-  height: 19px;
-  flex: none;
-}
-.app-header {
-  min-height: 100px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 20px;
-  max-width: 1800px;
-  margin: auto;
-}
-.brand-icon {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--control-border);
-  background: var(--control-neutral);
-  color: var(--control-ink);
-  box-shadow: 3px 3px 0 var(--control-shadow);
-  border-radius: 3px;
-  flex: none;
-}
-.brand-icon svg {
-  width: 29px;
-  height: 29px;
-}
-.app-header h1 {
-  font-size: 27px;
-  letter-spacing: -0.8px;
-  font-weight: 850;
-}
-.app-header p {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 5px;
-}
-.scenario-heading {
-  display: grid;
-  gap: 6px;
-  margin-left: 18px;
-  padding-left: 26px;
-  border-left: 1px solid var(--rule);
-}
-.scenario-heading small {
-  font-size: 12px;
-  color: var(--muted);
-}
-.scenario-heading strong {
-  font-size: 15px;
-}
-.theme-button {
-  margin-left: auto;
-}
-.button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 8px 12px;
-  border: 2px solid var(--control-border);
-  border-radius: 5px;
-  background: var(--control-neutral);
-  color: var(--control-ink);
-  box-shadow: 4px 4px 0 var(--control-shadow);
-  font-size: 13px;
-  font-weight: 750;
-  line-height: 1.25;
-}
-.button.primary {
-  background: var(--selected);
-  color: var(--on-selected);
-}
-.icon-button {
-  width: 40px;
-  padding: 7px;
-  flex: none;
-}
-.button:disabled {
-  box-shadow: none;
-}
-.workspace {
-  display: grid;
-  grid-template-columns: 202px minmax(0, 1fr) 306px;
-  align-items: start;
-  gap: 12px;
-  padding: 0 20px;
-  max-width: 1800px;
-  margin: auto;
-}
-.panel {
-  border: 2px solid var(--control-border);
-  border-radius: 5px;
-  box-shadow: 4px 4px 0 var(--control-shadow);
-  background: var(--control-card);
-  min-width: 0;
-  overflow: hidden;
-}
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 46px;
-  padding: 10px 13px;
-  background: var(--soft);
-  border-bottom: 2px solid var(--border);
-  flex: none;
-}
-.panel-head h2 {
-  font-size: 16px;
-  font-weight: 850;
-  letter-spacing: -0.3px;
-}
-.panel-head > span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.setup-toggle {
-  width: 100%;
-  border-top: 0;
-  border-left: 0;
-  border-right: 0;
-  text-align: left;
-}
-.setup-content {
-  padding: 16px 12px;
-}
-.setup-intro {
-  font-size: 13px;
-  line-height: 1.65;
-  word-break: keep-all;
-}
-.file-label {
-  display: grid;
-  gap: 6px;
-  margin: 16px 0;
-  padding: 12px;
-  border: 2px solid var(--border);
-  background: var(--soft);
-  box-shadow: 2px 2px 0 var(--shadow);
-}
-.file-label > span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.file-label strong {
-  font-size: 17px;
-}
-.file-label small {
-  font-size: 11px;
-  color: var(--muted);
-}
-.branch-legend {
-  display: grid;
-  gap: 12px;
-  margin: 18px 0 24px;
-}
-.branch-legend > div {
-  display: grid;
-  gap: 6px;
-  justify-items: start;
-}
-.branch-legend span {
-  font-size: 12px;
-  color: var(--muted);
-}
-.branch-tag {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 6px;
-  font-size: 12px;
-  line-height: 1.25;
-  border: 1.5px solid currentColor;
-  white-space: nowrap;
-  background: var(--surface);
-}
-.branch-tag.main {
-  color: var(--main);
-  background: color-mix(in srgb, var(--main) 8%, var(--surface));
-}
-.branch-tag.feature {
-  color: var(--feature);
-  background: color-mix(in srgb, var(--feature) 8%, var(--surface));
-}
-.section-label {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 700;
-  margin-bottom: 10px;
-}
-#milestones {
-  display: grid;
-  gap: 7px;
-}
-.milestone {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 8px;
-  border: 1.5px solid transparent;
-  background: none;
-  text-align: left;
-  font-size: 13px;
-  font-weight: 700;
-}
-.milestone > b {
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-  border: 1.5px solid var(--control-border);
-  background: var(--soft);
-  font-size: 12px;
-  flex: none;
-}
-.milestone i {
-  font-style: normal;
-  font-size: 12px;
-  margin-left: auto;
-}
-.milestone[aria-current="step"] {
-  background: var(--soft);
-  border-color: var(--control-border);
-  box-shadow: 2px 2px 0 var(--control-shadow);
-}
-.milestone[aria-current="step"] > b {
-  color: var(--on-selected);
-  background: var(--selected);
-}
-.setup-tip {
-  margin-top: 22px;
-  padding-top: 16px;
-  border-top: 1px solid var(--rule);
-}
-.setup-tip b {
-  font-size: 12px;
-}
-.setup-tip p,
-.scope p {
-  font-size: 12px;
-  line-height: 1.8;
-  color: var(--muted);
-  margin-top: 7px;
-}
-.scope {
-  margin-top: 15px;
-}
-.scope summary {
-  font-size: 11px;
-  cursor: pointer;
-}
-.step-clock {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.step-clock b {
-  font-size: 22px;
-  line-height: 1;
-}
-.step-clock span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.scene-summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-top: 2px solid var(--border);
-  border-bottom: 2px solid var(--border);
-  background: var(--soft);
-  min-height: 68px;
-}
-.scene-summary > div {
-  display: grid;
-  gap: 6px;
-}
-.scene-summary strong {
-  font-size: 13px;
-  line-height: 1.4;
-}
-.scene-summary span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.replay {
-  min-height: 35px;
-  padding: 6px 9px;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.transport {
-  padding: 13px 16px 12px;
-}
-.learning-mode {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.learning-mode > button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 0;
-  background: none;
-  padding: 0;
-  font-size: 11px;
-  white-space: nowrap;
-}
-.learning-mode i {
-  position: relative;
-  width: 26px;
-  height: 18px;
-  border: 2px solid var(--border);
-  background: var(--surface);
-  border-radius: 1px;
-  flex: none;
-}
-.learning-mode i:before {
-  content: "";
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 8px;
-  height: 10px;
-  background: var(--ink);
-}
-.learning-mode button[aria-checked="true"] i {
-  background: var(--ink);
-}
-.learning-mode button[aria-checked="true"] i:before {
-  left: 12px;
-  background: var(--inverse);
-}
-#playback-hint {
-  font-size: 10px;
-  color: var(--muted);
-  line-height: 1.4;
-  text-align: right;
-}
-.playback-buttons {
-  display: grid;
-  grid-template-columns: 40px 40px minmax(110px, 1fr) 105px 44px;
-  gap: 9px;
-  max-width: 500px;
-  margin: auto;
-}
-.playback-buttons .button {
-  min-width: 0;
-  min-height: 42px;
-  padding: 7px 8px;
-  white-space: nowrap;
-}
-.seek-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 16px;
-  font-size: 11px;
-  font-weight: 750;
-}
-.seek-row input {
-  appearance: none;
-  width: 100%;
-  height: 8px;
-  border: 1.5px solid var(--border);
-  border-radius: 0;
-  background: var(--soft);
-  margin: 5px 0;
-}
-.seek-row input::-webkit-slider-thumb {
-  appearance: none;
-  width: 17px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-radius: 2px;
-  background: var(--border);
-  box-shadow: 2px 2px 0 var(--shadow);
-}
-.seek-row input::-moz-range-thumb {
-  width: 14px;
-  height: 17px;
-  border: 2px solid var(--border);
-  border-radius: 2px;
-  background: var(--border);
-  box-shadow: 2px 2px 0 var(--shadow);
-}
-.lesson-content {
-  padding: 19px 14px;
-}
-.eyebrow {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 650;
-  margin-bottom: 9px;
-}
-.lesson-content h3 {
-  font-size: 22px;
-  font-weight: 850;
-  letter-spacing: -0.6px;
-  line-height: 1.35;
-  word-break: keep-all;
-}
-.lesson-body {
-  font-size: 13px;
-  line-height: 1.8;
-  margin-top: 12px;
-  word-break: keep-all;
-}
-.command-card {
-  margin-top: 19px;
-  border: 2px solid var(--control-border);
-  box-shadow: 4px 4px 0 var(--control-shadow);
-  background: var(--control-card);
-  color: var(--control-ink);
-}
-.command-card > div {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--soft);
-}
-.command-card b {
-  font-size: 12px;
-}
-.command-card span {
-  font-size: 10px;
-  color: var(--muted);
-}
-.command-card code {
-  display: block;
-  padding: 12px 10px;
-  font-size: 12px;
-  line-height: 1.6;
-  font-weight: 650;
-  overflow-wrap: anywhere;
-}
-.phase-note {
-  padding: 16px 0 13px;
-}
-.phase-note strong {
-  font-size: 12px;
-  line-height: 1.5;
-}
-.phase-note p {
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.7;
-  margin-top: 6px;
-  word-break: keep-all;
-}
-.facts {
-  font-size: 11px;
-  border-top: 2px solid var(--border);
-  border-bottom: 1px solid var(--rule);
-}
-.facts-heading {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 3px;
-}
-.facts-heading span {
-  font-size: 10px;
-  color: var(--muted);
-}
-.fact {
-  display: grid;
-  grid-template-columns: 66px 1fr 10px 1fr;
-  gap: 5px;
-  padding: 9px 3px;
-  border-top: 1px solid var(--rule);
-  align-items: center;
-}
-.fact small {
-  font-size: 11px;
-  color: var(--muted);
-}
-.fact i {
-  font-style: normal;
-  color: var(--muted);
-}
-.fact.changed {
-  background: var(--soft);
-}
-.fact b {
-  font-size: 11px;
-}
-.lesson-details {
-  padding-left: 15px;
-  margin: 17px 0;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-.lesson-details li + li {
-  margin-top: 6px;
-}
-.takeaway {
-  padding-top: 13px;
-  border-top: 1px solid var(--rule);
-}
-.takeaway > b {
-  font-size: 11px;
-}
-.takeaway p {
-  font-size: 12px;
-  font-weight: 650;
-  line-height: 1.7;
-  margin-top: 6px;
-  word-break: keep-all;
-}
-.prediction-button {
-  width: 100%;
-  margin-top: 16px;
-  font-size: 12px;
-  white-space: normal;
-}
-.resolution {
-  margin-top: 20px;
-  border-top: 2px solid var(--border);
-  padding-top: 16px;
-}
-.resolution-heading > span {
-  display: inline-block;
-  border: 1.5px solid var(--border);
-  background: var(--selected);
-  color: var(--on-selected);
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 6px;
-  margin-bottom: 9px;
-}
-.resolution h4 {
-  font-size: 18px;
-  letter-spacing: -0.4px;
-}
-.resolution > p {
-  font-size: 12px;
-  line-height: 1.6;
-  margin-top: 8px;
-  color: var(--muted);
-}
-.resolution-options {
-  display: grid;
-  gap: 10px;
-  margin: 14px 0;
-}
-.resolution-options > button {
-  display: grid;
-  gap: 7px;
-  text-align: left;
-  padding: 11px;
-  border: 2px solid var(--control-border);
-  border-radius: 2px;
-  background: var(--control-neutral);
-  color: var(--control-ink);
-  box-shadow: 3px 3px 0 var(--control-shadow);
-}
-.resolution-options b {
-  font-size: 13px;
-}
-.resolution-options span {
-  font-size: 12px;
-  line-height: 1.6;
-  word-break: keep-all;
-  color: var(--muted);
-}
-.resolution .resolution-foot {
-  font-size: 10px;
-  font-weight: 650;
-}
-.chosen-resolution {
-  margin-top: 20px;
-  padding: 12px;
-  border: 2px solid var(--border);
-  display: grid;
-  gap: 7px;
-  background: var(--soft);
-}
-.chosen-resolution > span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.chosen-resolution > b {
-  font-size: 14px;
-}
-.text-button {
-  border: 0;
-  background: none;
-  padding: 0;
-  text-align: left;
-  font-size: 12px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  line-height: 1.5;
-}
-.records-panel {
-  grid-column: 1/-1;
-}
-.record-tabs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: var(--soft);
-  border-bottom: 2px solid var(--border);
-}
-.record-tabs > button {
-  min-height: 39px;
-  border: 2px solid var(--control-border);
-  border-radius: 3px;
-  background: var(--control-card);
-  color: var(--control-ink);
-  box-shadow: 3px 3px 0 var(--control-shadow);
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 750;
-}
-.record-tabs > button[aria-selected="true"] {
-  --rest: 2px;
-  --hover-depth: 3px;
-  background: var(--selected);
-  color: var(--on-selected);
-}
-.record-tabs > button > span {
-  font-size: 11px;
-  margin-left: 4px;
-}
-.record-hint {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--muted);
-}
-.step-strip {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(70px, 1fr));
-  overflow: auto;
-  border-bottom: 1px solid var(--rule);
-  scrollbar-width: thin;
-}
-.step-strip button {
-  border: 0;
-  border-right: 1px solid var(--rule);
-  padding: 11px 4px;
-  background: var(--control-card);
-  display: grid;
-  gap: 6px;
-  text-align: center;
-  color: var(--muted);
-}
-.step-strip button > b {
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-}
-.step-strip button > span {
-  font-size: 11px;
-  font-weight: 650;
-  white-space: nowrap;
-}
-.step-strip button.visited {
-  color: var(--ink);
-}
-.step-strip button[aria-current="step"] {
-  background: var(--selected);
-  color: var(--on-selected);
-}
-.record-heading {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  padding: 17px 17px 12px;
-}
-.record-heading h3 {
-  font-size: 15px;
-  font-weight: 850;
-}
-.record-heading > span {
-  font-size: 12px;
-  color: var(--muted);
-}
-.diff-grid {
+.git-page {
+  --git-main: #3b6fe0;
+  --git-feature: #13896a;
+  --git-base: #8d8a82;
+  --git-conflict: #d6453d;
+}
+
+/* ---------- Scene ---------- */
+
+.hw-scene#git-scene {
+  min-height: 0;
+  padding: 8px 12px 0;
+}
+.iso-path.git-route.is-active,
+.iso-path.git-route.is-conflict {
+  stroke-dasharray: none;
+}
+.iso-path.git-route.is-conflict {
+  stroke: var(--git-conflict);
+  stroke-width: 2.2;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--git-conflict) 60%, transparent));
+}
+.git-edge {
+  stroke-width: 3;
+}
+.git-edge.is-main { stroke: var(--git-main); }
+.git-edge.is-feature { stroke: var(--git-feature); }
+.git-edge.is-conflict {
+  stroke: var(--git-conflict);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--git-conflict) 70%, transparent));
+}
+.git-ref-line {
+  stroke: var(--iso-line);
+  stroke-width: 1;
+}
+.git-ref-text {
+  fill: var(--ink);
+  font: 600 12px var(--font-mono);
+  dominant-baseline: central;
+}
+.git-head-tag {
+  fill: var(--accent);
+}
+.git-head-text {
+  fill: var(--on-accent);
+  font: 700 12px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+/* The device the current lesson is about: its callout title takes the accent. */
+#git-scene[data-focus="working"] .git-callout-work .iso-callout-title,
+#git-scene[data-focus="index"] .git-callout-index .iso-callout-title,
+#git-scene[data-focus="history"] .git-callout-history .iso-callout-title,
+#git-scene[data-focus="merge"] .git-callout-history .iso-callout-title {
+  fill: var(--accent);
+}
+
+/* ---------- File well: welcome.txt as it sits in each place ---------- */
+
+/* A .hw-screen: three columns under the scene, or one stacked column beside
+   it in the full-screen console. */
+.git-well {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 13px;
-  padding: 0 17px 19px;
+  margin: 4px 20px 18px;
+  padding: 0;
+  font-size: var(--fs-1);
+  line-height: 1.55;
 }
-.file-snapshot {
-  border: 2px solid var(--border);
-  background: var(--surface);
+.git-well-col {
   min-width: 0;
+  padding: 12px 16px 14px;
 }
-.file-snapshot > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--rule);
-  background: var(--soft);
+.git-well-col + .git-well-col {
+  border-inline-start: 1px dashed var(--hw-screen-rule);
 }
-.file-snapshot b {
-  font-size: 12px;
+.git-well-head {
+  display: block;
+  margin-bottom: 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed var(--hw-screen-rule);
+  color: var(--hw-screen-lit);
+  letter-spacing: 0.05em;
 }
-.file-snapshot > div:first-child > span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.file-line {
+.git-well ol {
   display: grid;
-  grid-template-columns: 19px 1fr;
-  gap: 9px;
-  align-items: start;
-  padding: 7px 10px;
-  min-height: 32px;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-.file-line > span {
-  font-size: 10px;
-  color: var(--muted);
-  line-height: 1.7;
-  text-align: right;
-}
-.file-line > code {
-  font-size: 12px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.file-line.emphasis {
-  background: var(--soft);
-  font-weight: 700;
-}
-.file-snapshot.main .emphasis {
-  background: color-mix(in srgb, var(--main) 9%, var(--surface));
-}
-.file-snapshot.feature .emphasis {
-  background: color-mix(in srgb, var(--feature) 9%, var(--surface));
-}
-.empty-note {
-  padding: 30px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.log-entry {
-  width: 100%;
+.git-well li {
   display: grid;
-  grid-template-columns: 32px 1fr 150px;
-  gap: 13px;
-  align-items: center;
-  padding: 13px 18px;
-  border: 0;
-  border-bottom: 1px solid var(--rule);
-  text-align: left;
-  background: var(--surface);
-}
-.log-entry.current {
-  background: var(--soft);
-}
-.event-number {
-  width: 29px;
-  height: 29px;
-  display: grid;
-  place-items: center;
-  border: 2px solid var(--border);
-  font-size: 12px;
-  background: var(--soft);
-}
-.log-entry > span {
-  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
   gap: 6px;
-}
-.log-entry strong {
-  font-size: 13px;
-}
-.log-entry code {
-  font-size: 12px;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--hw-screen-ink) 62%, transparent);
+  word-break: keep-all;
   overflow-wrap: anywhere;
 }
-.log-entry small {
-  font-size: 11px;
-  display: flex;
-  gap: 10px;
-  justify-content: end;
-  color: var(--muted);
-}
-.log-entry small b {
-  color: var(--ink);
-}
-#result {
-  padding: 22px;
-}
-.result-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: center;
-}
-.result-top span {
-  font-size: 11px;
-  color: var(--muted);
-}
-.result-top h3 {
-  font-size: 24px;
-  margin: 7px 0;
-}
-.result-top p {
-  font-size: 13px;
-  color: var(--muted);
-}
-.result-commit {
-  display: grid;
-  place-items: center;
-  min-width: 65px;
-  height: 65px;
-  border: 2px solid var(--border);
-  box-shadow: 4px 4px 0 var(--shadow);
-  background: var(--soft);
-  font-size: 26px;
-}
-.result-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  border: 2px solid var(--border);
-  margin: 22px 0;
-}
-.result-grid > div {
-  display: grid;
-  gap: 9px;
-  padding: 15px;
-  border-right: 1px solid var(--rule);
-}
-.result-grid > div:last-child {
-  border: 0;
-}
-.result-grid span {
-  font-size: 12px;
-  color: var(--muted);
-}
-.result-grid b {
-  font-size: 16px;
-}
-.result-file {
-  border: 2px solid var(--border);
-  max-width: 650px;
-}
-.result-note {
-  font-size: 13px;
-  line-height: 1.8;
-  margin: 16px 0;
-  color: var(--muted);
-}
-.result-empty {
-  padding: 15px 0;
-  display: grid;
-  gap: 13px;
-}
-.result-empty > b {
-  font-size: 20px;
-}
-.result-empty > p {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-.result-empty > span {
-  font-size: 12px;
-  font-weight: 700;
-}
-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  max-width: 1800px;
-  margin: auto;
-  padding: 20px;
-  font-size: 10px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-footer > span:last-child {
+.git-ln {
+  color: color-mix(in srgb, var(--hw-screen-ink) 35%, transparent);
   text-align: right;
 }
-kbd {
-  font: inherit;
-  border: 1px solid var(--rule);
-  padding: 2px 4px;
-  background: var(--surface);
-  margin-right: 4px;
+.git-well li.is-base { color: var(--hw-screen-ink); }
+.git-well li.is-main { color: var(--git-well-main); }
+.git-well li.is-feature { color: var(--git-well-feature); }
+.git-well li.is-both { color: var(--git-well-both); }
+.git-well li.is-marker { color: var(--git-well-marker); }
+/* Screen inks: deep on the light screen, pale on the dark one. */
+.git-well {
+  --git-well-main: color-mix(in oklch, var(--git-main) 85%, black);
+  --git-well-feature: color-mix(in oklch, var(--git-feature) 85%, black);
+  --git-well-both: color-mix(in oklch, var(--accent) 85%, black);
+  --git-well-marker: color-mix(in oklch, var(--git-conflict) 85%, black);
 }
-dialog {
-  max-width: 540px;
-  width: calc(100% - 32px);
-  padding: 24px;
-  border: 2px solid var(--control-border);
-  border-radius: 5px;
-  box-shadow: 4px 4px 0 var(--control-shadow);
-  background: var(--control-card);
-  color: var(--control-ink);
+:root[data-theme="dark"] .git-well {
+  --git-well-main: color-mix(in oklch, var(--git-main) 55%, white);
+  --git-well-feature: color-mix(in oklch, var(--git-feature) 50%, white);
+  --git-well-both: color-mix(in oklch, var(--accent) 50%, white);
+  --git-well-marker: color-mix(in oklch, var(--git-conflict) 60%, white);
 }
-dialog::backdrop {
-  background: #15161b88;
+.git-well li.is-changed .git-ln {
+  color: var(--hw-lcd-ink);
 }
-.dialog-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: start;
+.git-well li.is-changed .git-ln::before {
+  content: "~";
+  margin-inline-end: 2px;
 }
-.dialog-head span {
-  font-size: 12px;
-  color: var(--muted);
-}
-.dialog-head h2 {
-  font-size: 23px;
-  line-height: 1.4;
-  margin-top: 9px;
-  word-break: keep-all;
-}
-.prediction-context {
-  margin: 18px 0;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-.prediction-choices {
-  display: grid;
-  gap: 11px;
-}
-.prediction-choices > .button {
-  justify-content: start;
-  text-align: left;
-  padding: 13px;
-  line-height: 1.5;
-}
-.prediction-choices .correct {
-  background: var(--selected);
-  color: var(--on-selected);
-  opacity: 1;
-}
-.prediction-choices .button:disabled:not(.correct) {
-  opacity: 0.65;
-}
-#prediction-feedback:not(:empty) {
-  margin-top: 20px;
-  padding-top: 17px;
-  border-top: 2px solid var(--border);
-}
-#prediction-feedback > b {
-  font-size: 15px;
-}
-#prediction-feedback p {
-  font-size: 13px;
-  line-height: 1.7;
-  margin: 9px 0 15px;
-}
-@media (min-width: 1100px) {
-  .setup-panel,
-  .lesson-panel {
-    height: var(--stage-height);
-    display: flex;
-    flex-direction: column;
-  }
-  .setup-content,
-  .lesson-content {
-    overflow: auto;
-    scrollbar-width: thin;
-    min-height: 0;
-  }
-}
-@media (min-width: 1100px) and (max-width: 1250px) {
-  .workspace {
-    grid-template-columns: 186px minmax(0, 1fr) 286px;
-    padding: 0 14px;
-    gap: 10px;
-  }
-  .app-header {
-    padding: 18px 14px;
-  }
-  .lesson-content {
-    padding: 17px 12px;
-  }
-  .lesson-content h3 {
-    font-size: 20px;
-  }
-  .learning-mode {
-    flex-wrap: wrap;
-  }
-  .scene-summary {
-    padding: 11px 13px;
-  }
-  .scene-summary strong {
-    font-size: 12px;
-  }
-  .scene-summary span {
-    font-size: 10px;
-  }
-}
-@media (max-width: 1099px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) 300px;
-    padding: 0 14px;
-  }
-  .setup-panel {
-    grid-column: 1/-1;
-  }
-  .setup-content {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px 24px;
-  }
-  .setup-intro {
-    grid-column: 1;
-  }
-  .file-label {
-    grid-column: 1;
-    margin: 0;
-  }
-  .branch-legend {
-    grid-column: 2;
-    grid-row: 1/3;
-    margin: 0;
-  }
-  .setup-content > .section-label {
-    display: none;
-  }
-  #milestones {
-    grid-column: 3;
-    grid-row: 1/4;
-  }
-  .setup-tip {
-    grid-column: 2;
-    grid-row: 3;
-    margin: 0;
-  }
-  .scope {
-    grid-column: 1/3;
-    margin: 0;
-  }
-  .setup-toggle[aria-expanded="false"] {
-    border-bottom: 0;
-  }
-  .scenario-heading {
-    padding-left: 16px;
-    margin-left: 6px;
-  }
-  .scenario-heading strong {
-    font-size: 13px;
-  }
-  .record-hint {
-    display: none;
-  }
-}
-@media (max-width: 780px) {
-  .scene-panel {
-    overflow: clip;
-  }
-  .transport {
-    display: contents;
-  }
-  .learning-mode {
-    margin: 12px 12px 8px;
-  }
-  .playback-buttons {
-    position: sticky;
-    bottom: 0;
-    z-index: 9;
-    max-width: none;
-    grid-template-columns: 40px 40px minmax(110px, 240px) 105px 44px;
-    justify-content: center;
-    padding: 6px 8px calc(7px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--border);
-    background: var(--control-card);
-  }
-  .seek-row {
-    margin: 8px 12px 12px;
-  }
-  .workspace {
-    grid-template-columns: 1fr;
-    padding: 0 10px;
-    gap: 12px;
-  }
-  .app-header {
-    padding: 16px 12px;
-    min-height: 82px;
-    gap: 10px;
-  }
-  .app-header h1 {
-    font-size: 24px;
-  }
-  .app-header p {
-    font-size: 11px;
-  }
-  .brand-icon {
-    width: 41px;
-    height: 41px;
-  }
-  .scenario-heading {
-    display: none;
-  }
-  .setup-content {
-    grid-template-columns: 1fr 1fr;
-    padding: 14px;
-  }
-  .setup-intro {
-    grid-column: 1/-1;
-  }
-  .file-label {
-    grid-column: 1;
-  }
-  .branch-legend {
-    grid-column: 2;
-    grid-row: 2;
-  }
-  .setup-content #milestones {
-    grid-column: 1/-1;
-    grid-row: auto;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 6px;
-  }
-  .milestone {
-    display: grid;
-    padding: 7px 3px;
-    justify-items: center;
-    text-align: center;
-    gap: 5px;
-    font-size: 10px;
-    line-height: 1.4;
-  }
-  .milestone i {
-    display: none;
-  }
-  .setup-tip {
-    grid-column: 1/-1;
-    grid-row: auto;
-    display: none;
-  }
-  .scope {
-    grid-column: 1/-1;
-  }
-  .lesson-content {
-    padding: 20px 16px;
-  }
-  .lesson-content h3 {
-    font-size: 23px;
-  }
-  .lesson-body {
-    font-size: 14px;
-  }
-  .lesson-panel .command-card {
-    max-width: none;
-  }
-  .resolution-options {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-  .resolution-options button {
-    min-width: 0;
-  }
-  .diff-grid {
-    grid-template-columns: 1fr;
-  }
-  .record-heading {
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-  .result-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .result-grid > div:nth-child(2) {
-    border-right: 0;
-  }
-  .result-grid > div:nth-child(-n + 2) {
-    border-bottom: 1px solid var(--rule);
-  }
-  footer {
-    flex-direction: column;
-    gap: 7px;
-    padding: 17px 12px;
-  }
-  footer > span:last-child {
-    text-align: left;
-  }
-  .scene-summary strong {
-    font-size: 12px;
-  }
-  .scene-summary span {
-    font-size: 10px;
-  }
-  .step-strip {
-    grid-template-columns: repeat(12, 78px);
-  }
-  .log-entry {
-    grid-template-columns: 29px 1fr 95px;
-    padding: 13px 12px;
-    gap: 10px;
-  }
-  .log-entry small {
-    flex-direction: column;
-    gap: 5px;
-    text-align: right;
-  }
-  .result-top h3 {
-    font-size: 21px;
-  }
-}
-@media (max-width: 480px) {
-  .panel-head {
-    padding: 10px 12px;
-  }
-  .panel-head h2 {
-    font-size: 15px;
-  }
-  .scene-summary {
-    padding: 10px;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .replay {
-    margin-left: auto;
-  }
-  .learning-mode {
-    align-items: start;
-    flex-wrap: wrap;
-  }
-  .learning-mode > button {
-    font-size: 10px;
-  }
-  #playback-hint {
-    font-size: 10px;
-    text-align: left;
-  }
-  .playback-buttons {
-    grid-template-columns: 34px 34px minmax(0, 1fr) 74px 36px;
-    gap: 5px;
-  }
-  .playback-buttons .button {
-    font-size: 11px;
-    padding: 6px 3px;
-  }
-  .playback-buttons .button svg {
-    width: 16px;
-    height: 16px;
-  }
-  .seek-row {
-    gap: 8px;
-  }
-  .resolution-options {
-    grid-template-columns: 1fr;
-  }
-  .record-tabs {
-    padding: 11px;
-    gap: 8px;
-  }
-  .record-tabs > button {
-    font-size: 12px;
-    padding: 8px 10px;
-  }
-  .record-heading {
-    padding: 15px 12px 10px;
-  }
-  .record-heading > span {
-    font-size: 11px;
-    line-height: 1.5;
-  }
-  .diff-grid {
-    padding: 0 12px 15px;
-  }
-  #result {
-    padding: 18px 13px;
-  }
-  .result-grid b {
-    font-size: 13px;
-  }
-  .result-grid > div {
-    padding: 12px;
-  }
-  .log-entry strong {
-    font-size: 12px;
-  }
-  .log-entry code {
-    font-size: 11px;
-  }
-  .theme-button {
-    width: 36px;
-    min-height: 36px;
-  }
-  .fact {
-    grid-template-columns: 70px 1fr 15px 1fr;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    scroll-behavior: auto !important;
-  }
+.git-stage-name {
+  margin-inline-end: 8px;
+  color: var(--hw-screen-muted);
 }
 
-.lesson-panel[data-resolving="true"] .lesson-details,
-.lesson-panel[data-resolving="true"] .takeaway {
-  display: none;
+/* ---------- Stage foot, deck ---------- */
+
+.hw-stage .hw-plate-foot {
+  line-height: 1.5;
 }
-.lesson-panel[data-resolving="true"] .resolution {
-  margin-bottom: 18px;
+#status-led {
+  align-self: center;
 }
+.git-play {
+  min-width: 150px;
+}
+.git-deck-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
+  flex-basis: 100%;
+  font-size: var(--fs-1);
+}
+
+/* ---------- Lesson ---------- */
+
+.git-lesson-title { margin-top: 6px; }
+.git-lesson-body { margin-top: 8px; }
+.git-gap { margin-top: 10px; }
+.git-command {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+}
+.git-command code {
+  font-size: var(--fs-2);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.git-command code.is-git::before {
+  content: "$ ";
+  color: var(--accent);
+}
+/* Row headers on the paper LCD: printed like a label, not like a sticky
+   column head. */
+.git-page .hw-table tbody th {
+  position: static;
+  padding: 7px 12px;
+  border-bottom: 0;
+  background: none;
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+.git-page .hw-table tbody tr:first-child th {
+  padding-top: 10px;
+}
+.git-facts td {
+  overflow-wrap: anywhere;
+}
+.git-facts td.hw-muted {
+  color: var(--hw-paper-muted);
+}
+.git-facts tr.is-changed td:last-child {
+  color: var(--hw-paper-hot);
+  font-weight: 700;
+}
+/* Side plate: tabs in the head, each panel a column of whole items that
+   paginate (shared/fit.js) instead of scrolling. */
+.hw-side > .hw-plate-head .hw-tabs {
+  flex: none;
+}
+.git-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.git-pages > * + * {
+  padding-top: 10px;
+  border-top: 1px solid var(--hw-edge);
+}
+.git-pages > .hw-note {
+  border-top: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+}
+/* The first item on a later page carries no rule above it. */
+.git-pages > [hidden] + * {
+  padding-top: 0;
+  border-top: 0;
+}
+.git-pages > [hidden] + .hw-note {
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+}
+.git-pages-label {
+  margin-bottom: 8px;
+}
+.git-detail {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  word-break: keep-all;
+}
+.git-detail .hw-led {
+  flex: none;
+  transform: translateY(-1px);
+}
+.git-facts {
+  margin-top: 8px;
+}
+.git-choices > button {
+  align-items: flex-start;
+  padding-block: 5px;
+}
+.git-choice {
+  display: grid;
+  gap: 2px;
+  line-height: 1.35;
+  text-align: left;
+}
+.git-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 8px;
+}
+.git-push {
+  margin-inline-start: auto;
+}
+.git-wide {
+  width: 100%;
+}
+
+/* ---------- Records ---------- */
+
+.git-log tbody tr.is-future td {
+  color: var(--muted);
+}
+.git-log tbody tr:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.git-log code {
+  font-size: var(--fs-1);
+}
+.git-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+/* Glossary: one term per row, term beside its meaning. */
+.git-glossary {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.git-glossary > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 4px 20px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--hw-edge);
+}
+.git-glossary dt {
+  font-weight: 650;
+  font-size: var(--fs-2);
+}
+.git-glossary dd {
+  margin: 0;
+}
+
+/* ---------- Dialogs ---------- */
+
+.git-dialog-title {
+  display: grid;
+  gap: 4px;
+  padding-block: 4px;
+}
+.git-answers {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.git-answers .hw-key {
+  justify-content: flex-start;
+  white-space: normal;
+  text-align: left;
+  min-height: 48px;
+}
+.git-answers .hw-key:disabled {
+  opacity: 0.75;
+}
+.git-feedback {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hw-edge);
+}
+
+/* ---------- Narrow screens ---------- */
+
+/* Outside the full-screen console the page scrolls as before: every side
+   panel is shown, one under the other, without the head tabs. */
+@media (max-width: 1099px), (max-height: 699px) {
+  .git-page .hw-side > [data-panel][hidden] { display: flex !important; }
+  .git-page .hw-side > .hw-plate-head .hw-tabs { display: none; }
+  .git-page .hw-side > [data-panel] + [data-panel] { padding-top: 0; }
+  .git-page .hw-side .hw-pager { display: none; }
+  /* The row window (rowWindow) then always has room for every row. */
+  .git-rows { padding-bottom: 12px; }
+}
+@media (max-width: 759px) {
+  .hw-scene#git-scene { padding: 4px 0 0; overflow: hidden; }
+  /* The scene scales to ~40%; print its labels larger so they stay legible. */
+  #git-scene .iso-callout-title { font-size: 26px; }
+  #git-scene .iso-callout-sub { display: none; }
+  #git-scene .git-ref-text { font-size: 22px; }
+  #git-scene .git-head-text { font-size: 18px; }
+  .git-well {
+    grid-template-columns: minmax(0, 1fr);
+    margin: 4px 14px 14px;
+  }
+  .git-well-col + .git-well-col {
+    border-inline-start: 0;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+  }
+  .git-play { order: -1; flex: 1 1 100%; }
+  .git-page .hw-actions .hw-key--sm { min-height: 42px; }
+  .git-page .hw-actions .hw-key--sm.hw-key--icon { width: 42px; }
+  .git-result,
+  .git-glossary > div { grid-template-columns: minmax(0, 1fr); }
+  .git-records-hint { display: none; }
+  .hw-records .hw-plate-head { overflow: hidden; }
+  .git-log th:nth-child(4),
+  .git-log td:nth-child(4) { display: none; }
+}
+
+/* Desktop layout: the full-screen console in shared/hw.css. */
+
+@media (min-width: 1100px) and (min-height: 700px) {
+  /* The records row grows with its content unless the plate is size-contained;
+     the long log then scrolls inside instead of pushing the stage away. */
+  .hw-records { contain: size; }
+  body { margin: 0; }
+  /* Nothing scrolls: tables show a window of rows (rowWindow), the other
+     record views are laid out to fit. */
+  .git-page .hw-records > .hw-plate-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .git-page .hw-records > .hw-plate-body[hidden] { display: none; }
+  .git-rows { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+  #record-result,
+  #record-terms { padding: 4px 18px 10px; }
+  #record-terms > .git-glossary { flex: 1 1 auto; min-height: 0; }
+  #record-terms > .git-glossary > [hidden] { display: none !important; }
+  #record-terms .hw-pager { padding-top: 4px; }
+  .git-result { gap: 24px; align-items: center; }
+  .git-result .hw-table tbody th,
+  .git-result .hw-table td { padding-block: 5px; }
+  .git-page .hw-side > .hw-plate-body { padding: 10px 20px 16px; }
+  /* Stage: scene on the left takes the height; the file screen stands beside
+     it as one stacked column. */
+  .hw-stage {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) clamp(250px, 27%, 340px);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+  .hw-stage > .hw-plate-head,
+  .hw-stage > .hw-plate-foot { grid-column: 1 / -1; }
+  .hw-scene#git-scene { grid-area: 2 / 1; padding: 8px 4px 8px 12px; }
+  .git-well {
+    grid-area: 2 / 2;
+    grid-template-columns: minmax(0, 1fr);
+    align-self: center;
+    max-height: calc(100% - 16px);
+    margin: 0 18px 0 0;
+    overflow: hidden;
+    line-height: 1.45;
+  }
+  /* Too short for the whole file: keep the title lines and markers, the
+     only lines that change; the line numbers show what is left out. */
+  .git-well.is-compact li.is-plain { display: none; }
+  .git-well.is-compact .git-well-col { padding-block: 8px; }
+  .git-well.is-compact .git-well-head { margin-bottom: 4px; padding-bottom: 4px; }
+  .git-well.is-tight { line-height: 1.3; }
+  .git-well.is-tight .git-well-col { padding-block: 6px; }
+  .git-well.is-tight .git-stage-name { display: block; margin: 0; }
+  .git-well-col { padding: 10px 14px 10px; }
+  .git-well-col + .git-well-col {
+    border-inline-start: 0;
+    border-top: 1px dashed var(--hw-screen-rule);
+  }
+  /* Transport: two tidy rows in the side column — icon, icon, wide key. */
+  .hw-deck > .hw-field { flex: 1 1 100%; }
+  .hw-deck .hw-transport {
+    display: grid;
+    grid-template-columns: 42px 42px minmax(0, 1fr);
+  }
+  .hw-deck .hw-transport > [data-action="replay"] { grid-area: 2 / 1; }
+  .hw-deck .hw-transport > [data-action="speed"] { grid-area: 2 / 2; }
+  .hw-deck .hw-transport > [data-action="next"] { grid-area: 2 / 3; }
+  .git-play { min-width: 0; }
+}
+
+@media (max-width: 759px) {
+  /* Keep the stage name on one line beside the file tag and the LCD. */
+  .hw-stage > .hw-plate-head > .hw-label:first-child { white-space: nowrap; }
+}
+
+/* Branch tags in the scene */
+.git-ref-pill {
+  fill: var(--surface);
+  stroke: var(--hw-edge);
+  stroke-width: 1;
+  filter: drop-shadow(0 1px 1.5px rgb(83 80 70 / 0.18));
+}
+.git-ref-text { dominant-baseline: central; }

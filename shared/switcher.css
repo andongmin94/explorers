@@ -1,0 +1,224 @@
+/* Explorer switcher: a keycap badge that opens a ui-sdk menu plate. */
+
+h1.explorer-brand {
+  margin: 0;
+  min-width: 0;
+  width: 300px;
+  max-width: 100%;
+  line-height: 1;
+}
+
+.explorer-trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 58px;
+  padding: 7px 14px 7px 7px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--hw-key);
+  box-shadow: var(--hw-key-shadow);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+.explorer-trigger:active,
+.explorer-trigger[aria-expanded="true"] {
+  transform: translateY(2px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    0 0 0 1px var(--hw-edge),
+    0 1px 0 var(--hw-lip),
+    0 2px 3px rgb(83 80 70 / 0.12);
+}
+.explorer-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* The icon sits in a dark recessed well with a status LED. */
+.explorer-brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--hw-well);
+  box-shadow: var(--hw-well-shadow);
+  color: var(--hw-lcd-ink);
+}
+.explorer-brand-mark svg {
+  width: 24px;
+  height: 24px;
+}
+.explorer-brand-mark .explorer-led {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.explorer-brand-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.explorer-brand-name {
+  overflow: hidden;
+  font-size: var(--fs-4);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.explorer-brand-caption {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.explorer-chevron svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.4;
+  color: var(--muted);
+  transition: transform 140ms ease;
+}
+.explorer-trigger[aria-expanded="true"] .explorer-chevron svg {
+  transform: rotate(180deg);
+}
+
+.explorer-trigger svg,
+.explorer-menu svg {
+  display: block;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Status LED: dark when off, lit with the accent and a halo when on. */
+.explorer-led {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hw-led-off);
+  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.25);
+}
+.explorer-brand-mark .explorer-led,
+.explorer-item[aria-current] .explorer-led {
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+}
+
+/* Menu plate, positioned by ui-sdk */
+.explorer-menu {
+  width: max(var(--anchor-width, 0px), 280px);
+  max-height: var(--available-height, 70vh);
+  overflow-y: auto;
+  /* ui-sdk renders the content as a native popover; drop the UA frame. */
+  margin: 0;
+  border: 0;
+  color: var(--ink);
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--hw-panel);
+  box-shadow: var(--hw-panel-shadow);
+  font-family: var(--font-sans);
+  transform-origin: var(--transform-origin);
+  transition: opacity 120ms ease, transform 120ms ease;
+  z-index: 100;
+}
+.explorer-menu[data-starting-style],
+.explorer-menu[data-ending-style] {
+  opacity: 0;
+  transform: translateY(-4px) scale(0.98);
+}
+
+.explorer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-radius: 11px;
+  color: var(--ink);
+  font-size: var(--fs-2);
+  font-weight: 650;
+  text-decoration: none;
+  outline: none;
+}
+.explorer-item svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+.explorer-item-index {
+  width: 2ch;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: 700;
+}
+.explorer-item-label {
+  flex: 1;
+}
+.explorer-item[data-highlighted] {
+  background: var(--hw-key);
+  box-shadow: var(--hw-key-shadow);
+}
+.explorer-item[aria-current] {
+  font-weight: 800;
+}
+.explorer-item[aria-current] svg {
+  color: var(--ink);
+}
+
+@media (max-width: 759px) {
+  h1.explorer-brand {
+    width: 236px;
+  }
+  .explorer-trigger {
+    min-height: 48px;
+    gap: 9px;
+    padding: 5px 10px 5px 5px;
+    border-radius: 14px;
+  }
+  .explorer-brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .explorer-brand-mark svg {
+    width: 20px;
+    height: 20px;
+  }
+  .explorer-brand-name {
+    font-size: var(--fs-3);
+  }
+  .explorer-item {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer-trigger,
+  .explorer-menu,
+  .explorer-chevron svg {
+    transition: none;
+  }
+}

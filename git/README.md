@@ -37,7 +37,7 @@ HEAD는 이 시나리오에서 현재 브랜치를 가리킵니다. 브랜치 �
 
 첫 수업은 로컬 브랜치 두 개, 파일 하나, 텍스트 충돌 하나에 집중합니다. 원격 저장소·push/pull·rebase·fast-forward·삭제/이름 변경 충돌은 다루지 않습니다. C0–C3는 읽기 쉬운 학습용 이름이며 실제 Git 해시가 아닙니다. 장치 사이의 내용 이동은 저장 상태의 변화를 설명하는 표현이며 실제 Git 내부의 물리적 구조나 처리 시간을 나타내지 않습니다.
 
-`src/engine.js`는 사건별 독립 상태, `src/scene.js`는 이력과 파일·index의 표시 및 이동, `src/main.js`는 재생과 해결 선택, `src/lesson.js`는 해설과 학습 근거를 담당합니다. 로컬 Pretendard와 자체 SVG·CSS로 중립색 네오브루탈 화면을 구성합니다.
+`src/engine.js`는 사건별 독립 상태, `src/scene.js`는 이력과 파일·index의 표시 및 이동, `src/main.js`는 재생과 해결 선택, `src/lesson.js`는 해설과 학습 근거를 담당합니다. 화면과 장면은 탐색기 모음의 공통 하드웨어 디자인(`shared/DESIGN.md`)을 따릅니다.
 
 ## 검증
 

@@ -1,228 +1,343 @@
-import { REQUESTS } from "./engine.js";
+// The disk scene: one isometric SVG. A request queue module holds the eight
+// requests as tokens in arrival order; the selected token is carried to the
+// controller chip, the actuator arm swings the head to its cylinder over the
+// platter, and a cylinder ruler printed on the floor draws the path walked so
+// far (the classic disk-scheduling zigzag).
+import { REQUESTS, INITIAL_HEAD } from "./engine.js";
+import {
+  UNIT,
+  project,
+  callout,
+  chip,
+  defs,
+  floor,
+  floorPath,
+  hdd,
+  module,
+  place,
+  token,
+  topText,
+} from "../../shared/iso-kit.js";
 
-const radius = (cylinder) => 146 - (cylinder / 199) * 108;
-const angle = (cylinder) =>
-  (Math.acos((185 ** 2 + 195 ** 2 - radius(cylinder) ** 2) / (2 * 185 * 195)) *
-    180) /
-  Math.PI;
+const r2 = (n) => Math.round(n * 100) / 100;
+const P = (x, y, z = 0) => project(x, y, z).map(r2).join(",");
 
-const requestRoute = [[300, 0], [300, 30], [575, 30], [575, 351], [506, 351]];
-const wirePath = requestRoute.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join("");
+/* ---------- Layout (world units) ---------- */
+const QUEUE = { x: 0, y: 0, w: 12, d: 2.4, h: 0.6 };
+const slotPoint = (i) => [0.95 + i * 1.44, QUEUE.y + QUEUE.d / 2, QUEUE.h];
+const CTRL = { x: 14.8, y: 0.2, size: 3.2 };
+// The drive is the one device whose place depends on the layout. A wide
+// desktop stage puts it right of the controller, a little toward the viewer,
+// so the cluster fills a typical stage instead of one very wide row; a phone keeps it in front so the scene stays tall.
+const DRIVE_NARROW = { x: 14, y: 5, w: 11, d: 11 };
+const DRIVE_WIDE = { x: 20, y: -7, w: 11, d: 11 };
 
-// The label's leader starts on the same ellipse used to draw its cylinder.
-function trackLabel(cylinder, label, alternate = false) {
-  const r = radius(cylinder);
-  const x = 320 + (alternate ? 1 : -1) * r * 0.8;
-  const y = 185 + 0.48 * r * 0.6;
-  const center = alternate ? 473 : 147;
-  return `<g class="track-label${alternate ? " alternate" : ""}">
-    <path d="M${x} ${y} L${center} 247 V258"/>
-    <circle cx="${x}" cy="${y}" r="4"/>
-    <rect x="${center - 75}" y="258" width="150" height="33" rx="2"/>
-    <text x="${center}" y="280" text-anchor="middle">${label}</text>
-  </g>`;
+const queue = module({ ...QUEUE, label: "", well: true });
+const ctrl = chip({ x: CTRL.x, y: CTRL.y, size: CTRL.size, label: "CTRL" });
+const ctrlPoint = [CTRL.x + CTRL.size / 2, CTRL.y + CTRL.size / 2, ctrl.top];
+const ARM_L = 5.1;
+let DRIVE, drive, CX, CY, PZ, R_OUT, R_IN, PIVOT, ARM_Z;
+function setLayout(wide) {
+  DRIVE = wide ? DRIVE_WIDE : DRIVE_NARROW;
+  drive = hdd(DRIVE);
+  [CX, CY, PZ] = drive.center;
+  R_OUT = drive.radius * 0.94;
+  R_IN = drive.radius * 0.3;
+  // Actuator: pivot near the front-right corner; the arm length is chosen so
+  // the head can reach every track from 0 (outer) to 199 (inner).
+  PIVOT = [DRIVE.x + DRIVE.w * 0.9, DRIVE.y + DRIVE.d * 0.84];
+  ARM_Z = drive.top + 0.32;
+}
+setLayout(true);
+const trackR = (c) => R_OUT - (c / 199) * (R_OUT - R_IN);
+
+function headPoint(c) {
+  const R = trackR(c);
+  const dx = CX - PIVOT[0];
+  const dy = CY - PIVOT[1];
+  const D = Math.hypot(dx, dy);
+  const cos = Math.max(-1, Math.min(1, (ARM_L ** 2 + D ** 2 - R ** 2) / (2 * ARM_L * D)));
+  const a = Math.atan2(dy, dx) + Math.acos(cos);
+  return [PIVOT[0] + ARM_L * Math.cos(a), PIVOT[1] + ARM_L * Math.sin(a)];
 }
 
-function seekDistance(step) {
-  if (!step.distance) return "이동 0칸";
-  const direction = step.state.head > step.before.head ? "안쪽" : "바깥쪽";
-  return `${direction} ${step.distance}칸`;
+/* ---------- Cylinder ruler on the floor ---------- */
+const RULER = { x0: 0.6, x1: 11.6, y0: 4.6, row0: 5.6, row: 1.15 };
+const rx = (c) => RULER.x0 + (c / 199) * (RULER.x1 - RULER.x0);
+const ry = (k) => RULER.row0 + k * RULER.row;
+const Z_FLOOR = 0.01;
+
+function ring(R, z, cls) {
+  const [px, py] = project(CX, CY, z);
+  const a = R * UNIT * Math.SQRT2;
+  return `<ellipse class="${cls}" cx="${r2(px)}" cy="${r2(py)}" rx="${r2(a)}" ry="${r2(a / 2)}"/>`;
 }
 
-function arrivalTitle(step, algorithm) {
-  const runnerUp = algorithm === "sstf" && step.candidates[1];
-  if (runnerUp)
-    return `${step.before.head}에서 ${step.state.head}번 도착 · ${step.distance}칸 (비교한 ${runnerUp.cylinder}번은 ${runnerUp.distance}칸)`;
-  return `${step.before.head} → ${step.state.head} · ${step.distance}칸 이동 완료`;
+function line(a, b, cls) {
+  const [x1, y1] = project(...a);
+  const [x2, y2] = project(...b);
+  return `<line class="${cls}" x1="${r2(x1)}" y1="${r2(y1)}" x2="${r2(x2)}" y2="${r2(y2)}"/>`;
 }
 
-export function createDiskScene(host, onPhase) {
-  host.innerHTML = `<div class="scene-callout">같은 8개 요청, 선택하는 순서가 달라집니다.</div><div class="queue-dock"><div class="dock-title"><strong>대기 큐</strong><span>처음 도착한 순서 · 전부 시작 전에 도착</span></div><div class="request-queue">${REQUESTS.map((n, i) => `<div class="request-slot" data-request="${i + 1}"><small>요청 ${i + 1}</small><b>${n}</b><span>대기</span></div>`).join("")}</div></div><div class="drive"><svg class="drive-map" viewBox="0 0 600 450" aria-hidden="true"><defs><marker id="disk-arrow" viewBox="0 0 8 8" markerWidth="5" markerHeight="5" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8Z"/></marker></defs><path class="request-wire" d="${wirePath}" marker-end="url(#disk-arrow)"/><text class="wire-label" x="548" y="55" text-anchor="end">선택한 요청 ↓</text><polygon class="device-shadow" points="87,221 327,341 572,219 332,99"/><polygon class="case-front" points="80,185 320,305 320,340 80,220"/><polygon class="case-side" points="320,305 560,185 560,220 320,340"/><polygon class="case-top" points="80,185 320,65 560,185 320,305"/><ellipse class="platter" cx="320" cy="185" rx="150" ry="72"/>${[0, 25, 50, 75, 100, 125, 150, 175, 199].map((n) => `<ellipse class="guide-track" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}${REQUESTS.map((n, i) => `<ellipse class="request-track" data-track="${i + 1}" cx="320" cy="185" rx="${radius(n)}" ry="${radius(n) * 0.48}"/>`).join("")}<ellipse class="spindle" cx="320" cy="185" rx="23" ry="11"/><ellipse class="spindle-top" cx="320" cy="181" rx="23" ry="11"/><g transform="translate(505 185) scale(1 .48)"><g class="arm"><path class="arm-shadow" d="M0 -16L-195 -7L-204 5L0 16Z"/><path class="arm-body" d="M0 -12L-195 -4L-195 4L0 12Z"/><circle class="head-tip" cx="-195" cy="0" r="9"/><circle class="arm-pivot" cx="0" cy="0" r="19"/></g></g><text class="geometry-label" x="202" y="118">0 · 바깥쪽</text><text class="geometry-label" x="287" y="214">199 · 안쪽</text><polygon class="dock-top" points="100,317 116,307 516,307 500,317"/><polygon class="dock-side" points="500,317 516,307 516,414 500,424"/><rect class="dock-front" x="100" y="317" width="400" height="107"/><rect class="port" x="502" y="344" width="8" height="14"/><path class="screw" d="M107 325h5m-2.5-2.5v5M487 413h5m-2.5-2.5v5"/></svg><div class="controller"><div><span>헤드 위치</span><b data-head>53</b></div><div><span>누적 이동</span><b data-total>0<small>칸</small></b></div></div><div class="drive-label"><strong>하드 디스크</strong><span>실린더 0–199 · 헤드가 목표 트랙으로 이동</span></div></div><div class="motion-token" hidden></div>`;
-  const $ = (s) => host.querySelector(s),
-    arm = $(".arm"),
-    token = $(".motion-token");
+function rulerSvg() {
+  let s = `<g class="disk-ruler">`;
+  for (let k = 0; k <= 8; k++)
+    s += line([rx(0), ry(k), Z_FLOOR], [rx(199), ry(k), Z_FLOOR], "disk-ruler-row");
+  for (const c of [0, 50, 100, 150, 199]) {
+    s += line([rx(c), RULER.y0, Z_FLOOR], [rx(c), ry(8), Z_FLOOR], "disk-ruler-col");
+    s += topText({ x: rx(c), y: RULER.y0 - 0.7, z: Z_FLOOR, text: String(c), size: 12, weight: 500, fill: "var(--muted)" });
+  }
+  s += line([rx(0), RULER.y0, Z_FLOOR], [rx(199), RULER.y0, Z_FLOOR], "disk-ruler-axis");
+  for (let k = 1; k <= 8; k++)
+    s += topText({ x: rx(0) - 0.55, y: ry(k), z: Z_FLOOR, text: String(k), size: 12, weight: 500, fill: "var(--muted)" });
+  s += `<g id="disk-marks">${REQUESTS.map((c, i) => {
+    const [x, y] = project(rx(c), RULER.y0, Z_FLOOR);
+    return `<polygon class="disk-mark" data-mark="${i + 1}" points="${r2(x)},${r2(y - 4)} ${r2(x + 6)},${r2(y)} ${r2(x)},${r2(y + 4)} ${r2(x - 6)},${r2(y)}"/>`;
+  }).join("")}</g>`;
+  s += `<polyline id="disk-route" class="disk-route" points=""/><g id="disk-route-dots"></g></g>`;
+  return s;
+}
+
+// Each view is fitted to the devices, callouts, ruler and the token lift (not
+// to the floor, which runs past the stage edges).
+const VIEW = { wide: "-378 -84 1228 462", narrow: "-412 -97 904 531" };
+
+function sceneSvg(wide) {
+  return `<svg viewBox="${wide ? VIEW.wide : VIEW.narrow}" role="img" aria-labelledby="disk-scene-title">
+    <title id="disk-scene-title">요청 큐, 컨트롤러, 하드 디스크와 헤드 이동 경로</title>
+    ${defs()}
+    ${wide ? floor({ x: -6, y: -16, w: 40, d: 34 }) : floor({ x: -1.4, y: -1, w: 27.4, d: 17.8 })}
+    ${rulerSvg()}
+    ${floorPath([[QUEUE.w, 1.2], [CTRL.x, 1.2]], { cls: "disk-wire", id: "wire-queue", arrow: true })}
+    ${floorPath(wide ? [[CTRL.x + CTRL.size, CTRL.y + CTRL.size / 2], [DRIVE.x, CTRL.y + CTRL.size / 2]] : [[CTRL.x + CTRL.size / 2, CTRL.y + CTRL.size], [CTRL.x + CTRL.size / 2, DRIVE.y]], { cls: "disk-wire", id: "wire-drive", arrow: true })}
+    ${queue.svg}
+    ${ctrl.svg}
+    ${drive.svg}
+    <g class="disk-platter">
+      ${[0, 50, 100, 150, 199].map((c) => ring(trackR(c), PZ + 0.005, "disk-guide")).join("")}
+      <g id="disk-target"></g>
+      <g id="disk-head-ring"></g>
+    </g>
+    <g id="disk-arm"></g>
+    ${callout({ x: 1.4, y: 0.2, z: QUEUE.h, dx: -30, dy: -64, title: "요청 큐", sub: "ARRIVAL ORDER" })}
+    ${callout({ x: CTRL.x + 0.4, y: CTRL.y + 0.6, z: ctrl.top, dx: -6, dy: -74, title: "컨트롤러", sub: "PICKS NEXT" })}
+    ${callout({ x: DRIVE.x + DRIVE.w, y: DRIVE.y + 1.2, z: drive.top, dx: 40, dy: -64, title: "하드 디스크", sub: "CYL 0 OUTER · 199 INNER" })}
+    ${callout({ x: rx(0), y: ry(8), z: Z_FLOOR, dx: -36, dy: -58, title: "헤드 이동 경로", sub: "CYLINDER × ORDER" })}
+    <g id="disk-tokens">${REQUESTS.map(
+      (c, i) => `<g class="disk-token" data-id="${i + 1}">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: 1.08, h: 0.5 })}</g>`,
+    ).join("")}</g>
+  </svg>`;
+}
+
+function armSvg(c, lit) {
+  const [hx, hy] = headPoint(c);
+  const [px, py] = PIVOT;
+  const len = Math.hypot(hx - px, hy - py);
+  const ux = (hx - px) / len;
+  const uy = (hy - py) / len;
+  const nx = -uy;
+  const ny = ux;
+  const poly = (pts, z) => pts.map(([x, y]) => P(x, y, z)).join(" ");
+  const back = [px - ux * 0.9, py - uy * 0.9];
+  const arm = [
+    [back[0] + nx * 0.42, back[1] + ny * 0.42],
+    [hx - ux * 0.3 + nx * 0.14, hy - uy * 0.3 + ny * 0.14],
+    [hx - ux * 0.3 - nx * 0.14, hy - uy * 0.3 - ny * 0.14],
+    [back[0] - nx * 0.42, back[1] - ny * 0.42],
+  ];
+  const slider = [
+    [hx - ux * 0.38 + nx * 0.26, hy - uy * 0.38 + ny * 0.26],
+    [hx + ux * 0.26 + nx * 0.26, hy + uy * 0.26 + ny * 0.26],
+    [hx + ux * 0.26 - nx * 0.26, hy + uy * 0.26 - ny * 0.26],
+    [hx - ux * 0.38 - nx * 0.26, hy - uy * 0.38 - ny * 0.26],
+  ];
+  const shadowPts = arm.map(([x, y]) => [x + 0.18, y + 0.32]);
+  const [ox, oy] = project(px, py, drive.top);
+  const [tx, ty] = project(px, py, ARM_Z + 0.06);
+  const pr = 0.62 * UNIT * Math.SQRT2;
+  return `<polygon class="disk-arm-shadow" points="${poly(shadowPts, PZ + 0.01)}"/>
+    <ellipse class="disk-pivot-base" cx="${r2(ox)}" cy="${r2(oy)}" rx="${r2(pr)}" ry="${r2(pr / 2)}"/>
+    <rect class="disk-pivot-base" x="${r2(ox - pr)}" y="${r2(ty)}" width="${r2(pr * 2)}" height="${r2(oy - ty)}"/>
+    <polygon class="disk-arm-body" points="${poly(arm, ARM_Z)}"/>
+    <polygon class="disk-head ${lit ? "is-lit" : ""}" points="${poly(slider, ARM_Z + 0.02)}"/>
+    <ellipse class="disk-pivot-cap" cx="${r2(tx)}" cy="${r2(ty)}" rx="${r2(pr)}" ry="${r2(pr / 2)}"/>`;
+}
+
+const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
+
+export function createDiskScene(host, { onPhase, onHead } = {}) {
+  const narrow = matchMedia("(max-width: 759px)");
+  const $ = (s) => host.querySelector(s);
+  let tokens;
+  let shown = null;
+  function build() {
+    setLayout(!narrow.matches);
+    host.innerHTML = sceneSvg(!narrow.matches);
+    tokens = new Map([...host.querySelectorAll(".disk-token")].map((g) => [Number(g.dataset.id), g]));
+  }
+  build();
+  // Crossing the phone breakpoint redraws the scene in the other layout.
+  narrow.addEventListener("change", () => {
+    cancel();
+    build();
+    if (shown) snap(...shown);
+  });
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  const labels = document.createElementNS("http://www.w3.org/2000/svg", "g");
-  $(".drive-map").append(labels);
   let active = null;
-  function snap(state, chosen = null, runnerUp = null) {
-    arm.style.transform = `rotate(${angle(state.head)}deg)`;
-    $("[data-head]").textContent = state.head;
-    $("[data-total]").innerHTML = `${state.total}<small>칸</small>`;
-    for (let id = 1; id <= REQUESTS.length; id++) {
+
+  function drawHead(c, lit = true) {
+    $("#disk-arm").innerHTML = armSvg(c, lit);
+    $("#disk-head-ring").innerHTML = ring(trackR(c), PZ + 0.01, "disk-head-track");
+    onHead?.(Math.round(c));
+  }
+  function drawTarget(c) {
+    $("#disk-target").innerHTML = c == null ? "" : ring(trackR(c), PZ + 0.01, "disk-target-track");
+  }
+  function drawRoute(points) {
+    const xy = points.map(([c, k]) => project(rx(c), ry(k), Z_FLOOR).map(r2));
+    $("#disk-route").setAttribute("points", xy.map((p) => p.join(",")).join(" "));
+    $("#disk-route-dots").innerHTML = xy
+      .map(([x, y], i) => `<circle class="disk-route-dot${i === xy.length - 1 ? " is-last" : ""}" cx="${x}" cy="${y}" r="${i === xy.length - 1 ? 4.2 : 3}"/>`)
+      .join("");
+  }
+  function setWires(stage) {
+    $("#wire-queue").classList.toggle("is-active", stage === "controller");
+    $("#wire-drive").classList.toggle("is-active", stage === "seek");
+  }
+  function setTokens(state, selected = null) {
+    for (const [id, g] of tokens) {
       const done = state.completed.some((r) => r.id === id);
-      const slot = $(`[data-request="${id}"]`);
-      let appearance = "waiting";
-      let caption = "대기";
-      if (done) {
-        appearance = "done";
-        caption = "처리 완료";
-      } else if (chosen?.id === id) {
-        appearance = "selected";
-        caption = runnerUp ? `선택 · ${chosen.distance}칸` : "선택";
-      } else if (runnerUp?.id === id) {
-        appearance = "alternate";
-        caption = `후보 · ${runnerUp.distance}칸`;
-      }
-      slot.dataset.state = appearance;
-      slot.querySelector("span").textContent = caption;
-      $(`[data-track="${id}"]`).dataset.state = appearance;
+      g.classList.toggle("is-served", done);
+      g.classList.toggle("is-selected", selected === id);
+      const i = id - 1;
+      place(g, ...slotPoint(i));
+      $(`[data-mark="${id}"]`).setAttribute("class", `disk-mark${done ? " is-served" : selected === id ? " is-selected" : ""}`);
     }
   }
-  function phase(kind, title, body, state) {
-    $(".scene-callout").textContent = title;
-    onPhase({ kind, title, body, state });
+  const routeOf = (heads) => heads.map((c, k) => [c, k]);
+
+  function snap(step, heads) {
+    shown = [step, heads];
+    setTokens(step.state);
+    drawHead(step.state.head, step.index > 0);
+    drawTarget(null);
+    drawRoute(routeOf(heads));
+    setWires(null);
   }
+
   function cancel() {
-    if (active) {
-      active.cancelled = true;
-      for (const a of active.animations) a.cancel();
-    }
+    if (active) active.cancelled = true;
     active = null;
-    token.hidden = true;
     host.dataset.moving = "false";
   }
-  async function animate(run, element, frames, options) {
-    const a = element.animate(frames, options);
-    a.playbackRate = run.speed;
-    run.animations.add(a);
-    if (run.paused) a.pause();
-    await a.finished.catch(() => {});
-    run.animations.delete(a);
+
+  // A clock that honours pause and speed for the arm, which is redrawn per
+  // frame rather than transformed. Timer-driven so it keeps time even where
+  // animation frames are throttled.
+  function tween(run, duration, onFrame) {
+    return new Promise((resolve) => {
+      let t = 0;
+      let last = performance.now();
+      const tick = () => {
+        if (run.cancelled) return resolve(false);
+        const now = performance.now();
+        if (!run.paused) t += (now - last) * run.speed;
+        last = now;
+        const p = Math.min(1, t / duration);
+        onFrame?.(p);
+        if (p >= 1) return resolve(true);
+        setTimeout(tick, 16);
+      };
+      tick();
+    });
   }
-  async function update(
-    step,
-    { motion = false, speed = 1, algorithm = "fcfs" } = {},
-  ) {
+
+  // Carry a token along a world-space polyline with place(), on the same clock.
+  function carry(run, el, route, duration) {
+    const seg = route.slice(1).map((p, i) => Math.hypot(p[0] - route[i][0], p[1] - route[i][1], p[2] - route[i][2]));
+    const total = seg.reduce((x, y) => x + y, 0);
+    return tween(run, duration, (p) => {
+      let d = ease(p) * total;
+      let i = 0;
+      while (i < seg.length - 1 && d > seg[i]) d -= seg[i++];
+      const f = seg[i] ? Math.min(1, d / seg[i]) : 1;
+      const [a, b] = [route[i], route[i + 1]];
+      place(el, a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f);
+    });
+  }
+
+  /**
+   * Show a step. heads: head cylinder after steps 0..step.index.
+   * With motion, plays select → controller → seek → arrive.
+   */
+  async function update(step, { motion = false, speed = 1, heads = [INITIAL_HEAD] } = {}) {
     cancel();
+    shown = [step, heads];
     if (!motion || !step.index || reduced.matches) {
-      snap(step.state);
-      labels.innerHTML = step.index ? trackLabel(step.state.head, seekDistance(step)) : "";
-      phase(
-        "complete",
-        step.index
-          ? arrivalTitle(step, algorithm)
-          : algorithm === "sstf"
-            ? `SSTF · 헤드 ${step.state.head}에서 가장 가까운 요청부터`
-            : "FCFS · 먼저 도착한 요청부터",
-        "",
-        step.state,
-      );
+      snap(step, heads);
+      onPhase?.(step.index ? "done" : "idle", step);
       return;
     }
-    const run = { cancelled: false, paused: false, speed, animations: new Set() };
+    const run = { cancelled: false, paused: false, speed };
     active = run;
-    const request = step.request;
-    const chosen = step.candidates[0];
-    const runnerUp = algorithm === "sstf" ? step.candidates[1] : null;
-    snap(step.before, chosen, runnerUp);
-    if (matchMedia("(max-width: 759px)").matches) {
-      host.scrollIntoView({ block: "end", behavior: "instant" });
-    }
-    labels.innerHTML = runnerUp
-      ? trackLabel(chosen.cylinder, `${chosen.cylinder}번 · ${chosen.distance}칸`) +
-        trackLabel(runnerUp.cylinder, `${runnerUp.cylinder}번 · ${runnerUp.distance}칸`, true)
-      : "";
     host.dataset.moving = "true";
-    phase(
-      "select",
-      runnerUp ? `헤드 ${step.before.head} 기준 · 가장 가까운 ${request.cylinder}번 선택` : `요청 ${request.id} · ${request.cylinder}번 실린더 선택`,
-      algorithm === "fcfs"
-        ? "남은 요청 중 먼저 도착한 요청을 선택합니다. 가까운 위치인지는 선택 기준이 아닙니다."
-        : `현재 헤드 ${step.before.head}에서 가장 가까운 요청을 선택합니다. 거리는 |${request.cylinder} − ${step.before.head}| = ${step.distance}입니다.`,
-      step.before,
-    );
-    token.textContent = request.cylinder;
-    token.hidden = false;
-    const positionRoute = () => {
-      const outer = host.getBoundingClientRect();
-      const start = $(`[data-request="${request.id}"]`).getBoundingClientRect();
-      const matrix = $(".drive-map").getScreenCTM();
-      const points = [new DOMPoint(start.left + start.width / 2, start.bottom)];
-      const drive = requestRoute.map(([x, y]) => new DOMPoint(x, y).matrixTransform(matrix));
-      const lower = $('[data-request="5"]').getBoundingClientRect();
-      const upper = $('[data-request="1"]').getBoundingClientRect();
-      if (lower.top > upper.bottom) {
-        const x = points[0].x;
-        if (start.bottom < lower.top) {
-          const second = $('[data-request="2"]').getBoundingClientRect();
-          const third = $('[data-request="3"]').getBoundingClientRect();
-          const lane = (second.right + third.left) / 2;
-          const between = (start.bottom + lower.top) / 2;
-          points.push(new DOMPoint(x, between), new DOMPoint(lane, between), new DOMPoint(lane, drive[0].y));
-        } else {
-          points.push(new DOMPoint(x, drive[0].y + token.offsetHeight / 2));
-        }
-        points.push(new DOMPoint(drive[0].x, points.at(-1).y), ...drive.slice(1));
-      } else {
-        points.push(...drive);
-      }
-      const path = points.map(({ x, y }, i) =>
-        `${i ? "L" : "M"}${x - outer.left - host.clientLeft} ${y - outer.top - host.clientTop}`
-      ).join(" ");
-      token.style.offsetPath = `path("${path}")`;
-    };
-    positionRoute();
-    const observer = new ResizeObserver(positionRoute);
-    observer.observe(host);
-    token.style.offsetRotate = "0deg";
-    // Let both distances register before the selected card leaves the queue.
-    await animate(run, token, [
-      { offsetDistance: "0%", opacity: 0 },
-      { offset: 0.035, offsetDistance: "3.5%", opacity: 1 },
-      { offsetDistance: "100%", opacity: 1 },
-    ],
-      { delay: runnerUp ? 650 : 0, fill: "backwards", duration: 850, easing: "linear" });
-    observer.disconnect();
+    const request = step.request;
+    const id = request.id;
+    const el = tokens.get(id);
+    el.parentNode.append(el); // the carried token draws above the others
+    const k = step.index;
+    const before = heads.slice(0, k);
+
+    setTokens(step.before, id);
+    drawHead(step.before.head, k > 1);
+    drawRoute(routeOf(before));
+    drawTarget(null);
+    setWires(null);
+    onPhase?.("select", step);
+    await tween(run, step.candidates[1] ? 1000 : 700);
     if (run.cancelled) return;
-    token.hidden = true;
-    if (runnerUp) snap(step.before, chosen);
-    labels.innerHTML = trackLabel(request.cylinder, seekDistance(step));
-    $("[data-head]").textContent = `${step.before.head} → ${request.cylinder}`;
-    phase(
-      "seek",
-      `${step.before.head} → ${request.cylinder} · ${seekDistance(step)} 이동 중`,
-      `선택한 트랙으로 헤드를 옮깁니다. 이번 이동 ${step.distance}칸은 도착 후 누적 이동에 더합니다.`,
-      step.before,
-    );
-    await animate(
-      run,
-      arm,
-      [
-        { transform: `rotate(${angle(step.before.head)}deg)` },
-        { transform: `rotate(${angle(request.cylinder)}deg)` },
-      ],
-      { duration: 1050 + step.distance * 4, easing: "ease-in-out" },
-    );
+
+    setWires("controller");
+    onPhase?.("controller", step);
+    const from = slotPoint(id - 1);
+    const lift = 1.5;
+    await carry(run, el, [from, [from[0], from[1], from[2] + lift], [ctrlPoint[0], ctrlPoint[1], ctrlPoint[2] + lift], ctrlPoint], 900);
     if (run.cancelled) return;
-    snap(step.state);
-    phase(
-      "arrive",
-      arrivalTitle(step, algorithm),
-      `|${request.cylinder} − ${step.before.head}| = ${step.distance}칸. ${step.before.total} + ${step.distance} = ${step.state.total}칸으로 누적됩니다.`,
-      step.state,
-    );
+
+    setWires("seek");
+    drawTarget(request.cylinder);
+    onPhase?.("seek", step);
+    const a = step.before.head;
+    const b = request.cylinder;
+    await tween(run, 900 + step.distance * 5, (p) => {
+      const e = ease(p);
+      const c = a + (b - a) * e;
+      drawHead(c, true);
+      drawRoute([...routeOf(before), [c, k - 1 + e]]);
+    });
+    if (run.cancelled) return;
+
+    drawTarget(null);
+    setWires(null);
+    drawRoute(routeOf(heads));
+    onPhase?.("arrive", step);
+    await carry(run, el, [ctrlPoint, [ctrlPoint[0], ctrlPoint[1], ctrlPoint[2] + lift], [from[0], from[1], from[2] + lift], from], 700);
+    if (run.cancelled) return;
+    setTokens(step.state);
     host.dataset.moving = "false";
     active = null;
   }
+
   return {
     update,
     setSpeed(speed) {
-      if (!active) return;
-      active.speed = speed;
-      active.animations.forEach((animation) => animation.updatePlaybackRate(speed));
+      if (active) active.speed = speed;
     },
     pause() {
-      if (active) {
-        active.paused = true;
-        active.animations.forEach((a) => a.pause());
-      }
+      if (active) active.paused = true;
     },
     resume() {
-      if (active) {
-        active.paused = false;
-        active.animations.forEach((a) => a.play());
-      }
+      if (active) active.paused = false;
     },
   };
 }

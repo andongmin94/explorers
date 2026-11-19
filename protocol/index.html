@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko" dir="ltr">
+<html lang="ko" data-explorer="protocol" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -15,12 +15,12 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       name="theme-color"
-      content="#f4f5f7"
+      content="#eeeeec"
       media="(prefers-color-scheme: light)"
     />
     <meta
       name="theme-color"
-      content="#18191c"
+      content="#171716"
       media="(prefers-color-scheme: dark)"
     />
     <link rel="canonical" href="https://protocol-explorer-alpha.vercel.app/" />
@@ -106,7 +106,7 @@
           for (const meta of document.querySelectorAll(
             'meta[name="theme-color"]',
           ))
-            meta.content = dark ? "#18191c" : "#f4f5f7";
+            meta.content = dark ? "#171716" : "#eeeeec";
       } catch {
         document.documentElement.dataset.theme = "light";
       }

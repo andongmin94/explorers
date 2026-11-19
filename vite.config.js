@@ -1,24 +1,8 @@
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
-import { explorers } from "./public/explorers.js";
+import { explorers } from "./shared/explorers.js";
 
 const page = (path) => fileURLToPath(new URL(path, import.meta.url));
-
-// Every explorer is its own page under /<slug>/. The switcher in public/ is
-// added to each page after Vite has processed it, so it stays a shared file.
-const switcher = {
-  name: "explorer-switcher",
-  transformIndexHtml: {
-    order: "post",
-    handler: (html, { path }) =>
-      path === "/index.html"
-        ? []
-        : [
-            { tag: "link", attrs: { rel: "stylesheet", href: "/switcher.css" }, injectTo: "head" },
-            { tag: "script", attrs: { type: "module", src: "/switcher.js" }, injectTo: "body" },
-          ],
-  },
-};
 
 // /cpu → /cpu/ so relative script and asset paths resolve inside the explorer.
 function addTrailingSlash(server) {
@@ -31,6 +15,8 @@ function addTrailingSlash(server) {
   });
 }
 
+// Every explorer is its own page under /<slug>/. Each page imports the shared
+// theme and the explorer switcher from shared/ in its main.js.
 export default defineConfig({
   appType: "mpa",
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
@@ -46,7 +32,6 @@ export default defineConfig({
     },
   },
   plugins: [
-    switcher,
     { name: "explorer-slash", configureServer: addTrailingSlash, configurePreviewServer: addTrailingSlash },
   ],
 });

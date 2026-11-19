@@ -1,761 +1,408 @@
-import "./scene.css";
+// The memory explorer's isometric scene: CPU, page table, RAM frames and SSD
+// on one floor. Pages are tokens: the SSD keeps the originals A–E, the RAM
+// frames hold copies, and one access moves them along the floor paths.
+import {
+  callout,
+  chip,
+  defs,
+  fitViewBox,
+  floor,
+  floorPath,
+  frontText,
+  led,
+  module,
+  place,
+  quad,
+  socket,
+  ramStick,
+  ssd,
+  token,
+  topText,
+  travel as kitTravel,
+} from "../../shared/iso-kit.js";
 
 const PAGES = ["A", "B", "C", "D", "E"];
-const COLOR = Object.fromEntries(
-  PAGES.map((page) => [page, `var(--${page.toLowerCase()})`]),
-);
-const COS = Math.sqrt(3) / 2;
-const point = (origin, u, v, z = 0) => [
-  origin.x + (u - v) * COS,
-  origin.y + (u + v) / 2 - z,
-];
-const coordinates = (vertices) =>
-  vertices.map((p) => p.map((n) => Number(n.toFixed(2))).join(",")).join(" ");
-const face = (origin, vertices, className) =>
-  `<polygon class="${className}" points="${coordinates(vertices.map((p) => point(origin, ...p)))}"/>`;
-function box(origin, u0, u1, v0, v1, z0, z1, prefix = "mem-device") {
-  return (
-    face(
-      origin,
-      [
-        [u0, v1, z1],
-        [u1, v1, z1],
-        [u1, v1, z0],
-        [u0, v1, z0],
-      ],
-      `${prefix}-front`,
-    ) +
-    face(
-      origin,
-      [
-        [u1, v0, z1],
-        [u1, v1, z1],
-        [u1, v1, z0],
-        [u1, v0, z0],
-      ],
-      `${prefix}-side`,
-    ) +
-    face(
-      origin,
-      [
-        [u0, v0, z1],
-        [u1, v0, z1],
-        [u1, v1, z1],
-        [u0, v1, z1],
-      ],
-      `${prefix}-top`,
-    )
-  );
-}
-function engraving(origin, text, z, size) {
-  const [x, y] = point(origin, 0, 0, z);
-  return `<text class="mem-engraving" text-anchor="middle" font-size="${size}" transform="matrix(${COS} .5 ${-COS} .5 ${x} ${y})" y="${size * 0.3}">${text}</text>`;
-}
-function cpuDrawing({ x, y, width }) {
-  const origin = { x, y },
-    base = width / (4 * COS),
-    chip = base * 0.79,
-    die = chip * 0.53;
-  const pins = Array.from({ length: 7 }, (_, index) => {
-    const p = chip * (-0.8 + index * 0.267),
-      a = chip * 0.055;
-    return [
-      [chip * 0.94, base * 0.96, p - a, p + a],
-      [-base * 0.96, -chip * 0.94, p - a, p + a],
-      [p - a, p + a, chip * 0.94, base * 0.96],
-      [p - a, p + a, -base * 0.96, -chip * 0.94],
-    ]
-      .map(
-        (bounds) => `<g class="mem-pins">${box(origin, ...bounds, 0, 2)}</g>`,
-      )
-      .join("");
-  }).join("");
-  return `<g class="mem-cpu">${face(
-    { x: x + 4, y: y + 5 },
-    [
-      [-base, -base, -5],
-      [base, -base, -5],
-      [base, base, -5],
-      [-base, base, -5],
-    ],
-    "mem-device-shadow",
-  )}
-    ${box(origin, -base, base, -base, base, -5, 0)}${pins}
-    ${box(origin, -chip, chip, -chip, chip, 0, 18)}
-    ${box(origin, -die, die, -die, die, 18, 20)}${engraving(origin, "CPU", 21, Math.max(16, width * 0.12))}</g>`;
-}
-function ramDrawing({ x, y, width, height }) {
-  const length = (width * 0.8) / COS,
-    thick = 4 / COS,
-    tall = height - 22 - length / 2;
-  const origin = { x: x + 5, y: y + height - 10 };
-  return `<g class="mem-ram">${face(
-    { x: origin.x + 4, y: origin.y + 5 },
-    [
-      [-2, -length - 2, 0],
-      [12, -length - 2, 0],
-      [12, 2, 0],
-      [-2, 2, 0],
-    ],
-    "mem-device-shadow",
-  )}
-    ${box(origin, -2, 12, -length - 2, 2, -5, 0)}${box(origin, 0, thick, -length, 0, 0, tall)}
-    ${Array.from({ length: 4 }, (_, i) => box(origin, thick, thick + 4, -length * 0.94 + i * length * 0.23, -length * 0.94 + i * length * 0.23 + length * 0.16, tall * 0.24, tall * 0.83, "mem-chip")).join("")}
-    ${Array.from({ length: 16 }, (_, i) =>
-      face(
-        origin,
-        [
-          [thick + 0.2, -length * 0.96 + i * length * 0.06, 1],
-          [thick + 0.2, -length * 0.93 + i * length * 0.06, 1],
-          [thick + 0.2, -length * 0.93 + i * length * 0.06, 5],
-          [thick + 0.2, -length * 0.96 + i * length * 0.06, 5],
-        ],
-        "mem-contact",
-      ),
-    ).join("")}</g>`;
-}
-function ssdDrawing({ x, y, width }) {
-  const origin = { x, y: y + 10 },
-    u = (width * 0.34) / COS,
-    v = (width * 0.16) / COS;
-  return `<g class="mem-ssd">${face(
-    { x: x + 5, y: y + 15 },
-    [
-      [-u, -v, 0],
-      [u, -v, 0],
-      [u, v, 0],
-      [-u, v, 0],
-    ],
-    "mem-device-shadow",
-  )}
-    ${box(origin, -u, u, -v, v, 0, 10)}${face(
-      origin,
-      [
-        [-u * 0.72, -v * 0.68, 10.3],
-        [u * 0.72, -v * 0.68, 10.3],
-        [u * 0.72, v * 0.68, 10.3],
-        [-u * 0.72, v * 0.68, 10.3],
-      ],
-      "mem-ssd-label",
-    )}
-    ${engraving(origin, "SSD", 11, Math.max(17, width * 0.13))}
-    ${[-1, 1]
-      .flatMap((a) =>
-        [-1, 1].map((b) => {
-          const p = point(origin, u * a * 0.85, v * b * 0.8, 10.5);
-          return `<ellipse class="mem-bolt" cx="${p[0]}" cy="${p[1]}" rx="2.5" ry="1.5"/>`;
-        }),
-      )
-      .join("")}
-    ${face(
-      origin,
-      [
-        [u, -v * 0.6, 2],
-        [u, v * 0.6, 2],
-        [u, v * 0.6, 7],
-        [u, -v * 0.6, 7],
-      ],
-      "mem-port",
-    )}
-    ${Array.from({ length: 6 }, (_, i) => {
-      const a = point(origin, u + 0.2, -v * 0.5 + i * v * 0.2, 2.5),
-        b = point(origin, u + 0.2, -v * 0.5 + i * v * 0.2, 6.5);
-      return `<path class="mem-connector" d="M${a.join(" ")}L${b.join(" ")}"/>`;
-    }).join("")}</g>`;
-}
+export const pageColor = (page) => `var(--page-${page.toLowerCase()})`;
 
-function housingDrawing({ x, y, width, height, depth = 16 }, kind) {
-  const rise = depth / Math.sqrt(3),
-    bottom = y + height;
-  return `<g class="mem-housing mem-housing-${kind}">
-    <path class="mem-device-shadow" d="M${x + 5} ${bottom + 5}H${x + width + depth + 5}L${x + width + 5} ${bottom + rise + 11}H${x + 5}Z"/>
-    <path class="mem-housing-top" d="M${x} ${y}L${x + depth} ${y - rise}H${x + width + depth}L${x + width} ${y}Z"/>
-    <path class="mem-housing-side" d="M${x + width} ${y}L${x + width + depth} ${y - rise}V${bottom - rise}L${x + width} ${bottom}Z"/>
-    <rect class="mem-housing-front" x="${x}" y="${y}" width="${width}" height="${height}" rx="2"/>
-    <path class="mem-housing-rail" d="M${x + 5} ${y + 5}V${bottom - 5}H${x + width - 5}V${y + 5}"/>
-    ${[
-      [x + 5, y + 6],
-      [x + width - 5, y + 6],
-      [x + 5, bottom - 6],
-      [x + width - 5, bottom - 6],
-    ]
-      .map(([a, b]) => `<circle class="mem-bolt" cx="${a}" cy="${b}" r="1.5"/>`)
-      .join("")}
-  </g>`;
-}
+/* ---------- World layout (iso units) ---------- */
+const CPU = { x: 0, y: 9, size: 5 };
+const CPU_TOP = 0.75;
+const CPU_SPOT = [2.5, 11.5];
+const TABLE = { x: -0.5, y: 1.2, w: 9, d: 3, h: 0.6 };
+const entryX = (i) => TABLE.x + 1.1 + i * 1.7;
+const RAM = { x: 8, y: 6, w: 10, d: 3.8, h: 0.6 };
+const slotX = (slot) => RAM.x + 1.9 + slot * 3.1;
+const SLOT_Y = RAM.y + 1.45;
+// The SSD is the one device whose place depends on the layout: on a wide
+// desktop stage it stands right of the RAM so the cluster reads as one wide
+// row; on a phone it sits in front so the scene stays tall enough to read.
+const DISK_NARROW = { x: 16.5, y: 11, w: 10, d: 4 };
+const DISK_WIDE = { x: 19.5, y: -0.5, w: 10, d: 4 };
+let DISK = DISK_WIDE;
+const DISK_TOP = 0.42;
+const diskX = (page) => DISK.x + 1.6 + PAGES.indexOf(page) * 1.65;
+const diskY = () => DISK.y + DISK.d / 2;
+const TOKEN = 1.3;
 
-function layoutFor(width) {
-  const compact = width < 620;
-  const ramWidth = compact
-    ? Math.min(158, width * 0.46)
-    : Math.min(184, width * 0.275);
-  const ramX = compact ? width - ramWidth - 26 : (width - ramWidth) / 2;
-  const requestWidth = compact ? Math.min(112, ramX - 37) : 112;
-  const cpuX = compact ? 13 + requestWidth / 2 : Math.max(92, width * 0.15);
-  const ssdX = compact ? 74 : width - Math.max(92, width * 0.15);
-  const request = {
-    x: cpuX - requestWidth / 2,
-    y: 220,
-    width: requestWidth,
-    height: 62,
-  };
-  const ramHousing = {
-    x: ramX - 8,
-    y: compact ? 192 : 183,
-    width: ramWidth + 16,
-    height: compact ? 242 : 243,
-    depth: compact ? 10 : 16,
-  };
-  const cpuHousing = {
-    x: request.x - 8,
-    y: 204,
-    width: requestWidth + 16,
-    height: 92,
-    depth: compact ? 10 : 16,
-  };
-  const ssdHousing = {
-    x: ssdX - 62,
-    y: compact ? 435 : 207,
-    width: 124,
-    height: 106,
-    depth: compact ? 10 : 16,
-  };
-  return {
-    width,
-    compact,
-    height: compact ? 664 : 520,
-    cpu: {
-      x: cpuX,
-      y: 155,
-      width: compact
-        ? Math.min(120, width * 0.35)
-        : Math.min(178, width * 0.265),
-    },
-    ram: {
-      x: ramX + 14,
-      y: compact ? 85 : 73,
-      width: compact
-        ? Math.min(122, ramWidth - 30)
-        : Math.min(144, ramWidth - 34),
-      height: compact ? 105 : 111,
-    },
-    ssd: {
-      x: ssdX,
-      y: compact ? 400 : 165,
-      width: compact ? 132 : Math.min(166, width * 0.25),
-    },
-    ramX,
-    ramWidth,
-    ramHousing,
-    cpuHousing,
-    ssdHousing,
-    frameY: compact ? 230 : 221,
-    frameGap: 68,
-    frameHeight: 56,
-    request,
-    disk: { x: ssdX - 50, y: compact ? 457 : 229, gap: 36 },
-    lookup: { x: ramHousing.x - 2, y: ramHousing.y + 20 },
-    accessY: compact ? 306 : 355,
-    table: { x: 18, y: compact ? 586 : 450, width: width - 36 },
-    titleY: 79,
-  };
-}
-const framePosition = (layout, slot) => ({
-  x: layout.ramX + 24,
-  y: layout.frameY + slot * layout.frameGap + layout.frameHeight / 2,
-});
-const diskPosition = (layout, page) => {
-  const index = PAGES.indexOf(page);
-  return {
-    x: layout.disk.x + (index % 3) * layout.disk.gap + 14,
-    y: layout.disk.y + Math.floor(index / 3) * 37 + 14,
-  };
+const slotPoint = (slot, lift = 0) => [slotX(slot), SLOT_Y, RAM.h + lift];
+const diskPoint = (page, lift = 0) => [diskX(page), diskY(), DISK_TOP + lift];
+const cpuPoint = (lift = 0) => [...CPU_SPOT, CPU_TOP + lift];
+const entryPoint = (page, lift = 0) => [entryX(PAGES.indexOf(page)), TABLE.y + 1.55, TABLE.h + lift];
+
+const ROUTES = {
+  lookup: [[2.5, 9], [2.5, 4.5]],
+  read: [[9.2, 10], [9.2, 11.5], [5.5, 11.5]],
 };
+const loadRoute = (wide) => (wide ? [[20.6, DISK.y + DISK.d], [20.6, 7.9], [18.3, 7.9]] : [[19.5, 11], [19.5, 7.9], [18.3, 7.9]]);
+
+// Both views are fitted to the devices, callouts and token routes (lifts
+// included), not to the floor, which runs past the stage edges.
+const VIEW_WIDE = fitViewBox([[0, 14.5, 0], [-0.5, 1.2, 0.6], [-1.6, 4.4, 4.6], [6, -0.6, 4.6], [29.5, 3.5, 0], [29.8, -1.6, 4.4], [18, 9.8, 0], [5, 14, 0]], 12);
+const VIEW_TIGHT = fitViewBox([[0, 14.5, 0], [26.5, 10.5, 0], [26.5, 15, 0], [-0.5, 1.2, 5.6], [-0.5, 15, 0], [24, 6, 4.2]], 8);
+
+function staticScene(wide) {
+  const ram = ramStick({ x: RAM.x + 0.4, y: RAM.y - 1.9, length: RAM.w - 0.8, label: "", chips: 5 });
+  const frames = module({ ...RAM, well: false });
+  const table = module({ ...TABLE, well: false });
+  const cpu = chip({ ...CPU, label: "" });
+  const disk = ssd({ ...DISK, label: "" });
+
+  const slots = [0, 1, 2]
+    .map((slot) => {
+      const x = slotX(slot);
+      return `<g class="mem-slot" data-slot="${slot}">
+        ${socket({ x: x - 1.25, y: SLOT_Y - 1.1, z: RAM.h, w: 2.5, d: 2.2, cls: "mem-slot-well" })}
+        ${quad({ x: x - 1.25, y: SLOT_Y - 1.1, z: RAM.h + 0.004, w: 2.5, d: 2.2, fill: "none", stroke: "var(--accent)", strokeWidth: 2, cls: "mem-slot-ring" })}
+        ${frontText({ x, y: RAM.y + RAM.d, z: RAM.h / 2, text: `F${slot}`, size: 10, fill: "var(--ink)", weight: 700 })}
+        <g class="mem-rank"></g>
+      </g>`;
+    })
+    .join("");
+
+  const entries = PAGES.map((page, i) => {
+    const x = entryX(i);
+    // Each entry is a cell set into the table: LED, page letter, frame number.
+    return `<g class="mem-entry" data-entry="${page}">
+      ${socket({ x: x - 0.7, y: TABLE.y + 0.25, z: TABLE.h, w: 1.4, d: TABLE.d - 0.5, cls: "mem-entry-cell" })}
+      ${led({ x, y: TABLE.y + 0.6, z: TABLE.h, color: pageColor(page) })}
+      ${topText({ x, y: TABLE.y + 1.35, z: TABLE.h, text: page, size: 12, weight: 800, fill: pageColor(page) })}
+      <g class="mem-entry-frame">${topText({ x, y: TABLE.y + 2.15, z: TABLE.h, text: "—", size: 10, weight: 600, fill: "var(--muted)" })}</g>
+    </g>`;
+  }).join("");
+
+  const originals = PAGES.map(
+    (page) => `<g class="mem-original" data-original="${page}">${token({ id: page, color: pageColor(page), size: TOKEN })}</g>`,
+  ).join("");
+
+  return `<svg class="mem-svg" viewBox="${wide ? VIEW_WIDE : VIEW_TIGHT}" role="img" aria-label="CPU, 페이지 테이블, RAM 프레임, SSD 장면">
+    ${defs()}
+    ${wide ? floor({ x: -4, y: -4, w: 37, d: 22 }) : floor({ x: -1, y: 0, w: 28.5, d: 16 })}
+    ${floorPath(ROUTES.lookup, { dashed: true, cls: "mem-path", id: "mem-path-lookup" })}
+    ${floorPath(ROUTES.read, { dashed: true, cls: "mem-path", id: "mem-path-read" })}
+    ${floorPath(loadRoute(wide), { dashed: true, cls: "mem-path", id: "mem-path-load" })}
+    ${table.svg}
+    ${entries}
+    ${ram.svg}
+    ${frames.svg}
+    ${slots}
+    ${cpu.svg}
+    ${disk.svg}
+    ${frontText({ x: DISK.x + 2.6, y: DISK.y + DISK.d, z: 0.21, text: "PAGE STORE", size: 8, fill: "var(--muted)" })}
+    ${callout({ x: 0.6, y: CPU.y + 2, z: 0.3, dx: -36, dy: -78, title: "CPU", sub: "요청하는 쪽", anchor: "middle" })}
+    ${callout({ x: TABLE.x + 1, y: TABLE.y, z: TABLE.h, dx: -10, dy: -58, title: "페이지 테이블", sub: "상주 여부 · 프레임", anchor: "middle" })}
+    ${callout({ x: RAM.x + RAM.w - 1, y: RAM.y - 1.4, z: 2.05, dx: 30, dy: -64, title: "RAM", sub: "·", cls: "mem-ram-callout", anchor: "middle" })}
+    ${callout({ x: DISK.x + DISK.w, y: DISK.y + 0.6, z: DISK_TOP, dx: 34, dy: -64, title: "SSD", sub: "원본 A–E", anchor: "middle" })}
+    <g class="mem-originals">${originals}</g>
+    <g class="mem-tokens">${[0, 1, 2].map((slot) => `<g class="mem-token" data-token-slot="${slot}"></g>`).join("")}</g>
+    <g class="mem-request"></g>
+    <g class="mem-movers"></g>
+  </svg>`;
+}
+
 const cloneFrames = (frames) => frames.map((frame) => ({ ...frame }));
-const replacementReason = (policy, frame) => policy === "fifo"
-  ? `가장 먼저 적재된 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
-  : `마지막 사용이 가장 이른 ${frame.page} 교체 (사용 ${frame.lastUsedAt}번째)`;
-let serial = 0;
+const emptyFrames = () => [0, 1, 2].map((slot) => ({ slot, page: null, loadedAt: null, lastUsedAt: null }));
+
+/** Order in which the policy would replace the resident pages; rank 1 goes first. */
+function ranks(frames, algorithm) {
+  const key = (frame) => (algorithm === "fifo" ? frame.loadedAt : frame.lastUsedAt ?? frame.loadedAt);
+  const order = frames.filter((frame) => frame.page).toSorted((a, b) => key(a) - key(b));
+  return new Map(order.map((frame, i) => [frame.slot, i + 1]));
+}
+
+export const replacementReason = (policy, frame) =>
+  policy === "fifo"
+    ? `가장 먼저 적재된 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
+    : `마지막 사용이 가장 이른 ${frame.page} 교체 (사용 ${frame.lastUsedAt}번째)`;
 
 export function createMemoryScene(host, { onPhase = () => {} } = {}) {
-  const id = ++serial,
-    reduced = matchMedia("(prefers-reduced-motion: reduce)");
-  host.classList.add("memory-scene");
-  host.setAttribute("role", "group");
-  host.tabIndex = -1;
-  host.innerHTML = `<svg class="mem-map" aria-hidden="true"></svg><div class="mem-frame-layer"></div>
-    <div class="mem-request" aria-hidden="true"><span>CPU 요청</span><strong>—</strong><small>시작 전</small></div>
-    <div class="mem-status" aria-live="off"><b>준비</b><strong>세 개의 RAM 프레임을 관찰하세요</strong></div>
-    <div class="mem-page-table" role="group" aria-label="페이지 테이블"></div><div class="mem-transfer" hidden aria-hidden="true"></div>`;
-  const svg = host.querySelector(".mem-map"),
-    frameLayer = host.querySelector(".mem-frame-layer"),
-    request = host.querySelector(".mem-request"),
-    status = host.querySelector(".mem-status"),
-    pageTable = host.querySelector(".mem-page-table"),
-    transfer = host.querySelector(".mem-transfer");
-  const cards = Array.from({ length: 3 }, (_, slot) => {
-    const element = document.createElement("div");
-    element.className = "mem-frame";
-    element.dataset.frame = slot;
-    element.setAttribute("role", "group");
-    element.innerHTML = `<span class="mem-frame-id">F${slot}</span><div class="mem-frame-content"><strong class="mem-page-letter">—</strong><span><b>빈 프레임</b><small></small></span></div>`;
-    frameLayer.append(element);
-    return element;
-  });
-  let layout,
-    step = null,
-    frames = Array.from({ length: 3 }, (_, slot) => ({
-      slot,
-      page: null,
-      loadedAt: null,
-      lastUsedAt: null,
-    })),
-    run = null,
-    revision = 0,
-    destroyed = false;
-  function path(kind, slot = 0, page = step?.page) {
-    const cpu = { x: layout.request.x + 24, y: layout.request.y + 31 },
-      ram = framePosition(layout, slot),
-      disk = diskPosition(layout, page || "A");
-    const leftGap =
-      (layout.cpuHousing.x + layout.cpuHousing.width + layout.ramHousing.x) / 2;
-    if (kind === "lookup")
-      return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}`;
-    if (kind === "retry")
-      return `M${cpu.x} ${cpu.y}H${leftGap}V${layout.lookup.y}H${layout.lookup.x}V${ram.y}H${ram.x}`;
-    if (kind === "load") {
-      if (layout.compact) {
-        // Leave each tray row vertically before moving past the other pages.
-        const upperRow = disk.y < layout.disk.y + layout.disk.gap;
-        const exitY = upperRow ? disk.y - 37 : disk.y + 37;
-        const traySide = layout.ssdHousing.x + layout.ssdHousing.width + 22;
-        return `M${disk.x} ${disk.y}V${exitY}H${traySide}V552H${layout.width - 18}V${ram.y}H${ram.x}`;
-      }
-      const corridor =
-        (layout.ramHousing.x +
-          layout.ramHousing.width +
-          layout.ramHousing.depth +
-          layout.ssdHousing.x) /
-        2;
-      return `M${disk.x} ${disk.y}H${corridor}V${ram.y}H${ram.x}`;
-    }
-    return `M${ram.x} ${ram.y}H${leftGap}V${layout.accessY}H${cpu.x}V${cpu.y}`;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const narrow = matchMedia("(max-width: 759px)");
+  let svg, slotEls, tokenEls, request, movers;
+  const $ = (selector) => svg.querySelector(selector);
+  function build() {
+    const wide = !narrow.matches;
+    DISK = wide ? DISK_WIDE : DISK_NARROW;
+    host.innerHTML = staticScene(wide);
+    svg = host.querySelector("svg");
+    slotEls = [0, 1, 2].map((slot) => $(`[data-slot="${slot}"]`));
+    tokenEls = [0, 1, 2].map((slot) => $(`[data-token-slot="${slot}"]`));
+    request = $(".mem-request");
+    movers = $(".mem-movers");
+    for (const el of svg.querySelectorAll("[data-original]")) place(el, ...diskPoint(el.dataset.original));
+    tokenEls.forEach((el, slot) => place(el, ...slotPoint(slot)));
+    place(request, ...cpuPoint());
   }
+  build();
+  // Crossing the phone breakpoint redraws the scene in the other layout.
+  narrow.addEventListener("change", () => {
+    revision++;
+    cancel();
+    build();
+    frames = step ? cloneFrames(step.frames) : emptyFrames();
+    paintFrames();
+    paintRequest("done");
+    finalPhase();
+  });
+
+  let step = null;
+  let algorithm = "fifo";
+  let frames = emptyFrames();
+  let run = null;
+  let revision = 0;
+
+  /* ---------- Painting the state ---------- */
+
   function paintFrames() {
+    const rank = ranks(frames, algorithm);
+    const full = frames.every((frame) => frame.page);
     frames.forEach((frame) => {
-      const card = cards[frame.slot];
-      card.dataset.page = frame.page || "";
-      card.style.setProperty(
-        "--page-color",
-        frame.page ? COLOR[frame.page] : "var(--muted)",
-      );
-      card.querySelector(".mem-page-letter").textContent = frame.page || "—";
-      card.querySelector(".mem-frame-content b").textContent = frame.page
-        ? `페이지 ${frame.page}`
-        : "빈 프레임";
-      card.querySelector(".mem-frame-content small").innerHTML = frame.page
-        ? `<span class="mem-loaded">적재 ${frame.loadedAt}</span> · <span class="mem-used">${frame.lastUsedAt === null ? "접근 전" : `사용 ${frame.lastUsedAt}`}</span>`
+      const el = tokenEls[frame.slot];
+      if (el.dataset.page !== (frame.page ?? "")) {
+        el.dataset.page = frame.page ?? "";
+        el.innerHTML = frame.page ? token({ id: frame.page, color: pageColor(frame.page), size: TOKEN }) : "";
+      }
+      el.style.opacity = "";
+      const r = rank.get(frame.slot);
+      const x = slotX(frame.slot);
+      slotEls[frame.slot].querySelector(".mem-rank").innerHTML = r
+        ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: r === 1 && full })}${topText({ x: x + 0.15, y: SLOT_Y + 1.75, z: RAM.h, text: `#${r}`, size: 13, weight: 800, fill: r === 1 && full ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
         : "";
-      card.setAttribute(
-        "aria-label",
-        `프레임 F${frame.slot}: ${frame.page ? `페이지 ${frame.page}, ${frame.loadedAt}번째 적재, ${frame.lastUsedAt === null ? "접근 전" : `${frame.lastUsedAt}번째 사용`}` : "비어 있음"}`,
-      );
     });
-    const entries = PAGES.map((page) => {
+    for (const page of PAGES) {
       const frame = frames.find((f) => f.page === page);
-      return `<span class="mem-entry" data-requested="${step?.page === page}" aria-label="${page} · ${frame ? "프레임 " + frame.slot : "미상주"}"><b style="--page-color:${COLOR[page]}">${page}</b><small>${frame ? "F" + frame.slot : "—"}</small></span>`;
-    });
-    pageTable.innerHTML = `<span>페이지 테이블 <small>— 미상주</small></span><div>${entries.join("")}</div>`;
+      const entry = $(`[data-entry="${page}"]`);
+      entry.querySelector(".iso-led").classList.toggle("is-on", Boolean(frame));
+      entry.querySelector(".mem-entry-frame text").textContent = frame ? `F${frame.slot}` : "—";
+      entry.classList.toggle("is-resident", Boolean(frame));
+    }
+    $(".mem-ram-callout .iso-callout-sub").textContent = algorithm === "fifo" ? "#1 다음 교체 · 적재 순" : "#1 다음 교체 · 사용 순";
     host.setAttribute(
       "aria-label",
-      `${step?.index || 0}번째 접근. ${frames.map((f) => `프레임 F${f.slot} ${f.page || "비어 있음"}`).join(", ")}.`,
+      `${step?.index || 0}번째 접근 후. ${frames.map((f) => `프레임 F${f.slot} ${f.page ? `페이지 ${f.page}` : "비어 있음"}`).join(", ")}.`,
     );
   }
-  function paintRequest(completed = false) {
-    const page = step?.page;
-    request.style.setProperty(
-      "--page-color",
-      page ? COLOR[page] : "var(--muted)",
-    );
-    request.querySelector("strong").textContent = page || "—";
-    request.querySelector("small").textContent = page
-      ? completed
-        ? "접근 완료"
-        : "조회 중"
-      : "시작 전";
-    svg
-      .querySelectorAll("[data-disk-page]")
-      .forEach((e) => (e.dataset.current = "false"));
+
+  function paintRequest(state = "done") {
+    const page = step?.index ? step.page : null;
+    if (request.dataset.page !== (page ?? "")) {
+      request.dataset.page = page ?? "";
+      request.innerHTML = page ? token({ id: page, color: pageColor(page), size: TOKEN }) : "";
+    }
+    request.dataset.state = state;
   }
+
+  let flows = [];
+  function emphasis({ path = null, slot = null, ring = null, entry = null } = {}) {
+    flows.forEach((animation) => animation.cancel());
+    flows = [];
+    for (const name of ["lookup", "read", "load"]) $(`#mem-path-${name}`).classList.toggle("is-active", name === path);
+    slotEls.forEach((el, i) => {
+      el.classList.toggle("is-hit", ring === "hit" && i === slot);
+      el.classList.toggle("is-selected", ring === "select" && i === slot);
+    });
+    for (const el of svg.querySelectorAll("[data-entry]")) el.classList.toggle("is-probed", el.dataset.entry === entry);
+  }
+
   function phase(kind, title, body) {
-    request.querySelector("small").textContent = {
-      ready: "시작 전",
-      lookup: "상주 확인",
-      hit: "RAM 적중",
-      miss: "부재 대기",
-      select: "부재 대기",
-      evict: "부재 대기",
-      load: "부재 대기",
-      retry: "접근 재시도",
-      read: "응답 대기",
-      access: "접근 완료",
-    }[kind];
-    status.querySelector("b").textContent = {
-      ready: "준비",
-      lookup: "조회",
-      hit: "적중",
-      miss: "부재",
-      select: "선택",
-      evict: "제거",
-      load: "읽기",
-      retry: "재시도",
-      read: "읽기",
-      access: "완료",
-    }[kind];
-    status.querySelector("strong").textContent = title;
-    status.dataset.phase = kind;
     host.dataset.phase = kind;
     onPhase({ kind, title, body });
   }
+
   function finalPhase() {
-    if (!step?.index)
-      phase(
-        "ready",
-        "세 개의 RAM 프레임을 관찰하세요",
-        "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.",
-      );
-    else {
-      let outcome = step.hit ? "RAM 적중" : "페이지 부재 처리";
-      if (step.victim) {
-        const { reason } = step.events.find((event) => event.type === "select");
-        outcome = replacementReason(reason, step.before[step.frameIndex]);
-      }
-      phase(
-        "access",
-        `${step.page} 접근 완료 · ${outcome}`,
-        step.hit
-          ? "RAM에 있던 페이지를 그대로 사용했습니다."
-          : "SSD에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
-      );
+    if (!step?.index) {
+      phase("ready", "RAM 프레임 3개가 비어 있습니다 · 첫 요청은 A", "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.");
+      return;
     }
-  }
-  function draw() {
-    layout = layoutFor(Math.max(280, Math.round(host.clientWidth)));
-    host.style.height = `${layout.height}px`;
-    host.dataset.compact = String(layout.compact);
-    svg.setAttribute("viewBox", `0 0 ${layout.width} ${layout.height}`);
-    const title = (x, y, text, sub) =>
-      `<text class="mem-device-title" x="${x}" y="${y}" text-anchor="middle">${text}</text><text class="mem-device-sub" x="${x}" y="${y + 18}" text-anchor="middle">${sub}</text>`;
-    const ramCenter = layout.ramX + layout.ramWidth / 2,
-      leftGap =
-        (layout.cpuHousing.x + layout.cpuHousing.width + layout.ramHousing.x) /
-        2;
-    const ports = Array.from({ length: 3 }, (_, slot) => {
-      const p = framePosition(layout, slot);
-      return `<path class="mem-bay-rail" d="M${layout.ramX - 3} ${p.y + 29}H${layout.ramX + layout.ramWidth + 3}"/><rect class="mem-physical-port" x="${layout.ramX - 11}" y="${p.y - 5}" width="5" height="10"/><rect class="mem-physical-port" x="${layout.ramX + layout.ramWidth + 6}" y="${p.y - 5}" width="5" height="10"/>`;
-    }).join("");
-    svg.innerHTML = `<defs><marker id="mem-arrow-${id}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0L6 3L0 6Z"/></marker></defs>
-      <g class="mem-lanes">${["lookup", "load", "access"].map((kind) => `<path data-lane="${kind}" d="${path(kind)}" marker-end="url(#mem-arrow-${id})"/>`).join("")}<path class="mem-active-flow"/></g>
-      <g class="mem-station" data-device="cpu">${title(layout.cpu.x, layout.titleY, "CPU", "페이지 요청")}
-        ${housingDrawing(layout.cpuHousing, "cpu")}${cpuDrawing(layout.cpu)}
-        <rect class="mem-request-socket" x="${layout.request.x - 3}" y="${layout.request.y - 3}" width="${layout.request.width + 6}" height="68" rx="2"/>
-        <rect class="mem-physical-port" x="${layout.cpuHousing.x + layout.cpuHousing.width - 2}" y="246" width="6" height="10"/>
-      </g>
-      <g class="mem-station" data-device="ram">${housingDrawing(layout.ramHousing, "ram")}${ramDrawing(layout.ram)}
-        <rect class="mem-controller" x="${layout.ramX}" y="${layout.ramHousing.y + 8}" width="${layout.ramWidth}" height="23"/>
-        <text class="mem-controller-label" x="${ramCenter}" y="${layout.ramHousing.y + 24}" text-anchor="middle">RAM · 페이지 테이블</text>
-        <rect class="mem-controller-port" x="${layout.lookup.x - 2}" y="${layout.lookup.y - 6}" width="6" height="12"/>
-        ${ports}
-      </g>
-      <g class="mem-station" data-device="ssd">${title(layout.ssd.x, layout.compact ? 336 : layout.titleY, "SSD", "원본 페이지 보관")}
-        ${housingDrawing(layout.ssdHousing, "ssd")}${ssdDrawing(layout.ssd)}
-        <g class="mem-disk-pages">${PAGES.map((page) => {
-          const p = diskPosition(layout, page);
-          return `<g data-disk-page="${page}" style="--page-color:${COLOR[page]}"><path class="mem-tray-slot" d="M${p.x - 16} ${p.y + 17}H${p.x + 16}l3 -3"/><rect x="${p.x - 14}" y="${p.y - 14}" width="28" height="28" rx="1"/><text x="${p.x}" y="${p.y + 5}" text-anchor="middle">${page}</text></g>`;
-        }).join("")}</g>
-        <rect class="mem-physical-port" x="${layout.compact ? layout.ssdHousing.x + layout.ssdHousing.width - 2 : layout.ssdHousing.x - 4}" y="${layout.ssdHousing.y + 56}" width="6" height="10"/>
-      </g>
-      <g class="mem-lane-labels">
-        <text x="${layout.compact ? layout.ramHousing.x - 6 : leftGap}" y="${layout.compact ? 195 : 224}" text-anchor="${layout.compact ? "end" : "middle"}">${layout.compact ? "조회" : "조회 요청"}</text>
-        <text x="${layout.cpu.x}" y="${layout.compact ? 313 : 377}" text-anchor="middle">값 반환</text>
-        <text x="${layout.compact ? layout.width / 2 + 20 : layout.ssd.x}" y="${layout.compact ? 574 : 341}" text-anchor="middle">페이지 읽기</text>
-      </g>`;
-    cards.forEach((card, slot) =>
-      Object.assign(card.style, {
-        left: `${layout.ramX}px`,
-        top: `${layout.frameY + slot * layout.frameGap}px`,
-        width: `${layout.ramWidth}px`,
-        height: `${layout.frameHeight}px`,
-      }),
+    let outcome = step.hit ? "RAM 적중" : "빈 프레임에 적재";
+    if (step.victim) {
+      const { reason } = step.events.find((event) => event.type === "select");
+      outcome = replacementReason(reason, step.before[step.frameIndex]);
+    }
+    phase(
+      "access",
+      `${step.index}번째 ${step.page} 접근 완료 · ${outcome}`,
+      step.hit ? "RAM에 있던 페이지를 그대로 사용했습니다." : "SSD에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
     );
-    Object.assign(request.style, {
-      left: `${layout.request.x}px`,
-      top: `${layout.request.y}px`,
-      width: `${layout.request.width}px`,
-      height: "62px",
-    });
-    Object.assign(pageTable.style, {
-      left: `${layout.table.x}px`,
-      top: `${layout.table.y}px`,
-      width: `${layout.table.width}px`,
-    });
-    run?.updateRoute?.();
   }
-  function clearEmphasis() {
-    delete host.dataset.criterion;
-    cards.forEach((card) => {
-      delete card.dataset.selected;
-      delete card.dataset.hit;
-      delete card.dataset.receiving;
-    });
-    svg
-      .querySelectorAll("[data-active]")
-      .forEach((e) => delete e.dataset.active);
-    svg
-      .querySelectorAll("[data-lane]")
-      .forEach((lane) => lane.setAttribute("d", path(lane.dataset.lane)));
-    svg.querySelector(".mem-active-flow").style.opacity = 0;
-    svg
-      .querySelectorAll("[data-disk-page]")
-      .forEach((source) => (source.dataset.current = "false"));
-    transfer.hidden = true;
+
+  /* ---------- Motion ---------- */
+
+  const alive = (active) => !active.cancelled && active.revision === revision;
+  function track(animation, active) {
+    animation.playbackRate = active.speed;
+    active.animations.add(animation);
+    if (active.paused) animation.pause();
+    return animation.finished.catch(() => {}).then(() => active.animations.delete(animation));
   }
+  const hold = (ms, active) => track(host.animate([{ opacity: 1 }, { opacity: 1 }], { duration: ms }), active);
+
+  function flow(name, active) {
+    const animation = $(`#mem-path-${name}`).animate([{ strokeDashoffset: 22 }, { strokeDashoffset: 0 }], { duration: 500, iterations: Infinity });
+    flows.push(animation);
+    track(animation, active);
+  }
+
+  function mover(page, { size = TOKEN, text = page } = {}) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "mem-mover");
+    g.innerHTML = token({ id: page, text, color: pageColor(page), size });
+    movers.append(g);
+    return g;
+  }
+
+  function move(el, route, duration, active) {
+    const animation = kitTravel(el, route, { duration, easing: "cubic-bezier(.45,.05,.3,1)" });
+    return track(animation, active);
+  }
+
+  function fade(el, duration, active) {
+    return track(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: "ease-in", fill: "forwards" }), active);
+  }
+
+  async function animateStep(active) {
+    const page = step.page;
+    const slot = step.frameIndex;
+
+    paintRequest("pending");
+    phase("lookup", `페이지 테이블에서 ${page} 항목을 조회합니다`, "CPU의 주소 변환 장치가 요청한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.");
+    emphasis({ path: "lookup", entry: page });
+    const probe = mover(page, { size: 0.8 });
+    place(probe, ...cpuPoint(0.55));
+    flow("lookup", active);
+    await move(probe, [cpuPoint(0.55), [2.5, 7, 1.6], entryPoint(page, 0.6), entryPoint(page)], 900, active);
+    probe.remove();
+    if (!alive(active)) return;
+
+    for (const event of step.events) {
+      if (!alive(active)) return;
+      if (event.type === "hit") {
+        emphasis({ ring: "hit", slot, entry: page });
+        phase("hit", `적중 · ${page}가 F${slot}에 있습니다`, `페이지 테이블의 ${page} 항목이 F${slot}을 가리킵니다. 이 프레임을 바로 읽습니다.`);
+        await hold(600, active);
+      } else if (event.type === "miss") {
+        emphasis({ entry: page });
+        phase("miss", `페이지 부재 · ${page}가 RAM에 없습니다`, `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`);
+        await hold(700, active);
+      } else if (event.type === "select") {
+        emphasis({ ring: "select", slot });
+        const reason =
+          event.reason === "empty"
+            ? "빈 프레임을 사용합니다."
+            : event.reason === "fifo"
+              ? `${event.victim}가 가장 먼저 들어왔습니다.`
+              : `${event.victim}를 가장 오래 사용하지 않았습니다.`;
+        phase(
+          "select",
+          event.reason === "empty" ? `빈 프레임 F${slot} 선택` : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
+          reason,
+        );
+        await hold(event.victim ? 1500 : 900, active);
+      } else if (event.type === "evict") {
+        phase("evict", `F${slot}의 ${event.page} 복사본만 제거합니다`, `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 SSD에 다시 쓸 필요는 없습니다.`);
+        const gone = mover(event.page);
+        place(gone, ...slotPoint(slot));
+        tokenEls[slot].innerHTML = "";
+        tokenEls[slot].dataset.page = "";
+        frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null };
+        paintFrames();
+        emphasis({ ring: "select", slot });
+        await Promise.all([
+          move(gone, [slotPoint(slot), slotPoint(slot, 1.8), diskPoint(event.page, 2.2)], 900, active),
+          fade(gone, 900, active),
+        ]);
+        gone.remove();
+        if (!alive(active)) return;
+        await hold(120, active);
+      } else if (event.type === "load") {
+        phase("load", `SSD에서 ${page}를 읽어 F${slot}에 적재합니다`, `SSD에 있는 원본을 F${slot}으로 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → F${slot}을 기록합니다.`);
+        emphasis({ path: "load", ring: "select", slot });
+        flow("load", active);
+        const copy = mover(page);
+        place(copy, ...diskPoint(page));
+        await move(copy, [diskPoint(page), diskPoint(page, 2.4), slotPoint(slot, 2.4), slotPoint(slot)], 1300, active);
+        copy.remove();
+        if (!alive(active)) return;
+        frames[slot] = { ...step.frames[slot], lastUsedAt: null };
+        paintFrames();
+        emphasis({ ring: "hit", slot });
+      } else if (event.type === "access") {
+        if (step.fault) {
+          phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 F${slot}을 가리킵니다.`);
+          emphasis({ path: "lookup", entry: page, ring: "hit", slot });
+          flow("lookup", active);
+          const retry = mover(page, { size: 0.8 });
+          place(retry, ...cpuPoint(0.55));
+          await move(retry, [cpuPoint(0.55), [2.5, 7, 1.6], entryPoint(page, 0.6), entryPoint(page)], 800, active);
+          retry.remove();
+          if (!alive(active)) return;
+        }
+        phase("read", `F${slot}에서 CPU로 값을 전달합니다`, `페이지 ${page}는 F${slot}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`);
+        emphasis({ path: "read", ring: "hit", slot, entry: page });
+        flow("read", active);
+        const value = mover(page, { size: 0.8 });
+        place(value, ...slotPoint(slot, 0.6));
+        await move(value, [slotPoint(slot, 0.6), slotPoint(slot, 2), cpuPoint(2), cpuPoint(0.6)], 1100, active);
+        value.remove();
+        if (!alive(active)) return;
+        frames = cloneFrames(step.frames);
+        paintFrames();
+        paintRequest("done");
+      }
+    }
+    if (!alive(active)) return;
+    run = null;
+    emphasis();
+    finalPhase();
+  }
+
   function cancel() {
     if (run) {
       run.cancelled = true;
       run.animations.forEach((animation) => animation.cancel());
       run = null;
     }
-    clearEmphasis();
+    movers.replaceChildren();
+    emphasis();
   }
-  function track(animation, active) {
-    animation.playbackRate = active.speed;
-    active.animations.add(animation);
-    if (active.paused) animation.pause();
-    return animation.finished
-      .catch(() => {})
-      .then(() => active.animations.delete(animation));
-  }
-  const alive = (active) =>
-    !destroyed && !active.cancelled && active.revision === revision;
-  const hold = (milliseconds, active) =>
-    track(
-      status.animate([{ opacity: 1 }, { opacity: 1 }], {
-        duration: milliseconds,
-      }),
-      active,
-    );
-  async function travel(kind, page, slot, active) {
-    const laneKind = kind === "retry" ? "lookup" : kind;
-    const flow = svg.querySelector(".mem-active-flow");
-    active.updateRoute = () => {
-      const data = path(kind, slot, page);
-      const lane = svg.querySelector(`[data-lane="${laneKind}"]`);
-      lane.dataset.active = "true";
-      lane.style.setProperty("--page-color", COLOR[page]);
-      lane.setAttribute("d", data);
-      const placeholder = svg.querySelector(".mem-active-flow");
-      if (placeholder !== flow) placeholder.replaceWith(flow);
-      flow.setAttribute("d", data);
-      flow.style.setProperty("--page-color", COLOR[page]);
-      flow.style.opacity = 1;
-      transfer.style.offsetPath = `path("${data}")`;
-      if (kind === "load") svg.querySelector(`[data-disk-page="${page}"]`).dataset.current = "true";
-    };
-    active.updateRoute();
-    const duration = 440 + flow.getTotalLength() * 0.6;
-    transfer.textContent =
-      kind === "access" ? "값" : kind === "load" ? page : `${page}?`;
-    transfer.hidden = false;
-    transfer.style.setProperty("--page-color", COLOR[page]);
-    transfer.dataset.kind = kind;
-    if (matchMedia("(max-width: 759px)").matches) {
-      const bounds = flow.getBoundingClientRect();
-      const pad = transfer.offsetHeight / 2 + 4;
-      const bottom = innerHeight - host.parentElement.querySelector(".playback-buttons").offsetHeight;
-      const distance = bounds.top < pad ? bounds.top - pad : Math.max(0, bounds.bottom + pad - bottom);
-      if (distance) window.scrollBy({ top: distance, behavior: "instant" });
-    }
-    await Promise.all([
-      track(transfer.animate([{ offsetDistance: "0%" }, { offsetDistance: "100%" }], { duration, easing: "linear" }), active),
-      track(
-        flow.animate([{ strokeDashoffset: 16 }, { strokeDashoffset: 0 }], {
-          duration,
-          easing: "linear",
-        }),
-        active,
-      ),
-    ]);
-    if (alive(active)) {
-      active.updateRoute = null;
-      transfer.hidden = true;
-      if (kind === "load") svg.querySelector(`[data-disk-page="${page}"]`).dataset.current = "false";
-      flow.style.opacity = 0;
-      const lane = svg.querySelector(`[data-lane="${laneKind}"]`);
-      delete lane.dataset.active;
-      lane.setAttribute("d", path(lane.dataset.lane));
-    }
-  }
-  async function animateStep(active) {
-    const page = step.page,
-      slot = step.frameIndex;
-    phase(
-      "lookup",
-      `페이지 테이블에서 ${page} 항목을 조회합니다`,
-      "CPU의 주소 변환 장치가 요청한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.",
-    );
-    await travel("lookup", page, slot, active);
-    if (!alive(active)) return;
-    for (const event of step.events) {
-      if (!alive(active)) return;
-      if (event.type === "hit") {
-        cards[slot].dataset.hit = "true";
-        phase(
-          "hit",
-          `적중 · ${page}가 F${slot}에 있습니다`,
-          `페이지 테이블의 ${page} 항목이 F${slot}을 가리킵니다. 이 프레임을 바로 읽습니다.`,
-        );
-        await hold(350, active);
-      } else if (event.type === "miss") {
-        phase(
-          "miss",
-          `페이지 부재 · ${page}가 RAM에 없습니다`,
-          `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`,
-        );
-        await hold(500, active);
-      } else if (event.type === "select") {
-        cards[slot].dataset.selected = "true";
-        host.dataset.criterion = event.reason;
-        const reason =
-          event.reason === "empty"
-            ? "빈 프레임을 사용합니다"
-            : event.reason === "fifo"
-              ? `${event.victim}가 가장 먼저 들어왔습니다`
-              : `${event.victim}를 가장 오래 사용하지 않았습니다`;
-        phase(
-          "select",
-          event.reason === "empty"
-            ? `빈 프레임 F${slot} 선택`
-            : `${event.reason.toUpperCase()} · ${replacementReason(event.reason, frames[slot])}`,
-          reason,
-        );
-        await hold(event.victim ? 1500 : 900, active);
-        if (!alive(active)) return;
-        delete host.dataset.criterion;
-      } else if (event.type === "evict") {
-        phase(
-          "evict",
-          `F${slot}의 ${event.page} 복사본만 제거합니다`,
-          `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 SSD에 다시 쓸 필요는 없습니다.`,
-        );
-        await track(
-          cards[slot].querySelector(".mem-frame-content").animate(
-            [
-              { opacity: 1, transform: "translateY(0)" },
-              { opacity: 0, transform: "translateY(-7px)" },
-            ],
-            { duration: 340 },
-          ),
-          active,
-        );
-        if (!alive(active)) return;
-        frames[slot] = { slot, page: null, loadedAt: null, lastUsedAt: null };
-        paintFrames();
-        await hold(110, active);
-      } else if (event.type === "load") {
-        phase(
-          "load",
-          `SSD에서 ${page}를 읽어 F${slot}에 적재합니다`,
-          `SSD에 있는 원본을 F${slot}으로 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → F${slot}을 기록합니다.`,
-        );
-        cards[slot].dataset.receiving = "true";
-        cards[slot].style.setProperty("--page-color", COLOR[page]);
-        await travel("load", page, slot, active);
-        if (!alive(active)) return;
-        frames[slot] = { ...step.frames[slot], lastUsedAt: null };
-        paintFrames();
-        delete cards[slot].dataset.receiving;
-        delete cards[slot].dataset.selected;
-        await track(
-          cards[slot]
-            .querySelector(".mem-frame-content")
-            .animate(
-              [
-                { transform: "translateY(-5px)" },
-                { transform: "translateY(0)" },
-              ],
-              { duration: 200, easing: "ease-out" },
-            ),
-          active,
-        );
-      } else if (event.type === "access") {
-        if (step.fault) {
-          phase(
-            "retry",
-            `CPU가 ${page} 접근을 다시 시도합니다`,
-            `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 F${slot}을 가리킵니다.`,
-          );
-          await travel("retry", page, slot, active);
-          if (!alive(active)) return;
-        }
-        phase(
-          "read",
-          `F${slot}에서 CPU로 값을 전달합니다`,
-          `페이지 ${page}는 F${slot}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`,
-        );
-        await travel("access", page, slot, active);
-        if (!alive(active)) return;
-        frames = cloneFrames(step.frames);
-        paintFrames();
-        paintRequest(true);
-      }
-    }
-    if (!alive(active)) return;
-    run = null;
-    clearEmphasis();
-    finalPhase();
-  }
-  function update(
-    next,
-    previous = null,
-    { animate = true, speed = 1, paused = false } = {},
-  ) {
-    if (destroyed) return Promise.resolve();
+
+  function update(next, previous = null, { animate = true, speed = 1, paused = false, algorithm: policy = algorithm } = {}) {
     revision++;
     cancel();
     step = next;
-    const moving =
-      animate &&
-      !reduced.matches &&
-      previous &&
-      next.index === previous.index + 1 &&
-      next.events.length;
+    algorithm = policy;
+    const moving = animate && !reduced.matches && previous && next.index === previous.index + 1 && next.events.length;
     frames = cloneFrames(moving ? next.before : next.frames);
     paintFrames();
-    paintRequest(!moving);
+    paintRequest(moving ? "pending" : "done");
     if (!moving) {
       finalPhase();
       return Promise.resolve();
     }
-    const active = {
-      revision,
-      speed,
-      animations: new Set(),
-      paused,
-      cancelled: false,
-    };
+    const active = { revision, speed, animations: new Set(), paused, cancelled: false };
     run = active;
     return animateStep(active);
   }
-  draw();
-  let layoutFrame;
-  const observer = new ResizeObserver((entries) => {
-    cancelAnimationFrame(layoutFrame);
-    if (Math.abs(entries[0].contentRect.width - layout.width) <= 1) return;
-    // Crossing the width breakpoint also changes the observed scene's height.
-    layoutFrame = requestAnimationFrame(draw);
-  });
-  observer.observe(host);
+
   return {
     update,
     setSpeed(speed) {
@@ -764,24 +411,15 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       run.animations.forEach((animation) => animation.updatePlaybackRate(speed));
     },
     pause() {
-      if (run) {
-        run.paused = true;
-        run.animations.forEach((animation) => animation.pause());
-      }
+      if (!run) return;
+      run.paused = true;
+      run.animations.forEach((animation) => animation.pause());
     },
     resume() {
-      if (run) {
-        run.paused = false;
-        run.animations.forEach((animation) => animation.play());
-      }
-    },
-    destroy() {
-      destroyed = true;
-      revision++;
-      cancel();
-      observer.disconnect();
-      cancelAnimationFrame(layoutFrame);
-      host.replaceChildren();
+      if (!run) return;
+      run.paused = false;
+      run.animations.forEach((animation) => animation.play());
     },
   };
 }
+
