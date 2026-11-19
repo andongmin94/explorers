@@ -1,14 +1,14 @@
 # Explorer design contract
 
-Every explorer page is a piece of hardware in the SPEC-01 style: matte plates, keycap controls, LCD readouts, LEDs, and one isometric scene where the data visibly moves through devices. The reference implementation is `shared/kit.html` (`shared/kit-demo.js`); open `/shared/kit.html`, `?theme=dark`, `?explorer=memory` on the dev server.
+Every explorer page is a piece of hardware in the SPEC-01 style: matte plates, keycap controls, LCD readouts, LEDs, and one isometric scene where the data visibly moves through devices. The reference is `shared/kit.html` (`shared/kit-demo.js`): `/shared/kit.html` is the showcase of every iso material, device, cable and token (plus one composed scene); `?view=console` is the reference console layout; add `?theme=dark` or `?explorer=memory` to either.
 
 ## Files
 
 - `shared/theme.css` — tokens only (colours, shadows, type scale, accents per `<html data-explorer>`). Don't define these tokens again in an explorer.
 - `shared/hw.css` — the parts: `.hw-page`, `.hw-topbar`, `.hw-console` grid, `.hw-plate` (+ `-head`, `-body`, `-foot`), `.hw-section`, `.hw-label`, `.hw-index`, `.hw-title`, `.hw-heading`, `.hw-text`, `.hw-muted`, `.hw-mono`, `.hw-tag`, `.hw-lcd` (`.is-large`), `.hw-led` (`.is-on`, `--led`), `.hw-key` (`--accent`, `--icon`, `--sm`, `--dark`), `.hw-seg`, `.hw-slider` + `.hw-ticks`, `.hw-switch`, `.hw-tabs`, `.hw-list`, `.hw-table`, `.hw-scroll`, `.hw-note` (`--accent`), `.hw-deck`, `.hw-field`, `.hw-transport`, `.hw-seek`, `.hw-scene`, `.hw-dialog`, `.hw-footer`, and the SPEC-01 displays `.hw-screen` (+ `-head`), `.hw-meter`, `.hw-input` (`--sm`).
 - `shared/hw.js` — `bindSliders(root)` / `syncSlider(input)` (call after rendering and whenever a slider's value or max changes in code), `icon(name)`.
-- `shared/iso-kit.js` — the only way scenes draw isometric geometry: `project`, `box`, `quad`, `frontQuad`, `sideQuad`, `shadow`, `topText`, `frontText`, `sideText`, `callout`, `floorPath`, `defs`, `led`, `token`, `place`, `travel`, `fitViewBox`, `floor`, and devices `chip`, `ramStick`, `ssd`, `server`, `laptop`, `hdd`, `module`.
-- `shared/iso.js` — lit face gradients; `shared/switcher.js` — the explorer switcher (ui-sdk menu).
+- `shared/iso-kit.js` — the only way scenes draw isometric geometry: `project`, `box`, `quad`, `frontQuad`, `sideQuad`, `pocket`, `shadow`, `topText`, `frontText`, `sideText`, `callout`, `labelScale`, `LABEL`, `floorPath`, `cable`, `defs`, `led`, `token`, `place`, `travel`, `fitViewBox`, `fitScene`, `floor`, materials `MAT`, and devices `chip`, `ramStick`, `tray`, `queueRail`, `tableModule`, `bin`, `ssd`, `hdd`, `server`, `laptop`, `module`, `cylinder`, `socket`.
+- `shared/iso.js` — lit face gradients and the material gradients/patterns (`#hw-iso-metal`, `-gold`, `-gold-v`, `-pcb`, `-graphite`, `-ic`, `-lcd`, `-plastic`, `-gloss`, `-brush`); `shared/switcher.js` — the explorer switcher (ui-sdk menu).
 
 ## Page structure
 
@@ -66,13 +66,51 @@ Content that does not fit is split, never scrolled (helpers in `shared/fit.js`, 
 - `.hw-input` is a dark recessed text field (mono, accent caret) for user-entered data like request lists.
 - `.hw-note` is an alert: a rule above and below with a status LED, never a tinted box.
 
+### Isometric scene parts (iso-kit.js)
+
+The scene looks like a product render: matte parts in real materials sitting firmly on a faint cutting-mat floor, lit from the upper left. Every device is recognisable by its shape and material, not by its label.
+
+**Materials** (`MAT.*`: pass as `fill` to `box()` or `mat` to a device; light/dark tokens `--iso-<material>-*` in theme.css):
+
+| Material | Use for | Text on it |
+|---|---|---|
+| `MAT.plastic` | default casing, panels, latches (matte white; dark grey in dark mode) | `ink` |
+| `MAT.graphite` | dark anodised housings: sockets, bins, SSD casing | `ink` (light) |
+| `MAT.pcb` | boards: chip substrate, RAM stick | silkscreen `ink` |
+| `MAT.metal` | brushed aluminium: heat spreader, trays, HDD chassis | engraved: `ink` + `engrave` |
+| `MAT.gold` | contacts, pins, pads (small parts only) | — |
+| `MAT.glass` | LCD / screen windows, table glass | `ink` (light) |
+| `MAT.rubber` | feet, gaskets, jackets | — |
+| `MAT.ic` | black chip packages | — |
+
+At most three materials per device; no colour other than the accent and the token colours. Print text with the material's `ink` (pass `engrave` to `topText`/`frontText` for engraved metal or plastic).
+
+**Devices: which one for what** (each returns `{ svg, top, slots }`; extras noted):
+
+- CPU / controller → `chip({ size, label, sub })`: PCB substrate with traces, gold pads and pins, brushed IHS with an engraved label. `slots[0]` = IHS centre.
+- RAM → `ramStick({ length, chips, label })`: a DIMM standing in a graphite slot; `chipsAt` = chip faces for frame contents.
+- Any queue (ready queue, request queue, arrivals) → `queueRail({ slots, pitch, exit, label, sub })` / `tray()` (`axis: "x" | "y"`): one pocket per slot, number + occupancy LED printed on the face below each pocket, label engraved on a nameplate at the tail, accent arrow at the `exit` (head). Tokens sit in `slots[i]`; light `.iso-tray-led[data-slot="i"]` with `.is-on`.
+- Page table, index, lock table → `tableModule({ rows, cols, headers, label })`: glass cells `.iso-cell[data-row][data-col]` (`.is-on`, `.is-hot`), row LEDs `.iso-row-led[data-row]`; `cells[r][c]` for text or tokens.
+- Done / finished / terminated → `bin({ capacity, label })`: a graphite drawer, never numbered. A tray means "waiting in order"; a bin means "finished".
+- Storage → `ssd()` (graphite casing with a sticker) or `hdd()` (aluminium chassis, platter; `center`, `radius`).
+- Server / DB → `server({ units, lit })`; client → `laptop({ screen })`.
+- `module({ mat })` is the generic case: only when none of the above fits.
+
+**Connections:** a data path between devices is a `cable(points, { active, bus, arrow, width })`: a raised tube with a lit ridge, a floor shadow and metal plugs. `active` turns it accent and runs a pulse along it (still under `prefers-reduced-motion`); `bus: 2–4` draws a ribbon for wide paths; `arrow` puts a head on the end. The pulse is always drawn and only shows while the cable has `.is-active`, so toggle that class at runtime instead of rebuilding. End a cable about 0.4 units short of a device face that is hidden (back/left), or its plug and head are covered by the device top. Route along world axes with ≥ 2 units straight before a bend, draw cables before the devices so the plugs tuck under, and end them at a device edge. Width 6–7 px for main paths, 5 for secondary. `floorPath()` (dashed or `.is-active`, larger heads now) is only for routes that are not wires, e.g. "goes back to the queue".
+
+**Shadows:** every device calls `shadow()` itself (cast shadow + ambient occlusion + contact line). Anything you build from `box()` needs `shadow({ x, y, z, w, d })` under it, with `z` when it sits on another part.
+
+**Labels:** callout titles are `LABEL.title` (15) and subs `LABEL.sub` (12) user units, haloed against the plate. Call `labelScale(svg)` once after mounting the scene SVG: when the scene renders at < 1 CSS px per user unit it scales callout labels up (≤ 2.2×) so they never render below 15 / 12 px. Device text (`topText`/`frontText`) scales with the device: use ≥ `LABEL.device` (11) user units and keep the scene scale ≥ 1 (viewBox width ≤ the stage width in CSS px). At 1440×900 the stage is about 1000–1100 px wide, so a viewBox wider than ~1000 user units makes device text too small — move devices closer instead. Token ids size themselves to fit (≤ 14).
+
+**Framing:** build the viewBox with `fitScene(points, { stageAspect: stageEl, fill: 0.82–0.9, labels })`: `points` are the device footprint corners (and their tops), `labels` the callout label boxes `[x, y, w, h]` in user units. Recompute it when the stage resizes. Lay the device chain out along the screen horizontal (x up while y goes down): a chain running purely along +x or +y runs diagonally and leaves half the stage empty. Use one `floor()` larger than the framed area and let the stage clip it.
+
 ## Rules
 
 1. One depth level. Only `.hw-plate`, keys, LCDs and wells have depth. Inside a plate everything is flat: separate with `.hw-section` hairlines or `.hw-list` rows. Never a bordered box inside a bordered box. Never a card with its own shadow inside a plate.
 2. Only controls look like keys. A non-interactive label is text, `.hw-label`, `.hw-tag`, or a scene `callout`. Never style a label as a button.
 3. Each fact appears once. If the scene shows who is running, the side panel doesn't repeat it as a card, and the stage foot doesn't repeat it either — pick one place (stage foot = one short status line).
 4. Four text roles only: `.hw-title` (20px, one per plate at most), body (`.hw-text`, 14px), `.hw-label` (mono 12px, muted), LCD digits. Bold is for the title and key numbers; body text is regular. No text under 12px. Use `word-break: keep-all` for Korean (`.hw-text` has it).
-5. The scene is one isometric SVG built with `iso-kit.js`, one scale for every device, standing on a `floor()`. The data entities (processes, pages, transactions, requests, commits, packets) are `token()`s or device states (LEDs, lit paths, screens) on the devices — they sit in slots, on chips, in drives, and travel with `travel()` / `place()` along `floorPath()` routes. No flat HTML cards placed over or beside the scene to show state. Device names are `callout()`s, not boxes.
+5. The scene is one isometric SVG built with `iso-kit.js`, one scale for every device, standing on a `floor()`, framed with `fitScene()` so the devices fill about 80–90% of the stage, with `labelScale(svg)` on. Each role has its device and material (see "Isometric scene parts"): a CPU is a `chip()`, a queue is a `queueRail()`/`tray()`, a finished set is a `bin()`, a table is a `tableModule()`, memory is a `ramStick()` — never a plain white slab. Connections between devices are `cable()`s. The data entities (processes, pages, transactions, requests, commits, packets) are `token()`s or device states (LEDs, lit cells, active cables, screens) on the devices — they sit in slots, on chips, in drives, and travel with `travel()` / `place()` along `cable()` / `floorPath()` routes. No flat HTML cards placed over or beside the scene to show state. Device names are `callout()`s, not boxes; no scene text renders under 12 px at 1440×900.
 6. Accent (`--accent`, set per explorer) marks: the primary key, the active path, lit LEDs, LCD glow, indices. Semantic colours (P1/P2/P3, A–E pages, T1/T2, main/feature) stay for tokens and their LEDs.
 7. Dark mode comes from tokens; check `?theme=dark` (the explorers keep their own theme toggle that sets `data-theme`).
 8. Mobile (≤ 759px): the console stacks stage → deck → side → records; the scene SVG scales to width; no horizontal page scroll; keys ≥ 42px tall.

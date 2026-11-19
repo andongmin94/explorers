@@ -22,6 +22,7 @@ export const DEADLOCK_NOTES = Object.freeze([
 export const DEADLOCK_LEGEND = Object.freeze([
   "상태 · ACTIVE 진행 중 · WAITING 잠금 대기 · TO ABORT 중단 대상 · ABORTED 중단됨 · COMMITTED 커밋 완료",
   "노트북 화면 · HOLD 보유한 행 잠금 · WAIT 기다리는 행",
+  "DB 윗면 행 표 · ROW A·B의 STOCK 확정 재고 · NEW 커밋 전 쓰기 · LOCK 잠금 보유자 · WAIT 칸 = 기다리는 UPDATE",
   "UPD A = A 행 UPDATE 요청 · WAIT-FOR 바닥의 선 = 누가 누구를 기다리는지",
 ]);
 

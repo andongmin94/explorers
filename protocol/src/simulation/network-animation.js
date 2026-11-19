@@ -4,6 +4,7 @@ import { createEndpointDisplay, ftpServerPort } from "./endpoint-display.js";
 import {
   NETWORK_FOCUS_GROUPS,
   NETWORK_LANES,
+  NETWORK_NODE_BOUNDS,
   NETWORK_NODE_CENTERS,
   NETWORK_NODE_LABELS,
   NETWORK_NODE_RADII,
@@ -12,7 +13,7 @@ import {
   PACKET_COLORS,
   SCREEN_WIDTH,
 } from "./network-drawing.js";
-import { token } from "../../../shared/iso-kit.js";
+import { fitScene, labelScale as watchLabelScale, token } from "../../../shared/iso-kit.js";
 import { animateWithClock, waitWithClock } from "./clock.js";
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
 const NETWORK_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -22,13 +23,17 @@ const PACKET_ARRIVAL = { fade: 180, hold: 150 };
 const PACKET_LOSS = { drop: 520, hold: 500, fade: 250 };
 const URL_TYPING_INTERVAL_MS = 55;
 const CAMERA_MOVE_DURATION_MS = 1100;
-const CAMERA_CONTENT_PADDING = 14;
+// The camera frames a focus group with fitScene(): devices and their callout
+// labels fill CAMERA_FILL of the stage. Close-ups never zoom past
+// CAMERA_MAX_ZOOM (CSS px per user unit; the laptop alone may go closer so its
+// address bar stays readable) or below CAMERA_MIN_WIDTH user units across.
+const CAMERA_FILL = 0.88;
 const CAMERA_MIN_WIDTH = 470;
+const CAMERA_MAX_ZOOM = { client: 1.7, default: 1.3 };
+const LABEL_MAX_SCALE = 2.2;
 const URL_VISIBLE_CAMERA_FRAMES = ["client"];
 const PACKET_TRAIL_OFFSETS = [10, 20, 30];
 const NETWORK_NOTE_HOLD_MS = 1500;
-const NETWORK_LABEL_SCALE_WIDTH = 700;
-const NETWORK_MAX_LABEL_SCALE = 1.8;
 const WIDE_CHARACTER_PATTERN =
   /[\u1100-\u115f\u2e80-\u303e\u3041-\u33ff\u3400-\u4dbf\u4e00-\u9fff\ua960-\ua97f\uac00-\ud7a3\uf900-\ufaff\ufe30-\ufe4f\uff00-\uff60\uffe0-\uffe6]/;
 const estimateTextUnits = (text) =>
@@ -97,6 +102,20 @@ function createNetworkAnimation(networkSvg) {
       laneElement,
     ]),
   );
+  const linkElements = Object.fromEntries(
+    [...networkSvg.querySelectorAll(".link")].map((linkElement) => [
+      linkElement.dataset.link,
+      linkElement,
+    ]),
+  );
+  // Draw-in: every stroked part of the idle cable is measured as length 1.
+  const linkStrokes = Object.fromEntries(
+    Object.entries(linkElements).map(([linkId, linkElement]) => {
+      const paths = [...linkElement.querySelectorAll(".link-cable path:not(.iso-cable-head)")];
+      paths.forEach((path) => path.setAttribute("pathLength", "1"));
+      return [linkId, { paths, plugs: [...linkElement.querySelectorAll(".link-cable .iso-cable-plug")] }];
+    }),
+  );
   const nodeElements = Object.fromEntries(
     [...networkSvg.querySelectorAll(".node")].map((nodeElement) => [
       nodeElement.dataset.node,
@@ -124,79 +143,41 @@ function createNetworkAnimation(networkSvg) {
     .getAttribute("viewBox")
     .split(" ")
     .map(Number);
-  const nodeLabelElements = [...networkSvg.querySelectorAll(".node-label")];
-  let labelScale = 1;
+  // Callout labels never render under their minimum size (shared labelScale);
+  // packet tags and notes follow the same factor when they are created.
+  watchLabelScale(networkSvg, { max: LABEL_MAX_SCALE });
   let annotationScale = 1;
-  function scaleNodeLabel(labelElement) {
-    labelElement.removeAttribute("transform");
-    if (labelScale === 1) {
-      return;
-    }
-    const bounds = labelElement.getBBox();
-    const [horizontalOrigin, verticalOrigin] =
-      labelElement.dataset.origin.split("-");
-    const anchorX =
-      horizontalOrigin === "left"
-        ? bounds.x
-        : horizontalOrigin === "right"
-          ? bounds.x + bounds.width
-          : bounds.x + bounds.width / 2;
-    const anchorY =
-      verticalOrigin === "top" ? bounds.y : bounds.y + bounds.height;
-    labelElement.setAttribute(
-      "transform",
-      `translate(${anchorX.toFixed(1)} ${anchorY.toFixed(1)}) scale(${labelScale.toFixed(3)}) translate(${(-anchorX).toFixed(1)} ${(-anchorY).toFixed(1)})`,
-    );
+  const stageAspect = () => {
+    const { width, height } = networkSvg.getBoundingClientRect();
+    return width && height ? width / height : 16 / 10;
+  };
+  function updateAnnotationScale(viewBox) {
+    const { width, height } = networkSvg.getBoundingClientRect();
+    networkSvg.classList.toggle("compact-network", width > 0 && width <= 540);
+    if (!width || !height) return;
+    const scale = Math.min(width / viewBox[2], height / viewBox[3]);
+    // Packet tags and notes render at their CSS size (payload text 11.5 → ≥ 12 px)
+    // whatever the zoom: smaller in close-ups, larger when the scene is small.
+    annotationScale = Math.min(LABEL_MAX_SCALE, Math.max(0.75, 1.05 / scale));
   }
-  // Keep labels legible when the same SVG is shown in a narrow viewport.
-  function updateResponsiveScale() {
-    const viewportWidth = networkSvg.getBoundingClientRect().width;
-    networkSvg.classList.toggle("compact-network", viewportWidth > 0 && viewportWidth <= 540);
-    const nextLabelScale = viewportWidth
-      ? Math.min(
-          NETWORK_MAX_LABEL_SCALE,
-          Math.max(1, NETWORK_LABEL_SCALE_WIDTH / viewportWidth),
-        )
-      : 1;
-    if (Math.abs(nextLabelScale - labelScale) < 0.01) {
-      return;
-    }
-    labelScale = nextLabelScale;
-    annotationScale = 1 + (nextLabelScale - 1) * 0.6;
-    networkSvg.classList.toggle("is-scaled", nextLabelScale > 1);
-    nodeLabelElements.forEach(scaleNodeLabel);
+  // Callouts above / below devices, or beside them on a short wide stage.
+  const WIDE_STAGE_ASPECT = 2.4;
+  let labelLayout = "tall";
+  function updateLabelLayout(aspect) {
+    labelLayout = aspect > WIDE_STAGE_ASPECT ? "wide" : "tall";
+    networkSvg.classList.toggle("is-wide-labels", labelLayout === "wide");
   }
-  function getTransformedBounds(element) {
-    const bounds = element.getBBox();
-    const matrix = element.transform?.baseVal.consolidate()?.matrix;
-    return matrix
-      ? {
-          x: matrix.a * bounds.x + matrix.e,
-          y: matrix.d * bounds.y + matrix.f,
-          width: matrix.a * bounds.width,
-          height: matrix.d * bounds.height,
-        }
-      : bounds;
-  }
-  function getNodeBounds(nodeId, includeUrl) {
-    if (includeUrl) {
-      return nodeElements[nodeId].getBBox();
-    }
-    const childBounds = [...nodeElements[nodeId].children]
-      .filter((childElement) => !childElement.classList.contains("url-holder"))
-      .map(getTransformedBounds);
-    const minimumX = Math.min(...childBounds.map((bounds) => bounds.x));
-    const minimumY = Math.min(...childBounds.map((bounds) => bounds.y));
-    return {
-      x: minimumX,
-      y: minimumY,
-      width:
-        Math.max(...childBounds.map((bounds) => bounds.x + bounds.width)) -
-        minimumX,
-      height:
-        Math.max(...childBounds.map((bounds) => bounds.y + bounds.height)) -
-        minimumY,
-    };
+  /** A callout label box in user units, grown by the label scale k about its origin. */
+  function labelBox(nodeId, k) {
+    const label = nodeElements[nodeId].querySelector(`.node-label[data-layout="${labelLayout}"] .iso-callout-label`);
+    const bounds = label.getBBox();
+    const [ox, oy] = (label.style.transformOrigin || "0px 0px").split(" ").map(parseFloat);
+    return [
+      ox + (bounds.x - ox) * k,
+      oy + (bounds.y - oy) * k,
+      bounds.width * k,
+      bounds.height * k,
+    ];
   }
   function setCameraFrame(frameName) {
     cameraFrame = frameName;
@@ -205,45 +186,49 @@ function createNetworkAnimation(networkSvg) {
       !URL_VISIBLE_CAMERA_FRAMES.includes(frameName),
     );
   }
-  /** Fit the visible nodes in a named focus group, preserving viewport aspect. */
+  /** Frame the lesson's devices in a named focus group with fitScene(). */
   function calculateViewBox(frameName) {
-    const nodeBounds = NETWORK_FOCUS_GROUPS[frameName]
-      .filter((nodeId) => lessonNodes.includes(nodeId))
-      .map((nodeId) =>
-        getNodeBounds(nodeId, URL_VISIBLE_CAMERA_FRAMES.includes(frameName)),
-      );
-    const minimumX =
-      Math.min(...nodeBounds.map((bounds) => bounds.x)) -
-      CAMERA_CONTENT_PADDING;
-    const minimumY =
-      Math.min(...nodeBounds.map((bounds) => bounds.y)) -
-      CAMERA_CONTENT_PADDING;
-    const contentWidth =
-      Math.max(...nodeBounds.map((bounds) => bounds.x + bounds.width)) +
-      CAMERA_CONTENT_PADDING -
-      minimumX;
-    const contentHeight =
-      Math.max(...nodeBounds.map((bounds) => bounds.y + bounds.height)) +
-      CAMERA_CONTENT_PADDING -
-      minimumY;
-    const { width: viewportWidth, height: viewportHeight } =
-      networkSvg.getBoundingClientRect();
-    const fitScale = Math.min(
-      viewportWidth / contentWidth,
-      viewportHeight / contentHeight,
-      viewportWidth / CAMERA_MIN_WIDTH,
-    );
-    return [
-      minimumX + contentWidth / 2 - viewportWidth / fitScale / 2,
-      minimumY + contentHeight / 2 - viewportHeight / fitScale / 2,
-      viewportWidth / fitScale,
-      viewportHeight / fitScale,
-    ];
+    const ids = NETWORK_FOCUS_GROUPS[frameName].filter((nodeId) => lessonNodes.includes(nodeId));
+    if (!ids.length) return currentViewBox;
+    const points = ids.flatMap((nodeId) => NETWORK_NODE_BOUNDS[nodeId]);
+    const aspect = stageAspect();
+    updateLabelLayout(aspect);
+    const { width } = networkSvg.getBoundingClientRect();
+    const fit = (k) => {
+      let viewBox = fitScene(points, {
+        stageAspect: aspect,
+        fill: CAMERA_FILL,
+        pad: 6,
+        labels: ids.map((nodeId) => labelBox(nodeId, k)),
+      })
+        .split(" ")
+        .map(Number);
+      const minWidth = Math.max(CAMERA_MIN_WIDTH, width / (CAMERA_MAX_ZOOM[frameName] ?? CAMERA_MAX_ZOOM.default));
+      if (viewBox[2] < minWidth) {
+        const grow = minWidth / viewBox[2];
+        viewBox = [
+          viewBox[0] + (viewBox[2] * (1 - grow)) / 2,
+          viewBox[1] + (viewBox[3] * (1 - grow)) / 2,
+          viewBox[2] * grow,
+          viewBox[3] * grow,
+        ];
+      }
+      return viewBox;
+    };
+    // Labels grow when the scene is drawn small: fit once, then refit with
+    // the label scale that frame will have.
+    let viewBox = fit(1);
+    if (width) {
+      const k = Math.min(LABEL_MAX_SCALE, Math.max(1, viewBox[2] / width));
+      if (k > 1.01) viewBox = fit(k);
+    }
+    return viewBox;
   }
   function setViewBox(viewBox) {
     // A hidden or zero-sized scene has no camera to fit; keep the last view.
     if (!viewBox.every(Number.isFinite)) return;
     currentViewBox = viewBox;
+    updateAnnotationScale(viewBox);
     networkSvg.setAttribute(
       "viewBox",
       viewBox.map((coordinate) => coordinate.toFixed(2)).join(" "),
@@ -288,7 +273,6 @@ function createNetworkAnimation(networkSvg) {
   }
   function updateCameraForResize() {
     cameraCancellation.cancelled = true;
-    updateResponsiveScale();
     setViewBox(calculateViewBox(cameraFrame));
   }
   new ResizeObserver(updateCameraForResize).observe(networkSvg);
@@ -359,44 +343,48 @@ function createNetworkAnimation(networkSvg) {
       }
     });
   }
-  function setLaneProgress(laneId, progress) {
-    const points = NETWORK_LANES[laneId];
-    const endpoint = interpolateLinePoint(points, progress);
-    const passed = points.slice(0, endpoint.index);
-    laneElements[laneId].setAttribute(
-      "d",
-      `M${passed.map(([x, y]) => `${x},${y}`).join(" L")} L${endpoint.x.toFixed(1)},${endpoint.y.toFixed(1)}`,
-    );
-    laneElements[laneId].style.visibility = progress > 0.01 ? "" : "hidden";
+  function setLinkProgress(linkId, progress) {
+    const { paths, plugs } = linkStrokes[linkId];
+    const shown = progress > 0.01;
+    linkElements[linkId].style.visibility = shown ? "" : "hidden";
+    const complete = progress >= 0.999;
+    paths.forEach((path) => {
+      path.style.strokeDasharray = complete ? "" : "1 1";
+      path.style.strokeDashoffset = complete ? "" : String(1 - progress);
+    });
+    plugs.forEach((plug, index) => {
+      plug.style.opacity = index === 0 ? (shown ? 1 : 0) : complete ? 1 : 0;
+    });
   }
-  async function animateLane(laneId, visible, cancellation, delay = 0) {
-    setLaneProgress(laneId, visible ? 0 : 1);
+  async function animateLink(linkId, visible, cancellation, delay = 0) {
+    setLinkProgress(linkId, visible ? 0 : 1);
     if (delay) {
       await waitWithClock(delay, cancellation);
     }
     await animateWithClock(visible ? 520 : 300, cancellation, (progress) =>
-      setLaneProgress(
-        laneId,
+      setLinkProgress(
+        linkId,
         visible ? easeOutCubic(progress) : 1 - easeInCubic(progress),
       ),
     );
   }
+  // visibleLanes holds the links (both directions) whose two devices are shown.
   function updateLanes(cancellation, delay = 0) {
-    for (const laneId of Object.keys(laneElements)) {
-      const [fromNode, toNode] = laneId.split(">");
+    for (const [linkId, linkElement] of Object.entries(linkElements)) {
+      const { from: fromNode, to: toNode } = linkElement.dataset;
       const visible = visibleNodes.has(fromNode) && visibleNodes.has(toNode);
-      const changed = visible !== visibleLanes.has(laneId);
+      const changed = visible !== visibleLanes.has(linkId);
       if (visible) {
-        visibleLanes.add(laneId);
+        visibleLanes.add(linkId);
       } else {
-        visibleLanes.delete(laneId);
+        visibleLanes.delete(linkId);
       }
       if (cancellation) {
         if (changed) {
-          animateLane(laneId, visible, cancellation, delay);
+          animateLink(linkId, visible, cancellation, delay);
         }
       } else {
-        setLaneProgress(laneId, visible ? 1 : 0);
+        setLinkProgress(linkId, visible ? 1 : 0);
       }
     }
   }
@@ -569,11 +557,9 @@ function createNetworkAnimation(networkSvg) {
     });
     noteContainer.remove();
   }
+  // The conductor a packet travels on lights up (accent, with a running pulse).
   function setLaneActive(laneId, color) {
-    const laneElement = laneElements[laneId];
-    laneElement.classList.toggle("is-active", !!color);
-    laneElement.style.stroke = color ? PACKET_COLORS[color] : "";
-    laneElement.setAttribute("marker-end", `url(#head-${color || "idle"})`);
+    laneElements[laneId].classList.toggle("is-active", !!color);
   }
   // Streams can put several packets on one lane at once. Keep it highlighted
   // until the last packet using that lane releases it.
@@ -639,7 +625,7 @@ function createNetworkAnimation(networkSvg) {
     );
     // The packet itself: a kit token in the packet's colour, on the floor.
     const tokenHolder = createNetworkSvgElement("g", { class: "packet-token" }, packetGroup);
-    tokenHolder.innerHTML = token({ color: PACKET_COLORS[color], text: "", size: 1.05, h: 0.5 });
+    tokenHolder.innerHTML = token({ color: PACKET_COLORS[color], text: "", size: 1.25, h: 0.55 });
     const lineHeight = 15;
     const lockWidth = locked ? 14 : 0;
     const payloadHeight = translatedPayload.length
@@ -929,17 +915,16 @@ function createNetworkAnimation(networkSvg) {
       const [name, address] = overrides[nodeId] ?? NETWORK_NODE_LABELS[nodeId];
       const labelTexts = [translate(name), translate(address)];
       const textElements = [
-        nodeElement.querySelector(".node-name"),
-        nodeElement.querySelector(".node-ip"),
+        ...nodeElement.querySelectorAll(".node-name"),
+        ...nodeElement.querySelectorAll(".node-ip"),
       ];
-      const labelElement = nodeElement.querySelector(".node-label");
+      const textIndex = (index) => (index < textElements.length / 2 ? 0 : 1);
       textElements.forEach((textElement, index) => {
-        if (!textElement || textElement.textContent === labelTexts[index]) {
+        if (!textElement || textElement.textContent === labelTexts[textIndex(index)]) {
           return;
         }
         textElement.getAnimations().forEach((animation) => animation.cancel());
-        textElement.textContent = labelTexts[index];
-        scaleNodeLabel(labelElement);
+        textElement.textContent = labelTexts[textIndex(index)];
         if (visibleNodes.has(nodeId) && nodeElement.style.opacity !== "0") {
           textElement.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220 });
         }
@@ -990,7 +975,7 @@ function createNetworkAnimation(networkSvg) {
     urlBar.classList.remove("is-visible", "is-typing", "is-loaded");
     urlText.textContent = "";
   }
-  Object.keys(laneElements).forEach((laneId) => setLaneProgress(laneId, 0));
+  Object.keys(linkElements).forEach((linkId) => setLinkProgress(linkId, 0));
   return {
     run(event, cancellation, onArrival, onPacketState, mode) {
       switch (event.type) {
@@ -1109,10 +1094,10 @@ function createNetworkAnimation(networkSvg) {
         }),
       );
       const laneDelay = addedNodes.length ? 500 + addedNodes.length * 110 : 0;
-      for (const laneId of Object.keys(laneElements)) {
-        const visible = visibleLanes.has(laneId);
-        if (visible !== previousSnapshot.lanes.has(laneId)) {
-          animateLane(laneId, visible, cancellation, visible ? laneDelay : 0);
+      for (const linkId of Object.keys(linkElements)) {
+        const visible = visibleLanes.has(linkId);
+        if (visible !== previousSnapshot.lanes.has(linkId)) {
+          animateLink(linkId, visible, cancellation, visible ? laneDelay : 0);
         }
       }
       if (pageVisible !== previousSnapshot.page) {

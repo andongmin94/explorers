@@ -1,138 +1,219 @@
-// The memory explorer's isometric scene: CPU, page table, RAM frames and SSD
-// on one floor. Pages are tokens: the SSD keeps the originals A–E, the RAM
-// frames hold copies, and one access moves them along the floor paths.
-// The RAM has 3 or 4 frames (lesson 03 compares both); under Clock every
-// frame shows its reference bit and the hand sits in front of one frame.
+// The memory explorer's isometric scene: a CPU chip, a page-table module, a
+// RAM stick with its frame tray, and an SSD, joined by cables in a loop:
+// lookup (CPU → table), fault (table → SSD), load (SSD → RAM), read (RAM → CPU).
+// Pages are tokens: the SSD keeps the originals A–E, the frame tray holds the
+// copies, and one access moves them along the cables. The RAM has 3 or 4
+// frames (lesson 03 compares both); under Clock every frame shows its
+// reference-bit LED and a hand on the floor points at one frame.
 import { josa } from "../../shared/josa.js";
 import {
+  MAT,
+  cable,
   callout,
   chip,
   defs,
-  fitViewBox,
+  fitScene,
   floor,
-  floorPath,
+  frontQuad,
   frontText,
-  led,
-  module,
+  labelScale,
   place,
-  quad,
-  socket,
+  project,
   ramStick,
   ssd,
+  tableModule,
   token,
   topText,
+  tray,
   travel as kitTravel,
 } from "../../shared/iso-kit.js";
 
 const PAGES = ["A", "B", "C", "D", "E"];
 export const pageColor = (page) => `var(--page-${page.toLowerCase()})`;
 
-/* ---------- World layout (iso units) ---------- */
-const CPU = { x: 0, y: 9, size: 5 };
-const CPU_TOP = 0.75;
-const CPU_SPOT = [2.5, 11.5];
-const TABLE = { x: -0.5, y: 1.2, w: 9, d: 3, h: 0.6 };
-const entryX = (i) => TABLE.x + 1.1 + i * 1.7;
-// RAM grows to the right with the frame count; three frames keep the original layout.
-let N = 3;
-let RAM = { x: 8, y: 6, w: 10, d: 3.8, h: 0.6 };
-let PITCH = 3.1;
-function setFrameCount(n) {
-  N = n;
-  PITCH = n > 3 ? 2.6 : 3.1;
-  RAM = { x: 8, y: 6, w: 3.8 + PITCH * (n - 1), d: 3.8, h: 0.6 };
-}
-const SLOTS = () => Array.from({ length: N }, (_, slot) => slot);
-const WELL = () => Math.min(2.5, PITCH - 0.25);
-const slotX = (slot) => RAM.x + 1.9 + slot * PITCH;
-const SLOT_Y = RAM.y + 1.45;
-// The SSD is the one device whose place depends on the layout: on a wide
-// desktop stage it stands right of the RAM so the cluster reads as one wide
-// row; on a phone it sits in front so the scene stays tall enough to read.
-const DISK_NARROW = { x: 16.5, y: 11, w: 10, d: 4 };
-const DISK_WIDE = { x: 19.5, y: -0.5, w: 10, d: 4 };
-let DISK = DISK_WIDE;
-const DISK_TOP = 0.42;
-const diskX = (page) => DISK.x + 1.6 + PAGES.indexOf(page) * 1.65;
-const diskY = () => DISK.y + DISK.d / 2;
+/* ---------- World layout (iso units) ----------
+   Two rows on screen: page table and SSD at the back, CPU and RAM in front,
+   so the cluster is about as wide as the stage. The cables close the loop. */
+const CPU = { x: 3.55, y: 11.05, size: 4.4 };
+const TABLE = { x: -3.95, y: 2.35, w: 5.4, d: 5.8 };
+const RAM_X = 8.4;
+const RAM_Y = 4.3;
+const TRAY_Y = RAM_Y + 1.75;
+const TRAY_D = 2.6;
+const TRAY_H = 0.9;
+const DISK = { x: 1.45, y: -3.4, w: 8.6, d: 3.3 };
 const TOKEN = 1.3;
 
-const slotPoint = (slot, lift = 0) => [slotX(slot), SLOT_Y, RAM.h + lift];
+// The RAM grows to the right with the frame count; the stick's chips line up
+// with the frame pockets, one chip per frame.
+let N = 3;
+let PITCH = 2.4;
+let LEN = 1 + N * PITCH;
+function setFrameCount(n) {
+  N = n;
+  PITCH = n > 3 ? 2.2 : 2.4;
+  LEN = 1 + n * PITCH;
+}
+const SLOTS = () => Array.from({ length: N }, (_, slot) => slot);
+const slotX = (slot) => RAM_X + 0.5 + slot * PITCH + PITCH / 2;
+const SLOT_Y = TRAY_Y + 0.3 + (TRAY_D - 0.66) / 2;
+const SLOT_Z = TRAY_H - 0.33;
+const FACE_Y = TRAY_Y + TRAY_D;
+const HAND_Y = FACE_Y + 0.35;
+
+let table = null; // tableModule() result (cells, rowLeds)
+const diskX = (page) => DISK.x + 1.15 + PAGES.indexOf(page) * 1.6;
+const diskY = () => DISK.y + DISK.d / 2 + 0.05;
+const DISK_TOP = 0.42;
+const CPU_TOP = 0.75;
+
+const slotPoint = (slot, lift = 0) => [slotX(slot), SLOT_Y, SLOT_Z + lift];
 const diskPoint = (page, lift = 0) => [diskX(page), diskY(), DISK_TOP + lift];
-const cpuPoint = (lift = 0) => [...CPU_SPOT, CPU_TOP + lift];
-const entryPoint = (page, lift = 0) => [entryX(PAGES.indexOf(page)), TABLE.y + 1.55, TABLE.h + lift];
+const cpuPoint = (lift = 0) => [CPU.x + CPU.size / 2, CPU.y + CPU.size / 2, CPU_TOP + lift];
+const entryPoint = (page, lift = 0) => {
+  const [x, y, z] = table.cells[PAGES.indexOf(page)][0];
+  return [x, y, z + lift];
+};
 
+// Cable routes along world axes, from device edge to device edge.
+const LOOKUP_X = TABLE.x + 3.95;
+const LOOKUP_Y = CPU.y + 1.0;
+const FAULT_X = DISK.x + 2.1;
+const FAULT_Y = TABLE.y + 0.9;
+const READ_X = CPU.x + 2.9;
+const READ_Y = TRAY_Y + 1.3;
+const LOAD_X = () => DISK.x + DISK.w - 1.0;
 const ROUTES = {
-  lookup: [[2.5, 9], [2.5, 4.5]],
-  read: [[9.2, 10], [9.2, 11.5], [5.5, 11.5]],
+  lookup: () => [[CPU.x + 0.1, LOOKUP_Y], [LOOKUP_X, LOOKUP_Y], [LOOKUP_X, TABLE.y + TABLE.d - 0.1]],
+  fault: () => [[TABLE.x + TABLE.w - 0.1, FAULT_Y], [FAULT_X, FAULT_Y], [FAULT_X, DISK.y + DISK.d - 0.1]],
+  load: () => [[LOAD_X(), DISK.y + DISK.d - 0.1], [LOAD_X(), RAM_Y + 0.2]],
+  read: () => [[RAM_X + 0.35, READ_Y], [READ_X, READ_Y], [READ_X, CPU.y + 0.1]],
 };
-const loadRoute = (wide) => {
-  const end = RAM.x + RAM.w + 0.3;
-  const x = Math.max(wide ? 20.6 : 19.5, end + 1);
-  return wide ? [[x, DISK.y + DISK.d], [x, 7.9], [end, 7.9]] : [[x, 11], [x, 7.9], [end, 7.9]];
+
+// Callouts: a world anchor plus a label offset; their label boxes join the framing.
+const NOTES = () => [
+  { x: CPU.x + 0.3, y: CPU.y + CPU.size - 0.4, z: 0.25, dx: -56, dy: 26, title: "CPU", sub: "요청하는 쪽", anchor: "end" },
+  { x: TABLE.x + 0.15, y: TABLE.y + TABLE.d - 0.9, z: 0.6, dx: -30, dy: -24, title: "페이지 테이블", sub: "상주 여부 · 프레임", anchor: "end" },
+  { x: RAM_X + LEN - 0.3, y: FACE_Y - 0.3, z: TRAY_H, dx: 50, dy: 16, title: "RAM", sub: "·", widest: "#1 다음 교체 · 마지막 접근", anchor: "start", cls: "mem-ram-callout" },
+  { x: DISK.x + DISK.w - 0.3, y: DISK.y + 0.4, z: DISK_TOP, dx: 40, dy: -30, title: "SSD", sub: "원본 A–E", anchor: "start" },
+];
+/** A callout label box [x, y, w, h], grown by k about the point labelScale() scales it from. */
+const labelBox = (n, k = 1) => {
+  const [sx, sy] = project(n.x, n.y, n.z);
+  const w = Math.max(n.title.length * 16, (n.widest ?? n.sub).length * 7.6);
+  const lx = sx + n.dx;
+  const ly = sy + n.dy;
+  const x = n.anchor === "end" ? lx - w : n.anchor === "start" ? lx : lx - w / 2;
+  const y = ly - 16;
+  const oy = n.dy > 12 ? ly - 11 : ly + (n.sub ? 25 : 9);
+  return [lx + (x - lx) * k, oy + (y - oy) * k, w * k, 38 * k];
 };
-const HAND_Y = () => RAM.y + RAM.d + 0.95;
 
-// Both views are fitted to the devices, callouts and token routes (lifts
-// included), not to the floor, which runs past the stage edges.
-const VIEW_WIDE = fitViewBox([[0, 14.5, 0], [-0.5, 1.2, 0.6], [-1.6, 4.4, 4.6], [6, -0.6, 4.6], [29.5, 3.5, 0], [29.8, -1.6, 4.4], [18, 9.8, 0], [5, 14, 0]], 12);
-const VIEW_TIGHT = fitViewBox([[0, 14.5, 0], [26.5, 10.5, 0], [26.5, 15, 0], [-0.5, 1.2, 5.6], [-0.5, 15, 0], [24, 6, 4.2]], 8);
+/** World points the framing keeps in view: device corners and tops, token lifts. */
+function framePoints() {
+  const box = (x, y, w, d, h) => [[x, y, 0], [x + w, y, 0], [x + w, y + d, 0], [x, y + d, 0], [x, y, h], [x + w, y, h]];
+  return [
+    ...box(CPU.x, CPU.y, CPU.size, CPU.size, 1.4),
+    ...box(TABLE.x, TABLE.y, TABLE.w, TABLE.d, 0.8),
+    ...box(RAM_X, RAM_Y, LEN, FACE_Y - RAM_Y, 2.6),
+    ...box(DISK.x, DISK.y, DISK.w, DISK.d, 1.2),
+    [slotX(0) - 0.5, HAND_Y + 1.6, 0],
+    [CPU.x, READ_Y, 0],
+  ];
+}
 
-function staticScene(wide) {
-  const ram = ramStick({ x: RAM.x + 0.4, y: RAM.y - 1.9, length: RAM.w - 0.8, label: "", chips: 5 });
-  const frames = module({ ...RAM, well: false });
-  const table = module({ ...TABLE, well: false });
+/** A round LED set into a front face (y = const). */
+function faceLed({ x, y, z, on = false, color = "var(--accent)" }) {
+  const [lx, ly] = project(x, y, z);
+  return `<g class="iso-led mem-face-led ${on ? "is-on" : ""}" style="--led: ${color}">
+    <circle cx="${lx}" cy="${ly}" r="5.6" class="iso-led-halo"/>
+    <circle cx="${lx}" cy="${ly + 0.5}" r="3.5" class="iso-led-bezel"/>
+    <circle cx="${lx}" cy="${ly}" r="2.9" class="iso-led-core"/>
+    <circle cx="${lx - 0.8}" cy="${ly - 0.9}" r=".8" class="iso-led-spec"/>
+  </g>`;
+}
+
+const polygon = (corners, z, cls, extra = "") =>
+  `<polygon class="${cls}" ${extra} points="${corners.map(([a, b]) => project(a, b, z).map((n) => Math.round(n * 100) / 100).join(",")).join(" ")}"/>`;
+
+function staticScene() {
   const cpu = chip({ ...CPU, label: "" });
+  table = tableModule({ ...TABLE, rows: 5, cols: 2, headers: ["", ""], cls: "mem-table" });
+  const stick = ramStick({ x: RAM_X, y: RAM_Y, length: LEN, chips: N, label: "", cls: "mem-stick" });
+  const frames = tray({ x: RAM_X + 0.25, y: TRAY_Y, slots: N, pitch: PITCH, d: TRAY_D, h: TRAY_H, numbers: false, leds: false, mat: MAT.metal, cls: "mem-tray" });
   const disk = ssd({ ...DISK, label: "" });
+  const top = table.cells[0][0][2];
 
-  const well = WELL();
-  const slots = SLOTS()
+  // Table: engraved column heads, then a page letter and a frame number per row.
+  const gx = TABLE.x + 0.7;
+  const cw = (TABLE.w - 1) / 2;
+  const heads = ["PAGE", "FRAME"]
+    .map((text, c) => topText({ x: gx + c * cw + cw / 2, y: TABLE.y + 0.33, z: top, text, size: 12, weight: 800, fill: MAT.plastic.ink, engrave: MAT.plastic.engrave }))
+    .join("");
+  const entries = PAGES.map((page, r) => {
+    const [px, py] = table.cells[r][0];
+    const [fx, fy] = table.cells[r][1];
+    return `<g class="mem-entry" data-entry="${page}">
+      ${topText({ x: px, y: py, z: top, text: page, size: 16, weight: 800, fill: pageColor(page), cls: "mem-entry-page" })}
+      <g class="mem-entry-frame">${topText({ x: fx, y: fy, z: top, text: "—", size: 14, weight: 800, fill: "var(--iso-glass-ink)" })}</g>
+    </g>`;
+  }).join("");
+
+  // A glow over each memory chip, lit while its frame is selected or hit.
+  const chipW = PITCH - 0.2;
+  const glows = stick.chipsAt
+    .map(([x, y, z], slot) => `<g class="mem-chip-glow" data-chip="${slot}">${frontQuad({ x: x - chipW / 2, y: y + 0.002, z: z - 0.41, w: chipW, h: 0.82, fill: "var(--accent)" })}</g>`)
+    .join("");
+
+  // Pocket rims, lit on select / hit.
+  const rings = SLOTS()
     .map((slot) => {
-      const x = slotX(slot);
-      return `<g class="mem-slot" data-slot="${slot}">
-        ${socket({ x: x - well / 2, y: SLOT_Y - 1.1, z: RAM.h, w: well, d: 2.2, cls: "mem-slot-well" })}
-        ${quad({ x: x - well / 2, y: SLOT_Y - 1.1, z: RAM.h + 0.004, w: well, d: 2.2, fill: "none", stroke: "var(--accent)", strokeWidth: 2, cls: "mem-slot-ring" })}
-        ${frontText({ x, y: RAM.y + RAM.d, z: RAM.h / 2, text: `F${slot}`, size: 10, fill: "var(--ink)", weight: 700 })}
-        <g class="mem-rank"></g>
-      </g>`;
+      const [x, y] = frames.slots[slot];
+      const w = (PITCH - 0.2) / 2;
+      const d = (TRAY_D - 0.66) / 2;
+      return polygon([[x - w, y - d], [x + w, y - d], [x + w, y + d], [x - w, y + d]], TRAY_H + 0.004, "mem-slot-ring", `data-ring="${slot}"`);
     })
     .join("");
 
-  const entries = PAGES.map((page, i) => {
-    const x = entryX(i);
-    // Each entry is a cell set into the table: LED, page letter, frame number.
-    return `<g class="mem-entry" data-entry="${page}">
-      ${socket({ x: x - 0.7, y: TABLE.y + 0.25, z: TABLE.h, w: 1.4, d: TABLE.d - 0.5, cls: "mem-entry-cell" })}
-      ${led({ x, y: TABLE.y + 0.6, z: TABLE.h, color: pageColor(page) })}
-      ${topText({ x, y: TABLE.y + 1.35, z: TABLE.h, text: page, size: 12, weight: 800, fill: pageColor(page) })}
-      <g class="mem-entry-frame">${topText({ x, y: TABLE.y + 2.15, z: TABLE.h, text: "—", size: 10, weight: 600, fill: "var(--muted)" })}</g>
-    </g>`;
-  }).join("");
+  // Frame faces: "F0" engraved, then a status LED with the policy mark (rank or R bit).
+  const faces = SLOTS()
+    .map((slot) => `<g class="mem-slot" data-slot="${slot}">
+        ${frontText({ x: slotX(slot) - 0.6, y: FACE_Y + 0.002, z: TRAY_H / 2, text: `F${slot}`, size: 13, weight: 800, fill: "var(--mem-face-ink)", engrave: "var(--mem-face-engrave)" })}
+        <g class="mem-rank"></g>
+      </g>`)
+    .join("");
 
   const originals = PAGES.map(
     (page) => `<g class="mem-original" data-original="${page}">${token({ id: page, color: pageColor(page), size: TOKEN })}</g>`,
   ).join("");
 
-  return `<svg class="mem-svg" viewBox="${wide ? VIEW_WIDE : VIEW_TIGHT}" role="img" aria-label="CPU, 페이지 테이블, RAM 프레임, SSD 장면">
+  const cables = Object.entries(ROUTES)
+    .map(([name, route]) => cable(route(), { id: `mem-cable-${name}`, cls: "mem-cable", width: name === "fault" ? 5 : 6.5, pulse: true, arrow: true }))
+    .join("");
+
+  // The clock hand: an accent pointer on the floor, drawn at the origin and placed under a frame.
+  const hand = `<g class="mem-hand-pointer">
+      ${polygon([[0, 0.1], [0.5, 0.8], [0.16, 0.8], [0.16, 1.6], [-0.16, 1.6], [-0.16, 0.8], [-0.5, 0.8]], 0.01, "mem-hand-arrow")}
+      <text class="mem-hand-label" x="${project(0, 1.75)[0] - 6}" y="${project(0, 1.75)[1] + 6}" text-anchor="end">바늘</text>
+    </g>`;
+
+  return `<svg class="mem-svg" viewBox="0 0 800 400" role="img" aria-label="CPU, 페이지 테이블, RAM 프레임, SSD 장면">
     ${defs()}
-    ${wide ? floor({ x: -4, y: -4, w: 37, d: 22 }) : floor({ x: -1, y: 0, w: 28.5, d: 16 })}
-    ${floorPath(ROUTES.lookup, { dashed: true, cls: "mem-path", id: "mem-path-lookup" })}
-    ${floorPath(ROUTES.read, { dashed: true, cls: "mem-path", id: "mem-path-read" })}
-    ${floorPath(loadRoute(wide), { dashed: true, cls: "mem-path", id: "mem-path-load" })}
-    ${table.svg}
-    ${entries}
-    ${ram.svg}
-    ${frames.svg}
-    ${slots}
-    ${cpu.svg}
+    ${floor({ x: -14, y: -16, w: 50, d: 44 })}
+    ${cables}
     ${disk.svg}
-    ${frontText({ x: DISK.x + 2.6, y: DISK.y + DISK.d, z: 0.21, text: "PAGE STORE", size: 8, fill: "var(--muted)" })}
-    ${callout({ x: 0.6, y: CPU.y + 2, z: 0.3, dx: -36, dy: -78, title: "CPU", sub: "요청하는 쪽", anchor: "middle" })}
-    ${callout({ x: TABLE.x + 1, y: TABLE.y, z: TABLE.h, dx: -10, dy: -58, title: "페이지 테이블", sub: "상주 여부 · 프레임", anchor: "middle" })}
-    ${callout({ x: RAM.x + RAM.w - 1, y: RAM.y - 1.4, z: 2.05, dx: 30, dy: -64, title: "RAM", sub: "·", cls: "mem-ram-callout", anchor: "middle" })}
-    ${callout({ x: DISK.x + DISK.w, y: DISK.y + 0.6, z: DISK_TOP, dx: 34, dy: -64, title: "SSD", sub: "원본 A–E", anchor: "middle" })}
+    ${table.svg}
+    ${heads}
+    ${entries}
+    ${stick.svg}
+    ${glows}
+    ${frames.svg}
+    ${rings}
+    ${faces}
+    <g class="mem-hand" style="display: none">${hand}</g>
+    ${cpu.svg}
+    ${NOTES().map((n) => callout(n)).join("")}
     <g class="mem-originals">${originals}</g>
-    <g class="mem-hand"></g>
     <g class="mem-tokens">${SLOTS().map((slot) => `<g class="mem-token" data-token-slot="${slot}"></g>`).join("")}</g>
     <g class="mem-request"></g>
     <g class="mem-movers"></g>
@@ -173,33 +254,55 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
   setFrameCount(frameCount);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const narrow = matchMedia("(max-width: 759px)");
-  let svg, slotEls, tokenEls, request, movers, handEl;
+  let svg, slotEls, tokenEls, request, movers, handEl, stopLabels;
   const $ = (selector) => svg.querySelector(selector);
+  const $$ = (selector) => svg.querySelectorAll(selector);
+  // On a phone the callouts grow less, so the devices keep a readable size.
+  const labelMax = () => (narrow.matches ? 1.5 : 2.2);
+
+  /** Fit the viewBox to the devices and callouts at the stage's aspect. */
+  function frame() {
+    if (!svg) return;
+    // On a phone the SVG sets its own height, so it gets a fixed aspect.
+    const phone = narrow.matches || !host.clientHeight;
+    const stageAspect = phone ? 1.9 : host;
+    // labelScale() enlarges the callouts when the scene renders below 1 px per
+    // unit, so frame once, estimate that factor, and frame again with it.
+    let k = 1;
+    let vb;
+    for (let pass = 0; pass < 3; pass++) {
+      vb = fitScene(framePoints(), { stageAspect, fill: 0.96, pad: 2, labels: NOTES().map((n) => labelBox(n, k)) });
+      const [, , W, H] = vb.split(" ").map(Number);
+      const scale = phone ? host.clientWidth / W : Math.min(host.clientWidth / W, host.clientHeight / H);
+      const next = Math.min(labelMax(), Math.max(1, 1 / (scale || 1)));
+      if (Math.abs(next - k) < 0.02) break;
+      k = next;
+    }
+    svg.setAttribute("viewBox", vb);
+  }
+
   function build() {
-    const wide = !narrow.matches;
-    DISK = wide ? DISK_WIDE : DISK_NARROW;
-    host.innerHTML = staticScene(wide);
+    stopLabels?.();
+    host.innerHTML = staticScene();
     svg = host.querySelector("svg");
-    slotEls = SLOTS().map((slot) => $(`[data-slot="${slot}"]`));
+    slotEls = SLOTS().map((slot) => $(`.mem-slot[data-slot="${slot}"]`));
     tokenEls = SLOTS().map((slot) => $(`[data-token-slot="${slot}"]`));
     handEl = $(".mem-hand");
     request = $(".mem-request");
     movers = $(".mem-movers");
-    for (const el of svg.querySelectorAll("[data-original]")) place(el, ...diskPoint(el.dataset.original));
+    for (const el of $$("[data-original]")) place(el, ...diskPoint(el.dataset.original));
     tokenEls.forEach((el, slot) => place(el, ...slotPoint(slot)));
     place(request, ...cpuPoint());
+    PAGES.forEach((page, row) => $(`.iso-row-led[data-row="${row}"]`)?.style.setProperty("--led", pageColor(page)));
+    frame();
+    stopLabels = labelScale(svg, { max: labelMax() });
   }
   build();
-  // Crossing the phone breakpoint redraws the scene in the other layout.
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(() => frame()).observe(host);
   narrow.addEventListener("change", () => {
-    revision++;
-    cancel();
-    build();
-    frames = step ? cloneFrames(step.frames) : emptyFrames();
-    hand = step ? step.hand : null;
-    paintFrames();
-    paintRequest("done");
-    finalPhase();
+    stopLabels?.();
+    frame();
+    stopLabels = labelScale(svg, { max: labelMax() });
   });
 
   let step = null;
@@ -227,23 +330,26 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
       el.style.opacity = "";
       const r = rank.get(frame.slot);
       const x = slotX(frame.slot);
+      const z = TRAY_H / 2;
+      const mark = (on, text) =>
+        `${faceLed({ x: x + 0.12, y: FACE_Y + 0.002, z, on })}${frontText({ x: x + 0.42, y: FACE_Y + 0.002, z, text, size: 13, weight: 800, anchor: "start", fill: on ? "var(--accent)" : "var(--mem-face-ink)", cls: "mem-rank-text" })}`;
       // Clock: the reference bit is evidence, not the answer, so it always shows.
       slotEls[frame.slot].querySelector(".mem-rank").innerHTML = clock
         ? frame.page
-          ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: Boolean(frame.ref) })}${topText({ x: x + 0.2, y: SLOT_Y + 1.75, z: RAM.h, text: `R${frame.ref ? 1 : 0}`, size: 13, weight: 800, fill: frame.ref ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
+          ? mark(Boolean(frame.ref), `R${frame.ref ? 1 : 0}`)
           : ""
         : r
-          ? `${led({ x: x - 0.75, y: SLOT_Y + 1.75, z: RAM.h, on: r === 1 && full })}${topText({ x: x + 0.15, y: SLOT_Y + 1.75, z: RAM.h, text: `#${r}`, size: 13, weight: 800, fill: r === 1 && full ? "var(--accent)" : "var(--muted)", cls: "mem-rank-text" })}`
+          ? mark(r === 1 && full, `#${r}`)
           : "";
     });
     paintHand();
-    for (const page of PAGES) {
+    PAGES.forEach((page, row) => {
       const frame = frames.find((f) => f.page === page);
       const entry = $(`[data-entry="${page}"]`);
-      entry.querySelector(".iso-led").classList.toggle("is-on", Boolean(frame));
+      $(`.iso-row-led[data-row="${row}"]`)?.classList.toggle("is-on", Boolean(frame));
       entry.querySelector(".mem-entry-frame text").textContent = frame ? `F${frame.slot}` : "—";
       entry.classList.toggle("is-resident", Boolean(frame));
-    }
+    });
     $(".mem-ram-callout .iso-callout-sub").textContent = clock ? "R 참조 비트 · ▲ 바늘" : !hints || !full ? `프레임 ${N}개` : CALLOUT_SUB[algorithm];
     host.setAttribute(
       "aria-label",
@@ -253,12 +359,8 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
 
   function paintHand() {
     const at = algorithm === "clock" ? hand : null;
-    if (handEl.dataset.at === String(at)) return;
-    handEl.dataset.at = String(at);
-    handEl.innerHTML =
-      at === null
-        ? ""
-        : `${topText({ x: slotX(at), y: HAND_Y(), z: 0, text: "▲", size: 14, weight: 800, fill: "var(--accent)", mono: false })}${topText({ x: slotX(at), y: HAND_Y() + 0.85, z: 0, text: "바늘", size: 11, weight: 700, fill: "var(--accent)", mono: false })}`;
+    handEl.style.display = at === null ? "none" : "";
+    if (at !== null) place(handEl.firstElementChild, slotX(at), HAND_Y, 0);
   }
 
   function paintRequest(state = "done") {
@@ -270,16 +372,23 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
     request.dataset.state = state;
   }
 
-  let flows = [];
-  function emphasis({ path = null, slot = null, ring = null, entry = null } = {}) {
-    flows.forEach((animation) => animation.cancel());
-    flows = [];
-    for (const name of ["lookup", "read", "load"]) $(`#mem-path-${name}`).classList.toggle("is-active", name === path);
-    slotEls.forEach((el, i) => {
-      el.classList.toggle("is-hit", ring === "hit" && i === slot);
-      el.classList.toggle("is-selected", ring === "select" && i === slot);
-    });
-    for (const el of svg.querySelectorAll("[data-entry]")) el.classList.toggle("is-probed", el.dataset.entry === entry);
+  /** Light the cable in use, the frame (pocket rim + its chip) and the table row. */
+  function emphasis({ path = null, slot = null, ring = null, entry = null, miss = false } = {}) {
+    for (const name of Object.keys(ROUTES)) $(`#mem-cable-${name}`).classList.toggle("is-active", name === path);
+    for (const el of $$("[data-ring]")) {
+      const on = ring && Number(el.dataset.ring) === slot;
+      el.classList.toggle("is-hit", on && ring === "hit");
+      el.classList.toggle("is-selected", on && ring === "select");
+    }
+    for (const el of $$("[data-chip]")) el.classList.toggle("is-lit", ring !== null && Number(el.dataset.chip) === slot);
+    const row = entry ? PAGES.indexOf(entry) : -1;
+    for (const el of $$(".mem-table .iso-cell")) {
+      const mine = Number(el.dataset.row) === row;
+      el.classList.toggle("is-on", mine && !miss);
+      el.classList.toggle("is-hot", mine && !miss && ring === "hit" && el.dataset.col === "1");
+      el.classList.toggle("mem-cell-miss", mine && miss);
+    }
+    for (const el of $$("[data-entry]")) el.classList.toggle("is-probed", el.dataset.entry === entry);
   }
 
   function phase(kind, title, body) {
@@ -315,12 +424,6 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
   }
   const hold = (ms, active) => track(host.animate([{ opacity: 1 }, { opacity: 1 }], { duration: ms }), active);
 
-  function flow(name, active) {
-    const animation = $(`#mem-path-${name}`).animate([{ strokeDashoffset: 22 }, { strokeDashoffset: 0 }], { duration: 500, iterations: Infinity });
-    flows.push(animation);
-    track(animation, active);
-  }
-
   function mover(page, { size = TOKEN, text = page } = {}) {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "mem-mover");
@@ -338,6 +441,9 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
     return track(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration, easing: "ease-in", fill: "forwards" }), active);
   }
 
+  // Token routes follow the cables, lifted above them.
+  const lookupRoute = (page) => [cpuPoint(0.55), [CPU.x - 0.2, LOOKUP_Y, 1.4], [LOOKUP_X, LOOKUP_Y, 1.4], [LOOKUP_X, TABLE.y + TABLE.d - 0.4, 1.4], entryPoint(page, 0.6), entryPoint(page)];
+
   async function animateStep(active) {
     const page = step.page;
     const slot = step.frameIndex;
@@ -347,8 +453,7 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
     emphasis({ path: "lookup", entry: page });
     const probe = mover(page, { size: 0.8 });
     place(probe, ...cpuPoint(0.55));
-    flow("lookup", active);
-    await move(probe, [cpuPoint(0.55), [2.5, 7, 1.6], entryPoint(page, 0.6), entryPoint(page)], 900, active);
+    await move(probe, lookupRoute(page), 900, active);
     probe.remove();
     if (!alive(active)) return;
 
@@ -374,7 +479,7 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
         phase("hit", `적중 · ${josa(page, "이/가")} ${F(slot)}에 있습니다`, `페이지 테이블의 ${page} 항목이 ${F(slot, "을/를")} 가리킵니다. 이 프레임의 주소로 바로 변환합니다.`);
         await hold(600, active);
       } else if (event.type === "miss") {
-        emphasis({ entry: page });
+        emphasis({ path: "fault", entry: page, miss: true });
         phase("miss", `페이지 부재 · ${josa(page, "이/가")} RAM에 없습니다`, `${page} 항목이 미상주(—)입니다. 운영체제가 페이지 부재를 처리하기 위해 프레임을 확보합니다.`);
         await hold(700, active);
       } else if (event.type === "select") {
@@ -409,7 +514,7 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
         paintFrames();
         emphasis({ ring: "select", slot });
         await Promise.all([
-          move(gone, [slotPoint(slot), slotPoint(slot, 1.8), diskPoint(event.page, 2.2)], 900, active),
+          move(gone, [slotPoint(slot), slotPoint(slot, 2.4), [LOAD_X(), RAM_Y + 0.4, 2.6], diskPoint(event.page, 1.6)], 900, active),
           fade(gone, 900, active),
         ]);
         gone.remove();
@@ -418,10 +523,9 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
       } else if (event.type === "load") {
         phase("load", `저장장치에서 ${josa(page, "을/를")} 읽어 ${F(slot)}에 적재합니다`, `저장장치의 원본을 ${F(slot, "으로")} 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → ${josa(`F${slot}`, "을/를")} 기록합니다.`);
         emphasis({ path: "load", ring: "select", slot });
-        flow("load", active);
         const copy = mover(page);
         place(copy, ...diskPoint(page));
-        await move(copy, [diskPoint(page), diskPoint(page, 2.4), slotPoint(slot, 2.4), slotPoint(slot)], 1300, active);
+        await move(copy, [diskPoint(page), diskPoint(page, 1.4), [LOAD_X(), DISK.y + DISK.d + 0.3, 1.4], [LOAD_X(), RAM_Y + 0.4, 2.6], slotPoint(slot, 2.4), slotPoint(slot)], 1300, active);
         copy.remove();
         if (!alive(active)) return;
         frames[slot] = { ...step.frames[slot], lastUsedAt: null };
@@ -432,19 +536,17 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
         if (step.fault) {
           phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 ${F(slot, "을/를")} 가리킵니다.`);
           emphasis({ path: "lookup", entry: page, ring: "hit", slot });
-          flow("lookup", active);
           const retry = mover(page, { size: 0.8 });
           place(retry, ...cpuPoint(0.55));
-          await move(retry, [cpuPoint(0.55), [2.5, 7, 1.6], entryPoint(page, 0.6), entryPoint(page)], 800, active);
+          await move(retry, lookupRoute(page), 800, active);
           retry.remove();
           if (!alive(active)) return;
         }
         phase("read", `${F(slot)}에서 CPU로 값을 전달합니다`, `${josa(`페이지 ${page}`, "은/는")} ${F(slot)}에 남습니다. 읽은 값이 CPU에 도착하면 이번 접근을 기록합니다.`);
         emphasis({ path: "read", ring: "hit", slot, entry: page });
-        flow("read", active);
         const value = mover(page, { size: 0.8 });
         place(value, ...slotPoint(slot, 0.6));
-        await move(value, [slotPoint(slot, 0.6), slotPoint(slot, 2), cpuPoint(2), cpuPoint(0.6)], 1100, active);
+        await move(value, [slotPoint(slot, 0.6), slotPoint(slot, 1.6), [RAM_X - 0.2, READ_Y, 1.2], [READ_X, READ_Y, 1.2], [READ_X, CPU.y - 0.3, 1.2], cpuPoint(0.6)], 1100, active);
         value.remove();
         if (!alive(active)) return;
         frames = cloneFrames(step.frames);
@@ -516,4 +618,3 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
     },
   };
 }
-

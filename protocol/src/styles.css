@@ -329,31 +329,19 @@ html.is-locked { overflow: hidden; }
 .network.is-booting .node,
 .network.is-booting .lanes { opacity: 0; }
 .network .iso-floor { pointer-events: none; }
-.network .lane {
-  fill: none;
-  stroke: var(--iso-line);
-  stroke-width: 1.6;
-  stroke-dasharray: 5 6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: stroke 0.35s, stroke-width 0.35s;
-}
-.network .lane.is-active {
-  stroke-width: 2.4;
-  animation: lane-flow 0.55s linear infinite;
-}
-@keyframes lane-flow { to { stroke-dashoffset: -11; } }
+/* Links: an idle two-conductor cable; the conductor a packet rides lights up. */
+.network .lane { opacity: 0; transition: opacity 0.25s; pointer-events: none; }
+.network .lane.is-active { opacity: 1; }
+.network .net-globe { fill: none; stroke: color-mix(in oklch, var(--accent) 70%, white); stroke-width: 0.9; opacity: 0.85; }
 
 .network .node-label .node-name { fill: var(--ink); }
 .network .node-state {
   fill: var(--accent);
-  font: 700 11px var(--font-mono);
+  font: 700 12px var(--font-mono);
   letter-spacing: 0.02em;
-}
-.network.is-scaled .node-label text {
   paint-order: stroke;
   stroke: var(--hw-plate);
-  stroke-width: 3px;
+  stroke-width: 4px;
   stroke-linejoin: round;
 }
 .network .state-token.is-dim { opacity: 0.7; }
@@ -723,7 +711,6 @@ h4.ins-layer em { color: var(--muted); font: 500 var(--fs-1) var(--font-mono); f
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .network .lane.is-active,
   .steps > button[data-status="active"] .step-led,
   .url-bar.is-typing .url-caret { animation: none; }
   .pe-picker, .pe-scrim, .pe-scene .sequence, .pe-scene > .network { transition: none; }
@@ -918,3 +905,7 @@ h4.ins-layer::before {
 .pe-recap-foot[hidden] { display: none; }
 .pe-recap-foot > .hw-key { flex: 1; justify-content: center; }
 .overview-question, .explain-title, .recap .hw-title { word-break: keep-all; }
+
+/* Device callouts: above / below the devices, or beside them on a short wide stage. */
+.network:not(.is-wide-labels) .node-label[data-layout="wide"],
+.network.is-wide-labels .node-label[data-layout="tall"] { display: none; }

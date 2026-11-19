@@ -1,62 +1,45 @@
-// Page 2 scene: the same two laptops and database. The database top holds rows
-// A and B, each with its committed stock (LCD), an uncommitted write (token in
-// the writer's colour) and a lock LED in the owner's colour. A blocked UPDATE
-// parks at the database edge, and the wait-for relation is drawn on the floor
-// as a lit path from the waiting transaction to the one it waits for. Two such
-// paths close the cycle; the rollback of T2 removes its write, its lock and its
-// parked request, and the cycle opens.
+// Page 2 scene: the same two laptops and database. The row table on the
+// database top holds rows A and B, each with its committed stock (LCD cell),
+// an uncommitted write (token in the writer's colour) and its lock owner (LOCK
+// cell and row LED in the owner's colour). A blocked UPDATE waits in its
+// pocket of the WAIT tray, and the wait-for relation is drawn on the floor as
+// a lit path from the waiting transaction's laptop to the one it waits for.
+// Two such paths close the cycle; the rollback of T2 removes its write, its
+// lock and its waiting request, and the cycle opens.
 import { floorPath, topText } from "../../shared/iso-kit.js";
 import { eul, eun, ga } from "../../shared/josa.js";
 import { getDeadlockPresentationState } from "./deadlock-engine.js";
 import {
   COLORS,
-  DB,
-  DB_TOP,
   PARK,
-  VIEWS,
   ROUTES,
   createMoves,
   createRunner,
-  lamp,
+  mountScene,
   place,
-  printed,
   sceneSvg,
-  setLamp,
+  setLock,
   setScreen,
   setStatus,
-  slot,
+  setWaiting,
   sqlToken,
-  well,
 } from "./stage.js";
 
 const IDS = ["T1", "T2"];
-const ROWS = { A: DB.y + 1.65, B: DB.y + 4.35 };
-const PENDING_X = DB.x + 4.5;
-const LCD_X = DB.x + 2.45;
 const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", committed: "COMMITTED", aborted: "ABORTED" };
 const other = (id) => (id === "T1" ? "T2" : "T1");
-// Wait-for edges run in front of the database, laptop to laptop.
+// Wait-for edges run on the floor in front of the database, laptop to
+// laptop: T1's edge points at T2, T2's (a little further forward) at T1.
 const EDGES = {
-  T1: [[3.15, 12.15], [12.85, 12.15], [12.85, 1.55]],
-  T2: [[13.5, 1.55], [13.5, 12.8], [3.15, 12.8]],
+  T1: [[2.4, 16.0], [16.4, 1.6]],
+  T2: [[17.0, 2.2], [3.0, 16.6]],
 };
-
-const dbTop = Object.entries(ROWS)
-  .map(
-    ([row, y]) => `
-  ${topText({ x: DB.x + 0.85, y, z: DB_TOP + 0.01, text: row, size: 20, weight: 800, fill: "var(--ink)" })}
-  ${well({ x: DB.x + 1.4, y: y - 0.8, w: 2.1, d: 1.6 })}
-  <g data-lcd="${row}">${printed({ x: DB.x + 2.45, y, text: "", anchor: "middle", size: 20, weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>
-  ${slot({ x: DB.x + 3.85, y: y - 0.7, w: 1.25, d: 1.4 })}
-  <g data-lock-led="${row}">${lamp({ x: DB.x + 5.5, y })}</g>`,
-  )
-  .join("");
 
 const floorMarks = `
   ${Object.entries(EDGES)
-    .map(([id, route]) => `<g class="tx-edge" data-edge="${id}" style="--edge:${COLORS[id]}">${floorPath(route)}</g>`)
+    .map(([id, route]) => `<g class="tx-edge" data-edge="${id}" style="--edge:${COLORS[id]}">${floorPath(route, { gap: 0.6 })}</g>`)
     .join("")}
-  ${topText({ x: 8.2, y: 13.55, z: 0.01, text: "WAIT-FOR", size: 12, weight: 600, fill: "var(--muted)", cls: "tx-floor-mark" })}
+  ${topText({ x: 12.2, y: 10.0, z: 0.01, text: "WAIT-FOR", size: 13, weight: 700, fill: "var(--muted)", cls: "tx-floor-mark" })}
 `;
 
 function completedTitle(step) {
@@ -82,15 +65,17 @@ function completedTitle(step) {
 }
 
 export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
-  host.innerHTML = sceneSvg({
+  const scene = sceneSvg({
     label: "두 클라이언트가 재고 행 A와 B의 잠금을 서로 기다리는 장면",
-    dbTop,
+    rows: [{ id: "A", name: "A" }, { id: "B", name: "B" }],
+    valueHeader: "STOCK",
     floorMarks,
-    view: VIEWS.deadlock,
+    framePoints: [...EDGES.T1, ...EDGES.T2, [14.4, 10.6], [10.4, 10.6]],
     screens: ["HOLD", "WAIT"],
     dbSub: "ROWS A · B",
   });
-  const svg = host.querySelector("svg");
+  const svg = mountScene(host, scene);
+  const AT = scene.at;
   const runner = createRunner(svg);
   const moves = createMoves(svg, runner);
   const $ = (s) => svg.querySelector(s);
@@ -107,26 +92,28 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       $(`[data-client="${id}"]`).dataset.status = victim ? "aborted" : c.status;
     }
     const pending = $(".tx-pending");
-    for (const [row, y] of Object.entries(ROWS)) {
+    for (const row of Object.keys(AT)) {
       const r = state.rows[row];
       $(`[data-lcd="${row}"] text`).textContent = r.committed;
-      setLamp($(`[data-lock-led="${row}"] .iso-led`), r.owner);
+      setLock(svg, AT, row, r.owner);
       const key = r.pending ? `${r.pending.client}:${r.pending.value}` : "";
       let token = pending.querySelector(`[data-pend="${row}"]`);
       if (token?.dataset.key === key) continue;
       token?.remove();
       if (!key) continue;
-      pending.insertAdjacentHTML("beforeend", `<g class="tx-pend" data-pend="${row}" data-key="${key}">${sqlToken({ text: r.pending.value, color: COLORS[r.pending.client], w: 1.15, d: 1 })}</g>`);
-      place(pending.lastElementChild, PENDING_X, y, DB_TOP);
+      pending.insertAdjacentHTML("beforeend", `<g class="tx-pend" data-pend="${row}" data-key="${key}">${sqlToken({ text: r.pending.value, color: COLORS[r.pending.client], w: 1.3, d: 0.85, h: 0.38 })}</g>`);
+      place(pending.lastElementChild, ...AT[row].pending);
     }
     const parked = $(".tx-parked");
-    parked.innerHTML = IDS.filter((id) => state.clients[id].waitingFor && id !== hideParked)
+    const waiting = IDS.filter((id) => state.clients[id].waitingFor && id !== hideParked);
+    setWaiting(svg, waiting);
+    parked.innerHTML = waiting
       .map((id) => {
         const row = state.clients[id].waitingFor;
         return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: `UPD ${row}`, color: COLORS[id], w: 2.4 })}</g>`;
       })
       .join("");
-    for (const g of parked.children) place(g, ...PARK[g.dataset.park], 0);
+    for (const g of parked.children) place(g, ...PARK[g.dataset.park]);
     // Wait-for edges: lit while the waiter's row is held by the other transaction.
     for (const id of IDS) {
       const row = state.clients[id].waitingFor;
@@ -139,7 +126,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
   }
 
   const phase = (title, body = "") => onPhase({ title, body, snapshot: painted });
-  const slotOf = (row) => [PENDING_X, ROWS[row], DB_TOP];
+  const slotOf = (row) => AT[row].pending;
 
   async function update(step, previous = null, { animate = true, speed = 1 } = {}) {
     runner.cancel();
@@ -169,11 +156,11 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
               ? "커밋이 도착하면 이 트랜잭션의 미확정 값이 확정되고 잠금이 풀립니다."
               : step.state.rows[row].owner === id
                 ? `${row} 행에 잠금이 없으면 UPDATE가 잠금을 얻고 stock − 1을 계산합니다.`
-                : `${row} 행은 ${ga(step.before.rows[row].owner)} 잠갔습니다. 이 UPDATE는 DB 앞에서 기다립니다.`,
+                : `${row} 행은 ${ga(step.before.rows[row].owner)} 잠갔습니다. 이 UPDATE는 DB의 WAIT 칸에서 기다립니다.`,
         );
-        const route = action === "wait" ? [...ROUTES[id].slice(0, -1), PARK[id]] : ROUTES[id];
-        if (!(await moves.send(id, label, route))) return;
+        if (!(await moves.send(id, label, ROUTES[id]))) return;
         if (action === "wait") {
+          if (!(await moves.rise(id, PARK[id]))) return;
           moves.reset();
           paint(getDeadlockPresentationState(step, "database"));
           phase(
@@ -193,7 +180,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         } else if (action === "commit") {
           moves.reset();
           phase(`${id} 커밋 · 두 행의 미확정 값을 확정`, `${id}의 A·B 쓰기가 함께 확정되고 두 행 잠금이 해제됩니다.`);
-          const merges = [...svg.querySelectorAll(".tx-pend")].map((el) => moves.merge(el, slotOf(el.dataset.pend), [LCD_X, ROWS[el.dataset.pend], DB_TOP]));
+          const merges = [...svg.querySelectorAll(".tx-pend")].map((el) => moves.merge(el, slotOf(el.dataset.pend), AT[el.dataset.pend].lcd));
           if (!(await Promise.all(merges)).every(Boolean)) return;
           paint(getDeadlockPresentationState(step, "database"));
         } else {
@@ -228,8 +215,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       case "resume": {
         phase(`${id} · 대기하던 ${row} UPDATE를 이어서 실행`, "새 SQL을 보내지 않고 DB에 대기 중이던 UPDATE가 이어집니다.");
         paint(getDeadlockPresentationState(step, "request"), { hideParked: id });
-        if (!(await moves.send(id, `UPD ${row}`, [PARK[id], moves.edge(id)]))) return;
-        if (!(await moves.rise(id, slotOf(row)))) return;
+        if (!(await moves.unpark(id, `UPD ${row}`, slotOf(row)))) return;
         paint(getDeadlockPresentationState(step, "database"));
         phase(`DB → ${id} · 처리 완료`, `${row}의 미확정 값 ${eun(step.state.rows[row].pending.value)} ${ga(id)} 새로 만든 값입니다.`);
         if (!(await moves.respond(id, "OK"))) return;

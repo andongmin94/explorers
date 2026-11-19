@@ -1,104 +1,163 @@
 // The CPU scheduler as one isometric scene built from shared/iso-kit.js.
 //
-// Five places on one floor: the arrival bay (not yet arrived), the ready queue
-// (front slot nearest the CPU), the CPU chip (the running process sits on it and
-// LEDs on the board count the quantum left), the I/O drive (blocked processes)
-// and the done tray. P1–P3 are tokens that travel between those places along
-// floor routes; the route in use lights up.
+// Five devices on one floor, wired with cables: the arrival tray (not yet
+// arrived), the ready queue rail (numbered pockets, head at the CPU end, an
+// occupancy LED per pocket), the CPU chip (the running process sits on its heat
+// spreader and LEDs on the board count the quantum left), the I/O drive
+// (blocked processes sit on it) and the done bin. P1–P3 are tokens that travel
+// along the cables; the cable in use lights up.
 import {
+  LABEL,
+  MAT,
+  bin,
+  cable,
   callout,
   chip,
   defs,
-  fitViewBox,
+  fitScene,
   floor,
-  floorPath,
+  frontText,
+  labelScale,
   led,
-  module,
   project,
-  quad,
-  socket,
+  queueRail,
   ssd,
   token,
-  topText,
+  tray,
 } from "../../shared/iso-kit.js";
 
 const COLORS = { P1: "var(--p1)", P2: "var(--p2)", P3: "var(--p3)" };
 const MOVES = new Set(["arrive", "unblock", "preempt", "dispatch", "block", "complete"]);
 const MAX_QUANTUM = 5;
+const SLOTS = 3;
+// A token rides just above the cable while it travels.
+const RIDE = 0.2;
+// On phones callout labels grow at most this much (see frame()).
+const NARROW_LABEL_K = 1.15;
 
-/* Two world layouts (iso-kit units): a wide one for the desktop stage and a
-   compact one stacked down the screen for phones. Slot 0 of the ready queue is
-   always the front, nearest the CPU. */
-function makeLayout({ arrivals, ready, cpu, io, done, readyStep, routes, callouts, bounds, floorRect, viewBox }) {
-  const center = [cpu.x + cpu.size / 2, cpu.y + cpu.size / 2];
+/* Callout label boxes in user units, for framing: Hangul is about 1em wide,
+   everything else about 0.6em (sans title) / 0.62em (mono sub). */
+function textWidth(text, size, latin) {
+  let w = 0;
+  for (const ch of String(text)) w += (/[ㄱ-힣]/.test(ch) ? 1 : ch === " " ? 0.3 : latin) * size;
+  return w;
+}
+function labelBox(c, sub = c.sub) {
+  const [sx, sy] = project(c.x, c.y, c.z);
+  const lx = sx + c.dx;
+  const ly = sy + c.dy;
+  const w = Math.max(textWidth(c.title, LABEL.title, 0.6), textWidth(sub, LABEL.sub, 0.62)) + 8;
+  const left = c.anchor === "end" ? lx - w : c.anchor === "start" ? lx : lx - w / 2;
+  return [left, ly - LABEL.title, w, LABEL.title + (sub ? LABEL.sub + 10 : 6)];
+}
+
+/* Two world layouts (iso-kit units): a wide one whose chain runs across the
+   screen for the desktop stage, and a compact one stacked down the screen for
+   phones. Slot 0 of the ready queue (the head) is always the pocket nearest
+   the CPU. */
+function wideLayout() {
+  const ready = { x: 0, y: 6, slots: SLOTS, pitch: 1.6 };
+  const arrivals = { x: 1.4, y: 10.4, slots: SLOTS, pitch: 1.5, d: 2 };
+  const cpu = { x: 9.3, y: 3.8, size: 4.8 };
+  const io = { x: 10.5, y: -3.5, w: 4.6, d: 3 };
+  const done = { x: 16.6, y: 5.2, w: 4.2, d: 3 };
   return {
-    arrivals, ready, cpu, io, done, routes, callouts, floorRect, center,
-    viewBox: viewBox ?? fitViewBox(bounds, 12),
-    slots: {
-      new: (i) => [arrivals.x + 1.2 + i * 2, arrivals.y + arrivals.d / 2, arrivals.h],
-      ready: (i) => [ready.x + ready.w - 1.2 - i * readyStep, ready.y + 1.2, ready.h],
-      running: () => [...center, 0.75],
-      blocked: (i) => [io.x + 1.3 + i * 1.5, io.y + io.d / 2, 0.42],
-      done: (i) => [done.x + 1.3 + i * 2, done.y + done.d / 2, done.h],
+    kind: "wide",
+    ready, arrivals, cpu, io, done,
+    floorRect: { x: -20, y: -20, w: 62, d: 52 },
+    // Cables, world points on the floor. Each runs from device edge to device
+    // edge along world axes; return paths end in an arrow head.
+    routes: {
+      arrive: [[1.9, 10.4], [1.9, 8.1]],
+      dispatch: [[7.7, 7.05], [9.3, 7.05]],
+      preempt: [[9.3, 4.3], [1.4, 4.3], [1.4, 5.55]],
+      block: [[12.8, 3.8], [12.8, -0.5]],
+      unblock: [[10.5, -2], [0.6, -2], [0.6, 5.55]],
+      complete: [[14.1, 6.7], [16.6, 6.7]],
     },
-    led: (i, n) => [center[0] + (i - (n - 1) / 2) * 0.8, cpu.y + cpu.size - 0.42, 0.3],
+    callouts: {
+      arrivals: { x: 2.2, y: 12.4, z: 0.3, dx: -14, dy: 44, title: "도착 예정", sub: "NEW" },
+      ready: { x: 0.8, y: 6.6, z: 0.62, dx: -40, dy: -40, anchor: "end", title: "준비 큐" },
+      cpu: { x: 9.9, y: 8.0, z: 0.24, dx: 40, dy: 52, anchor: "end", title: "CPU" },
+      io: { x: 11.0, y: -3.0, z: 0.42, dx: 36, dy: -60, title: "입출력 장치", sub: "CPU와 동시에 진행" },
+      done: { x: 20.4, y: 5.8, z: 1, dx: 24, dy: -36, anchor: "start", title: "완료", sub: "DONE" },
+    },
   };
 }
 
-const WIDE = makeLayout({
-  arrivals: { x: 0, y: 0, w: 6.4, d: 2.2, h: 0.4 },
-  ready: { x: 0, y: 5.4, w: 7.4, d: 2.4, h: 0.45 },
-  cpu: { x: 9.6, y: 4.2, size: 5 },
-  io: { x: 17.2, y: 1.8, w: 5.6, d: 3.6 },
-  done: { x: 9, y: 11, w: 6.6, d: 2.2, h: 0.35 },
-  readyStep: 2.2,
-  routes: {
-    arrive: [[0.7, 2.4], [0.7, 5.2]],
-    unblock: [[17, 2.8], [1.5, 2.8], [1.5, 5.2]],
-    preempt: [[11.5, 4], [11.5, 3.7], [2.3, 3.7], [2.3, 5.2]],
-    dispatch: [[7.6, 6.6], [9.4, 6.6]],
-    block: [[14.8, 5], [17, 5]],
-    complete: [[12.1, 9.4], [12.1, 10.8]],
-  },
-  callouts: {
-    arrivals: { x: 1.2, y: 0.8, z: 0.4, dx: -36, dy: -46 },
-    ready: { x: 0.8, y: 7.4, z: 0.45, dx: -40, dy: -52 },
-    cpu: { x: 13.3, y: 5.2, z: 0.75, dx: 34, dy: -86 },
-    io: { x: 22.55, y: 2.05, z: 0.42, dx: 20, dy: -48 },
-    done: { x: 15.2, y: 12.1, z: 0.35, dx: 70, dy: 6, anchor: "start" },
-  },
-  // Fitted to the devices, tokens, routes and callouts (measured with
-  // getBBox), not to the floor: the floor runs past the stage and is clipped.
-  viewBox: "-250 -60 742 372",
-  floorRect: { x: -24, y: -24, w: 72, d: 62 },
-});
+function narrowLayout() {
+  const ready = { x: 0, y: 6, slots: SLOTS, pitch: 1.6 };
+  const arrivals = { x: 1.5, y: 2.2, slots: SLOTS, pitch: 1.5, d: 2 };
+  const cpu = { x: 9.1, y: 8.1, size: 4.8 };
+  const io = { x: 8, y: 14.5, w: 4.6, d: 3 };
+  const done = { x: 13.4, y: 14.2, w: 4.2, d: 3 };
+  return {
+    kind: "narrow",
+    ready, arrivals, cpu, io, done,
+    floorRect: { x: -16, y: -16, w: 50, d: 50 },
+    routes: {
+      arrive: [[2.0, 4.2], [2.0, 6.0]],
+      dispatch: [[7.7, 7.05], [10.5, 7.05], [10.5, 8.1]],
+      preempt: [[9.1, 9.6], [1.6, 9.6], [1.6, 8.5]],
+      block: [[10.3, 12.9], [10.3, 14.5]],
+      unblock: [[8.6, 14.5], [8.6, 11], [0.6, 11], [0.6, 8.5]],
+      complete: [[13.6, 12.9], [13.6, 14.2]],
+    },
+    callouts: {
+      arrivals: { x: 6.2, y: 3.2, z: 0.62, dx: 26, dy: -26, anchor: "start", title: "도착 예정", sub: "NEW" },
+      ready: { x: 0.6, y: 6.6, z: 0.62, dx: -20, dy: -36, title: "준비 큐" },
+      cpu: { x: 13.5, y: 10, z: 0.25, dx: 40, dy: -10, anchor: "start", title: "CPU" },
+      io: { x: 8.4, y: 16, z: 0.42, dx: -10, dy: 44, anchor: "end", title: "입출력 장치", sub: "CPU와 동시에 진행" },
+      done: { x: 17.2, y: 15.6, z: 1, dx: 30, dy: 10, anchor: "start", title: "완료", sub: "DONE" },
+    },
+  };
+}
 
-const NARROW = makeLayout({
-  arrivals: { x: 0, y: 0, w: 6.4, d: 2.2, h: 0.4 },
-  ready: { x: 2, y: 4.2, w: 7.4, d: 2.4, h: 0.45 },
-  cpu: { x: 6, y: 9, size: 5 },
-  io: { x: 13, y: 9.6, w: 5.4, d: 3.4 },
-  done: { x: 10, y: 16.2, w: 6.4, d: 2.2, h: 0.35 },
-  readyStep: 2.2,
-  routes: {
-    arrive: [[1.4, 2.4], [1.4, 3.4], [2.6, 3.4], [2.6, 4]],
-    unblock: [[14.5, 9.4], [14.5, 8.2], [2.6, 8.2], [2.6, 6.8]],
-    preempt: [[6.8, 8.8], [6.8, 7.6], [3.6, 7.6], [3.6, 6.8]],
-    dispatch: [[8.2, 6.8], [8.2, 8.8]],
-    block: [[11.2, 11.3], [12.8, 11.3]],
-    complete: [[10.4, 14.2], [10.4, 16]],
-  },
-  callouts: {
-    arrivals: { x: 0, y: 1.1, z: 0.4, dx: -70, dy: -18 },
-    ready: { x: 2.3, y: 5.4, z: 0.45, dx: -34, dy: -30 },
-    cpu: { x: 10.4, y: 9.6, z: 0.75, dx: 104, dy: -15 },
-    io: { x: 18.2, y: 12.8, z: 0.42, dx: 30, dy: 30 },
-    done: { x: 16.2, y: 17.4, z: 0.35, dx: 30, dy: 2, anchor: "start" },
-  },
-  viewBox: "-178 -42 376 432",
-  floorRect: { x: -8, y: -6, w: 34, d: 32 },
-});
-const DASHED = new Set(["unblock", "preempt"]);
+/** Build the devices of a layout; returns their SVG and the slot functions. */
+function devices(L, chipSub) {
+  const ready = queueRail({ ...L.ready, exit: "end", label: "READY", numbers: false });
+  const arrivals = tray({ ...L.arrivals, mat: MAT.plastic, numbers: false });
+  const cpu = chip({ x: L.cpu.x, y: L.cpu.y, size: L.cpu.size, label: "CPU", sub: chipSub, cls: "cpu-chip-device" });
+  const io = ssd({ ...L.io, label: "I/O" });
+  const done = bin({ ...L.done, capacity: 4, label: "DONE" });
+  const n = L.ready.slots;
+  // The rail's head is its last pocket; number the pockets from the head
+  // (1 = next to run) on the face below each pocket, beside its LED.
+  const rd = ready.d;
+  const numbers = ready.slots
+    .map(([x], i) => frontText({ x: x - 0.12, y: L.ready.y + rd + 0.002, z: 0.31, text: String(n - i), size: 12, weight: 700, fill: MAT.metal.ink, engrave: MAT.metal.engrave, anchor: "end", cls: "cpu-queue-num" }))
+    .join("");
+  const [cx, cy] = cpu.slots[0];
+  const top = cpu.top;
+  const size = L.cpu.size;
+  return {
+    svg: { ready: ready.svg + numbers, arrivals: arrivals.svg, cpu: cpu.svg, io: io.svg, done: done.svg },
+    bounds: [
+      ...corners(L.ready.x, L.ready.y, ready.w, ready.d, ready.top),
+      ...corners(L.arrivals.x, L.arrivals.y, arrivals.w, arrivals.d, arrivals.top),
+      ...corners(L.cpu.x, L.cpu.y, size, size, top + 0.6),
+      ...corners(L.io.x, L.io.y, L.io.w, L.io.d, io.top + 0.6),
+      ...corners(L.done.x, L.done.y, L.done.w, L.done.d, done.top),
+      ...Object.values(L.routes).flat().map(([x, y]) => [x, y, 0]),
+    ],
+    slots: {
+      new: (i) => arrivals.slots[i] ?? arrivals.slots.at(-1),
+      ready: (i) => ready.slots[n - 1 - i] ?? ready.slots[0],
+      // The running process sits on the heat spreader, a little behind the
+      // engraved label so "CPU" stays readable in front of it.
+      running: () => [cx - 0.15, cy - 0.65, top],
+      blocked: (i) => [L.io.x + 1.25 + i * 1.3, L.io.y + L.io.d / 2, io.top],
+      done: (i) => done.slots[i] ?? done.slots.at(-1),
+    },
+    // Quantum LEDs in a row on the board's front margin.
+    led: (i, count) => [L.cpu.x + size / 2 + (i - (count - 1) / 2) * 0.62, L.cpu.y + size - 0.36, 0.25],
+  };
+}
+
+const corners = (x, y, w, d, top) => [
+  [x, y, 0], [x + w, y, 0], [x + w, y + d, 0], [x, y + d, 0],
+  [x, y, top], [x + w, y, top], [x + w, y + d, top], [x, y + d, top],
+];
 
 function zoneOf(id, view) {
   if (view.running === id) return ["running", 0];
@@ -128,22 +187,12 @@ function mutateView(view, event) {
   else view[event.to].push(event.id);
 }
 
-function staticSvg(L, processes) {
-  const pad = (zone) =>
-    [0, 1, 2]
-      .map((i) => {
-        const [x, y, z] = L.slots[zone](i);
-        return socket({ x: x - 0.75, y: y - 0.75, z, w: 1.5, d: 1.5, cls: "cpu-slot" });
-      })
-      .join("");
-  const readyNumbers = [0, 1, 2]
-    .map((i) => {
-      const [x, y, z] = L.slots.ready(i);
-      return topText({ x, y: y + 0.98, z, text: String(i + 1), size: 9, weight: 600, fill: "var(--muted)" });
-    })
-    .join("");
-  const routes = Object.entries(L.routes)
-    .map(([type, points]) => `<g class="cpu-route" data-route="${type}">${floorPath(points, { dashed: DASHED.has(type) })}</g>`)
+const RETURNS = new Set(["preempt", "unblock"]);
+
+function staticSvg(L, D, processes, notes) {
+  // Cables first, so the devices' edges cover their plugs.
+  const cables = Object.entries(L.routes)
+    .map(([type, points]) => `<g class="cpu-route" data-route="${type}">${cable(points, { width: type === "dispatch" ? 7 : RETURNS.has(type) ? 5 : 6, arrow: RETURNS.has(type), pulse: true })}</g>`)
     .join("");
   const leds = Array.from({ length: MAX_QUANTUM }, () => `<g class="cpu-qled">${led({ x: 0, y: 0, z: 0 })}</g>`).join("");
   const io = L.io;
@@ -154,25 +203,29 @@ function staticSvg(L, processes) {
     )
     .join("");
   const c = L.callouts;
-  return `<svg class="cpu-scene-svg" viewBox="${L.viewBox}" xmlns="http://www.w3.org/2000/svg">
+  return `<svg class="cpu-scene-svg" xmlns="http://www.w3.org/2000/svg">
     ${defs()}
     ${floor(L.floorRect)}
-    <g class="cpu-routes">${routes}</g>
-    ${module({ ...L.arrivals, well: false }).svg}${pad("new")}
-    ${module({ ...L.ready, well: false }).svg}${pad("ready")}${readyNumbers}
-    ${chip({ x: L.cpu.x, y: L.cpu.y, size: L.cpu.size }).svg}
+    <g class="cpu-routes">${cables}</g>
+    <g class="cpu-dev cpu-dev-arrivals">${D.svg.arrivals}</g>
+    <g class="cpu-dev cpu-dev-ready">${D.svg.ready}</g>
+    <g class="cpu-dev cpu-dev-io">${D.svg.io}</g>
+    <g class="cpu-io-led">${led({ x: io.x + io.w - 0.45, y: io.y + io.d - 0.32, z: 0.42, size: 1.2 })}</g>
+    <g class="cpu-dev cpu-dev-cpu">${D.svg.cpu}</g>
     <g class="cpu-qleds">${leds}</g>
-    ${ssd({ ...io, label: "입출력" }).svg}
-    <g class="cpu-io-led">${led({ x: io.x + io.w - 0.5, y: io.y + io.d - 0.35, z: 0.42 })}</g>
-    ${module({ ...L.done, well: false }).svg}${pad("done")}
-    ${callout({ ...c.arrivals, title: "도착 예정", sub: "NEW" })}
-    ${callout({ ...c.ready, title: "준비 큐", sub: "FIFO · 1번이 다음 차례", cls: "cpu-callout-ready" })}
-    ${callout({ ...c.cpu, title: "CPU", sub: "-", cls: "cpu-callout-cpu" })}
-    ${callout({ ...c.io, title: "입출력 장치", sub: "CPU와 동시에 진행" })}
-    ${callout({ ...c.done, title: "완료", sub: "DONE" })}
+    <g class="cpu-dev cpu-dev-done">${D.svg.done}</g>
+    <g class="cpu-callouts">
+      ${callout(c.arrivals)}
+      ${callout({ ...c.ready, sub: notes.queue, cls: "cpu-callout-ready" })}
+      ${callout({ ...c.cpu, sub: notes.cpuSub, cls: "cpu-callout-cpu" })}
+      ${callout(c.io)}
+      ${callout(c.done)}
+    </g>
     <g class="cpu-tokens">${tokens}</g>
   </svg>`;
 }
+
+const CHIP_SUB = { rr: "RR", fcfs: "FCFS", sjf: "SJF", srtf: "SRTF" };
 
 /**
  * update(frame, previous, { animate, speed, quantum }) → Promise that settles
@@ -182,9 +235,11 @@ function staticSvg(L, processes) {
 export function createSchedulerScene(host, processes, onMove) {
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let L = null;
-  let svg, tokenLayer, tokens, routes, leds, ioLed, cpuSub, queueSub;
+  let D = null;
+  let svg, tokenLayer, tokens, routes, leds, ioLed, readyLeds, newLeds, stopLabels;
   // Callout text for the current method (set by update()).
   let notes = { algorithm: "rr", cpu: null, queue: null };
+  let built = "";
   let view = null;
   let currentFrame = null;
   let quantum = 2;
@@ -194,25 +249,65 @@ export function createSchedulerScene(host, processes, onMove) {
 
   const slotFor = (id, v) => {
     const [zone, index] = zoneOf(id, v);
-    return L.slots[zone](index);
+    return D.slots[zone](index);
   };
+  const cpuSub = () => notes.cpu ?? (quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`);
+  const queueSub = () => notes.queue ?? "FIFO · 1번이 다음 차례";
+
+  // Frame the devices, cables and callout labels to the stage's aspect.
+  function frame() {
+    if (!svg) return;
+    const narrow = L.kind === "narrow";
+    const box = host.getBoundingClientRect();
+    const aspect = narrow ? 0.92 : Math.max(0.6, (box.width || 16) / (box.height || 10));
+    const c = L.callouts;
+    const estimates = [
+      labelBox(c.arrivals),
+      labelBox(c.ready, queueSub()),
+      labelBox(c.cpu, cpuSub()),
+      labelBox(c.io),
+      labelBox(c.done),
+    ];
+    // Measured label boxes when the svg is rendered, grown by the label scale
+    // round the point where the leader meets them; estimates otherwise.
+    // (On phones the scene only scales to the width: framing labels grown by
+    // the live scale would shrink the scene and grow them again; cap it.)
+    const k = narrow ? NARROW_LABEL_K : Number(svg.style.getPropertyValue("--iso-label-k")) || 1;
+    const labels = [...svg.querySelectorAll(".cpu-callouts .iso-callout-label")].map((g, i) => {
+      const b = g.getBBox?.();
+      if (!b || !b.width) return estimates[i];
+      const [ox, oy] = g.style.transformOrigin.split(" ").map(parseFloat);
+      return [ox + (b.x - ox) * k, oy + (b.y - oy) * k, b.width * k, b.height * k];
+    });
+    const next = fitScene(D.bounds, { stageAspect: aspect, fill: narrow ? 0.96 : 0.9, pad: 4, labels });
+    if (svg.getAttribute("viewBox") !== next) svg.setAttribute("viewBox", next);
+  }
 
   function build(layout) {
     L = layout;
-    host.innerHTML = staticSvg(L, processes);
-    host.dataset.layout = L === NARROW ? "narrow" : "wide";
+    D = devices(L, CHIP_SUB[notes.algorithm] ?? "");
+    built = `${L.kind}:${notes.algorithm}`;
+    stopLabels?.();
+    host.innerHTML = staticSvg(L, D, processes, { queue: queueSub(), cpuSub: cpuSub() });
+    host.dataset.layout = L.kind;
     svg = host.querySelector("svg");
+    svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     tokenLayer = svg.querySelector(".cpu-tokens");
     tokens = new Map([...svg.querySelectorAll(".cpu-token")].map((g) => [g.dataset.process, g]));
     routes = [...svg.querySelectorAll(".cpu-route")];
     leds = [...svg.querySelectorAll(".cpu-qled")];
     ioLed = svg.querySelector(".cpu-io-led .iso-led");
-    cpuSub = svg.querySelector(".cpu-callout-cpu .iso-callout-sub");
-    queueSub = svg.querySelector(".cpu-callout-ready .iso-callout-sub");
+    readyLeds = [...svg.querySelectorAll(".cpu-dev-ready .iso-tray-led")];
+    newLeds = [...svg.querySelectorAll(".cpu-dev-arrivals .iso-tray-led")];
     for (const [key, g] of tokens) g.classList.toggle("is-selected", key === selected);
+    frame();
+    stopLabels = labelScale(svg, L.kind === "narrow" ? { max: NARROW_LABEL_K } : {});
   }
-  const pick = (width) => (width < 640 ? NARROW : WIDE);
-  build(pick(host.clientWidth || innerWidth));
+  // Phones (the stacked console) get the compact layout; every desktop stage the wide one.
+  const phone = matchMedia("(max-width: 759px)");
+  const kindFor = () => (phone.matches ? "narrow" : "wide");
+  const pick = () => (kindFor() === "narrow" ? narrowLayout() : wideLayout());
+  build(pick());
 
   function sortTokens() {
     const depth = (id) => {
@@ -242,16 +337,26 @@ export function createSchedulerScene(host, processes, onMove) {
     leds.forEach((g, i) => {
       g.style.display = i < n ? "" : "none";
       if (i >= n) return;
-      g.style.transform = `${translate(L.led(i, n))} scale(1.5)`;
+      g.style.transform = `${translate(D.led(i, n))} scale(1.25)`;
       const on = i < left;
       const iso = g.firstElementChild;
       iso.classList.toggle("is-on", on);
       // The LED being spent dims through the current millisecond.
       iso.style.opacity = on && i === left - 1 ? String(1 - progress * 0.75) : "";
     });
+    // Occupancy LEDs: the rail's pockets count from the head (last pocket).
+    const queued = view ? view.ready.length : 0;
+    readyLeds.forEach((g) => g.classList.toggle("is-on", Number(g.dataset.slot) >= SLOTS - queued));
+    const waiting = view ? view.new.length : 0;
+    newLeds.forEach((g) => g.classList.toggle("is-on", Number(g.dataset.slot) < waiting));
     ioLed.classList.toggle("is-on", !!view && view.blocked.length > 0);
-    cpuSub.textContent = notes.cpu ?? (quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`);
-    if (notes.queue) queueSub.textContent = notes.queue;
+    // The callout subs follow the method; reframe when their width changes.
+    let relabel = false;
+    for (const [sel, text] of [[".cpu-callout-cpu .iso-callout-sub", cpuSub()], [".cpu-callout-ready .iso-callout-sub", queueSub()]]) {
+      const el = svg.querySelector(sel);
+      if (el.textContent !== text) (el.textContent = text), (relabel = true);
+    }
+    if (relabel) frame();
     // Without a quantum the LEDs are hidden (styles: [data-algorithm="fcfs"]).
     host.dataset.algorithm = quantum == null ? "fcfs" : "rr";
     host.dataset.policy = notes.algorithm;
@@ -276,7 +381,7 @@ export function createSchedulerScene(host, processes, onMove) {
     paintDevices();
     const from = slotFor(event.id, before);
     const to = slotFor(event.id, view);
-    const points = [from, ...L.routes[event.type].map(([x, y]) => [x, y, 0.05]), to];
+    const points = [from, ...L.routes[event.type].map(([x, y]) => [x, y, RIDE]), to];
     const screen = points.map(([x, y, z]) => project(x, y, z));
     const lengths = screen.slice(1).map((p, i) => Math.hypot(p[0] - screen[i][0], p[1] - screen[i][1]));
     const total = lengths.reduce((a, b) => a + b, 0) || 1;
@@ -327,6 +432,8 @@ export function createSchedulerScene(host, processes, onMove) {
     progress = 0;
     if (configured !== undefined) quantum = configured;
     if (algorithm) notes = { algorithm, cpu: cpuNote ?? null, queue: queueNote ?? null };
+    // The chip's engraved method name changes with the method.
+    if (`${L.kind}:${notes.algorithm}` !== built) build(L.kind === "narrow" ? narrowLayout() : wideLayout());
     const events = frame.events.filter((event) => MOVES.has(event.type));
     const canAnimate = animate && !reducedMotion.matches && previousFrame && frame.t > previousFrame.t && events.length;
     if (!canAnimate) {
@@ -351,13 +458,17 @@ export function createSchedulerScene(host, processes, onMove) {
     })();
   }
 
-  // Switch between the wide and the compact layout when the stage resizes.
-  // Tokens jump to their slots in the new layout; a move in flight completes.
-  new ResizeObserver(([entry]) => {
-    const next = pick(entry.contentRect.width);
-    if (next === L) return;
+  // Reframe when the stage resizes; switch between the wide and the compact
+  // layout when the width crosses the phone breakpoint. Tokens jump to their
+  // slots in the new layout; a move in flight completes.
+  new ResizeObserver(() => {
+    const kind = kindFor();
+    if (kind === L.kind) {
+      frame();
+      return;
+    }
     const run = activeRun;
-    build(next);
+    build(pick());
     if (run) for (const animation of run.animations) animation.finish();
     if (currentFrame && view) {
       snap();

@@ -26,6 +26,9 @@ body {
   --page-d: #b07213;
   --page-e: #c24f4f;
   --mem-fault: #c56a1c;
+  /* Ink printed on the frame tray face (the kit metal ink is too dark in dark mode). */
+  --mem-face-ink: #36383b;
+  --mem-face-engrave: rgb(255 255 255 / 0.8);
 }
 :root[data-theme="dark"] .hw-page {
   --page-a: #5d8ff0;
@@ -34,6 +37,8 @@ body {
   --page-d: #c98a26;
   --page-e: #d96565;
   --mem-fault: #e08a3c;
+  --mem-face-ink: #f1f0ea;
+  --mem-face-engrave: rgb(0 0 0 / 0.55);
 }
 
 .visually-hidden {
@@ -98,42 +103,89 @@ body {
 .mem-lcds .hw-lcd {
   font-size: var(--fs-3);
 }
+/* Below 1440px the head keeps one row: the strip names the plate, the label stays for screen readers. */
+@media (min-width: 1100px) and (max-width: 1439px) and (min-height: 700px) {
+  .mem-stage-head > #stage-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .mem-stages li + li::before {
+    width: 8px;
+  }
+}
 
 /* ---------- Scene ---------- */
 
 .hw-stage .hw-scene {
   min-height: 0;
-  padding: 6px 12px 0;
+  padding: 0;
 }
-.mem-svg .mem-path.is-active {
-  stroke-dasharray: 7 4;
+/* Cables: the pulse only runs on the cable in use. */
+.mem-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
 }
 .mem-slot-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
   opacity: 0;
   transition: opacity 160ms ease;
 }
-.mem-slot.is-selected .mem-slot-ring {
+.mem-slot-ring.is-selected {
   opacity: 1;
   stroke-dasharray: 6 4;
 }
-.mem-slot.is-hit .mem-slot-ring {
+.mem-slot-ring.is-hit {
   opacity: 1;
   filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
 }
+.mem-chip-glow {
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 160ms ease;
+}
+.mem-chip-glow.is-lit {
+  opacity: 0.6;
+}
+.mem-table .iso-cell.mem-cell-miss {
+  fill: color-mix(in oklch, var(--mem-fault) 70%, var(--iso-glass));
+}
+.mem-entry-frame text {
+  opacity: 0.55;
+}
 .mem-entry.is-resident .mem-entry-frame text {
-  fill: var(--ink);
+  opacity: 1;
 }
-.mem-entry.is-probed .iso-led-halo {
-  fill: color-mix(in srgb, var(--accent) 45%, transparent);
-  filter: blur(2px);
-  animation: mem-blink 700ms ease-in-out infinite alternate;
+.mem-hand-arrow {
+  fill: var(--accent);
+  stroke: color-mix(in oklch, var(--accent) 60%, black);
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.3));
 }
-.mem-entry.is-probed .iso-led:not(.is-on) .iso-led-core {
-  fill: var(--muted);
+.mem-hand-label {
+  fill: var(--accent);
+  font: 800 15px var(--font-sans);
+  paint-order: stroke;
+  stroke: var(--hw-plate);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  /* Grows with the callouts when the scene is drawn small (labelScale). */
+  transform: scale(var(--iso-label-k, 1));
+  transform-box: fill-box;
+  transform-origin: right center;
 }
-@keyframes mem-blink {
-  from { opacity: 0.3; }
-  to { opacity: 1; }
+.mem-hand-pointer {
+  transition: transform 260ms cubic-bezier(.3,.7,.3,1);
+}
+.mem-face-led .iso-led-core {
+  stroke: rgb(0 0 0 / 0.35);
+  stroke-width: 0.5;
 }
 .mem-request[data-state="pending"] .iso-token {
   opacity: 0.6;
@@ -155,8 +207,9 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mem-entry.is-probed .iso-led-halo { animation: none; }
-  .mem-slot-ring { transition: none; }
+  .mem-slot-ring,
+  .mem-chip-glow,
+  .mem-hand-pointer { transition: none; }
 }
 
 /* ---------- Deck ---------- */

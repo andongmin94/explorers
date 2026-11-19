@@ -1,91 +1,55 @@
 // Scene for the isolation lessons (03, 04): the same two laptops and database
-// as lessons 01–02. The database top prints each row with its committed value
-// (LCD), its uncommitted write (a token in the writer's colour) and its lock
-// LED. Lesson 03 has one stock row (laid out like lesson 01), lesson 04 the
-// two doctor rows A and B (laid out like lesson 02). SQL requests travel as
-// tokens; a blocked UPDATE parks at the database edge; a serialization
-// failure travels back to the laptop as a "40001" token.
-import { topText } from "../../shared/iso-kit.js";
+// as lessons 01–02. The row table on the database top shows each row with its
+// committed value (LCD cell), its uncommitted write (a token in the writer's
+// colour) and its lock owner (LOCK cell, row LED). Lesson 03 has one stock row
+// (like lesson 01), lesson 04 the two doctor rows A and B (like lesson 02).
+// SQL requests travel as tokens on the cables; a blocked UPDATE waits in its
+// WAIT pocket; a serialization failure travels back to the laptop as a
+// "40001" token.
 import { eul, ga } from "../../shared/josa.js";
 import { getIsolationPresentationState as present } from "./isolation-engine.js";
 import {
   COLORS,
-  DB,
-  DB_TOP,
   PARK,
   ROUTES,
   createMoves,
   createRunner,
-  lamp,
+  mountScene,
   place,
-  printed,
   sceneSvg,
-  setLamp,
+  setLock,
   setScreen,
   setStatus,
-  slot,
+  setWaiting,
   sqlToken,
-  well,
 } from "./stage.js";
 
 const IDS = ["T1", "T2"];
 const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", aborted: "ABORTED", rolledback: "ROLLED BACK", committed: "COMMITTED" };
 
-// Where each row prints its LCD and pending token.
-function layout(rows) {
-  if (rows.length === 1) {
-    const id = rows[0].id;
-    return {
-      single: true,
-      at: { [id]: { lcd: [DB.x + 3.9, DB.y + 2.6, DB_TOP], pending: [DB.x + 4.3, DB.y + 4.8, DB_TOP] } },
-      top: `
-        ${printed({ x: DB.x + 0.7, y: DB.y + 0.9, text: "LOCK", anchor: "start" })}
-        <g data-lock-led="${id}">${lamp({ x: DB.x + 3.5, y: DB.y + 0.9 })}</g>
-        <g data-lock-owner>${printed({ x: DB.x + 5.4, y: DB.y + 0.9, text: "FREE", anchor: "end", weight: 800 })}</g>
-        ${well({ x: DB.x + 0.55, y: DB.y + 1.55, w: DB.w - 1.1, d: 2.15 })}
-        ${printed({ x: DB.x + 0.95, y: DB.y + 2.6, text: rows[0].label, anchor: "start", fill: "var(--tx-screen-dim)" })}
-        <g data-lcd="${id}">${printed({ x: DB.x + 5.1, y: DB.y + 2.6, text: "", anchor: "end", size: 30, weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>
-        ${slot({ x: DB.x + 0.55, y: DB.y + 4.1, w: DB.w - 1.1, d: 1.4 })}
-        ${printed({ x: DB.x + 0.85, y: DB.y + 4.8, text: "PENDING", anchor: "start" })}`,
-    };
-  }
-  const ys = [DB.y + 1.65, DB.y + 4.35];
-  return {
-    single: false,
-    at: Object.fromEntries(rows.map((r, i) => [r.id, { lcd: [DB.x + 2.45, ys[i], DB_TOP], pending: [DB.x + 4.5, ys[i], DB_TOP] }])),
-    top: rows
-      .map(
-        (r, i) => `
-        ${topText({ x: DB.x + 0.85, y: ys[i], z: DB_TOP + 0.01, text: r.label, size: 20, weight: 800, fill: "var(--ink)" })}
-        ${well({ x: DB.x + 1.4, y: ys[i] - 0.8, w: 2.1, d: 1.6 })}
-        <g data-lcd="${r.id}">${printed({ x: DB.x + 2.45, y: ys[i], text: "", anchor: "middle", size: 18, weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>
-        ${slot({ x: DB.x + 3.85, y: ys[i] - 0.7, w: 1.25, d: 1.4 })}
-        <g data-lock-led="${r.id}">${lamp({ x: DB.x + 5.5, y: ys[i] })}</g>`,
-      )
-      .join(""),
-  };
-}
-
 const latest = (state, row) => state.rows[row].versions.at(-1).value;
 
 export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) {
-  const geo = layout(lesson.rows);
-  host.innerHTML = sceneSvg({
+  const single = lesson.rows.length === 1;
+  const scene = sceneSvg({
     label: `두 트랜잭션이 ${lesson.db.title}에 보내는 SQL과 행 잠금, 커밋된 값의 변화`,
-    dbTop: geo.top,
+    rows: lesson.rows.map((r) => ({ id: r.id, name: single ? r.id : r.label })),
+    valueHeader: single ? lesson.rows[0].label : "DUTY",
+    valueSize: single ? undefined : 18,
     screens: lesson.screens,
     dbSub: lesson.db.sub,
     dbTitle: lesson.db.title,
     names: lesson.names,
   });
-  const svg = host.querySelector("svg");
+  const svg = mountScene(host, scene);
+  const at = scene.at;
   const runner = createRunner(svg);
   const moves = createMoves(svg, runner);
   const $ = (s) => svg.querySelector(s);
   const mobile = matchMedia("(max-width: 759px)");
   const text = lesson.valueText;
   // Lesson 03 has one row (the stock); lesson 04 names its rows A and B.
-  const rowName = (row) => (geo.single ? "재고" : row);
+  const rowName = (row) => (single ? "재고" : row);
   let painted = null;
 
   function paint(state, { hideParked = null } = {}) {
@@ -100,7 +64,7 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
     for (const { id } of lesson.rows) {
       const r = state.rows[id];
       $(`[data-lcd="${id}"] text`).textContent = text(latest(state, id));
-      setLamp($(`[data-lock-led="${id}"] .iso-led`), r.owner);
+      setLock(svg, at, id, r.owner);
       const key = r.pending ? `${r.pending.client}:${r.pending.value}` : "";
       const token = pending.querySelector(`[data-pend="${id}"]`);
       if (token?.dataset.key === key) continue;
@@ -108,24 +72,20 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
       if (!key) continue;
       pending.insertAdjacentHTML(
         "beforeend",
-        `<g class="tx-pend" data-pend="${id}" data-key="${key}">${sqlToken({ text: text(r.pending.value), color: COLORS[r.pending.client], w: geo.single ? 1.3 : 1.25, d: 1 })}</g>`,
+        `<g class="tx-pend" data-pend="${id}" data-key="${key}">${sqlToken({ text: text(r.pending.value), color: COLORS[r.pending.client], w: single ? 1.3 : 1.4, d: 0.85, h: 0.38 })}</g>`,
       );
-      place(pending.lastElementChild, ...geo.at[id].pending);
-    }
-    if (geo.single) {
-      const owner = state.rows[lesson.rows[0].id].owner;
-      const ownerText = $("[data-lock-owner] text");
-      ownerText.textContent = owner ?? "FREE";
-      ownerText.setAttribute("fill", owner ? `var(--${owner.toLowerCase()}-ink)` : "var(--muted)");
+      place(pending.lastElementChild, ...at[id].pending);
     }
     const parked = $(".tx-parked");
-    parked.innerHTML = IDS.filter((id) => state.clients[id].waitingFor && id !== hideParked)
+    const waiting = IDS.filter((id) => state.clients[id].waitingFor && id !== hideParked);
+    setWaiting(svg, waiting);
+    parked.innerHTML = waiting
       .map((id) => {
         const row = state.clients[id].waitingFor;
         return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: lesson.token({ action: "update", row }), color: COLORS[id], w: 2.5 })}</g>`;
       })
       .join("");
-    for (const g of parked.children) place(g, ...PARK[g.dataset.park], 0);
+    for (const g of parked.children) place(g, ...PARK[g.dataset.park]);
   }
 
   const phase = (title, body = "") => onPhase({ title, body, snapshot: painted });
@@ -197,8 +157,7 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
       phase(`${id} · 잠금이 풀려 기다리던 UPDATE가 이어집니다`, "새 요청을 보내지 않고 DB에서 기다리던 UPDATE가 진행합니다.");
       paint(present(step, "request"), { hideParked: id });
       if (action === "resume-write") {
-        if (!(await moves.send(id, label(step), [PARK[id], moves.edge(id)]))) return;
-        if (!(await moves.rise(id, geo.at[row].pending))) return;
+        if (!(await moves.unpark(id, label(step), at[row].pending))) return;
         paint(present(step, "database"));
         phase(`DB → ${id} · 새 버전에서 다시 계산`, `커밋된 ${text(latest(step.state, row))} 위에서 SET 식을 다시 평가했습니다.`);
         if (!(await moves.respond(id, "OK"))) return;
@@ -209,7 +168,6 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
         if (!(await moves.respond(id, "40001", PARK[id]))) return;
       }
     } else {
-      const route = action === "wait" ? [...ROUTES[id].slice(0, -1), PARK[id]] : ROUTES[id];
       phase(
         action === "begin" ? `${id} → DB · 트랜잭션 시작 요청` : action.startsWith("commit") ? `${id} → DB · COMMIT 요청` : action === "rollback" ? `${id} → DB · ROLLBACK 요청` : action === "select" ? `${id} → DB · 읽기 요청` : `${id} → DB · ${rowName(row)} UPDATE 요청`,
         action === "begin"
@@ -222,8 +180,9 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
                 ? "COMMIT이 도착하기 전에는 미확정 값과 행 잠금을 유지합니다."
                 : "UPDATE는 바꿀 행을 잠근 뒤 미확정 버전을 만듭니다.",
       );
-      if (!(await moves.send(id, label(step), route))) return;
+      if (!(await moves.send(id, label(step), ROUTES[id]))) return;
       if (action === "wait") {
+        if (!(await moves.rise(id, PARK[id]))) return;
         moves.reset();
         paint(present(step, "database"));
         phase(`${id}의 UPDATE가 ${step.state.rows[row].owner}의 잠금 해제를 기다립니다`, "기다리는 동안 이 UPDATE는 DB 안에 남아 있습니다.");
@@ -231,13 +190,13 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
       } else {
         let reply = "OK";
         if (action === "write") {
-          if (!(await moves.rise(id, geo.at[row].pending))) return;
+          if (!(await moves.rise(id, at[row].pending))) return;
           paint(present(step, "database"));
         } else if (action === "commit") {
           moves.reset();
           const merges = [...svg.querySelectorAll(".tx-pend")]
             .filter((el) => el.dataset.key.startsWith(`${id}:`))
-            .map((el) => moves.merge(el, geo.at[el.dataset.pend].pending, geo.at[el.dataset.pend].lcd));
+            .map((el) => moves.merge(el, at[el.dataset.pend].pending, at[el.dataset.pend].lcd));
           if (!(await Promise.all(merges)).every(Boolean)) return;
           paint(present(step, "database"));
         } else if (action === "commit-error") {

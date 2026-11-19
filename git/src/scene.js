@@ -1,48 +1,82 @@
 // The Git scene: one isometric SVG built from the shared kit. Three devices
-// stand on one floor, left to right: the working tree (a laptop whose screen
-// shows welcome.txt), the index (a module with slots for the staged snapshot
-// or the three conflict stages) and the local repository (a server whose top
-// carries the commit graph). Snapshots travel between devices as tokens.
-// The commit graph's layout comes from the lesson (lessons.js → layout).
+// stand on one floor and read left to right: the working tree (a laptop whose
+// screen shows welcome.txt as a mini editor), the index (a machined tray with
+// the four stage slots 0–3: stage 0 holds the staged snapshot, stages 1–3 the
+// three versions of a conflicted file) and the local repository (a server whose
+// glass top carries the commit graph). Cables join them; a snapshot travels
+// along a cable as a token, and the cable it uses lights up.
+// The commit graph's layout comes from the lesson (lessons.js → layout.nodes:
+// [column, lane], lane 0 = main, lane 1 = feature).
 import {
+  MAT,
+  cable,
   callout,
   defs,
+  fitScene,
   floor,
   floorPath,
   frontQuad,
   frontText,
+  labelScale,
   laptop,
-  led,
-  module,
+  pocket,
   project,
   server,
   token,
+  tray,
 } from "../../shared/iso-kit.js";
 import { contentKindOf, lineKinds, VERSIONS } from "./engine.js";
 
-const LAPTOP = { x: 1, y: 7, w: 6, d: 4 };
-const INDEX = { x: 9.5, y: 4.5, w: 5, d: 4, h: 0.9 };
-const REPO = { x: 17, y: 0, w: 9, d: 8, units: 2 };
+const LAPTOP = { x: 1.5, y: 3, w: 5, d: 3.4 };
+const TRAY = { x: 2.5, y: 9.3, slots: 4, pitch: 1.45, d: 2.2, start: 0 };
+const REPO = { x: 11, y: 0, w: 7.5, d: 7.5, units: 2 };
 const REPO_TOP = REPO.units * 0.75 - 0.05;
+const REPO_C = [REPO.x + REPO.w / 2, REPO.y + REPO.d / 2];
+/** Commit graph on the server top: columns run along the screen horizontal. */
+const COL_STEP = 2.0;
+const LANE_S = [-0.9, 1.15];
 const DEFAULT_LAYOUT = {
-  nodes: { C0: [19.1, 2.2], C1: [22, 6], C2: [22, 2.2], C3: [24.9, 2.2] },
+  nodes: { C0: [0, 0], C1: [1, 1], C2: [1, 0], C3: [2, 0] },
   versions: VERSIONS.conflict,
   kindOf: contentKindOf,
 };
-const WORK_SLOT = [LAPTOP.x + 3, LAPTOP.y + 2.9, 0.5];
-const INDEX_SLOT = [12, 6.5, INDEX.h];
+const indexDevice = tray({ ...TRAY, label: "INDEX", mat: MAT.metal });
+const TRAY_W = indexDevice.w;
+const WORK_SLOT = [LAPTOP.x + 2.5, LAPTOP.y + 2.75, 0.3];
+const ADD_X = LAPTOP.x + 3.8;
+/** Stage 0 = the staged snapshot; stages 1–3 = base, ours, theirs. */
+const INDEX_SLOT = indexDevice.slots[0];
 const STAGES = [
-  { key: "base", slot: [10.6, 6.5, INDEX.h] },
-  { key: "ours", slot: [12, 6.5, INDEX.h] },
-  { key: "theirs", slot: [13.4, 6.5, INDEX.h] },
+  { key: "base", slot: indexDevice.slots[1], n: 1 },
+  { key: "ours", slot: indexDevice.slots[2], n: 2 },
+  { key: "theirs", slot: indexDevice.slots[3], n: 3 },
 ];
-const ROUTES = {
-  add: [[LAPTOP.x + LAPTOP.w + 0.4, 9], [8.2, 9], [8.2, 6.5], [9.3, 6.5]],
-  commit: [[14.7, 6.5], [16.8, 6.5]],
-  checkout: [[20, 8.3], [20, 12], [WORK_SLOT[0], 12], [WORK_SLOT[0], LAPTOP.y + LAPTOP.d + 0.3]],
+// Cables on the floor, ending at device edges (drawn before the devices so
+// the plugs tuck under them).
+const CABLE_X = 13.2;
+const CHECKOUT_Y = 4.9;
+const CABLES = {
+  add: [[ADD_X, LAPTOP.y + LAPTOP.d + 0.05], [ADD_X, TRAY.y - 0.05]],
+  commit: [[TRAY.x + TRAY_W + 0.05, TRAY.y + TRAY.d / 2], [CABLE_X, TRAY.y + TRAY.d / 2], [CABLE_X, REPO.y + REPO.d + 0.05]],
+  checkout: [[REPO.x - 0.05, CHECKOUT_Y], [LAPTOP.x + LAPTOP.w + 0.05, CHECKOUT_Y]],
 };
-const LIFT = 0.35;
+const LIFT = 0.45;
 const lifted = (points) => points.map(([x, y]) => [x, y, LIFT]);
+/** Token paths along the cables (world points, lifted off the floor). */
+const ROUTES = {
+  add: [[ADD_X, LAPTOP.y + LAPTOP.d - 0.3, 0.7], ...lifted(CABLES.add), [ADD_X, TRAY.y + 0.3, 0.9]],
+  commit: lifted(CABLES.commit),
+  checkout: lifted(CABLES.checkout),
+};
+const UP = 0.9;
+const COMMIT_TOKEN = { size: 1.4, h: 0.55, textSize: 15 };
+const SLOT_TOKEN = { size: 1.12, h: 0.45, textSize: 13 };
+const MOVER_TOKEN = { size: 1.3, h: 0.5, textSize: 14 };
+/** From the commit cable's end, up the server's front face and onto a commit. */
+const intoRepo = (to) => [...ROUTES.commit, [CABLE_X, REPO.y + REPO.d + 0.05, REPO_TOP + UP], [to[0], to[1], to[2] + UP], to];
+const outOfRepo = (from) => [...intoRepo(from)].reverse();
+/** From a commit over the server's back-left edge and along the checkout cable. */
+const repoToWork = (from) => [from, [from[0], from[1], from[2] + UP], [REPO.x + 0.3, CHECKOUT_Y, REPO_TOP + UP], [REPO.x - 0.4, CHECKOUT_Y, LIFT], ...ROUTES.checkout.slice(1), WORK_SLOT];
 
 const KIND_COLOR = {
   base: "var(--git-base)",
@@ -59,6 +93,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
 const screen = ([x, y, z = 0]) => project(x, y, z).map(r2);
 const translate = ([sx, sy]) => `translate(${sx}px, ${sy}px)`;
 const attr = (s) => String(s).replace(/"/g, "&quot;");
+const desktopQuery = "(min-width: 1100px) and (min-height: 700px)";
 
 /** Label of a snapshot token: the commit it equals, or Δ for a new change. */
 function snapshotLabel(content, commits) {
@@ -72,24 +107,30 @@ function commitColor(state, id) {
   return BRANCH_COLOR[commit.branch] ?? KIND_COLOR.feature;
 }
 
-// Branch labels are small printed tags (dot + name on a plate-coloured pill)
-// so they stay legible over the server. main stands above its commit (the back
-// lane); feature/title sits to the left, or below a commit on the back lane
-// (layout.below), so neither covers an edge or the slot of the next commit.
+// Branch labels are printed pill tags (dot + name) so they stay legible over
+// the server. main stands above its commit, feature/title below it (offset to
+// the right), so the two never meet, even on the same commit, and neither
+// covers an edge or another commit. Each tag group is scaled by k (labelScale's
+// factor) about its commit.
+const refWidth = (branch) => branch.length * 7.4 + 26;
 function refSvg(branch, place) {
-  const width = branch.length * 7.4 + 26;
+  const width = refWidth(branch);
   const pill = (x, y) => `<rect class="git-ref-pill" x="${r2(x)}" y="${r2(y - 11)}" width="${r2(width)}" height="22" rx="11"/>
     <circle cx="${r2(x + 11)}" cy="${r2(y)}" r="3.6" fill="${BRANCH_COLOR[branch]}"/>
     <text class="git-ref-text" x="${r2(x + 19)}" y="${r2(y)}">${branch}</text>`;
-  if (place === "above") return `<line class="git-ref-line" x1="0" y1="-14" x2="0" y2="-35"/>${pill(-width / 2, -46)}`;
-  if (place === "below") return `<line class="git-ref-line" x1="0" y1="16" x2="0" y2="31"/>${pill(-width / 2, 42)}`;
-  return `<line class="git-ref-line" x1="-22" y1="4" x2="-30" y2="4"/>${pill(-30 - width, 4)}`;
+  if (place === "above") return `<line class="git-ref-line" x1="0" y1="-16" x2="0" y2="-33"/>${pill(-width / 2, -44)}`;
+  return `<line class="git-ref-line" x1="0" y1="14" x2="0" y2="29"/>${pill(-24, 40)}`;
 }
 
 export function createGitScene(host, { onPhase = () => {}, layout: given = {} } = {}) {
   const layout = { ...DEFAULT_LAYOUT, ...given };
-  const below = new Set(layout.below ?? []);
-  const NODES = layout.nodes;
+  const NODES = Object.fromEntries(
+    Object.entries(layout.nodes).map(([id, [col, lane]]) => {
+      const t = (col - 1) * COL_STEP;
+      const s = LANE_S[lane];
+      return [id, [REPO_C[0] + t + s, REPO_C[1] - t + s]];
+    }),
+  );
   const node = (id) => [...NODES[id], REPO_TOP];
   const versions = layout.versions;
   /** Which colour a whole snapshot takes: base, main, feature, both or conflict. */
@@ -135,36 +176,40 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   }
 
   const laptopDevice = laptop({ ...LAPTOP });
-  const indexDevice = module({ ...INDEX, label: "" });
-  const repoDevice = server({ ...REPO, label: "" });
-  // Fitted to the devices, callouts and token routes (measured), not to the
-  // floor, which runs past the stage edges. Phones print larger labels.
-  const VIEW = { wide: "-224 -30 790 394", narrow: "-224 -44 805 408" };
-  const narrow = matchMedia("(max-width: 759px)");
-  const viewBox = narrow.matches ? VIEW.narrow : VIEW.wide;
+  const repoDevice = server({ ...REPO, label: "", lit: 1 });
+  // The commit graph lies on a dark glass panel set into the server top.
+  const graphGlass = pocket({ x: REPO.x + 0.45, y: REPO.y + 0.45, z: REPO_TOP, w: REPO.w - 0.9, d: REPO.d - 0.9, depth: 0.05, floor: "url(#hw-iso-lcd) var(--iso-glass)", wall: "var(--iso-glass)", lip: "rgb(255 255 255 / .55)" });
+  const NOTES = {
+    work: { x: LAPTOP.x + 1.2, y: LAPTOP.y - 0.2, z: 2.82, dx: -10, dy: -34, title: "작업 트리", sub: "WORKING TREE", cls: "git-callout-work" },
+    index: { x: TRAY.x + 2.6, y: TRAY.y + TRAY.d, z: 0.2, dx: -6, dy: 42, title: "인덱스(스테이징)", sub: "STAGE 0 · 1 · 2 · 3", cls: "git-callout-index" },
+    history: { x: REPO.x + 3.2, y: REPO.y + REPO.d, z: 0.4, dx: -8, dy: 84, title: "로컬 저장소", sub: ".git · 커밋 이력", cls: "git-callout-history" },
+  };
 
-  host.innerHTML = `<svg viewBox="${viewBox}" role="img" aria-label="작업 트리, 인덱스, 로컬 저장소 사이의 welcome.txt 흐름">
+  // Leaders lengthen as labelScale() grows the labels, so a label never
+  // reaches the ref tags or cables next to its device.
+  const notesAt = (kk) => Object.values(NOTES).map((n) => ({ ...n, dy: n.dy + (n.dy > 0 ? 30 : -12) * (kk - 1) }));
+  const callouts = (kk) => notesAt(kk).map((n) => callout(n)).join("");
+
+  host.innerHTML = `<svg viewBox="0 0 800 500" role="img" aria-label="작업 트리, 인덱스, 로컬 저장소 사이의 welcome.txt 흐름">
     ${defs()}
-    ${floor({ x: -7, y: -7, w: 40, d: 27 })}
-    ${Object.entries(ROUTES).map(([id, points]) => floorPath(points, { id: `route-${id}`, dashed: true, arrow: false, cls: "git-route" })).join("")}
+    ${floor({ x: -12, y: -10, w: 46, d: 34 })}
+    ${Object.entries(CABLES).map(([id, points]) => cable(points, { id: `route-${id}`, width: id === "checkout" ? 5 : 6, pulse: true, cls: "git-cable" })).join("")}
     ${laptopDevice.svg}
     <g class="git-screen"></g>
     ${indexDevice.svg}
-    <g class="git-index-led"></g>
     ${repoDevice.svg}
+    ${graphGlass}
     <g class="git-edges"></g>
     <g class="git-commits"></g>
     <g class="git-index-tokens">
       <g class="git-slot" data-index="single" style="transform:${translate(screen(INDEX_SLOT))}"></g>
       ${STAGES.map((stage) => `<g class="git-slot" data-stage="${stage.key}" style="transform:${translate(screen(stage.slot))}"></g>`).join("")}
     </g>
-    ${callout({ x: LAPTOP.x + 0.6, y: LAPTOP.y, z: 2.82, dx: -26, dy: -36, title: "작업 트리", sub: "WORKING TREE", cls: "git-callout-work" })}
-    ${callout({ x: 12, y: INDEX.y, z: INDEX.h, dx: 0, dy: -96, title: "인덱스(스테이징)", sub: "INDEX", cls: "git-callout-index" })}
-    ${callout({ x: REPO.x + REPO.w, y: REPO.y, z: REPO_TOP, dx: -10, dy: -112, title: "로컬 저장소", sub: ".git · 커밋 이력", cls: "git-callout-history" })}
+    <g class="git-callouts">${callouts(1)}</g>
     <g class="git-refs">
-      <g class="git-ref" data-ref="main"></g>
-      <g class="git-ref" data-ref="feature/title"></g>
-      <g class="git-head"></g>
+      <g class="git-ref" data-ref="main"><g class="git-k"></g></g>
+      <g class="git-ref" data-ref="feature/title"><g class="git-k"></g></g>
+      <g class="git-head"><g class="git-k"><rect x="-24" y="-10" width="48" height="20" rx="5" class="git-head-tag"/><text class="git-head-text" x="0" y="0.5">HEAD</text></g></g>
     </g>
     <g class="git-mover" data-mover="a" style="display:none"></g>
     <g class="git-mover" data-mover="b" style="display:none"></g>
@@ -172,18 +217,72 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   </svg>`;
 
   const $ = (selector) => host.querySelector(selector);
-  narrow.addEventListener("change", () => $("svg").setAttribute("viewBox", narrow.matches ? VIEW.narrow : VIEW.wide));
   const $$ = (selector) => [...host.querySelectorAll(selector)];
+  const svg = $("svg");
   const commitEl = (id) => $$("[data-commit]").find((el) => el.dataset.commit === id);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
+  const desktop = matchMedia(desktopQuery);
+  const phone = matchMedia("(max-width: 759px)");
   let active = null;
+  let lastState = null;
+  /** labelScale's factor, mirrored here so ref tags and their framing follow it. */
+  let k = 1;
+
+  /* ---------- framing ---------- */
+
+  // Device footprints and tops, and the cable ends.
+  const FRAME_POINTS = [
+    [LAPTOP.x, LAPTOP.y - 0.22, 2.82], [LAPTOP.x + LAPTOP.w, LAPTOP.y - 0.22, 2.82], [LAPTOP.x, LAPTOP.y + LAPTOP.d, 0], [LAPTOP.x + LAPTOP.w, LAPTOP.y + LAPTOP.d, 0],
+    [TRAY.x, TRAY.y, 0.62], [TRAY.x + TRAY_W, TRAY.y, 0.62], [TRAY.x, TRAY.y + TRAY.d, 0], [TRAY.x + TRAY_W, TRAY.y + TRAY.d, 0],
+    [REPO.x, REPO.y, REPO_TOP], [REPO.x + REPO.w, REPO.y, REPO_TOP], [REPO.x, REPO.y + REPO.d, 0], [REPO.x + REPO.w, REPO.y + REPO.d, 0],
+    ...Object.values(CABLES).flat().map(([x, y]) => [x, y, 0]),
+  ];
+  /** Callout label boxes and ref tag boxes in user units, at label factor kk. */
+  function labelBoxes(kk) {
+    const boxes = notesAt(kk).map((n) => {
+      const [sx, sy] = project(n.x, n.y, n.z);
+      const w = Math.max(n.title.length * 15, n.sub.length * 7.6) * kk;
+      const lx = sx + n.dx;
+      // The label scales about the end of its leader (see callout()).
+      const ly = sy + n.dy;
+      const box = n.dy > 12 ? [ly - 11.25 - 3 * kk, 38 * kk] : [ly + 25 - 41 * kk, 43 * kk];
+      return [n.anchor === "end" ? lx - w : n.anchor === "start" ? lx : lx - w / 2, box[0], w, box[1]];
+    });
+    for (const [id, [col, lane]] of Object.entries(layout.nodes)) {
+      const [sx, sy] = screen(node(id));
+      if (lane === 0) boxes.push([sx - 60 * kk, sy - 80 * kk, 120 * kk, 80 * kk]);
+      if (lane === 1 || col === 2) boxes.push([sx - 24 * kk, sy, (refWidth("feature/title") + 4) * kk, 90 * kk]);
+    }
+    return boxes;
+  }
+  function fit() {
+    const rect = host.getBoundingClientRect();
+    if (!rect.width) return;
+    const fixed = desktop.matches ? 0 : phone.matches ? 1.5 : 1.7;
+    const aspect = fixed || Math.max(0.6, rect.width / Math.max(1, rect.height));
+    let kk = 1;
+    let box;
+    // A few passes: the labels' size depends on the scale, which depends on the frame.
+    for (let i = 0; i < 3; i++) {
+      box = fitScene(FRAME_POINTS, { stageAspect: aspect, fill: 0.94, pad: 4, labels: labelBoxes(kk) });
+      const scale = rect.width / Number(box.split(" ")[2]);
+      kk = Math.min(2.2, Math.max(1, 1 / scale));
+    }
+    if (svg.getAttribute("viewBox") !== box) svg.setAttribute("viewBox", box);
+    if (Math.abs(kk - k) > 0.01) {
+      k = kk;
+      for (const g of $$(".git-k")) g.setAttribute("transform", `scale(${r2(k)})`);
+      $(".git-callouts").innerHTML = callouts(k);
+      if (lastState && !active) paintRefs(lastState);
+    }
+  }
+  fit();
+  labelScale(svg);
+  new ResizeObserver(() => requestAnimationFrame(fit)).observe(host);
 
   /* ---------- painting a state ---------- */
 
-  const placeOf = (branch, state) => {
-    if (branch === "main") return "above";
-    return below.has(state.refs[branch]) ? "below" : "left";
-  };
+  const placeOf = (branch) => (branch === "main" ? "above" : "below");
   const refPoint = (branch, state) => {
     const id = state.refs[branch];
     return id ? screen(node(id)) : null;
@@ -191,9 +290,9 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   const headPoint = (state) => {
     const [x, y] = refPoint(state.currentBranch, state);
     const place = placeOf(state.currentBranch, state);
-    if (place === "above") return [x, y - 68];
-    if (place === "below") return [x, y + 66];
-    return [r2(x - 64), y + 28];
+    const w = refWidth(state.currentBranch);
+    if (place === "above") return [x, r2(y - 68 * k)];
+    return [r2(x + (w / 2 - 24) * k), r2(y + 66 * k)];
   };
 
   function paintRefs(state) {
@@ -205,13 +304,11 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       const place = placeOf(branch, state);
       if (el.dataset.place !== place) {
         el.dataset.place = place;
-        el.innerHTML = refSvg(branch, place);
+        el.firstElementChild.innerHTML = refSvg(branch, place);
       }
       el.style.transform = translate(point);
     }
-    const head = $(".git-head");
-    head.innerHTML = `<rect x="-24" y="-10" width="48" height="20" rx="5" class="git-head-tag"/><text class="git-head-text" x="0" y="0.5">HEAD</text>`;
-    head.style.transform = translate(headPoint(state));
+    $(".git-head").style.transform = translate(headPoint(state));
   }
 
   function paintIndex(state, stages = state.index.stages) {
@@ -221,21 +318,25 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       for (const { key } of STAGES) {
         const slot = $(`[data-stage="${key}"]`);
         const id = state.merge?.[key];
-        slot.innerHTML = stages[key] && id ? token({ id, color: commitColor(state, id), size: 1.05, h: 0.45 }) : "";
+        slot.innerHTML = stages[key] && id ? token({ id, color: commitColor(state, id), ...SLOT_TOKEN }) : "";
       }
     } else {
       for (const { key } of STAGES) $(`[data-stage="${key}"]`).innerHTML = "";
       single.innerHTML = token({
         id: snapshotLabel(state.index.content, state.commits),
         color: KIND_COLOR[kindOf(state.index.content)],
-        size: 1.3,
-        h: 0.55,
+        ...SLOT_TOKEN,
       });
     }
+    // Occupancy LEDs under the slots: stage 0 in the accent while staged,
+    // stages 1–3 in the conflict red while the file is unmerged.
     const unmerged = state.index.status === "unmerged" || Boolean(stages);
-    const staged = state.index.status === "staged";
-    $(".git-index-led").innerHTML =
-      led({ x: 13.9, y: 7.95, z: INDEX.h, on: unmerged || staged, color: unmerged ? "var(--git-conflict)" : "var(--accent)" });
+    const lit = [!stages && state.index.status === "staged", ...STAGES.map(({ key }) => Boolean(stages?.[key]))];
+    for (const el of $$(".iso-tray-led")) {
+      const i = Number(el.dataset.slot);
+      el.classList.toggle("is-on", lit[i] && (i === 0 || unmerged));
+      el.style.setProperty("--led", i === 0 ? "var(--accent)" : "var(--git-conflict)");
+    }
   }
 
   function paintGraph(state) {
@@ -253,7 +354,7 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
     $(".git-commits").innerHTML = state.commits
       .map(
         (commit) =>
-          `<g class="git-slot${commit.orphan ? " is-orphan" : ""}" data-commit="${attr(commit.id)}" style="transform:${translate(screen(node(commit.id)))}">${token({ id: commit.id, color: commitColor(state, commit.id), size: 1.5, h: 0.6 })}</g>`,
+          `<g class="git-slot${commit.orphan ? " is-orphan" : ""}" data-commit="${attr(commit.id)}" style="transform:${translate(screen(node(commit.id)))}">${token({ id: commit.id, color: commitColor(state, commit.id), ...COMMIT_TOKEN })}</g>`,
       )
       .join("");
   }
@@ -264,7 +365,8 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
     paintIndex(state, stages);
     paintGraph(state);
     paintRefs(state);
-    for (const route of $$(".git-route")) route.classList.remove("is-active", "is-conflict");
+    lastState = state;
+    for (const route of $$(".git-cable")) route.classList.remove("is-active", "is-conflict");
   }
 
   /* ---------- motion ---------- */
@@ -282,7 +384,7 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   /** Move a mover token along world points at an even screen speed. */
   async function travel(run, mover, route, { label, color, scale = 1 }) {
     const el = $(`[data-mover="${mover}"]`);
-    el.innerHTML = token({ id: label, color, size: 1.3, h: 0.55 });
+    el.innerHTML = token({ id: label, color, ...MOVER_TOKEN });
     el.style.display = "";
     const points = route.map(screen);
     const lengths = points.map((p, i) => (i ? Math.hypot(p[0] - points[i - 1][0], p[1] - points[i - 1][1]) : 0));
@@ -377,19 +479,19 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
 
     const restore = (id, color) =>
       Promise.all([
-        travel(run, "a", [node(id), ...lifted([...ROUTES.commit].reverse()), INDEX_SLOT], { label: id, color }),
-        travel(run, "b", [node(id), ...lifted(ROUTES.checkout), WORK_SLOT], { label: id, color }),
+        travel(run, "a", [...outOfRepo(node(id)), INDEX_SLOT], { label: id, color }),
+        travel(run, "b", repoToWork(node(id)), { label: id, color }),
       ]);
 
     if (step.action === "stage") {
       light("add");
-      await travel(run, "a", [WORK_SLOT, ...lifted(ROUTES.add), INDEX_SLOT], {
+      await travel(run, "a", [WORK_SLOT, ...ROUTES.add, INDEX_SLOT], {
         label: snapshotLabel(state.index.content, state.commits),
         color: KIND_COLOR[kindOf(state.working)],
       });
     } else if (step.action === "commit") {
       light("commit");
-      await travel(run, "a", [INDEX_SLOT, ...lifted(ROUTES.commit), node(tip)], { label: tip, color: commitColor(state, tip) });
+      await travel(run, "a", [INDEX_SLOT, ...intoRepo(node(tip))], { label: tip, color: commitColor(state, tip) });
     } else if (step.action === "switch") {
       light("commit", "checkout");
       await restore(tip, KIND_COLOR[kindOf(state.working)]);
@@ -404,15 +506,15 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       const [ours, theirs] = state.commits.find((c) => c.id === tip).parents;
       light("commit");
       await Promise.all([
-        travel(run, "a", [node(ours), ...lifted([...ROUTES.commit].reverse()), INDEX_SLOT], { label: ours, color: commitColor(state, ours), scale: 0.8 }),
-        travel(run, "b", [node(theirs), ...lifted([...ROUTES.commit].reverse()), INDEX_SLOT], { label: theirs, color: commitColor(state, theirs), scale: 0.8 }),
+        travel(run, "a", [...outOfRepo(node(ours)), INDEX_SLOT], { label: ours, color: commitColor(state, ours), scale: 0.8 }),
+        travel(run, "b", [...outOfRepo(node(theirs)), INDEX_SLOT], { label: theirs, color: commitColor(state, theirs), scale: 0.8 }),
       ]);
       if (run.cancelled) return;
       phase("request", `${tip} · 부모 ${ours} + ${theirs}`, "합친 내용으로 병합 커밋을 만들고 작업 트리에도 펼칩니다.", before);
       light("add", "commit");
       await Promise.all([
-        travel(run, "a", [INDEX_SLOT, ...lifted(ROUTES.commit), node(tip)], { label: tip, color: commitColor(state, tip) }),
-        travel(run, "b", [INDEX_SLOT, ...lifted([...ROUTES.add].reverse()), WORK_SLOT], { label: tip, color: KIND_COLOR[kindOf(state.working)] }),
+        travel(run, "a", [INDEX_SLOT, ...intoRepo(node(tip))], { label: tip, color: commitColor(state, tip) }),
+        travel(run, "b", [INDEX_SLOT, ...[...ROUTES.add].reverse(), WORK_SLOT], { label: tip, color: KIND_COLOR[kindOf(state.working)] }),
       ]);
     } else if (step.action === "rebase") {
       const replayed = state.commits.find((c) => c.id === tip);
@@ -430,7 +532,7 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       for (const [i, { key, slot }] of STAGES.entries()) {
         const id = state.merge[key];
         phase("request", `${i + 1}/3 · ${stageNames[key]} ${id} → 인덱스 stage ${i + 1}`, `${stageNames[key]}의 파일 버전을 인덱스에 기록합니다.`, comparing({ ...stages }));
-        await travel(run, "a", [node(id), ...lifted([...ROUTES.commit].reverse()), slot], {
+        await travel(run, "a", [...outOfRepo(node(id)), slot], {
           label: id,
           color: commitColor(state, id),
           scale: 0.8,
@@ -442,7 +544,7 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       phase("request", "충돌 표시 → 작업 트리", "버튼 줄은 C0에서 main만 바꿔 자동으로 합쳐졌습니다. 제목 줄은 양쪽이 다르게 바꿔 두 문장이 충돌 표시와 함께 파일에 들어갑니다.", comparing({ ...stages }));
       light("add:conflict");
       $("#route-commit").classList.remove("is-active");
-      await travel(run, "a", [INDEX_SLOT, ...lifted([...ROUTES.add].reverse()), WORK_SLOT], {
+      await travel(run, "a", [INDEX_SLOT, ...[...ROUTES.add].reverse(), WORK_SLOT], {
         label: "!",
         color: KIND_COLOR.conflict,
         scale: 0.8,

@@ -22,7 +22,8 @@ export const MODEL_NOTES = Object.freeze([
 export const SCENE_LEGEND = Object.freeze([
   "상태 · IDLE 시작 전 · ACTIVE 진행 중 · WAITING 잠금 대기 · COMMITTED 커밋 완료",
   "노트북 화면 · READ 앱이 읽은 값 · CALC 앱이 계산한 값",
-  "DB 윗면 · LOCK 행 잠금 보유자 (FREE = 잠금 없음) · STOCK 확정 재고 · PENDING 커밋 전 쓰기",
+  "DB 윗면 행 표 · STOCK 확정 재고 · NEW 커밋 전 쓰기 · LOCK 행 잠금 보유자 (FREE = 잠금 없음)",
+  "DB 윗면 WAIT 칸 · 잠금을 기다리는 SQL · 빛나는 케이블 = 지금 오가는 요청과 응답",
 ]);
 
 export function describeEventLog(steps) {

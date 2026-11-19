@@ -1,46 +1,31 @@
 // Page 1 scene: two client laptops and the inventory database. The laptop
-// screens show what each app holds (read value, computed value); the database
-// top shows the committed stock (LCD), the uncommitted write (a token in the
-// writer's colour) and the row lock (LED in the owner's colour). SQL requests
-// are tokens that travel the floor routes; a blocked request parks at the
-// database edge until the lock is released.
+// screens show what each app holds (read value, computed value); the row
+// table on the database top shows the committed stock (LCD cell), the
+// uncommitted write (a token in the writer's colour in the NEW cell) and the
+// row lock (owner in the LOCK cell, row LED in the owner's colour). SQL
+// requests are tokens that travel the cables; a blocked request waits in its
+// pocket of the WAIT tray until the lock is released.
 import { eul, ga } from "../../shared/josa.js";
 import { getPresentationState } from "./presentation.js";
 import {
   COLORS,
-  DB,
-  DB_TOP,
   PARK,
   ROUTES,
   createMoves,
   createRunner,
-  lamp,
+  mountScene,
   place,
-  printed,
   sceneSvg,
-  setLamp,
+  setLock,
   setScreen,
   setStatus,
-  slot,
+  setWaiting,
   sqlToken,
-  well,
 } from "./stage.js";
 
 const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", committed: "COMMITTED" };
-const PENDING_AT = [DB.x + 4.3, DB.y + 4.8, DB_TOP];
-const LCD_AT = [DB.x + 3.9, DB.y + 2.6, DB_TOP];
 const IDS = ["T1", "T2"];
-
-const dbTop = `
-  ${printed({ x: DB.x + 0.7, y: DB.y + 0.9, text: "LOCK", anchor: "start" })}
-  <g data-lock-led>${lamp({ x: DB.x + 3.5, y: DB.y + 0.9 })}</g>
-  <g data-lock-owner>${printed({ x: DB.x + 5.4, y: DB.y + 0.9, text: "FREE", anchor: "end", weight: 800 })}</g>
-  ${well({ x: DB.x + 0.55, y: DB.y + 1.55, w: DB.w - 1.1, d: 2.15 })}
-  ${printed({ x: DB.x + 0.95, y: DB.y + 2.6, text: "STOCK", anchor: "start", fill: "var(--tx-screen-dim)" })}
-  <g data-lcd>${printed({ x: DB.x + 5.1, y: DB.y + 2.6, text: "10", anchor: "end", size: 30, weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>
-  ${slot({ x: DB.x + 0.55, y: DB.y + 4.1, w: DB.w - 1.1, d: 1.4 })}
-  ${printed({ x: DB.x + 0.85, y: DB.y + 4.8, text: "PENDING", anchor: "start" })}
-`;
+const ROW = "1";
 
 const requestLabel = (action, mode, client) => {
   if (action === "begin") return "BEGIN";
@@ -76,13 +61,16 @@ function completedTitle(step) {
 }
 
 export function createTransactionScene(host, { onPhase = () => {} } = {}) {
-  host.innerHTML = sceneSvg({
+  const scene = sceneSvg({
     label: "두 클라이언트와 재고 DB 사이의 SQL 요청과 행 잠금",
-    dbTop,
+    rows: [{ id: ROW, name: "1" }],
+    valueHeader: "STOCK",
     screens: ["READ", "CALC"],
     dbSub: "INVENTORY · ID 1",
   });
-  const svg = host.querySelector("svg");
+  const svg = mountScene(host, scene);
+  const PENDING_AT = scene.at[ROW].pending;
+  const LCD_AT = scene.at[ROW].lcd;
   const runner = createRunner(svg);
   const moves = createMoves(svg, runner);
   const $ = (s) => svg.querySelector(s);
@@ -99,22 +87,20 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       setStatus(svg, id, STATUS[c.status]);
       $(`[data-client="${id}"]`).dataset.status = c.status;
     }
-    $("[data-lcd] text").textContent = state.committedStock;
+    $(`[data-lcd="${ROW}"] text`).textContent = state.committedStock;
     // Uncommitted write: a token in the writer's colour on the pending slot.
     const pending = $(".tx-pending");
     const key = state.uncommitted ? `${state.uncommitted.client}:${state.uncommitted.stock}` : "";
     if (pending.dataset.key !== key) {
       pending.dataset.key = key;
       pending.innerHTML = key
-        ? `<g class="tx-pend">${sqlToken({ text: state.uncommitted.stock, color: COLORS[state.uncommitted.client], w: 1.3, d: 1 })}</g>`
+        ? `<g class="tx-pend">${sqlToken({ text: state.uncommitted.stock, color: COLORS[state.uncommitted.client], w: 1.3, d: 0.85, h: 0.38 })}</g>`
         : "";
       if (key) place(pending.firstElementChild, ...PENDING_AT);
     }
-    setLamp($("[data-lock-led] .iso-led"), owner);
-    const ownerText = $("[data-lock-owner] text");
-    ownerText.textContent = owner ?? "FREE";
-    ownerText.setAttribute("fill", owner ? `var(--${owner.toLowerCase()}-ink)` : "var(--muted)");
-    // Blocked requests stay parked at the database edge.
+    setLock(svg, scene.at, ROW, owner);
+    // Blocked requests wait in their WAIT pocket on the database top.
+    setWaiting(svg, waiting.filter((id) => id !== hideParked));
     const parked = $(".tx-parked");
     parked.innerHTML = waiting
       .filter((id) => id !== hideParked)
@@ -123,7 +109,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           `<g class="tx-park ${owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: requestLabel("wait", mode, state.clients[id]), color: COLORS[id], w: 2.7 })}</g>`,
       )
       .join("");
-    for (const g of parked.children) place(g, ...PARK[g.dataset.park], 0);
+    for (const g of parked.children) place(g, ...PARK[g.dataset.park]);
   }
 
   const phase = (title, body = "") => onPhase({ title, body, snapshot: painted });
@@ -155,7 +141,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
       if (action.startsWith("resume")) {
         phase(`${id} · 대기하던 SQL을 이어서 실행`, "새 요청을 보내지 않고 DB에서 기다리던 요청이 진행합니다.");
         paint(getPresentationState(step, "request"), { hideParked: id });
-        if (!(await moves.send(id, requestLabel(action, mode, c), [PARK[id], moves.edge(id)]))) return;
+        if (!(await moves.unpark(id, requestLabel(action, mode, c), writing ? PENDING_AT : null))) return;
       } else {
         const lockedRead = action === "read" || (action === "wait" && mode === "locked");
         phase(
@@ -176,8 +162,8 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
                   : "확정된 재고를 요청합니다. 응답이 돌아와야 앱의 읽은 값이 바뀝니다."
                 : `앱에서 계산한 ${eul(c.localWrite)} 쓰는 요청입니다. 쓰기가 끝나도 커밋 전까지는 미확정입니다.`,
         );
-        const route = action === "wait" ? [...ROUTES[id].slice(0, -1), PARK[id]] : ROUTES[id];
-        if (!(await moves.send(id, requestLabel(action, mode, c), route))) return;
+        if (!(await moves.send(id, requestLabel(action, mode, c), ROUTES[id]))) return;
+        if (action === "wait" && !(await moves.rise(id, PARK[id]))) return;
       }
 
       if (action === "wait") {
@@ -190,7 +176,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         if (!(await runner.hold(420))) return;
       } else {
         if (writing) {
-          if (!(await moves.rise(id, PENDING_AT))) return;
+          if (action === "write" && !(await moves.rise(id, PENDING_AT))) return;
           paint(getPresentationState(step, "database"));
         } else if (action === "commit") {
           moves.reset();
@@ -203,7 +189,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           const token = $(".tx-pend");
           if (token && !(await moves.merge(token, PENDING_AT, LCD_AT))) return;
           paint(getPresentationState(step, "database"));
-          if (!(await runner.animate($("[data-lcd] text"), [{ opacity: 0.2 }, { opacity: 1 }], { duration: 360 }))) return;
+          if (!(await runner.animate($(`[data-lcd="${ROW}"] text`), [{ opacity: 0.2 }, { opacity: 1 }], { duration: 360 }))) return;
         } else {
           moves.reset();
           if (!(await moves.flashDatabase())) return;

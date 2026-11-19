@@ -256,7 +256,7 @@ const fastForward = makeLesson({
     ["모델의 범위", "로컬 저장소 하나, 브랜치 두 개, 파일 하나입니다. C0–C2는 실제 해시가 아닌 이름이고, 터미널 출력의 Updating 줄에도 이 이름을 씁니다."],
   ],
   sources: [SOURCE.merging, SOURCE.ff, SOURCE.branches],
-  layout: { nodes: { C0: [19.1, 2.2], C1: [22, 6], C2: [24.9, 2.2] }, versions: VERSIONS.fastForward },
+  layout: { nodes: { C0: [0, 0], C1: [1, 1], C2: [2, 0] }, versions: VERSIONS.fastForward },
   commitColumn: changedColumn,
   comparison: {
     title: "fast-forward와 --no-ff",
@@ -402,7 +402,7 @@ const autoMerge = makeLesson({
     ["모델의 범위", "로컬 저장소 하나, 파일 하나, 서로 떨어진 두 줄의 변경입니다. C0–C3는 실제 해시가 아닌 이름입니다."],
   ],
   sources: [SOURCE.merging, SOURCE.branches],
-  layout: { nodes: { C0: [19.1, 2.2], C1: [22, 6], C2: [22, 2.2], C3: [24.9, 2.2] }, versions: VERSIONS.diverged },
+  layout: { nodes: { C0: [0, 0], C1: [1, 1], C2: [1, 0], C3: [2, 0] }, versions: VERSIONS.diverged },
   commitColumn: changedColumn,
   comparison: {
     title: "두 끝만 비교 vs 공통 조상과 비교",
@@ -586,8 +586,7 @@ const rebase = makeLesson({
   ],
   sources: [SOURCE.rebasing, SOURCE.merging],
   layout: {
-    nodes: { C0: [19.1, 2.2], C1: [22, 6], C2: [22, 2.2], "C1'": [24.9, 2.2], C3: [24.9, 2.2] },
-    below: ["C1'"],
+    nodes: { C0: [0, 0], C1: [1, 1], C2: [1, 0], "C1'": [2, 0], C3: [2, 0] },
     versions: VERSIONS.diverged,
   },
   commitColumn: changedColumn,
@@ -648,7 +647,7 @@ const conflictLesson = {
   scope: conflict.SCOPE,
   sources: [SOURCE.merging, ...conflict.SOURCES.slice(2), SOURCE.branches],
   layout: {
-    nodes: { C0: [19.1, 2.2], C1: [22, 6], C2: [22, 2.2], C3: [24.9, 2.2] },
+    nodes: { C0: [0, 0], C1: [1, 1], C2: [1, 0], C3: [2, 0] },
     versions: VERSIONS.conflict,
     kindOf: contentKindOf,
   },

@@ -42,13 +42,18 @@ body {
   /* The floor runs well past the devices; the scene box clips it. */
   overflow: hidden;
 }
+/* The floor runs past the framed devices; the svg crops it. */
 .cpu-scene > svg {
-  max-height: 600px;
-}
-/* The compact layout crops its floor at the plate edge. */
-.cpu-scene[data-layout="narrow"] > svg {
   overflow: hidden;
-  max-height: none;
+}
+/* Only the cable in use carries a pulse. */
+.cpu-scene .iso-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
+}
+/* Device print the kit sets below 12px (bin label, chip sub) reads at 12. */
+.cpu-scene .iso-bin .iso-front-text,
+.cpu-scene .iso-chip text:nth-last-of-type(-n + 2) {
+  font-size: 12px;
 }
 .cpu-token {
   cursor: pointer;

@@ -90,7 +90,7 @@ CPU는 하나, 입출력은 서로 독립적으로 진행되며 문맥 교환 �
 | `src/engine.js` | 순수 함수 기반 RR·FCFS·SJF·SRTF 계산, 프레임·사건·결정·통계, 시작 전 프레임(`preFrame`) |
 | `src/lessons.js` | 레슨 목록(레일 데이터·작업·두 방식)과 레슨별 내용(질문·정리·확인 문제·비교 문장·범위) |
 | `src/policy-lesson.js` | CPU만 쓰는 레슨(02·03)의 핵심 장면·해설·사건 메모·예측 선택지별 이유 |
-| `src/scene.js` | `shared/iso-kit.js`로 그린 아이소메트릭 장면(도착 대기·준비 큐·CPU·입출력·완료)과 작업 블록 이동 |
+| `src/scene.js` | `shared/iso-kit.js`로 그린 아이소메트릭 장면: 도착 트레이·준비 큐 레일(`queueRail`)·CPU 칩(`chip`)·입출력 SSD·완료함(`bin`)을 케이블로 잇고, 쓰는 케이블을 밝히며 작업 토큰을 옮깁니다. `fitScene`으로 무대 비율에 맞춰 프레이밍 |
 | `src/lesson.js` | 레슨 01의 시작 화면, 장면별 해설과 단계별 핵심 메모, 동적 핵심 장면, 예측 선택지별 이유, 정리·확인 문제, 작업별 구간 진행·시간 분해 |
 | `src/main.js` | 재생·탐색·예측·비교 UI, 시간표와 사건 기록 |
 | `src/styles.css` | 공통 하드웨어 키트(`shared/hw.css`) 위의 CPU 탐색기 전용 스타일 |

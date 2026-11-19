@@ -84,6 +84,49 @@ function injectGradients() {
   rect.setAttribute("fill", "url(#hw-iso-floor-fade-gradient)");
   mask.append(rect);
   defs.append(mask);
+
+  // Material gradients (iso-kit MAT.*). Stops read theme variables.
+  const lin = (gid, [x1, y1, x2, y2], stops) => {
+    const g = document.createElementNS(ns, "linearGradient");
+    g.id = gid;
+    for (const [k, v] of Object.entries({ x1, y1, x2, y2 })) g.setAttribute(k, String(v));
+    for (const [offset, colour, opacity] of stops) {
+      const s = document.createElementNS(ns, "stop");
+      s.setAttribute("offset", String(offset));
+      s.setAttribute("style", `stop-color: ${colour}${opacity === undefined ? "" : `; stop-opacity: ${opacity}`}`);
+      g.append(s);
+    }
+    defs.append(g);
+  };
+  // Brushed aluminium: an anisotropic sheen with two soft bright bands.
+  lin("hw-iso-metal", [0, 0, 1, 1], [
+    [0, "var(--iso-metal-hi)"], [0.22, "var(--iso-metal-lo)"], [0.42, "var(--iso-metal-mid)"],
+    [0.6, "var(--iso-metal-hi)"], [0.78, "var(--iso-metal-lo)"], [1, "var(--iso-metal-mid)"],
+  ]);
+  lin("hw-iso-gold", [0, 0, 1, 1], [[0, "var(--iso-gold-hi)"], [0.5, "var(--iso-gold)"], [1, "var(--iso-gold-lo)"]]);
+  lin("hw-iso-gold-v", [0, 0, 0, 1], [[0, "var(--iso-gold-hi)"], [0.45, "var(--iso-gold)"], [1, "var(--iso-gold-lo)"]]);
+  lin("hw-iso-pcb", [0, 0, 1, 1], [[0, "var(--iso-pcb-top-hi)"], [1, "var(--iso-pcb-top)"]]);
+  lin("hw-iso-graphite", [0, 0, 1, 1], [[0, "var(--iso-graphite-top-hi)"], [1, "var(--iso-graphite-top)"]]);
+  lin("hw-iso-ic", [0, 0, 1, 1], [[0, "color-mix(in oklch, var(--iso-ic-top) 80%, white)"], [0.5, "var(--iso-ic-top)"], [1, "var(--iso-ic-top)"]]);
+  lin("hw-iso-lcd", [0, 0, 1, 1], [[0, "var(--iso-glass-hi)"], [0.45, "var(--iso-glass)"], [1, "var(--iso-glass)"]]);
+  lin("hw-iso-plastic", [0, 0, 1, 1], [[0, "var(--iso-top-hi)"], [1, "var(--iso-top-lo)"]]);
+  // Token gloss: a white sheen fading across the top face.
+  lin("hw-iso-gloss", [0, 0, 1, 1], [[0, "#fff", 0.55], [0.45, "#fff", 0.12], [1, "#fff", 0]]);
+  // Brushed grain: fine lines along the iso x axis, laid over metal tops.
+  const brush = document.createElementNS(ns, "pattern");
+  brush.id = "hw-iso-brush";
+  brush.setAttribute("patternUnits", "userSpaceOnUse");
+  brush.setAttribute("width", "40");
+  brush.setAttribute("height", "3");
+  brush.setAttribute("patternTransform", "rotate(26.565)");
+  for (const [y, o] of [[0.5, 0.16], [1.6, 0.07], [2.4, 0.11]]) {
+    const l = document.createElementNS(ns, "line");
+    l.setAttribute("x1", "0"); l.setAttribute("x2", "40");
+    l.setAttribute("y1", String(y)); l.setAttribute("y2", String(y));
+    l.setAttribute("style", `stroke: #fff; stroke-opacity: ${o}; stroke-width: .5`);
+    brush.append(l);
+  }
+  defs.append(brush);
   svg.append(defs);
   document.body.prepend(svg);
 }

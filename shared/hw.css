@@ -1242,6 +1242,17 @@
   .hw-side > .hw-plate-body { padding-block: 12px 14px; }
   .hw-table th { padding-block: 6px 5px; }
   .hw-table td { padding-block: 5px; }
+  /* Short screens (e.g. 1280×720): the scene is what needs the height. Tighter
+     top bar, stage head and foot, and deck give the stage ~50px back. */
+  .hw-page { padding-top: 8px; }
+  .hw-topbar { margin-bottom: 8px; padding-block: 4px; }
+  .hw-console { gap: 10px; }
+  .explorer-trigger { min-height: 46px; padding-block: 4px; }
+  .explorer-brand-mark { width: 36px; height: 36px; }
+  .hw-stage > .hw-plate-head { min-height: 38px; padding-block: 6px 4px; }
+  .hw-stage > .hw-plate-foot { min-height: 30px; padding-block: 4px; }
+  .hw-deck { padding: 10px 14px 12px; gap: 8px 12px; }
+  .hw-deck .hw-key { min-height: 36px; }
 }
 
 /* ---------- Learning model: 정리 panel, recall questions, progress ---------- */

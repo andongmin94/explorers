@@ -50,14 +50,11 @@ body {
 /* Scene details the kit leaves to the explorer */
 .tx-callout-t1 .iso-callout-title { fill: var(--t1-ink); }
 .tx-callout-t2 .iso-callout-title { fill: var(--t2-ink); }
-.tx-lane .iso-path { stroke-width: 1.4; opacity: 0.85; }
-.tx-lane.is-active .iso-path {
-  stroke: var(--accent);
-  stroke-width: 2.2;
-  stroke-dasharray: none;
-  opacity: 1;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
-}
+/* Cables: the pulse runs only on the cable carrying the current request. */
+.tx-lane .iso-cable:not(.is-active) .iso-cable-pulse { display: none; }
+/* Row table: the LOCK cell takes the owner's colour. */
+.tx-rows .iso-cell[data-owner="T1"] { fill: color-mix(in oklch, var(--t1) 78%, var(--iso-glass)); }
+.tx-rows .iso-cell[data-owner="T2"] { fill: color-mix(in oklch, var(--t2) 78%, var(--iso-glass)); }
 .tx-mover,
 .tx-pend,
 .tx-park,

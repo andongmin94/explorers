@@ -166,6 +166,71 @@
   --iso-spec: #ffffff;
   --iso-falloff: .1;
   --iso-shadow: rgb(83 80 70 / 0.5);
+  --iso-contact: rgb(40 38 33 / 0.62);
+  --iso-grid: #dcdbd6;
+  --iso-floor-tint: transparent;
+
+  /* Materials (iso-kit MAT.*). Each has top / front / side wall tones, a
+     chamfer rim, a silhouette line, a lit edge and the ink printed on it. */
+  --iso-plastic-ink: #3d3b37;
+  /* Graphite: dark anodised aluminium (sockets, housings, bins). */
+  --iso-graphite-top: #4a4b4e;
+  --iso-graphite-top-hi: #5a5b5f;
+  --iso-graphite-front: #393a3d;
+  --iso-graphite-side: #2a2b2e;
+  --iso-graphite-rim: #616266;
+  --iso-graphite-line: #17181a;
+  --iso-graphite-edge: rgb(255 255 255 / 0.32);
+  --iso-graphite-ink: #e9e8e3;
+  --iso-graphite-pocket: #2c2d30;
+  /* PCB: green-black solder mask with copper traces under the mask. */
+  --iso-pcb-top: #1d3a2c;
+  --iso-pcb-top-hi: #24493a;
+  --iso-pcb-front: #163024;
+  --iso-pcb-side: #10241b;
+  --iso-pcb-rim: #2c5543;
+  --iso-pcb-line: #0a1711;
+  --iso-pcb-edge: rgb(190 235 210 / 0.3);
+  --iso-pcb-trace: rgb(126 196 156 / 0.42);
+  --iso-pcb-ink: #dfeee4;
+  /* Brushed aluminium: heat spreaders, trays, drive casings. */
+  --iso-metal-top: #dcdddd;
+  --iso-metal-hi: #f7f7f6;
+  --iso-metal-mid: #c3c5c6;
+  --iso-metal-lo: #d6d7d8;
+  --iso-metal-front: #c4c6c7;
+  --iso-metal-side: #a7a9ab;
+  --iso-metal-rim: #eeeeed;
+  --iso-metal-line: #75777a;
+  --iso-metal-edge: rgb(255 255 255 / 0.95);
+  --iso-metal-ink: #55575a;
+  --iso-metal-engrave: rgb(255 255 255 / 0.85);
+  --iso-metal-pocket: #a9abad;
+  --iso-metal-pocket-wall: #87898c;
+  /* Gold contacts. */
+  --iso-gold: #c9a24e;
+  --iso-gold-hi: #f2d58c;
+  --iso-gold-lo: #9c7832;
+  /* Glass / LCD. */
+  --iso-glass: #151617;
+  --iso-glass-hi: #2e3133;
+  --iso-glass-ink: #eceae4;
+  /* Rubber feet, gaskets, cable jackets. */
+  --iso-rubber-top: #343433;
+  --iso-rubber-front: #272726;
+  --iso-rubber-side: #1d1d1c;
+  /* Black IC packages on boards. */
+  --iso-ic-top: #26272a;
+  --iso-ic-front: #1c1d1f;
+  --iso-ic-side: #141516;
+  --iso-ic-ink: #9c9ea2;
+  /* Sticker / printed label. */
+  --iso-sticker: #f3f2ee;
+  --iso-sticker-ink: #2a2927;
+  /* Cables. */
+  --iso-cable: #3a3b3e;
+  --iso-cable-hi: rgb(255 255 255 / 0.38);
+  --iso-cable-shadow: rgb(40 38 33 / 0.35);
 
   --accent: oklch(0.62 0.24 38);
   --on-accent: #fff;
@@ -267,6 +332,57 @@
   --platter-mid: #5c5a55;
   --platter-lo: #3c3b38;
   --iso-shadow: rgb(0 0 0 / 0.75);
+  --iso-contact: rgb(0 0 0 / 0.85);
+  --iso-grid: #2c2c2a;
+
+  --iso-plastic-ink: #d6d4ce;
+  --iso-graphite-top: #34353a;
+  --iso-graphite-top-hi: #404146;
+  --iso-graphite-front: #28292d;
+  --iso-graphite-side: #1c1d20;
+  --iso-graphite-rim: #4a4b50;
+  --iso-graphite-line: #050506;
+  --iso-graphite-edge: rgb(255 255 255 / 0.24);
+  --iso-graphite-ink: #d9d8d3;
+  --iso-graphite-pocket: #18191b;
+  --iso-pcb-top: #17302a;
+  --iso-pcb-top-hi: #1d3b33;
+  --iso-pcb-front: #11251f;
+  --iso-pcb-side: #0b1a16;
+  --iso-pcb-rim: #23463b;
+  --iso-pcb-line: #030907;
+  --iso-pcb-edge: rgb(190 235 210 / 0.18);
+  --iso-pcb-trace: rgb(126 196 156 / 0.32);
+  --iso-pcb-ink: #cfe0d5;
+  --iso-metal-top: #8d8f92;
+  --iso-metal-hi: #b4b6b9;
+  --iso-metal-mid: #707275;
+  --iso-metal-lo: #85878a;
+  --iso-metal-front: #66686b;
+  --iso-metal-side: #4c4e51;
+  --iso-metal-rim: #a3a5a8;
+  --iso-metal-line: #101112;
+  --iso-metal-edge: rgb(255 255 255 / 0.45);
+  --iso-metal-ink: #e6e7e9;
+  --iso-metal-engrave: rgb(0 0 0 / 0.45);
+  --iso-metal-pocket: #5d5f62;
+  --iso-metal-pocket-wall: #45474a;
+  --iso-gold: #b28f45;
+  --iso-gold-hi: #d9bd78;
+  --iso-gold-lo: #7d5f27;
+  --iso-glass: #0c0c0d;
+  --iso-glass-hi: #222426;
+  --iso-rubber-top: #232322;
+  --iso-rubber-front: #1a1a19;
+  --iso-rubber-side: #121211;
+  --iso-ic-top: #1b1c1e;
+  --iso-ic-front: #131415;
+  --iso-ic-side: #0d0d0e;
+  --iso-sticker: #c9c7c0;
+  --iso-sticker-ink: #1d1d1c;
+  --iso-cable: #46474b;
+  --iso-cable-hi: rgb(255 255 255 / 0.28);
+  --iso-cable-shadow: rgb(0 0 0 / 0.6);
 }
 
 /* Protocol explorer names the same roles with a --neo- prefix. */

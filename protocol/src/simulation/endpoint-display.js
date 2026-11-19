@@ -112,6 +112,35 @@ function describeEndpoints(lessonId, state, port) {
 
 const TOKEN_SIZE = 0.85;
 
+// A state line is printed under the device's callout; long ones wrap into
+// short lines so they stay beside their device instead of running across
+// the neighbouring callouts.
+const STATE_LINE_UNITS = 30;
+const textUnits = (text) => [...text].reduce((sum, c) => sum + (/[ᄀ-ￜ]/.test(c) ? 2 : 1), 0);
+function wrapState(text) {
+  const lines = [];
+  let line = "";
+  for (const word of text.split(" ")) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && textUnits(next) > STATE_LINE_UNITS) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+function setStateLines(textElement, text) {
+  if (textElement.dataset.text === text) return;
+  textElement.dataset.text = text;
+  const x = textElement.getAttribute("x");
+  textElement.innerHTML = wrapState(text)
+    .map((line, index) => `<tspan x="${x}"${index ? ' dy="15"' : ""}>${escapeXml(line)}</tspan>`)
+    .join("");
+}
+
 export function createEndpointDisplay(nodes, svg) {
   const shown = new Map();
 
@@ -151,8 +180,9 @@ export function createEndpointDisplay(nodes, svg) {
       shown.set("key", key);
       for (const id of ["client", "web", "dns"]) {
         const endpoint = endpoints[id] || null;
-        const stateText = nodes[id].querySelector(".node-state");
-        stateText.textContent = endpoint?.state ?? "";
+        for (const stateText of nodes[id].querySelectorAll(".node-state")) {
+          setStateLines(stateText, endpoint?.state ?? "");
+        }
         renderTokens(id, endpoint?.tokens);
         if (id === "client") renderScreen(endpoint?.screen, endpoint?.terminal);
       }

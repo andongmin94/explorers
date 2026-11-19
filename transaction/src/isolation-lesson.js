@@ -236,7 +236,7 @@ const RR = {
   legend: [
     "상태 · ACTIVE 진행 중 · WAITING 잠금 대기 · ABORTED 오류로 실패 · ROLLED BACK 롤백 · COMMITTED 커밋",
     "노트북 화면 · READ 마지막 SELECT 결과 · TRY 몇 번째 시도인지",
-    "DB 윗면 · LOCK 행 잠금 보유자 · STOCK 확정 재고 · PENDING 커밋 전 쓰기",
+    "DB 윗면 행 표 · STOCK 확정 재고 · NEW 커밋 전 쓰기 · LOCK 행 잠금 보유자 · WAIT 칸 = 기다리는 UPDATE",
   ],
   sources: [SRC.rc, SRC.rr, SRC.retry],
   describe: rrStep,
@@ -506,7 +506,7 @@ const WS = {
   legend: [
     "상태 · ACTIVE 진행 중 · ROLLED BACK 롤백 · COMMITTED 커밋",
     "노트북 화면 · COUNT 센 당직 수 · PLAN 앱 판단 (OFF 빠짐, STAY 남음)",
-    "DB 윗면 · A, B 의사의 확정 on_call (ON/OFF) · 커밋 전 쓰기 · 행 잠금 LED",
+    "DB 윗면 행 표 · ROW A·B의 DUTY 확정 on_call (ON/OFF) · NEW 커밋 전 쓰기 · LOCK 행 잠금 보유자",
   ],
   sources: [SRC.rr, SRC.ser, SRC.retry],
   describe: wsStep,

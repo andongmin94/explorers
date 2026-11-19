@@ -1,27 +1,37 @@
 // The network scene, drawn with the shared isometric kit.
 //
-// Every device stands on one floor at one scale. Devices are placed in world
-// units (shared/iso-kit.js: x to the lower right, y to the lower left, z up)
-// and joined by floor routes. A route is a list of world points; each link has
-// one lane per direction, offset to the right of travel, so a request and its
-// reply never overlap. network-animation.js moves packet tokens along these
-// lanes in screen coordinates (the projected points exported below).
+// Every device stands on one floor at one scale, in world units
+// (shared/iso-kit.js: x to the lower right, y to the lower left, z up). The
+// internet hub sits in the middle; the local chain (laptop → router → hub)
+// runs along the screen horizontal and the servers fan out around the hub,
+// so even the DNS lesson (seven devices) reads as one tidy star.
+//
+// Each link is a two-conductor cable() (full duplex): one conductor per
+// direction. network-animation.js moves packet tokens along the conductor of
+// the direction they travel (NETWORK_LANES, screen points) and lights only
+// that conductor while a packet is on it.
 import { translate } from "../i18n.js";
 import {
+  LABEL,
+  MAT,
+  UNIT,
   box,
+  cable,
   callout,
+  cylinder,
   defs as isoDefs,
-  fitViewBox,
   floor,
+  frontQuad,
   laptop,
   led,
-  module,
   project,
+  quad,
   server,
+  shadow,
   topText,
 } from "../../../shared/iso-kit.js";
 
-/** Packet colours: tokens, lanes, LEDs and sequence arrows read these. */
+/** Packet colours: tokens, LEDs and sequence arrows read these. */
 const PACKET_COLORS = {
   idle: "var(--iso-line)",
   navy: "var(--pk-navy)",
@@ -36,23 +46,27 @@ const PACKET_COLORS = {
 
 // Footprints (back-left corner, width along x, depth along y).
 const DEVICES = {
-  client: { x: 2, y: 17.8, w: 5, d: 3.4 },
-  router: { x: 7.5, y: 13.5, w: 3, d: 3 },
-  internet: { x: 12.3, y: 9.3, w: 4.4, d: 4.4 },
-  dns: { x: 2.5, y: 4.5, w: 3, d: 3 },
+  client: { x: -9.5, y: 9.3, w: 5, d: 3.4 },
+  router: { x: -4.1, y: 5.2, w: 3.2, d: 2.6 },
+  internet: { x: 0, y: 0, w: 4, d: 4 },
+  dns: { x: -7.5, y: -4.6, w: 3, d: 3 },
   // Nodes that never share a lesson share a spot: web/tld, root/mx.
-  web: { x: 11.9, y: 0, w: 3.4, d: 3.4 },
-  tld: { x: 12.1, y: 0.2, w: 3, d: 3 },
-  root: { x: 21, y: 9, w: 3, d: 3 },
-  mx: { x: 21, y: 9, w: 3, d: 3 },
-  auth: { x: 14.3, y: 20, w: 3, d: 3 },
+  web: { x: 0.3, y: -7.9, w: 3.4, d: 3.4 },
+  tld: { x: 0.5, y: -7.7, w: 3, d: 3 },
+  root: { x: 8, y: 0.5, w: 3, d: 3 },
+  mx: { x: 8, y: 0.5, w: 3, d: 3 },
+  auth: { x: 2, y: 8, w: 3, d: 3 },
 };
 const LAPTOP_SCREEN_HEIGHT = 2.6;
 const SERVER_UNIT = 0.75;
+const ROUTER_HEIGHT = 0.62;
+const ANTENNA_HEIGHT = 1.7;
+const PLINTH_HEIGHT = 0.5;
+const HUB = { r: 1.25, h: 0.55 };
 const DEVICE_TOPS = {
   client: 0.22,
-  router: 0.9,
-  internet: 0.55,
+  router: ROUTER_HEIGHT,
+  internet: PLINTH_HEIGHT + HUB.h + 0.1,
   dns: 3 * SERVER_UNIT - 0.05,
   web: 4 * SERVER_UNIT - 0.05,
   root: 3 * SERVER_UNIT - 0.05,
@@ -60,56 +74,54 @@ const DEVICE_TOPS = {
   tld: 3 * SERVER_UNIT - 0.05,
   auth: 3 * SERVER_UNIT - 0.05,
 };
+/** Highest point of each device (for framing): laptop lid, router antennae. */
+const DEVICE_HEIGHTS = {
+  ...DEVICE_TOPS,
+  client: LAPTOP_SCREEN_HEIGHT + 0.3,
+  router: ROUTER_HEIGHT + ANTENNA_HEIGHT,
+};
 const centerOf = (id) => {
   const { x, y, w, d } = DEVICES[id];
   return [x + w / 2, y + d / 2];
 };
 
-// Floor routes for each link, from the first node's edge to the second's.
+// Cable routes for each link (world floor points), from the first node's edge
+// to the second's, along world axes.
 const LINKS = {
-  "client>router": [[7, 19.5], [9, 19.5], [9, 16.5]],
-  "router>internet": [[10.5, 15], [14.5, 15], [14.5, 13.7]],
-  "internet>dns": [[12.3, 11.5], [4, 11.5], [4, 7.5]],
-  "internet>web": [[13.6, 9.3], [13.6, 3.4]],
-  "internet>tld": [[13.6, 9.3], [13.6, 3.2]],
-  "internet>root": [[16.7, 10.5], [21, 10.5]],
-  "internet>mx": [[16.7, 10.5], [21, 10.5]],
-  "internet>auth": [[15.8, 13.7], [15.8, 20]],
+  "client>router": [[-4.5, 11], [-2.5, 11], [-2.5, 7.8]],
+  "router>internet": [[-0.9, 6.5], [1, 6.5], [1, 4]],
+  "internet>dns": [[0, 1.6], [-6, 1.6], [-6, -1.6]],
+  "internet>web": [[2, 0], [2, -4.5]],
+  "internet>tld": [[2, 0], [2, -4.7]],
+  "internet>root": [[4, 2], [8, 2]],
+  "internet>mx": [[4, 2], [8, 2]],
+  "internet>auth": [[3.5, 4], [3.5, 8]],
 };
-const LANE_OFFSET = 0.3;
+const CABLE_WIDTH = 6;
+const CABLE_GAP = CABLE_WIDTH * 1.15; // cable(): distance between bus conductors
 
-/** Offset an axis-aligned polyline to the right of its direction of travel. */
-function offsetRoute(points, distance) {
-  const normals = points.slice(1).map(([x, y], index) => {
-    const [px, py] = points[index];
-    const length = Math.hypot(x - px, y - py) || 1;
-    // Right of travel on the floor, as seen on screen.
-    return [-(y - py) / length, (x - px) / length];
-  });
-  return points.map(([x, y], index) => {
-    const before = normals[index - 1];
-    const after = normals[index];
-    const [nx, ny] =
-      before && after
-        ? before[0] === after[0] && before[1] === after[1]
-          ? before
-          : [before[0] + after[0], before[1] + after[1]]
-        : (before ?? after);
-    return [x + nx * distance, y + ny * distance];
+const toScreen = (points) => points.map(([x, y]) => project(x, y, 0));
+const toWorld = ([sx, sy]) => [(sx / UNIT + (2 * sy) / UNIT) / 2, ((2 * sy) / UNIT - sx / UNIT) / 2];
+
+/** The same perpendicular offset cable() uses for its bus conductors. */
+function offsetLine(screen, off) {
+  return screen.map((p, i) => {
+    const a = screen[Math.max(0, i - 1)];
+    const b = screen[Math.min(screen.length - 1, i + 1)];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return [p[0] - (dy / len) * off, p[1] + (dx / len) * off];
   });
 }
+const roundPoints = (points) => points.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10]);
 
-const screenPoints = (points) =>
-  points.map(([x, y]) => project(x, y, 0).map((v) => Math.round(v * 10) / 10));
-
-// Each lane is a list of screen points [[x, y], ...] in the network SVG.
+// Each lane is the conductor to the right of travel, as screen points.
 const NETWORK_LANES = {};
 for (const [link, points] of Object.entries(LINKS)) {
   const [from, to] = link.split(">");
-  NETWORK_LANES[`${from}>${to}`] = screenPoints(offsetRoute(points, LANE_OFFSET));
-  NETWORK_LANES[`${to}>${from}`] = screenPoints(
-    offsetRoute([...points].reverse(), LANE_OFFSET),
-  );
+  NETWORK_LANES[`${from}>${to}`] = roundPoints(offsetLine(toScreen(points), CABLE_GAP / 2));
+  NETWORK_LANES[`${to}>${from}`] = roundPoints(offsetLine(toScreen([...points].reverse()), CABLE_GAP / 2));
 }
 
 // Logical packet endpoints expand to the physical lanes traversed in order.
@@ -186,6 +198,16 @@ const NETWORK_TOKEN_SLOTS = Object.fromEntries(
     return [id, [-1, 0, 1].map((dx) => [cx + dx * 0.95, cy + dx * 0.0, z])];
   }),
 );
+/** World points that bound each device (footprint at the floor and at its top). */
+const NETWORK_NODE_BOUNDS = Object.fromEntries(
+  Object.entries(DEVICES).map(([id, { x, y, w, d }]) => {
+    const top = DEVICE_HEIGHTS[id];
+    // The laptop lid stands just behind its base.
+    const y0 = id === "client" ? y - 0.25 : y;
+    const corners = [[x, y0], [x + w, y0], [x + w, y + d], [x, y + d]];
+    return [id, [...corners.map(([a, b]) => [a, b, 0]), ...corners.map(([a, b]) => [a, b, top])]];
+  }),
+);
 
 const NETWORK_FOCUS_GROUPS = {
   client: ["client"],
@@ -199,24 +221,42 @@ const NETWORK_FOCUS_GROUPS = {
   full: ["client", "router", "dns", "internet", "web", "root", "tld", "auth", "mx"],
 };
 
-// Device names: screen-space callouts (title, address, and a live state line).
+// Device names: screen-space callouts (title, address, and a live state
+// line), placed in the free space around the star so they never sit on a
+// cable or packet lane: the laptop to its left, the router above its
+// antennae, the servers on their outer side.
 const CALLOUTS = {
-  client: { dx: -14, dy: -80, anchor: "middle", z: LAPTOP_SCREEN_HEIGHT + 0.3 },
-  router: { dx: -64, dy: -64, anchor: "middle" },
-  internet: { dx: 0, dy: 46, anchor: "middle", z: 0.28, front: true },
-  dns: { dx: -40, dy: -58, anchor: "middle" },
-  web: { dx: -36, dy: -58, anchor: "middle" },
-  root: { dx: 50, dy: -56, anchor: "middle" },
-  mx: { dx: 50, dy: -56, anchor: "middle" },
-  tld: { dx: 40, dy: -58, anchor: "middle" },
-  auth: { dx: -96, dy: 6, anchor: "middle" },
+  client: { dx: -64, dy: -18, anchor: "end", z: LAPTOP_SCREEN_HEIGHT + 0.2 },
+  router: { dx: -40, dy: -80, anchor: "middle", z: ROUTER_HEIGHT + ANTENNA_HEIGHT * 0.5 },
+  internet: { dx: 34, dy: 52, anchor: "start", z: PLINTH_HEIGHT, front: true },
+  dns: { dx: -56, dy: -44, anchor: "end" },
+  web: { dx: -6, dy: -62, anchor: "middle" },
+  tld: { dx: -6, dy: -62, anchor: "middle" },
+  root: { dx: 52, dy: -30, anchor: "start" },
+  mx: { dx: 52, dy: -30, anchor: "start" },
+  auth: { dx: 44, dy: 34, anchor: "start", front: true, z: 0.8 },
 };
-function renderNodeLabel(id) {
+// A short, wide stage (e.g. 1280 × 720) has no height to spare: the labels
+// move beside their devices instead of above or below them.
+const CALLOUTS_WIDE = {
+  ...CALLOUTS,
+  internet: { dx: 35, dy: 44, anchor: "middle", z: PLINTH_HEIGHT, front: true },
+  dns: { dx: -60, dy: -40, anchor: "end" },
+  web: { dx: 62, dy: -24, anchor: "start" },
+  tld: { dx: 62, dy: -24, anchor: "start" },
+  root: { dx: 56, dy: -8, anchor: "start" },
+  mx: { dx: 56, dy: -8, anchor: "start" },
+};
+const LABEL_LAYOUTS = { tall: CALLOUTS, wide: CALLOUTS_WIDE };
+function renderNodeLabel(id, layout) {
   const [name, address] = NETWORK_NODE_LABELS[id];
-  const { dx, dy, anchor, z, front } = CALLOUTS[id];
-  const [cx, centerY] = centerOf(id);
-  // A callout either points at the top of the device or at its front face.
-  const cy = front ? DEVICES[id].y + DEVICES[id].d : centerY;
+  const { dx, dy, anchor, z, front } = LABEL_LAYOUTS[layout][id];
+  // A callout either points at the front face or at the top. On top it
+  // points near the back corner, clear of the name engraved in the middle.
+  const dev = DEVICES[id];
+  const onTop = !front && id !== "client";
+  const [cx, centerY] = onTop ? [dev.x + dev.w * 0.2, dev.y + dev.d * 0.2] : centerOf(id);
+  const cy = front ? dev.y + dev.d : centerY;
   const markup = callout({
     x: cx,
     y: cy,
@@ -229,10 +269,10 @@ function renderNodeLabel(id) {
     cls: "node-callout",
   });
   // A third line, printed under the address, carries the device's live state.
+  // It sits inside the callout label so labelScale() scales it too.
   const [sx, sy] = project(cx, cy, z ?? DEVICE_TOPS[id]);
-  const state = `<text class="node-state" x="${(sx + dx).toFixed(1)}" y="${(sy + dy + 30).toFixed(1)}" text-anchor="${anchor}"></text>`;
-  const origin = dy < 0 ? "center-bottom" : "left-top";
-  return `<g class="node-label" data-origin="${origin}">${markup
+  const state = `<text class="node-state" x="${(sx + dx).toFixed(1)}" y="${(sy + dy + LABEL.title + LABEL.sub + 6).toFixed(1)}" text-anchor="${anchor}"></text>`;
+  return `<g class="node-label" data-layout="${layout}">${markup
     .replace('class="iso-callout-title"', 'class="iso-callout-title node-name"')
     .replace('class="iso-callout-sub"', 'class="iso-callout-sub node-ip"')
     .replace("</g>", `${state}</g>`)}</g>`;
@@ -240,30 +280,64 @@ function renderNodeLabel(id) {
 
 /* ---------- Devices ---------- */
 
+// Router: a graphite housing with two antennae at the back, a row of LAN/WAN
+// ports on the front face and a link LED above each port.
 function drawRouter() {
   const { x, y, w, d } = DEVICES.router;
-  const h = DEVICE_TOPS.router;
+  const h = ROUTER_HEIGHT;
+  const antenna = (ax) => `
+    ${shadow({ x: ax, y: y + 0.25, z: h, w: 0.24, d: 0.24, spread: 0.12, strength: 0.6 })}
+    ${box({ x: ax, y: y + 0.25, z: h, w: 0.24, d: 0.24, h: ANTENNA_HEIGHT, fill: MAT.rubber, radius: 0.1, bevel: false })}`;
+  let ports = "";
   let leds = "";
   for (let i = 0; i < 4; i++) {
-    leds += led({ x: x + 0.7 + i * 0.55, y: y + d - 0.45, z: h, on: true, color: "var(--accent)", cls: "router-led" });
+    const px = x + 0.45 + i * 0.62;
+    ports += frontQuad({ x: px, y: y + d + 0.001, z: 0.12, w: 0.44, h: 0.3, fill: "#0d0d0e" });
+    ports += frontQuad({ x: px + 0.08, y: y + d + 0.002, z: 0.16, w: 0.28, h: 0.08, fill: "var(--iso-gold)" });
+    leds += led({ x: px + 0.22, y: y + d - 0.32, z: h, on: true, color: i === 3 ? "var(--pk-amber)" : "var(--accent)", cls: "router-led", size: 0.85 });
   }
-  return `${module({ x, y, w, d, h, well: false }).svg}
-    ${box({ x: x + 0.35, y: y + 0.35, z: h, w: 0.2, d: 0.2, h: 1.5 })}
-    ${box({ x: x + w - 0.55, y: y + 0.35, z: h, w: 0.2, d: 0.2, h: 1.5 })}
-    ${topText({ x: x + w / 2, y: y + d / 2 - 0.25, z: h, text: "ROUTER", size: 11, weight: 800 })}
-    ${leds}`;
+  return `<g class="iso-device net-router">
+    ${shadow({ x, y, w, d, spread: 0.5 })}
+    ${box({ x, y, z: 0, w, d, h, fill: MAT.graphite, radius: 0.3 })}
+    ${ports}
+    ${quad({ x: x + 0.35, y: y + 0.75, z: h + 0.001, w: w - 0.7, d: 0.9, fill: "rgb(0 0 0 / .18)" })}
+    ${topText({ x: x + w / 2, y: y + 1.2, z: h, text: "ROUTER", size: 12, weight: 800, fill: MAT.graphite.ink, engrave: MAT.graphite.engrave })}
+    ${leds}
+    ${antenna(x + 0.3)}
+    ${antenna(x + w - 0.54)}
+  </g>`;
 }
 
+// Internet: a brushed-metal plinth carrying a graphite hub with a glass globe
+// face (meridians and parallels in the accent) and a ring of uplink LEDs.
 function drawInternet() {
   const { x, y, w, d } = DEVICES.internet;
-  const h = DEVICE_TOPS.internet;
-  let ports = "";
-  for (let i = 0; i < 6; i++) {
-    ports += led({ x: x + 0.7 + i * 0.6, y: y + d - 0.45, z: h, on: i % 2 === 0, color: "var(--accent)" });
+  const [cx, cy] = centerOf("internet");
+  const topZ = PLINTH_HEIGHT + HUB.h;
+  const graphite = { top: "var(--iso-graphite-top)", front: "var(--iso-graphite-front)", side: "var(--iso-graphite-side)" };
+  const [gx, gy] = project(cx, cy, topZ + 0.06);
+  const rx = (r) => (r * UNIT * Math.SQRT2).toFixed(1);
+  const ry = (r) => ((r * UNIT * Math.SQRT2) / 2).toFixed(1);
+  const g = HUB.r * 0.82;
+  const globe = `<g class="net-globe">
+    <ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx(g)}" ry="${ry(g)}"/>
+    <ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx(g * 0.62)}" ry="${ry(g * 0.62)}"/>
+    <ellipse cx="${gx.toFixed(1)}" cy="${gy.toFixed(1)}" rx="${rx(g * 0.25)}" ry="${ry(g * 0.25)}"/>
+    <path d="M${(gx - +rx(g)).toFixed(1)},${gy.toFixed(1)} H${(gx + +rx(g)).toFixed(1)} M${gx.toFixed(1)},${(gy - +ry(g)).toFixed(1)} V${(gy + +ry(g)).toFixed(1)}"/>
+  </g>`;
+  let leds = "";
+  for (let i = 0; i < 5; i++) {
+    leds += led({ x: x + w - 0.38, y: y + 0.55 + i * 0.72, z: PLINTH_HEIGHT, on: i % 2 === 0, color: "var(--accent)", cls: "hub-led", size: 0.85 });
   }
-  return `${module({ x, y, w, d, h }).svg}
-    ${topText({ x: x + w / 2, y: y + d / 2 - 0.2, z: h, text: "INTERNET", size: 13, weight: 800 })}
-    ${ports}`;
+  return `<g class="iso-device net-internet">
+    ${shadow({ x, y, w, d, spread: 0.6 })}
+    ${box({ x, y, z: 0, w, d, h: PLINTH_HEIGHT, fill: MAT.metal, radius: 0.35 })}
+    ${cylinder({ cx, cy, z: PLINTH_HEIGHT, r: HUB.r, h: HUB.h, fill: graphite, stroke: "var(--iso-graphite-line)" })}
+    ${cylinder({ cx, cy, z: topZ, r: HUB.r * 0.9, h: 0.06, fill: { top: "url(#hw-iso-lcd) var(--iso-glass)", front: "var(--iso-glass)", side: "var(--iso-glass)" }, stroke: "#000" })}
+    ${globe}
+    ${topText({ x: cx - 0.2, y: y + d - 0.42, z: PLINTH_HEIGHT, text: "INTERNET", size: 12, weight: 800, fill: MAT.metal.ink, engrave: MAT.metal.engrave })}
+    ${leds}
+  </g>`;
 }
 
 function drawServer(id, label, units = 3) {
@@ -324,49 +398,44 @@ const DRAW_ORDER = Object.keys(DEVICES).sort(
   (a, b) => centerOf(a)[0] + centerOf(a)[1] - (centerOf(b)[0] + centerOf(b)[1]),
 );
 
-const FLOOR = { x: -6, y: -10, w: 40, d: 38 };
-const NETWORK_VIEWBOX = fitViewBox(
-  [
-    [FLOOR.x, FLOOR.y, 0],
-    [FLOOR.x + FLOOR.w, FLOOR.y, 0],
-    [FLOOR.x + FLOOR.w, FLOOR.y + FLOOR.d, 0],
-    [FLOOR.x, FLOOR.y + FLOOR.d, 0],
-  ],
-  20,
-)
-  .split(" ")
-  .map(Number);
+const FLOOR = { x: -22, y: -22, w: 44, d: 46 };
+// Before the first camera fit: frame every device.
+const NETWORK_VIEWBOX = (() => {
+  const s = Object.values(NETWORK_NODE_BOUNDS).flat().map(([x, y, z]) => project(x, y, z));
+  const xs = s.map((p) => p[0]);
+  const ys = s.map((p) => p[1]);
+  const pad = 40;
+  return [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
+})();
 
-function renderNetworkDefs() {
-  const markers = Object.entries(PACKET_COLORS)
-    .map(
-      ([name, color]) =>
-        `<marker id="head-${name}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M1 1 9 5 1 9" fill="none" stroke="${color}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>`,
-    )
-    .join("");
-  return isoDefs().replace("</defs>", `${markers}</defs>`);
+/**
+ * One link: the idle full-duplex cable, and above it one lit conductor per
+ * direction (shown while a packet is on that lane).
+ */
+function renderLink(link, points) {
+  const [from, to] = link.split(">");
+  const lane = (laneId) =>
+    `<g class="lane" data-lane="${laneId}">${cable(NETWORK_LANES[laneId].map(toWorld), { active: true, width: CABLE_WIDTH - 1, plugs: false })}</g>`;
+  return `<g class="link" data-link="${link}" data-from="${from}" data-to="${to}">
+    ${cable(points, { bus: 2, width: CABLE_WIDTH, cls: "link-cable" })}
+    ${lane(`${from}>${to}`)}${lane(`${to}>${from}`)}
+  </g>`;
 }
-
-const lanePath = (points) =>
-  points.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ");
 
 /** Render the static scene; network-animation.js controls its nodes and layers. */
 function renderNetworkDiagram() {
-  const lanes = Object.entries(NETWORK_LANES)
-    .map(
-      ([laneId, points]) =>
-        `<path class="lane" data-lane="${laneId}" d="${lanePath(points)}" marker-end="url(#head-idle)"/>`,
-    )
+  const links = Object.entries(LINKS)
+    .map(([link, points]) => renderLink(link, points))
     .join("");
   const nodes = DRAW_ORDER.map(
     (id) =>
-      `<g class="node" data-node="${id}"><g class="node-body">${DRAW[id]()}<g class="node-tokens"></g></g>${renderNodeLabel(id)}</g>`,
+      `<g class="node" data-node="${id}"><g class="node-body">${DRAW[id]()}<g class="node-tokens"></g></g>${renderNodeLabel(id, "tall")}${renderNodeLabel(id, "wide")}</g>`,
   ).join("");
   return `
-  <svg class="network is-booting" viewBox="${NETWORK_VIEWBOX.join(" ")}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${translate("Network diagram")}">
-    ${renderNetworkDefs()}
+  <svg class="network is-booting" viewBox="${NETWORK_VIEWBOX.map((v) => v.toFixed(1)).join(" ")}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${translate("Network diagram")}">
+    ${isoDefs()}
     ${floor({ ...FLOOR, cls: "network-floor" })}
-    <g class="lanes">${lanes}</g>
+    <g class="lanes">${links}</g>
     <g class="pulse-layer"></g>
     ${nodes}
     <g class="packet-layer"></g>
@@ -377,6 +446,7 @@ function renderNetworkDiagram() {
 export {
   NETWORK_FOCUS_GROUPS,
   NETWORK_LANES,
+  NETWORK_NODE_BOUNDS,
   NETWORK_NODE_CENTERS,
   NETWORK_NODE_LABELS,
   NETWORK_NODE_RADII,
