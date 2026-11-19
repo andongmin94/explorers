@@ -12,16 +12,24 @@ export const DEADLOCK_SOURCES = Object.freeze([
 export const DEADLOCK_NOTES = Object.freeze([
   "재고 행 A·B와 트랜잭션 T1·T2를 다룹니다. T1은 A→B, T2는 B→A 순서로 각각 1개씩 감소시키려 합니다.",
   "이번 UPDATE는 DB 안에서 stock = stock - 1을 계산합니다. 앞선 갱신 유실 실험의 앱 계산과 다릅니다.",
-  "PostgreSQL은 교착 상태를 감지하면 참여 트랜잭션 하나를 중단합니다. 여기서는 설명을 위해 T2를 고정했으며, 실제 희생자는 예측에 의존하면 안 됩니다.",
-  "감지·롤백·재개를 관찰하기 쉽게 나눴습니다. 실제 DB의 감지 지연이나 실행 시간을 측정하는 화면이 아닙니다.",
+  "PostgreSQL은 교착 상태를 감지하면 참여 트랜잭션 하나를 중단합니다. 여기서는 설명을 위해 T2를 중단 대상으로 고정했습니다. 실제로 어느 쪽이 중단될지는 예측할 수 없으므로, 특정 쪽이 선택된다고 가정하면 안 됩니다.",
+  "감지·중단·재개를 관찰하기 쉽게 나눴습니다. 실제 DB는 deadlock_timeout(기본 1초)만큼 기다린 뒤 순환을 검사하며, 이 화면은 그 시간을 재지 않습니다.",
   "T2의 중단은 DB가 수행합니다. 앱은 오류를 처리하고 실패한 트랜잭션 블록을 ROLLBACK으로 정리한 뒤 필요하면 전체 트랜잭션을 다시 실행해야 합니다. 이 실험은 재시도하지 않습니다.",
+  "예방 · 모든 트랜잭션이 같은 순서로 행을 잠급니다. 예: SELECT … FROM inventory WHERE id IN ('A', 'B') ORDER BY id FOR UPDATE; 로 먼저 잠근 뒤 UPDATE합니다.",
+]);
+
+// Plain-language glossary for the English labels printed in the scene.
+export const DEADLOCK_LEGEND = Object.freeze([
+  "상태 · ACTIVE 진행 중 · WAITING 잠금 대기 · TO ABORT 중단 대상 · ABORTED 중단됨 · COMMITTED 커밋 완료",
+  "노트북 화면 · HOLD 보유한 행 잠금 · WAIT 기다리는 행",
+  "UPD A = A 행 UPDATE 요청 · WAIT-FOR 바닥의 선 = 누가 누구를 기다리는지",
 ]);
 
 export const DEADLOCK_MILESTONES = Object.freeze([
   { index: 4, label: "나눠 보유", description: "T1은 A, T2는 B 잠금 보유" },
   { index: 6, label: "순환 대기", description: "서로의 잠금 해제를 기다림" },
   { index: 7, label: "DB 감지", description: "순환을 감지하고 중단 대상 선택" },
-  { index: 8, label: "롤백", description: "T2의 쓰기와 잠금·대기 요청 취소" },
+  { index: 8, label: "중단·롤백", description: "T2의 쓰기와 잠금·대기 요청 취소" },
   { index: 10, label: "완료", description: "남은 T1이 두 행을 확정" },
 ]);
 
@@ -64,7 +72,7 @@ export function describeDeadlockStep(step) {
         title: `${step.client}의 ${step.row} 잠금 보유`,
         summary: `${step.row}의 미확정 값은 ${step.state.rows[step.row].pending.value}입니다. 확정 재고 ${step.state.rows[step.row].committed}개는 그대로입니다.`,
         details: [
-          "UPDATE는 자기 행 잠금을 커밋 또는 롤백까지 유지합니다.",
+          "UPDATE로 얻은 행 잠금은 커밋 또는 롤백까지 유지됩니다.",
           "다른 행은 다른 트랜잭션이 동시에 잠글 수 있습니다.",
         ],
         takeaway:
@@ -100,8 +108,8 @@ export function describeDeadlockStep(step) {
         summary:
           "이 실험에서는 T2를 중단합니다. 아직 롤백 전 장면이므로 잠금과 미확정 값은 그대로 보입니다.",
         details: [
-          "PostgreSQL은 교착 상태를 자동으로 감지해 참여 트랜잭션 하나를 중단합니다.",
-          "실제 시스템에서 항상 T2 또는 나중 요청이 선택된다고 가정하면 안 됩니다.",
+          "PostgreSQL은 잠금을 deadlock_timeout(기본 1초) 동안 기다린 트랜잭션에서 순환 검사를 시작합니다.",
+          "순환을 찾은 쪽이 보통 자기 트랜잭션을 중단합니다. 실제로 어느 쪽이 중단될지는 예측할 수 없으므로, 특정 쪽이 선택된다고 가정하면 안 됩니다. 여기서 T2로 고정한 것은 설명을 위해서입니다.",
         ],
         takeaway:
           "감지와 정리를 따로 멈춰 관찰합니다. 다음 장면에서 T2의 효과를 함께 취소합니다.",
@@ -109,13 +117,13 @@ export function describeDeadlockStep(step) {
     case "rollback":
       return {
         ...base,
-        title: "T2 롤백 · 고리가 끊어짐",
+        title: "T2 중단·롤백 · 고리가 끊어짐",
         summary:
-          "T2의 B 미확정 19를 버리고 B 잠금을 놓으며, A에 걸린 T2의 대기 요청도 취소합니다. B의 확정 재고는 처음부터 20개였습니다.",
+          "A를 기다리던 T2의 UPDATE가 ERROR: deadlock detected (40P01)로 끝납니다. T2의 B 미확정 19를 버리고 B 잠금을 놓습니다. B의 확정 재고는 처음부터 20개였습니다.",
         details: [
           "T1의 A 잠금과 미확정 9는 유지됩니다. T1 전체를 함께 되돌리는 것이 아닙니다.",
           "T1의 B 요청은 재개 가능해졌지만, 아직 B 잠금을 얻은 것은 아닙니다.",
-          "DB가 T2에 교착 상태 오류를 알립니다. T2를 자동으로 성공시키거나 재시도하지 않습니다.",
+          "T2는 중단된 상태입니다. 앱이 ROLLBACK으로 정리해야 하며, DB가 T2를 자동으로 재시도하지 않습니다.",
         ],
         takeaway:
           "롤백은 값을 확정하는 동작이 아닙니다. 미확정 쓰기와 보유 잠금·대기를 정리합니다.",
@@ -127,6 +135,7 @@ export function describeDeadlockStep(step) {
         summary:
           "새 SQL을 보내지 않고 DB에 대기 중이던 UPDATE가 이어집니다. T1이 B 잠금을 얻고 확정 값 20에서 1을 뺀 미확정 19를 만듭니다.",
         details: [
+          "stock = stock - 1이므로 대기 후 최신 확정값(20)에서 다시 계산해 19가 됩니다. T2가 커밋했다면 18이 됐을 것입니다.",
           "T1은 이제 A와 B 잠금을 모두 보유합니다.",
           "T2가 만들었던 19는 이미 버렸습니다. 지금 B의 19는 T1이 새로 만든 미확정 값입니다.",
         ],
@@ -141,9 +150,35 @@ export function describeDeadlockStep(step) {
         details: [
           "커밋 1회, 롤백 1회입니다. 두 주문이 모두 성공한 결과가 아닙니다.",
           "두 트랜잭션이 모두 A→B처럼 같은 순서로 잠금을 얻으면 이 교착 순환을 피할 수 있습니다.",
+          "실무 패턴: SELECT … WHERE id IN ('A', 'B') ORDER BY id FOR UPDATE; 로 필요한 행을 같은 순서로 먼저 잠근 뒤 UPDATE합니다.",
         ],
         takeaway:
           "순서를 일관되게 유지해 예방하고, 중단 오류가 나면 앱에서 전체 트랜잭션 재시도를 판단합니다.",
       };
   }
+}
+
+// Asked at detection, before T2 is aborted: B's committed value once T2's work
+// is undone. The answer comes from the run, so it tracks the engine.
+export function deadlockPrediction(run) {
+  const detect = run.steps.find((step) => step.action === "detect");
+  const after = run.steps[detect.index + 1].state;
+  const answer = String(after.rows.B.committed);
+  const pending = detect.state.rows.B.pending.value;
+  const feedback = {
+    [answer]: `B의 확정 값은 처음부터 ${answer}이었습니다. T2의 ${pending}는 커밋 전이었으므로 버려질 뿐입니다. B를 기다리던 T1의 UPDATE는 다시 보낼 필요 없이 그대로 이어서 실행됩니다.`,
+    [pending]: `${pending}는 T2가 쓴 미확정 값입니다. 중단된 트랜잭션의 쓰기는 확정되지 않으므로 B는 ${answer} 그대로입니다.`,
+    [Number(answer) + 1]: `롤백은 1을 다시 더하는 보상 계산이 아닙니다. 확정되지 않은 ${pending}를 버릴 뿐이므로 B는 ${answer} 그대로입니다.`,
+  };
+  return {
+    question: "T2가 중단·롤백된 직후, B의 확정 재고는?",
+    facts: [
+      ["T1이 쓴 A", `${detect.state.rows.A.pending.value} · 미확정`],
+      ["T2가 쓴 B", `${pending} · 미확정`],
+      ["T1", "B 잠금 대기 중"],
+    ],
+    // Not in numeric order, so the answer is not always the middle or first.
+    options: [Number(answer) + 1, pending, Number(answer)].map(String).map((id) => ({ id, label: `B = ${id}`, feedback: feedback[id] })),
+    answerId: answer,
+  };
 }

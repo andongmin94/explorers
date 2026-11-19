@@ -576,3 +576,14 @@ body {
   padding-top: 0;
   border-top: 0;
 }
+
+/* Prediction: the accesses so far, the evidence for the choice. */
+.mem-history-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.mem-history-line .hw-mono {
+  margin-inline-start: 4px;
+}

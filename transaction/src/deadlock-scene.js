@@ -35,7 +35,7 @@ const IDS = ["T1", "T2"];
 const ROWS = { A: DB.y + 1.65, B: DB.y + 4.35 };
 const PENDING_X = DB.x + 4.5;
 const LCD_X = DB.x + 2.45;
-const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", committed: "COMMITTED", aborted: "ROLLED BACK" };
+const STATUS = { idle: "IDLE", active: "ACTIVE", waiting: "WAITING", committed: "COMMITTED", aborted: "ABORTED" };
 const other = (id) => (id === "T1" ? "T2" : "T1");
 // Wait-for edges run in front of the database, laptop to laptop.
 const EDGES = {
@@ -76,7 +76,7 @@ function completedTitle(step) {
     case "detect":
       return `DB가 순환을 감지 · ${eul(s.victim)} 중단 대상으로 선택`;
     case "rollback":
-      return `${step.client} 롤백 · ${step.row}의 미확정 값과 잠금, 대기 요청 취소`;
+      return `${step.client} 중단·롤백 · ${step.row}의 미확정 값과 잠금, 대기 요청 취소`;
     case "commit":
       return `${step.client} 커밋 · A ${s.rows.A.committed}, B ${s.rows.B.committed} 확정`;
   }
@@ -105,7 +105,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       const c = state.clients[id];
       setScreen(svg, id, [c.held.join("·") || "—", c.waitingFor ?? "—"]);
       const victim = state.detected && state.victim === id && c.status !== "aborted";
-      setStatus(svg, id, victim ? "VICTIM" : STATUS[c.status]);
+      setStatus(svg, id, victim ? "TO ABORT" : STATUS[c.status]);
       $(`[data-client="${id}"]`).dataset.status = victim ? "aborted" : c.status;
     }
     const pending = $(".tx-pending");
@@ -206,7 +206,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         break;
       }
       case "detect": {
-        phase("DB가 대기 관계의 순환을 확인합니다", "기다림의 방향을 따라가면 원래 트랜잭션으로 돌아옵니다.");
+        phase("DB가 대기 관계의 순환을 확인합니다", "deadlock_timeout(기본 1초) 동안 기다린 뒤 검사합니다. 기다림의 방향을 따라가면 원래 트랜잭션으로 돌아옵니다.");
         if (!(await moves.flashDatabase(3))) return;
         paint(getDeadlockPresentationState(step, "database"));
         phase(`${eul(step.state.victim)} 중단 대상으로 선택`, "아직 롤백 전이므로 잠금과 미확정 값은 그대로입니다.");
@@ -214,14 +214,14 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
         break;
       }
       case "rollback": {
-        phase(`${id} 롤백 · 미확정 쓰기와 잠금을 버립니다`, `${id}의 B 미확정 값과 B 잠금, A에 걸린 대기 요청이 함께 취소됩니다.`);
+        phase(`${id} 중단·롤백 · 미확정 쓰기와 잠금을 버립니다`, `${id}의 B 미확정 값과 B 잠금이 사라지고, A를 기다리던 UPDATE가 오류로 끝납니다.`);
         const mine = [...svg.querySelectorAll(".tx-pend")].filter((el) => el.dataset.key.startsWith(`${id}:`));
         const fades = mine.map((el) => runner.animate(el, [{ opacity: 1 }, { opacity: 0 }], { duration: 520, fill: "forwards" }));
         if (!(await Promise.all(fades)).every(Boolean)) return;
         const state = getDeadlockPresentationState(step, "database");
         paint(state, { hideParked: null });
         // The parked request goes back to T2 as an error, not as a new SQL.
-        phase(`DB → ${id} · 교착 상태 오류 (40P01)`, "DB가 T2를 중단했습니다. T2를 자동으로 재시도하지 않습니다.");
+        phase(`DB → ${id} · ERROR: deadlock detected (40P01)`, "A를 기다리던 T2의 UPDATE가 이 오류로 끝납니다. T2는 중단됐고, 앱이 ROLLBACK해야 합니다.");
         if (!(await moves.respond(id, "ERROR", PARK[id]))) return;
         break;
       }

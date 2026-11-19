@@ -4,7 +4,7 @@ import "./styles.css";
 import "../../shared/switcher.js";
 import "../../shared/iso.js";
 import { simulate } from "./engine.js";
-import { describeEventLog, describeStep, buildMilestones, predictionFor, MODEL_NOTES, SOURCES } from "./lesson.js";
+import { describeEventLog, describeStep, buildMilestones, predictionFor, MODEL_NOTES, SCENE_LEGEND, SOURCES } from "./lesson.js";
 import { createTransactionScene } from "./scene.js";
 import {
   $,
@@ -48,8 +48,8 @@ const actions = {
 };
 const MODES = { naive: "일반 SELECT", locked: "SELECT FOR UPDATE" };
 const RULES = {
-  naive: "읽은 값은 앱에 남습니다. 이후 UPDATE가 잠금을 기다려도 앱의 계산은 자동으로 바뀌지 않습니다.",
-  locked: "값을 읽을 때부터 행을 보호합니다. 다른 FOR UPDATE는 앞선 커밋 뒤의 값을 읽습니다.",
+  naive: "읽은 값은 앱의 로컬 값으로 남고, 앱이 계산한 숫자를 UPDATE에 넣습니다.",
+  locked: "값을 읽을 때부터 행을 보호합니다. 뒤에 온 FOR UPDATE는 앞 트랜잭션이 커밋한 값을 읽습니다.",
 };
 
 $("#app").outerHTML = `<div class="hw-page tx-page">
@@ -84,7 +84,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
           <div class="hw-section" id="takeaway-section"><p class="hw-note hw-note--accent" id="takeaway"></p></div>
         </div>`,
         `<div class="tx-cta" id="cta">
-          <button class="hw-key tx-wide" data-action="predict" hidden>대기 다음의 결과, 맞혀보기 →</button>
+          <button class="hw-key tx-wide" data-action="predict" hidden>대기가 풀리면? 결과 맞혀보기 →</button>
           <button class="hw-key hw-key--accent tx-wide" data-action="compare" data-role="conclusion" hidden>전체 실행 결과 비교 →</button>
         </div>`,
       )}
@@ -99,6 +99,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
           ${[...MODEL_NOTES, "실제 데이터베이스 연결이나 실행 시간 측정 없이 한 행의 상태 변화를 재현합니다."]
             .map((t, i) => `<div class="hw-section tx-fact"><span class="hw-label">모델 ${pad(i + 1)}</span><p class="hw-text">${t}</p></div>`)
             .join("")}
+          ${SCENE_LEGEND.map((t) => `<div class="hw-section tx-fact"><span class="hw-label">장면 표시</span><p class="hw-text">${t}</p></div>`).join("")}
         </div>`,
       )}
     </aside>
@@ -283,24 +284,19 @@ function showComparison() {
         </section>`;
       })
       .join("")}</div>
-    <p class="hw-text hw-muted tx-foot">SET stock = stock - 1처럼 DB 안에서 한 문장으로 감소시키는 방법은 이 실험의 분리된 읽기·계산·쓰기와 다릅니다.</p>
+    <p class="hw-text hw-muted tx-foot">다른 해법 · 원자적 UPDATE <code>SET stock = stock - 1</code>은 대기 후 새 버전에서 다시 계산해 8 · 낙관적 검사 <code>WHERE stock = 10</code>이면 T2의 UPDATE가 0행 → 앱이 다시 시도 · REPEATABLE READ에서는 T2의 UPDATE가 40001 직렬화 오류로 실패합니다.</p>
   </div>`;
   $("#comparison-dialog").showModal();
 }
 
 function showPrediction() {
   player.pause();
-  const state = steps()[player.state.done].state;
   quiz = predictionFor(steps()[player.state.done], run());
   if (!quiz) return;
-  $("#prediction-dialog").innerHTML = `${dialogHead("현재 상태로 다음 사건 예측")}
+  $("#prediction-dialog").innerHTML = `${dialogHead("T1 커밋 직후 · 잠금이 풀린 순간")}
   <div class="hw-plate-body">
     <h2 class="hw-title" id="prediction-title">${quiz.question}</h2>
-    <ul class="hw-list tx-gap">
-      <li><span>확정 재고</span><b class="hw-mono">${state.committedStock}</b></li>
-      <li><span>T2가 읽은 값</span><b class="hw-mono">${state.clients.T2.localRead ?? "아직 없음"}</b></li>
-      <li><span>T2의 계산</span><b class="hw-mono">${state.clients.T2.localWrite ?? "아직 없음"}</b></li>
-    </ul>
+    <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="hw-mono">${escape(value)}</b></li>`).join("")}</ul>
     <div class="tx-choices">${quiz.options.map((o) => `<button class="hw-key" data-answer="${o.id}"><span class="hw-led" style="--led:var(--tx-ok)"></span>${o.label}</button>`).join("")}</div>
     <div id="prediction-feedback" aria-live="polite"></div>
   </div>`;
@@ -333,7 +329,8 @@ bindConsole(player, {
         b.classList.toggle("is-chosen", b === button);
         b.querySelector(".hw-led").classList.toggle("is-on", b.dataset.answer === quiz.answerId);
       }
-      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${correct ? "맞았습니다." : "현재 값의 차이를 다시 살펴보세요."}</p><p class="hw-text tx-gap">${quiz.explanation}</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">실제 요청 재개 보기 →</button></div>`;
+      const chosen = quiz.options.find((o) => o.id === button.dataset.answer);
+      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${correct ? "맞았습니다." : `${chosen.label}가 아닙니다. 정답은 ${quiz.options.find((o) => o.id === quiz.answerId).label}입니다.`}</p><p class="hw-text tx-gap">${chosen.feedback}</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">실제 요청 재개 보기 →</button></div>`;
       return true;
     }
     switch (button.dataset.action) {

@@ -6,18 +6,21 @@ import "../../shared/iso.js";
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs } from "../../shared/fit.js";
 import { followRows } from "./fit-rows.js";
-import { simulate, REQUESTS, INITIAL_HEAD } from "./engine.js";
+import { simulate, look, REQUESTS, INITIAL_HEAD } from "./engine.js";
 import { createDiskScene } from "./scene.js";
 import {
   COMPARE_STORY,
-  MILESTONES,
   MODEL_NOTES,
   NAMES,
   RULE_SHORT,
   STAGES,
   TAKEAWAY,
+  josa,
   lessonAt,
+  milestonesFor,
   phaseText,
+  servicePosition,
+  starvationNote,
 } from "./lesson.js";
 
 const $ = (s) => document.querySelector(s);
@@ -29,6 +32,7 @@ const SIDE_TABS = [
 ];
 const N = REQUESTS.length;
 const runs = { fcfs: simulate("fcfs"), sstf: simulate("sstf") };
+const sweep = look(REQUESTS, INITIAL_HEAD, "down");
 let algorithm = "fcfs",
   index = 0,
   committed = 0,
@@ -252,19 +256,25 @@ function render() {
   }
   renderStages(busy ? target : step);
 
+  // The distances behind the choice just made are shown; the next choice's
+  // distances are left for the learner to work out (and the prediction).
+  const cells = (list, dist) =>
+    `<div class="disk-distances">${list
+      .map((r) => `<span${r.id === step.request?.id ? ' class="is-chosen"' : ""}><b class="hw-mono">${r.cylinder}</b><span class="hw-mono hw-muted">${dist(r)}</span></span>`)
+      .join("")}</div>`;
+  const last = committed
+    ? `<div class="hw-section"><span class="hw-label">직전 선택 · 헤드 ${step.before.head}에서 잰 거리</span>${cells(step.candidates.slice().sort((a, b) => a.id - b.id), (r) => `${r.distance}칸`)}</div>`
+    : "";
   $("#remaining").innerHTML = busy
-    ? `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">요청 ${target.request.id}을 처리하는 중입니다. 헤드가 도착하면 남은 요청까지 거리를 다시 잽니다.</p></div>`
+    ? `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">${josa(`요청 ${target.request.id}번`, "을")} 처리하는 중입니다. 헤드가 도착하면 남은 요청까지 거리를 다시 잽니다.</p></div>`
     : state.pending.length
-      ? `<div class="hw-section"><span class="hw-label">헤드 ${state.head}에서 남은 요청까지</span>
-      <div class="disk-distances">${state.pending
-        .map((r) => `<span><b class="hw-mono">${r.cylinder}</b><span class="hw-mono hw-muted">${Math.abs(r.cylinder - state.head)}칸</span></span>`)
-        .join("")}</div></div>
-      <div class="hw-section"><p class="hw-text hw-muted disk-small">도착 순서로 표시 · ${algorithm === "fcfs" ? "FCFS는 거리가 아니라 순서로 선택" : "SSTF는 이 거리 중 최솟값을 선택"}</p></div>`
-      : `<div class="hw-section"><span class="hw-label">남은 요청까지의 거리</span><p class="hw-text hw-muted disk-body">남은 요청이 없습니다. 처리 기록과 두 방식 비교에서 전체 이동을 확인하세요.</p></div>`;
-  $("#takeaway").textContent = TAKEAWAY[algorithm];
+      ? `<div class="hw-section"><span class="hw-label">다음 후보 · 헤드 ${state.head}</span>${cells(state.pending, () => "?칸")}
+      <p class="hw-text hw-muted disk-small">${algorithm === "fcfs" ? "FCFS는 거리가 아니라 도착 순서로 선택" : "SSTF는 이 거리 중 최솟값을 선택 · 직접 계산한 뒤 맞혀보세요"}</p></div>${last}`
+      : `${last}<div class="hw-section"><p class="hw-text hw-muted disk-body">남은 요청이 없습니다. 처리 기록과 두 방식 비교에서 전체 이동을 확인하세요.</p></div>`;
+  $("#takeaway").textContent = algorithm === "sstf" ? `${TAKEAWAY.sstf} ${starvationNote(runs)}` : TAKEAWAY.fcfs;
   $('[data-action="predict"]').hidden = busy || committed === N;
   $("[data-conclusion]").hidden = committed !== N;
-  $("#milestones").innerHTML = MILESTONES.map(
+  $("#milestones").innerHTML = milestonesFor(algorithm, run()).map(
     (m) =>
       `<button data-seek="${m.n}"${m.n === index ? ' aria-current="true"' : ""}><span class="hw-index">${String(m.n).padStart(2, "0")}</span>${m.label}</button>`,
   ).join("");
@@ -458,12 +468,12 @@ function comparison() {
           <span class="hw-lcd is-large">${r.total}<small>CYL</small></span>
           ${miniPath(r)}
           <p class="hw-mono disk-order">${INITIAL_HEAD} → ${r.order.join(" → ")}</p>
-          <p class="hw-text">${COMPARE_STORY[name]}</p>
+          <p class="hw-text">${COMPARE_STORY[name]} 183번은 ${servicePosition(r, 183)}번째로 처리됩니다.</p>
           <button class="hw-key${name === algorithm ? "" : " hw-key--accent"}" data-algorithm="${name}" data-close="true">이 방식으로 다시 보기 ${icon("arrow")}</button>
         </section>`,
       )
       .join("")}</div>
-    <div class="hw-plate-foot">이 예제에서 SSTF는 ${runs.fcfs.total - runs.sstf.total}칸 덜 이동합니다. 이동 거리 비교이며 실제 응답 시간이나 모든 입력에서의 최적성을 뜻하지 않습니다.</div>`;
+    <div class="hw-plate-foot">SSTF는 FCFS보다 ${runs.fcfs.total - runs.sstf.total}칸 덜 움직이지만 이 예제에서도 최소는 아닙니다. 먼저 바깥쪽으로 쓸고 돌아오는 ${INITIAL_HEAD} → ${josa(sweep.order.join(" → "), "은")} ${sweep.total}칸입니다. 한 방향으로 쓸어 가는 이 생각이 다음 방식인 SCAN/LOOK입니다.</div>`;
   $("#comparison-dialog").showModal();
 }
 
@@ -474,16 +484,31 @@ function prediction() {
   const head = current().state.head;
   $("#prediction-dialog").innerHTML = `${dialogHead(`${NAMES[algorithm]} · 현재 헤드 ${head}`, "다음에 어느 요청을 고를까요?", "prediction-title")}
     <div class="hw-plate-body">
-      <p class="hw-text">${algorithm === "fcfs" ? "도착 순서" : "현재 헤드와의 거리"}를 근거로 선택하세요. 버튼은 원래 도착 순서로 놓여 있습니다.</p>
+      <p class="hw-text">${algorithm === "fcfs" ? "도착 순서를 근거로 선택하세요. 요청 번호가 도착 순서입니다." : `헤드 ${head}에서 각 실린더까지 거리를 직접 계산해 선택하세요.`} 버튼은 실린더 번호 순서입니다.</p>
       <div class="disk-choices">${current()
-        .state.pending.map(
+        .state.pending.slice()
+        .sort((a, b) => a.cylinder - b.cylinder || a.id - b.id)
+        .map(
           (r) =>
-            `<button class="hw-key" data-answer="${r.id}"><span class="hw-label">요청 ${r.id}</span><b class="hw-mono">${r.cylinder}</b><span class="hw-label">${Math.abs(r.cylinder - head)}칸</span></button>`,
+            `<button class="hw-key" data-answer="${r.id}">${algorithm === "fcfs" ? `<span class="hw-label">요청 ${r.id}번</span>` : ""}<b class="hw-mono">${r.cylinder}</b></button>`,
         )
         .join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;
   $("#prediction-dialog").showModal();
+}
+
+// What the answer explains: FCFS names the arrival order (even when a nearer
+// request exists); SSTF shows the distances the learner was asked to compute.
+function predictionFeedback(next, chosenId) {
+  const chosen = next.candidates.find((c) => c.id === chosenId);
+  if (algorithm === "fcfs") {
+    const wrong = chosen.id === next.request.id ? "" : ` ${chosen.cylinder}번은 요청 ${chosen.id}번으로 더 늦게 도착했습니다.`;
+    return `${josa(`${next.request.cylinder}번`, "을")} 고릅니다. 요청 ${next.request.id}번이 남은 요청 중 먼저 도착했기 때문입니다.${wrong}`;
+  }
+  const near = next.candidates.slice(0, 2).map((c) => `${c.cylinder}번 ${c.distance}칸`).join(" · ");
+  const wrong = chosen.id === next.request.id ? "" : ` 고른 ${chosen.cylinder}번은 ${chosen.distance}칸입니다.`;
+  return `${josa(`${next.request.cylinder}번`, "을")} 고릅니다. 헤드 ${next.before.head}에서 가까운 순서: ${near}.${wrong}`;
 }
 
 function answer(b) {
@@ -495,7 +520,7 @@ function answer(b) {
   });
   $("#prediction-feedback").innerHTML = `<div class="hw-section">
       <h3 class="hw-heading">${correct ? "맞았습니다." : "선택 기준을 다시 확인하세요."}</h3>
-      <p class="hw-text">${next.request.cylinder}번을 고릅니다. ${algorithm === "fcfs" ? "남은 요청 중 먼저 도착했기 때문입니다." : `현재 ${next.before.head}에서 ${next.distance}칸으로 가장 가깝습니다.`}</p>
+      <p class="hw-text">${predictionFeedback(next, Number(b.dataset.answer))}</p>
       <button class="hw-key hw-key--accent" data-action="verify">실제 이동으로 확인 ${icon("arrow")}</button>
     </div>`;
   $('[data-action="verify"]').focus();

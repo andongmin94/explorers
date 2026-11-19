@@ -1,6 +1,7 @@
 // The memory explorer's isometric scene: CPU, page table, RAM frames and SSD
 // on one floor. Pages are tokens: the SSD keeps the originals A–E, the RAM
 // frames hold copies, and one access moves them along the floor paths.
+import { josa } from "./josa.js";
 import {
   callout,
   chip,
@@ -129,6 +130,8 @@ function ranks(frames, algorithm) {
   return new Map(order.map((frame, i) => [frame.slot, i + 1]));
 }
 
+const F = (slot, particle) => josa(`F${slot}`, particle, { digits: "ko" });
+
 export const replacementReason = (policy, frame) =>
   policy === "fifo"
     ? `가장 먼저 적재된 ${frame.page} 교체 (적재 ${frame.loadedAt}번째)`
@@ -233,7 +236,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       phase("ready", "RAM 프레임 3개가 비어 있습니다 · 첫 요청은 A", "페이지 테이블은 각 페이지의 상주 여부와 RAM 프레임 번호를 기록합니다.");
       return;
     }
-    let outcome = step.hit ? "RAM 적중" : "빈 프레임에 적재";
+    let outcome = step.hit ? "적중" : "빈 프레임에 적재";
     if (step.victim) {
       const { reason } = step.events.find((event) => event.type === "select");
       outcome = replacementReason(reason, step.before[step.frameIndex]);
@@ -241,7 +244,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     phase(
       "access",
       `${step.index}번째 ${step.page} 접근 완료 · ${outcome}`,
-      step.hit ? "RAM에 있던 페이지를 그대로 사용했습니다." : "SSD에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
+      step.hit ? "RAM에 있던 페이지를 그대로 사용했습니다. 운영체제는 관여하지 않았습니다." : "저장장치에서 페이지를 읽어 RAM에 적재한 뒤 접근을 완료했습니다.",
     );
   }
 
@@ -284,7 +287,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
     const slot = step.frameIndex;
 
     paintRequest("pending");
-    phase("lookup", `페이지 테이블에서 ${page} 항목을 조회합니다`, "CPU의 주소 변환 장치가 요청한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.");
+    phase("lookup", `페이지 테이블에서 ${page} 항목을 조회합니다`, "CPU가 가상 주소에 접근하면 주소 변환 장치(MMU)가 그 주소가 속한 페이지의 항목을 읽습니다. 상주 중이면 이 항목에서 RAM 프레임 번호를 얻습니다.");
     emphasis({ path: "lookup", entry: page });
     const probe = mover(page, { size: 0.8 });
     place(probe, ...cpuPoint(0.55));
@@ -297,7 +300,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
       if (!alive(active)) return;
       if (event.type === "hit") {
         emphasis({ ring: "hit", slot, entry: page });
-        phase("hit", `적중 · ${page}가 F${slot}에 있습니다`, `페이지 테이블의 ${page} 항목이 F${slot}을 가리킵니다. 이 프레임을 바로 읽습니다.`);
+        phase("hit", `적중 · ${page}가 F${slot}에 있습니다`, `페이지 테이블의 ${page} 항목이 ${F(slot, "를")} 가리킵니다. MMU가 이 프레임의 주소로 바로 변환하고, 운영체제는 관여하지 않습니다.`);
         await hold(600, active);
       } else if (event.type === "miss") {
         emphasis({ entry: page });
@@ -318,7 +321,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         );
         await hold(event.victim ? 1500 : 900, active);
       } else if (event.type === "evict") {
-        phase("evict", `F${slot}의 ${event.page} 복사본만 제거합니다`, `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 SSD에 다시 쓸 필요는 없습니다.`);
+        phase("evict", `F${slot}의 ${event.page} 사본만 제거합니다`, `${event.page}의 페이지 테이블 항목도 미상주로 바꿉니다. 읽기 전용이므로 저장장치에 다시 쓸 필요는 없습니다.`);
         const gone = mover(event.page);
         place(gone, ...slotPoint(slot));
         tokenEls[slot].innerHTML = "";
@@ -334,7 +337,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         if (!alive(active)) return;
         await hold(120, active);
       } else if (event.type === "load") {
-        phase("load", `SSD에서 ${page}를 읽어 F${slot}에 적재합니다`, `SSD에 있는 원본을 F${slot}으로 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → F${slot}을 기록합니다.`);
+        phase("load", `저장장치에서 ${page}를 읽어 F${slot}에 적재합니다`, `저장장치의 원본을 ${F(slot, "로")} 복사합니다. 적재를 마치면 페이지 테이블에 ${page} → ${F(slot, "를")} 기록합니다.`);
         emphasis({ path: "load", ring: "select", slot });
         flow("load", active);
         const copy = mover(page);
@@ -347,7 +350,7 @@ export function createMemoryScene(host, { onPhase = () => {} } = {}) {
         emphasis({ ring: "hit", slot });
       } else if (event.type === "access") {
         if (step.fault) {
-          phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 F${slot}을 가리킵니다.`);
+          phase("retry", `CPU가 ${page} 접근을 다시 시도합니다`, `같은 가상 주소로 재시도하면 갱신된 페이지 테이블이 ${F(slot, "를")} 가리킵니다.`);
           emphasis({ path: "lookup", entry: page, ring: "hit", slot });
           flow("lookup", active);
           const retry = mover(page, { size: 0.8 });

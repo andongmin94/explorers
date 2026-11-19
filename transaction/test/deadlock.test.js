@@ -7,6 +7,8 @@ import {
 import {
   describeDeadlockStep,
   DEADLOCK_MILESTONES,
+  deadlockPrediction,
+  DEADLOCK_NOTES,
 } from "../src/deadlock-lesson.js";
 
 test("opposite row requests form a cycle only after both waits exist", () => {
@@ -108,4 +110,26 @@ test("every lesson has an independent snapshot with consistent lock bookkeeping"
   assert.equal(steps[9].state.rows.A.committed, 10);
   assert.equal(steps[10].before.rows.A.committed, 10);
   assert.equal(simulateDeadlock().stats.finalStocks.A, 9);
+});
+
+test("prediction asks for B after the abort; the answer comes from the run", () => {
+  const run = simulateDeadlock();
+  const q = deadlockPrediction(run);
+  assert.equal(q.answerId, String(run.steps[8].state.rows.B.committed));
+  assert.equal(q.answerId, "20");
+  assert.deepEqual(q.options.map((o) => o.id).sort(), ["19", "20", "21"]);
+  assert.notEqual(q.options[0].id, q.answerId);
+  for (const o of q.options) assert.ok(o.feedback.length > 20);
+  assert.match(q.options.find((o) => o.id === q.answerId).feedback, /다시 보낼 필요 없이/);
+});
+
+test("deadlock lesson names the abort, the error, detection timing and prevention", () => {
+  const { steps } = simulateDeadlock();
+  const rollback = describeDeadlockStep(steps[8]);
+  assert.match(rollback.title, /중단·롤백/);
+  assert.match(rollback.summary, /40P01/);
+  assert.match(describeDeadlockStep(steps[7]).details.join(" "), /deadlock_timeout/);
+  assert.match(describeDeadlockStep(steps[9]).details.join(" "), /18/);
+  assert.match(describeDeadlockStep(steps[10]).details.join(" "), /ORDER BY id FOR UPDATE/);
+  assert.doesNotMatch(DEADLOCK_NOTES.join(" "), /희생자/);
 });

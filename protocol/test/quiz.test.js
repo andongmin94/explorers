@@ -56,3 +56,43 @@ test("getQuizForStep offers the question for the packet about to be sent", () =>
   assert.equal(getQuizForStep(dhcp, { ...at(1), done: true }), null);
   assert.equal(getQuizForStep(lessonsById.http, at(0)), null, "no question before HTTP's DNS query");
 });
+
+test("the semantic answer kinds read acknowledgement, RD bit, delivery and connection opener", () => {
+  const tcp = getLessonPackets(lessonsById.tcp);
+  assert.equal(getPacketAnswer(tcp[4], "ack"), "79", "78 bytes from Seq=1 are acknowledged as 79");
+  assert.equal(getPacketAnswer(tcp[7], "ack"), "1", "the duplicate ACK still asks for byte 1");
+  assert.equal(getPacketAnswer(tcp[9], "ack"), "2921", "after the resend both segments are acknowledged");
+  const dns = getLessonPackets(lessonsById.dns);
+  assert.equal(getPacketAnswer(dns[0], "rd"), "1", "laptop → resolver is recursive");
+  for (const i of [1, 3, 5]) assert.equal(getPacketAnswer(dns[i], "rd"), "0", `resolver query ${i} is iterative`);
+  assert.equal(getPacketAnswer(tcp[0], "rd"), null);
+  const dhcp = getLessonPackets(lessonsById.dhcp);
+  assert.equal(getPacketAnswer(dhcp[0], "delivery"), "broadcast");
+  assert.equal(getPacketAnswer(dhcp[1], "delivery"), "unicast");
+  assert.equal(getPacketAnswer(dhcp[2], "delivery"), "broadcast");
+  const ftp = getLessonPackets(lessonsById.ftp);
+  assert.equal(getPacketAnswer(ftp[12], "connect"), "client>web:50069", "in passive mode the client opens the data connection");
+});
+
+test("choices never show internal node ids", () => {
+  for (const lessonId of Object.keys(lessonQuizzes)) {
+    for (const quiz of getLessonQuizzes(lessonsById[lessonId])) {
+      for (const choice of quiz.choices) {
+        assert.doesNotMatch(choice.text, /\b(client|router|dns|web|root|tld|auth|mx)>/, `${lessonId} packet ${quiz.packet}: ${choice.text}`);
+      }
+    }
+  }
+  const smtp = getLessonQuizzes(lessonsById.smtp).find((quiz) => quiz.kind === "route");
+  assert.match(smtp.choices.find((c) => c.correct).text, /DNS 리졸버/);
+  const dns = getLessonQuizzes(lessonsById.dns).find((quiz) => quiz.kind === "route");
+  assert.match(dns.choices.find((c) => c.correct).text, /\.com TLD/);
+});
+
+test("lessons do not repeat another lesson's question", () => {
+  const asked = getLessonQuizzes(lessonsById.http).map((quiz) => quiz.answer);
+  assert.ok(!asked.includes("SYN, ACK"), "the SYN-ACK question lives in the TCP lesson");
+  const https = getLessonQuizzes(lessonsById.https).map((quiz) => quiz.answer);
+  assert.ok(!https.includes("CLIENT HELLO"), "the Client Hello question lives in the TLS lesson");
+  const prompts = Object.values(lessonQuizzes).flat().map((q) => q.prompt);
+  assert.equal(new Set(prompts).size, prompts.length);
+});

@@ -51,7 +51,7 @@ test("process details account for every elapsed millisecond without treating I/O
           history.filter((entry) => entry.states[process.id].status === status)
             .length;
         const cpu = Number.parseFloat(metric(details, "CPU 실행"));
-        const ready = Number.parseFloat(metric(details, "CPU 대기"));
+        const ready = Number.parseFloat(metric(details, "대기 시간(준비 큐)"));
         const io = Number.parseFloat(metric(details, "입출력 대기"));
         assert.equal(cpu, spent("running"));
         assert.equal(ready, spent("ready"));
@@ -98,7 +98,7 @@ test("P1 retains its completed CPU work across the 13–17ms I/O boundary", () =
   ]);
   for (const time of [13, 15, 17]) {
     assert.equal(metric(at(time), "CPU 실행"), "5 ms");
-    assert.equal(metric(at(time), "CPU 대기"), "8 ms");
+    assert.equal(metric(at(time), "대기 시간(준비 큐)"), "8 ms");
   }
   assert.equal(metric(at(20), "CPU 실행"), "8 ms");
   assert.equal(metric(at(20), "입출력 대기"), "4 ms");

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { CONTENTS, RESOLUTIONS, indexMatchesHead, simulateGit } from "../src/engine.js";
-import { describeStep } from "../src/lesson.js";
+import { BUTTONS, CONTENTS, RESOLUTIONS, indexMatchesHead, simulateGit } from "../src/engine.js";
+import { PREDICTIONS, describeStep } from "../src/lesson.js";
 
 test("branch creation and staging move no commit pointers", () => {
   const { steps } = simulateGit();
@@ -136,4 +136,56 @@ test("events retain independent before/after snapshots and independent runs", ()
   assert.equal(steps[10].before.commits[0].message, "산책 안내 만들기");
   assert.equal(steps[10].before.index.stages.base, CONTENTS.base);
   assert.equal(simulateGit().steps[0].state.refs.main, "C0");
+});
+
+test("the button line changed only on main merges on its own beside the title conflict", () => {
+  const { steps } = simulateGit();
+  const line = (content) => content.split("\n").find((l) => l.startsWith("버튼:"));
+  assert.equal(line(steps[4].state.commits.at(-1).content), `버튼: ${BUTTONS.base}`);
+  assert.equal(line(steps[8].state.commits.at(-1).content), `버튼: ${BUTTONS.main}`);
+  const conflict = steps[9].state.working;
+  // Exactly one conflict hunk (the title); the button sits outside it with main's change.
+  assert.equal(conflict.match(/<<<<<<< /g).length, 1);
+  assert.match(conflict, />>>>>>> feature\/title\n출발: 공원 입구\n버튼: 동네 코스 보기\n$/);
+  for (const option of RESOLUTIONS) {
+    const final = simulateGit(option.id).steps[12].state.commits.at(-1).content;
+    assert.equal(line(final), `버튼: ${BUTTONS.main}`, option.id);
+  }
+  assert.notEqual(RESOLUTIONS.find((r) => r.id === "theirs").content, CONTENTS.feature);
+});
+
+test("git status output follows the index: unmerged until git add, then still merging", () => {
+  for (const option of RESOLUTIONS) {
+    const { steps } = simulateGit(option.id);
+    for (const i of [9, 10]) {
+      assert.equal(steps[i].state.index.status, "unmerged");
+      assert.ok(describeStep(steps[i]).terminal.some((l) => l.includes("both modified:   welcome.txt")));
+    }
+    const after = describeStep(steps[11]).terminal;
+    assert.ok(after.includes("All conflicts fixed but you are still merging."));
+    assert.equal(after.some((l) => l.includes("Changes to be committed")), option.id !== "ours");
+    assert.equal(describeStep(steps[12]).terminal, undefined);
+  }
+});
+
+test("predictions agree with the model they ask about", () => {
+  assert.deepEqual(Object.keys(PREDICTIONS).map(Number), [8, 10, 11]);
+  for (const [at, q] of Object.entries(PREDICTIONS)) {
+    assert.equal(q.choices.filter((c) => c.correct).length, 1, `step ${at}`);
+    assert.equal(q.verify.step, Number(at) + 1);
+  }
+  const { steps } = simulateGit("ours");
+  // 8: HEAD stays on main → C2 after the conflicted merge.
+  assert.equal(PREDICTIONS[8].choices.find((c) => c.correct).id, "stay");
+  assert.equal(steps[9].state.refs.main, "C2");
+  assert.equal(steps[9].state.commits.length, 3);
+  // 10: editing the file is not a resolution; git add is.
+  assert.equal(PREDICTIONS[10].choices.find((c) => c.correct).id, "add");
+  assert.equal(steps[10].state.index.status, "unmerged");
+  assert.equal(steps[11].state.index.stages, null);
+  // 11: even with main's sentence (tree equal to C2), C3 has two parents: HEAD and MERGE_HEAD.
+  assert.equal(PREDICTIONS[11].choices.find((c) => c.correct).id, "two");
+  assert.ok(indexMatchesHead(steps[11].state));
+  assert.equal(steps[11].state.merge.theirs, "C1");
+  assert.deepEqual(steps[12].state.commits.at(-1).parents, ["C2", steps[11].state.merge.theirs]);
 });

@@ -55,3 +55,20 @@ export function simulate(
   }
   return { algorithm, steps, total, order: completed.map((r) => r.cylinder) };
 }
+
+/**
+ * LOOK: sweep in one direction to the farthest request, then reverse. Used
+ * only for the comparison note (SSTF is not the minimum even here).
+ */
+export function look(requests = REQUESTS, initialHead = INITIAL_HEAD, direction = "down") {
+  const below = requests.filter((c) => c < initialHead).sort((a, b) => b - a);
+  const above = requests.filter((c) => c >= initialHead).sort((a, b) => a - b);
+  const order = direction === "down" ? [...below, ...above] : [...above, ...below];
+  let head = initialHead,
+    total = 0;
+  for (const c of order) {
+    total += Math.abs(c - head);
+    head = c;
+  }
+  return { order, total };
+}

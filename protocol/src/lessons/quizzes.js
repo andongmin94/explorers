@@ -37,13 +37,6 @@ const lessonQuizzes = {
       choices: [port(80), port(443), port(53), port(22)],
       explain: "주소가 http://로 시작하므로 HTTP의 기본 포트 80을 씁니다. 출발 포트(52344)는 운영체제가 임시로 고른 번호입니다.",
     },
-    {
-      packet: 3,
-      kind: "flags",
-      prompt: "SYN을 받은 웹 서버는 어떤 플래그를 켜서 답할까요?",
-      choices: [["SYN"], ["SYN, ACK"], ["ACK"], ["FIN, ACK"]],
-      explain: "서버는 클라이언트의 SYN을 확인(ACK)하면서 자기 쪽 시작 번호도 알려야(SYN) 하므로 두 플래그를 한 세그먼트에 함께 켭니다.",
-    },
   ],
   https: [
     {
@@ -52,13 +45,6 @@ const lessonQuizzes = {
       prompt: "https:// 주소입니다. 브라우저는 서버의 어느 포트로 연결할까요?",
       choices: [port(443), port(80), port(53), port(22)],
       explain: "HTTPS의 기본 포트는 443입니다. 같은 서버라도 80번은 암호화하지 않은 HTTP용입니다.",
-    },
-    {
-      packet: 5,
-      kind: "message",
-      prompt: "TCP 연결이 열렸습니다. 브라우저가 가장 먼저 보내는 것은?",
-      choices: [["CLIENT HELLO"], ["GET /"], ["SERVER HELLO"], ["APP DATA"]],
-      explain: "HTTP 요청보다 먼저 TLS 핸드셰이크가 시작됩니다. Client Hello에는 지원하는 암호 방식, 키 공유 값, 접속할 이름(SNI)이 담깁니다.",
     },
     {
       packet: 8,
@@ -84,6 +70,13 @@ const lessonQuizzes = {
       explain: "서버의 시작 번호를 확인하는 ACK 하나로 3방향 핸드셰이크가 끝나고, 이제 양쪽 모두 데이터를 보낼 수 있습니다.",
     },
     {
+      packet: 4,
+      kind: "ack",
+      prompt: "노트북이 Seq=1부터 78바이트짜리 요청을 보냈습니다. 서버가 돌려보내는 ACK 번호는?",
+      choices: [["79", "79 · 다음에 받을 바이트 번호"], ["78", "78 · 받은 바이트 수"], ["1", "1 · 요청의 시작 번호"], ["1461", "1461 · 한 세그먼트(1460바이트) 뒤"]],
+      explain: "ACK 번호는 ‘여기까지 다 받았으니 다음에는 이 바이트부터 보내라’는 뜻입니다. 1부터 78바이트를 받았으므로 다음 바이트는 1+78=79입니다.",
+    },
+    {
       packet: 7,
       kind: "message",
       prompt: "첫 번째 세그먼트가 사라지고 두 번째만 도착했습니다. 노트북은 무엇을 보낼까요?",
@@ -95,7 +88,14 @@ const lessonQuizzes = {
       kind: "message",
       prompt: "서버는 빠진 세그먼트를 어떻게 처리할까요?",
       choices: [["RESEND", "재전송 · 빠진 1460바이트만 다시 보냄"], ["DATA", "DATA · 다음 데이터를 계속 보냄"], ["FIN", "FIN · 연결을 닫음"], ["SYN", "SYN · 연결을 새로 엶"]],
-      explain: "중복 ACK 하나로는 빠른 재전송이 일어나지 않습니다. 재전송 타이머(RTO)가 만료되자 서버는 SACK로 비어 있다고 알려진 구간만 다시 보냅니다.",
+      explain: "중복 ACK 하나로는 빠른 재전송이 일어나지 않습니다. 재전송 타이머(RTO, 확인 응답을 기다리는 최대 시간)가 만료되자 서버는 SACK로 비어 있다고 알려진 구간만 다시 보냅니다.",
+    },
+    {
+      packet: 9,
+      kind: "ack",
+      prompt: "빠졌던 1–1460바이트가 재전송으로 도착했습니다. 1461–2920은 이미 받아 두었습니다. 노트북의 ACK 번호는?",
+      choices: [["2921", "2921 · 두 세그먼트 모두 확인"], ["1461", "1461 · 재전송분까지만 확인"], ["1", "1 · 다시 중복 ACK"], ["2920", "2920 · 마지막 바이트 번호"]],
+      explain: "빈틈이 메워졌으므로 누적 ACK는 SACK로 보관하던 구간까지 한 번에 건너뜁니다. 2920바이트까지 다 받았으니 다음 바이트 2921을 요청합니다.",
     },
     {
       packet: 11,
@@ -118,7 +118,7 @@ const lessonQuizzes = {
     {
       packet: 0,
       kind: "message",
-      prompt: "목적지는 다른 네트워크에 있습니다. 노트북이 가장 먼저 보내는 것은?",
+      prompt: "목적지는 다른 네트워크에 있고, ARP 캐시가 비어 있습니다. 노트북이 가장 먼저 보내는 것은?",
       choices: [["ARP REQUEST", "ARP 요청 · 라우터의 MAC 주소 묻기"], ["IP PACKET", "IP 패킷 · 바로 서버로"], ["DNS QUERY", "DNS 쿼리"], ["REPLY", "응답"]],
       explain: "IP 패킷을 라우터에 건네려면 이더넷 프레임에 라우터의 MAC 주소를 적어야 합니다. 모르면 ARP로 먼저 묻습니다.",
     },
@@ -127,29 +127,29 @@ const lessonQuizzes = {
       kind: "sport",
       prompt: "라우터가 NAT를 적용해 패킷을 내보냅니다. 출발 포트는 몇 번이 될까요?",
       choices: [["40112", "40112 · 라우터가 새로 고른 포트"], ["52344", "52344 · 노트북이 쓴 포트 그대로"], ["443", "443 · 목적지 포트와 같게"], ["80", "80"]],
-      explain: "NAT는 출발 주소를 공인 주소로 바꾸고, 여러 기기를 구별하려고 출발 포트도 새 번호로 바꿔 표에 기록합니다. 응답은 이 표로 다시 노트북에 돌아갑니다.",
+      explain: "NAT는 출발 주소를 공인 주소로 바꾸고 그 대응을 표에 기록합니다. 이 예시의 라우터는 출발 포트도 40112로 바꿨습니다. 포트가 겹치지 않으면 그대로 두는 NAT도 많습니다. 응답은 이 표로 다시 노트북에 돌아갑니다.",
     },
   ],
   dns: [
     {
       packet: 1,
-      kind: "route",
-      prompt: "리졸버의 캐시에 답이 없습니다. 리졸버는 누구에게 먼저 물을까요?",
-      choices: [["dns>root"], ["dns>tld"], ["dns>auth"], ["dns>client"]],
-      explain: "리졸버는 이름의 맨 끝, 루트(.)부터 내려갑니다. 루트 서버 주소는 리졸버에 미리 들어 있습니다.",
+      kind: "rd",
+      prompt: "캐시에 답이 없어 리졸버가 루트 서버에 묻습니다. 이 질의의 RD 비트는?",
+      choices: [["0", "RD=0 · 반복 질의 (아는 만큼만 알려 달라)"], ["1", "RD=1 · 재귀 질의 (끝까지 찾아 달라)"]],
+      explain: "노트북은 리졸버에 RD=1로 재귀 질의를 보내 조회 전체를 맡겼습니다. 리졸버는 루트·TLD·권한 서버에 RD=0으로 반복 질의를 하며 직접 한 단계씩 내려갑니다. 루트 서버 주소는 리졸버에 미리 들어 있습니다.",
     },
     {
       packet: 2,
       kind: "message",
       prompt: "루트 서버는 www.example.com의 주소를 알까요? 무엇을 돌려줄까요?",
       choices: [["REFERRAL", "리퍼럴 · .com 서버 목록"], ["ANSWER", "응답 · 최종 IP 주소"], ["DNS QUERY", "다른 서버에 대신 물어봄"]],
-      explain: "루트 서버는 최종 답을 모릅니다. 대신 .com을 맡은 TLD 서버들의 이름과 주소(글루)를 알려 주고 거기서 계속 물으라고 합니다.",
+      explain: "루트 서버는 최종 답을 모릅니다. 대신 .com을 맡은 TLD 서버들의 이름과 주소를 알려 주고 거기서 계속 물으라고 합니다. 이름과 함께 실어 주는 주소를 글루라고 하며, 덕분에 리졸버는 그 서버 이름을 따로 조회하지 않아도 됩니다.",
     },
     {
       packet: 3,
       kind: "route",
       prompt: "리퍼럴을 받은 리졸버는 이제 누구에게 물을까요?",
-      choices: [["dns>tld"], ["dns>root"], ["dns>auth"], ["dns>client"]],
+      choices: [["dns>tld", ".com TLD 서버"], ["dns>root", "루트 서버에 다시"], ["dns>auth", "example.com의 권한 있는 서버"], ["dns>client", "노트북에 리퍼럴을 그대로 전달"]],
       explain: "리퍼럴에 적힌 .com TLD 서버로 같은 질문을 다시 보냅니다. 한 단계씩 이름의 오른쪽에서 왼쪽으로 내려갑니다.",
     },
     {
@@ -170,10 +170,10 @@ const lessonQuizzes = {
     },
     {
       packet: 1,
-      kind: "message",
-      prompt: "DISCOVER를 들은 라우터(DHCP 서버)는 무엇으로 답할까요?",
-      choices: [["OFFER"], ["ACK"], ["REQUEST"], ["DISCOVER"]],
-      explain: "서버는 쓸 수 있는 주소 하나와 서브넷·게이트웨이·DNS·임대 기간을 OFFER로 제안합니다. 아직 확정은 아닙니다.",
+      kind: "delivery",
+      prompt: "라우터(DHCP 서버)가 OFFER로 주소를 제안합니다. 이 OFFER는 브로드캐스트일까요?",
+      choices: [["unicast", "아니요 · 노트북의 MAC 주소로 바로 (유니캐스트)"], ["broadcast", "예 · 255.255.255.255로 모두에게 (브로드캐스트)"]],
+      explain: "노트북이 DISCOVER에서 브로드캐스트 플래그를 끄고 보냈으므로, 서버는 노트북의 MAC 주소와 제안할 주소(yiaddr)로 바로 보냅니다. 플래그를 켜는 클라이언트에게는 브로드캐스트로 답합니다.",
     },
     {
       packet: 2,
@@ -225,7 +225,7 @@ const lessonQuizzes = {
       packet: 15,
       kind: "route",
       prompt: "메일을 받은 smtp.example.com은 상대 메일 서버를 찾으려고 누구에게 물을까요?",
-      choices: [["web>dns"], ["web>mx"], ["web>client"]],
+      choices: [["web>dns", "DNS 리졸버 · MX 레코드 조회"], ["web>mx", "mx.example.org에 바로 연결"], ["web>client", "Alice의 메일 앱에 되묻기"]],
       explain: "받는 주소의 도메인(example.org)에 대한 MX 레코드를 DNS에 묻습니다. 그 답이 메일을 받을 서버의 이름입니다.",
     },
     {
@@ -254,6 +254,13 @@ const lessonQuizzes = {
   ],
   imap: [
     {
+      packet: 13,
+      kind: "message",
+      prompt: "FETCH로 2번 메일 본문을 받았습니다. 이 메일은 서버에 남을까요? 앱의 다음 명령은?",
+      choices: [["a4 IDLE", "a4 IDLE · 메일은 서버에 둔 채 새 메일을 기다림"], ["DELE 2", "DELE 2 · POP3처럼 서버에서 지움"], ["a4 LOGOUT", "a4 LOGOUT · 받았으니 연결을 끝냄"]],
+      explain: "IMAP에서 FETCH는 사본을 받을 뿐 메일은 서버에 남고 \\Seen 표시만 붙습니다. 그래서 휴대폰과 웹메일에서도 같은 메일이 보입니다. POP3 레슨에서는 RETR 뒤 DELE로 서버에서 지웠습니다.",
+    },
+    {
       packet: 0,
       kind: "port",
       prompt: "메일 앱이 IMAP 서버에 연결합니다. 암호화된 IMAP의 포트는?",
@@ -278,10 +285,15 @@ const lessonQuizzes = {
     },
     {
       packet: 12,
-      kind: "port",
-      prompt: "227 응답의 (203,0,113,21,195,149)를 받았습니다. 데이터 연결은 어느 포트로?",
-      choices: [["50069", "50069 · 195×256+149"], port(21), ["20", "20"], ["195149", "195149"]],
-      explain: "마지막 두 수는 포트의 상위·하위 바이트입니다. 195×256+149=50069이므로 클라이언트가 그 포트로 두 번째 TCP 연결을 엽니다.",
+      kind: "connect",
+      prompt: "PASV에 227 (203,0,113,21,195,149)로 답이 왔습니다. 데이터 연결을 여는 쪽과 포트는?",
+      choices: [
+        ["client>web:50069", "클라이언트가 서버의 50069번으로 (195×256+149)"],
+        ["web>client:20", "서버가 20번 포트에서 클라이언트로"],
+        ["client>web:21", "클라이언트가 서버의 21번으로"],
+        ["client>web:195149", "클라이언트가 서버의 195149번으로"],
+      ],
+      explain: "패시브 모드에서는 클라이언트가 데이터 연결을 엽니다. 마지막 두 수는 포트의 상위·하위 바이트라 195×256+149=50069입니다. 액티브 모드라면 클라이언트가 PORT로 자기 주소를 알려 주고 서버가 20번 포트에서 거꾸로 연결해 NAT·방화벽에 막히기 쉽습니다.",
     },
   ],
   ssh: [
@@ -289,21 +301,21 @@ const lessonQuizzes = {
       packet: 3,
       kind: "message",
       prompt: "TCP 연결이 열렸습니다. SSH에서 가장 먼저 오가는 것은?",
-      choices: [["VERSION", "버전 문자열 (SSH-2.0-…)"], ["KEXINIT", "키 교환 시작"], ["SERVICE REQUEST", "로그인 서비스 요청"], ["NEWKEYS"]],
+      choices: [["VERSION", "버전 문자열 (SSH-2.0-…)"], ["KEXINIT", "키 교환 시작"], ["SERVICE REQUEST", "로그인 서비스 요청"], ["NEWKEYS", "새 키 사용 시작 (NEWKEYS)"]],
       explain: "양쪽은 먼저 평문 한 줄로 SSH 버전과 프로그램 이름을 교환합니다. 그다음 키 교환 알고리즘을 협상합니다.",
     },
     {
       packet: 14,
       kind: "message",
       prompt: "클라이언트가 'none' 방식으로 로그인을 시도했습니다. 서버의 답은?",
-      choices: [["AUTH FAILURE", "실패 · 가능한 방식 목록과 함께"], ["SUCCESS", "로그인 성공"], ["PK OK", "공개키 승인"], ["SERVICE ACCEPT"]],
+      choices: [["AUTH FAILURE", "실패 · 가능한 방식 목록과 함께"], ["SUCCESS", "성공 · 바로 로그인"], ["PK OK", "공개 키 승인 (PK_OK)"], ["SERVICE ACCEPT", "서비스 수락 (SERVICE_ACCEPT)"]],
       explain: "none은 서버가 허용하는 인증 방식을 알아보려는 시도입니다. 서버는 실패와 함께 publickey,password 같은 목록을 돌려줍니다.",
     },
     {
       packet: 22,
       kind: "message",
       prompt: "사용자가 p 키를 눌렀습니다. 서버는 무엇을 돌려보낼까요?",
-      choices: [["ECHO", "에코 · 글자를 되돌려 화면에 표시"], ["OUTPUT", "명령 실행 결과"], ["SUCCESS"], ["CONFIRMED"]],
+      choices: [["ECHO", "에코 · 글자를 되돌려 화면에 표시"], ["OUTPUT", "명령 실행 결과"], ["SUCCESS", "요청 성공 알림 (SUCCESS)"], ["CONFIRMED", "채널 열림 확인 (CONFIRMED)"]],
       explain: "원격 셸은 입력한 글자를 되돌려 보내 터미널에 표시합니다. 그래서 키 하나에도 암호화된 패킷이 왕복합니다.",
     },
   ],
@@ -313,14 +325,14 @@ const lessonQuizzes = {
       kind: "message",
       prompt: "TCP 핸드셰이크가 끝났습니다. TLS를 시작하는 첫 메시지는?",
       choices: [["CLIENT HELLO"], ["SERVER HELLO"], ["FINISHED"], ["APP DATA"]],
-      explain: "브라우저가 Client Hello로 지원하는 암호 방식과 키 공유 값을 먼저 보냅니다. TLS 1.3에서는 이 한 번에 키 재료까지 실립니다.",
+      explain: "브라우저가 Client Hello로 지원하는 암호 스위트와 키 공유 값을 먼저 보냅니다. TLS 1.3에서는 이 한 번에 키 재료까지 실립니다.",
     },
     {
       packet: 4,
       kind: "message",
       prompt: "Client Hello를 받은 서버는 무엇으로 답할까요?",
       choices: [["SERVER HELLO"], ["FINISHED"], ["TICKETS"], ["APP DATA"]],
-      explain: "Server Hello로 암호 방식을 고르고 자기 키 공유 값을 보냅니다. 이후 인증서와 Finished는 이미 암호화되어 이어집니다.",
+      explain: "Server Hello로 암호 스위트를 고르고 자기 키 공유 값을 보냅니다. 이후 인증서와 Finished는 이미 암호화되어 이어집니다.",
     },
     {
       packet: 7,

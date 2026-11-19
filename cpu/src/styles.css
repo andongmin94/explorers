@@ -188,6 +188,11 @@ body {
   min-height: 36px;
   padding: 6px 0;
 }
+.cpu-events li.cpu-event-note {
+  min-height: 0;
+  font-size: var(--fs-1);
+  line-height: 1.5;
+}
 .hw-side .hw-note {
   margin: 0;
 }
@@ -505,6 +510,9 @@ body {
   white-space: normal;
   text-align: left;
 }
+.cpu-choices--numbers {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .cpu-choices .hw-key .hw-tag {
   margin-inline-start: auto;
 }
@@ -543,6 +551,9 @@ body {
 }
 .cpu-cell-help {
   display: block;
+  font-size: var(--fs-1);
+}
+.cpu-sweep {
   font-size: var(--fs-1);
 }
 .cpu-compare-table td.is-better {

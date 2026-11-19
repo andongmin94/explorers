@@ -119,10 +119,10 @@ function sceneSvg(wide) {
       <g id="disk-head-ring"></g>
     </g>
     <g id="disk-arm"></g>
-    ${callout({ x: 1.4, y: 0.2, z: QUEUE.h, dx: -30, dy: -64, title: "요청 큐", sub: "ARRIVAL ORDER" })}
-    ${callout({ x: CTRL.x + 0.4, y: CTRL.y + 0.6, z: ctrl.top, dx: -6, dy: -74, title: "컨트롤러", sub: "PICKS NEXT" })}
-    ${callout({ x: DRIVE.x + DRIVE.w, y: DRIVE.y + 1.2, z: drive.top, dx: 40, dy: -64, title: "하드 디스크", sub: "CYL 0 OUTER · 199 INNER" })}
-    ${callout({ x: rx(0), y: ry(8), z: Z_FLOOR, dx: -36, dy: -58, title: "헤드 이동 경로", sub: "CYLINDER × ORDER" })}
+    ${callout({ x: 1.4, y: 0.2, z: QUEUE.h, dx: -30, dy: -64, title: "요청 큐 · OS 스케줄러", sub: "도착 순서 · 다음 요청 선택" })}
+    ${callout({ x: CTRL.x + 0.4, y: CTRL.y + 0.6, z: ctrl.top, dx: -6, dy: -74, title: "컨트롤러", sub: "고른 요청 실행" })}
+    ${callout({ x: DRIVE.x + DRIVE.w, y: DRIVE.y + 1.2, z: drive.top, dx: 40, dy: -64, title: "하드 디스크", sub: "실린더 0 바깥쪽 · 199 안쪽" })}
+    ${callout({ x: rx(0), y: ry(8), z: Z_FLOOR, dx: -36, dy: -58, title: "헤드 이동 경로", sub: "실린더 × 처리 순서" })}
     <g id="disk-tokens">${REQUESTS.map(
       (c, i) => `<g class="disk-token" data-id="${i + 1}">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: 1.08, h: 0.5 })}</g>`,
     ).join("")}</g>

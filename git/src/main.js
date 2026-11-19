@@ -6,8 +6,8 @@ import "../../shared/iso.js";
 import { bindSliders, icon, syncSlider } from "../../shared/hw.js";
 import { paginate, plateTabs, rowWindow } from "../../shared/fit.js";
 import { simulateGit, RESOLUTIONS, FILE_NAME } from "./engine.js";
-import { createGitScene, contentKind } from "./scene.js";
-import { describeStep, MILESTONES, SOURCES, PREDICTION } from "./lesson.js";
+import { createGitScene, contentKind, hasMainButton } from "./scene.js";
+import { describeStep, MILESTONES, SOURCES, PREDICTIONS } from "./lesson.js";
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -41,7 +41,7 @@ const indexNames = {
   clean: "커밋과 같음",
   staged: "다음 커밋 준비",
   unmerged: "미해결 세 버전",
-  comparing: "세 버전 대조 중",
+  comparing: "세 버전 기록 중",
 };
 const indexLabel = (state) =>
   state.merge && state.index.status === "staged" ? "해결 등록 완료" : indexNames[state.index.status];
@@ -50,11 +50,11 @@ const headCommit = (state) => state.commits.find((c) => c.id === state.refs[stat
 
 const glossary = [
   ["작업 트리", "디스크에서 직접 편집하는 파일입니다. 저장해도 Git 이력은 바뀌지 않습니다."],
-  ["인덱스 (스테이징)", "다음 커밋에 담을 스냅샷입니다. git add가 작업 트리의 내용을 여기에 복사합니다."],
+  ["인덱스(스테이징)", "다음 커밋에 담을 스냅샷입니다. git add가 작업 트리의 내용을 여기에 복사합니다."],
   ["커밋", "인덱스 스냅샷과 부모 커밋을 함께 기록한 이력의 한 지점입니다."],
   ["브랜치", "커밋 하나를 가리키는 이동 가능한 이름입니다. 커밋하면 현재 브랜치가 앞으로 이동합니다."],
   ["HEAD", "지금 작업 중인 브랜치를 가리킵니다. 이 시나리오에서 HEAD는 항상 브랜치를 거쳐 커밋을 가리킵니다."],
-  ["충돌", "두 브랜치가 공통 조상에서 같은 줄을 다르게 바꿔 자동 병합이 멈춘 상태입니다."],
+  ["충돌", "두 브랜치가 공통 조상에서 같은 줄(또는 맞닿은 줄)을 다르게 바꿔 자동 병합이 멈춘 상태입니다. 한쪽만 바꾼 줄은 Git이 자동으로 합칩니다."],
   [
     "모델의 범위",
     "로컬 저장소 하나, 브랜치 두 개, 파일 하나, 텍스트 충돌 하나의 고정 시나리오입니다. 원격 저장소·push·pull·rebase·fast-forward는 다루지 않습니다. C0–C3는 실제 해시가 아닌 이름이고, 장치 사이의 이동은 저장 상태의 변화를 나타낼 뿐 Git 내부 구조나 처리 시간이 아닙니다.",
@@ -130,9 +130,10 @@ $("#app").outerHTML = `
             <span class="hw-label">선택한 해결안</span>
             <div class="git-chosen"><strong id="chosen-label"></strong><button class="hw-key hw-key--sm" data-action="choose-again">다른 해결안으로</button></div>
           </div>
+          <div class="git-terminal" id="terminal"><span class="hw-label">git status 출력</span><pre class="hw-mono" id="terminal-text"></pre></div>
           <div class="hw-note hw-note--accent" id="takeaway"></div>
           <div id="predict-section">
-            <button class="hw-key git-wide" data-action="predict">병합하면 어떻게 될까? 먼저 맞혀보기${icon("arrow")}</button>
+            <button class="hw-key git-wide" data-action="predict"><span id="predict-label"></span>${icon("arrow")}</button>
           </div>
         </div>
       </div>
@@ -191,6 +192,7 @@ const now = {
   intro: $(".git-intro"),
   resolution: $("#resolution"),
   chosen: $("#chosen"),
+  terminal: $("#terminal"),
   takeaway: $("#takeaway"),
   predict: $("#predict-section"),
 };
@@ -230,8 +232,12 @@ function fileLines(content, head) {
       if (marker) side = { "<<<<<<<": "main", "=======": "feature", ">>>>>>>": null }[marker];
       let cls = marker ? "is-marker" : line.startsWith("제목:") ? "" : "is-plain";
       if (!marker && line.startsWith("제목:")) cls = `is-${kind === "conflict" ? side : kind}`;
+      // main's button change (C0 → C2) keeps main's colour, also once merged.
+      const button = line.startsWith("버튼:") && hasMainButton(`${line}\n`);
+      if (button) cls = "is-main";
+      const auto = button && kind === "conflict" ? '<span class="git-auto">자동 병합</span>' : "";
       const changed = head != null && lines.length === headLines.length && line !== headLines[i];
-      return `<li class="${cls} ${changed ? "is-changed" : ""}"><span class="git-ln">${i + 1}</span><span>${esc(line)}</span></li>`;
+      return `<li class="${cls} ${changed ? "is-changed" : ""}"><span class="git-ln">${i + 1}</span><span>${esc(line)}${auto}</span></li>`;
     })
     .join("");
 }
@@ -251,7 +257,7 @@ function renderWell(state) {
         return `<li class="is-${contentKind(content)}"><span class="git-ln">${n}</span><span><span class="git-stage-name">${label} ${state.merge?.[key] ?? ""}</span>${esc(titleOf(content))}</span></li>`;
       })
       .join("");
-    const heading = state.index.status === "comparing" ? "인덱스 · 세 버전 대조 중" : "인덱스 · stage 1·2·3";
+    const heading = state.index.status === "comparing" ? "인덱스 · 세 버전 기록 중" : "인덱스 · stage 1·2·3";
     idx = `<div class="git-well-col"><span class="git-well-head">${heading}</span><ol>${rows || '<li class="git-well-empty"><span class="git-ln"></span><span>…</span></li>'}</ol></div>`;
   } else {
     idx = `<div class="git-well-col"><span class="git-well-head">인덱스</span><ol>${fileLines(state.index.content, head.content)}</ol></div>`;
@@ -314,12 +320,15 @@ function render() {
   $("#eyebrow").textContent = lesson.eyebrow;
   $("#lesson-title").textContent = lesson.title;
   $("#lesson-body").textContent = lesson.body;
-  $("#command-label").textContent = step.command ? "실행 명령" : index === 0 ? "명령" : "작업 파일 편집";
+  $("#command-label").textContent = step.command ? "실행 명령" : index === 0 ? "명령" : "작업 트리 편집";
   $("#command").textContent =
     step.command ||
-    (index === 0 ? "아직 실행한 명령이 없습니다" : index === 10 ? "충돌 표시를 지우고 선택한 제목을 저장" : `${FILE_NAME}의 제목을 수정하고 저장`);
+    (index === 0 ? "아직 실행한 명령이 없습니다" : index === 10 ? "충돌 표시를 지우고 선택한 제목을 저장" : index === 6 ? `${FILE_NAME}의 제목과 버튼을 수정하고 저장` : `${FILE_NAME}의 제목을 수정하고 저장`);
   $("#command").classList.toggle("is-git", Boolean(step.command));
   $("#takeaway").textContent = lesson.takeaway;
+  now.terminal.querySelector("pre").textContent = lesson.terminal?.join("\n") ?? "";
+  const prediction = PREDICTIONS[index];
+  if (prediction) now.predict.querySelector("#predict-label").textContent = prediction.button;
   $("#git-scene").dataset.focus = lesson.focus;
   if (choice) now.chosen.querySelector("#chosen-label").textContent = RESOLUTIONS.find((r) => r.id === choice).label;
   if ($("#prediction-dialog").open) $("#prediction-dialog").close();
@@ -328,8 +337,9 @@ function render() {
       now.intro,
       !busy && index === 9 && now.resolution,
       index >= 10 && choice && now.chosen,
+      lesson.terminal && now.terminal,
       now.takeaway,
-      !busy && index === 8 && now.predict,
+      !busy && prediction && now.predict,
     ].filter(Boolean),
   );
   $("#change-pages").replaceChildren(
@@ -455,7 +465,7 @@ async function move(next, motion = false) {
   busy = false;
   paused = false;
   render();
-  if (index === last || index === 9 || (playing && guided && [4, 8].includes(index))) playing = false;
+  if (index === last || index === 9 || (playing && guided && [4, 8, 10, 11].includes(index))) playing = false;
   controls();
   schedule();
 }
@@ -527,26 +537,29 @@ function selectRecord(name) {
 const dialogHead = (id, eyebrow, title) =>
   `<div class="hw-plate-head"><div class="git-dialog-title"><span class="hw-label">${eyebrow}</span><h2 class="hw-title" id="${id}">${esc(title)}</h2></div><button class="hw-key hw-key--sm hw-key--icon" data-action="close" aria-label="닫기">${icon("close")}</button></div>`;
 
+let prediction = null;
 function predict() {
   pause();
-  const q = PREDICTION;
+  const q = (prediction = PREDICTIONS[index]);
+  if (!q) return;
   $("#prediction-dialog").innerHTML = `${dialogHead("prediction-title", "실행 전에 예상해 보기", q.question)}
     <div class="hw-plate-body">
-      <p class="hw-text">main → C2, feature/title → C1. 두 브랜치가 같은 제목 줄을 다르게 수정했습니다.</p>
+      <p class="hw-text">${esc(q.context)}</p>
       <div class="git-answers">${q.choices.map((c, i) => `<button class="hw-key" data-answer="${c.id}"><span class="hw-index">${pad(i + 1)}</span>${esc(c.text)}</button>`).join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;
   $("#prediction-dialog").showModal();
 }
 function answer(id) {
-  const picked = PREDICTION.choices.find((c) => c.id === id);
+  const q = prediction;
+  const picked = q.choices.find((c) => c.id === id);
   for (const el of $$("[data-answer]")) {
-    const c = PREDICTION.choices.find((x) => x.id === el.dataset.answer);
+    const c = q.choices.find((x) => x.id === el.dataset.answer);
     el.disabled = true;
     if (c.correct) el.insertAdjacentHTML("beforeend", '<span class="hw-led is-on git-push"></span>');
     else if (c.id === id) el.insertAdjacentHTML("beforeend", '<span class="hw-led is-on git-push" style="--led:var(--git-conflict)"></span>');
   }
-  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${picked.correct ? "맞았습니다." : "충돌이 나면 병합 커밋은 아직 만들어지지 않습니다."}</strong> ${esc(picked.feedback)}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">병합 실행해서 확인${icon("arrow")}</button></div>`;
+  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${picked.correct ? "맞았습니다." : esc(q.miss)}</strong> ${esc(picked.feedback)}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">${esc(q.verify.label)}${icon("arrow")}</button></div>`;
 }
 
 function compare() {
@@ -623,7 +636,7 @@ document.addEventListener("click", (e) => {
       break;
     case "verify":
       $("#prediction-dialog").close();
-      move(9, true);
+      move(prediction.verify.step, true);
       break;
     case "choose-again":
       chooseAgain();

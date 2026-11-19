@@ -4,6 +4,20 @@
 // disagree with what the scene then shows.
 import { getLessonPackets } from "./packets/encode.js";
 import { lessonQuizzes } from "./lessons/quizzes.js";
+import { NETWORK_NODE_LABELS } from "./simulation/network-drawing.js";
+import { translate } from "./i18n.js";
+
+/** A node's name as the lesson shows it (lesson labels first, e.g. smtp.example.com for "web"). */
+const nodeName = (lesson, id) => translate((lesson.labels?.[id] ?? NETWORK_NODE_LABELS[id])?.[0] ?? id);
+
+/**
+ * The text of a choice that gives no text of its own. Route values are node
+ * ids ("dns>root"), never shown as such: they read as "DNS 리졸버 → 루트 서버".
+ */
+function defaultChoiceText(lesson, kind, value) {
+  if (kind === "route") return value.split(">").map((id) => nodeName(lesson, id)).join(" → ");
+  return value;
+}
 
 // Wireshark's order for TCP flag names.
 const TCP_FLAG_NAMES = [
@@ -52,6 +66,27 @@ const READERS = {
   },
   /** Which link the packet takes: "from>to" node ids. */
   route: (packet) => (packet.from && packet.to ? `${packet.from}>${packet.to}` : null),
+  /** Who opens a TCP connection, and to which port: "from>to:dport". */
+  connect(packet) {
+    const port = packet.row?.wire?.tcp?.dport;
+    return packet.from && packet.to && port !== undefined ? `${packet.from}>${packet.to}:${port}` : null;
+  },
+  /** TCP acknowledgement number, as Wireshark prints it (relative). */
+  ack(packet) {
+    const ack = packet.row?.wire?.tcp?.ack;
+    if (ack !== undefined && ack !== null) return String(ack);
+    return packet.row?.info?.match(/\bAck=(\d+)/)?.[1] ?? null;
+  },
+  /** DNS RD (recursion desired) bit of a DNS message: "1" or "0". */
+  rd(packet) {
+    const dns = packet.row?.wire?.udp?.data?.dns;
+    return dns ? (dns.rd ? "1" : "0") : null;
+  },
+  /** "broadcast" when the IPv4 destination is 255.255.255.255, else "unicast". */
+  delivery(packet) {
+    const dst = packet.row?.dst;
+    return dst ? (dst === "255.255.255.255" ? "broadcast" : "unicast") : null;
+  },
 };
 
 /** The correct answer for `kind`, read off the packet; null if it has none. */
@@ -79,7 +114,7 @@ function buildLessonQuizzes(lesson) {
         ...question,
         packetData: packet,
         answer,
-        choices: question.choices.map(([value, text = value]) => ({
+        choices: question.choices.map(([value, text = defaultChoiceText(lesson, question.kind, value)]) => ({
           value,
           text,
           correct: value === answer,

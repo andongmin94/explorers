@@ -162,7 +162,7 @@ function staticSvg(L, processes) {
     ${module({ ...L.ready, well: false }).svg}${pad("ready")}${readyNumbers}
     ${chip({ x: L.cpu.x, y: L.cpu.y, size: L.cpu.size }).svg}
     <g class="cpu-qleds">${leds}</g>
-    ${ssd({ ...io, label: "I/O" }).svg}
+    ${ssd({ ...io, label: "입출력" }).svg}
     <g class="cpu-io-led">${led({ x: io.x + io.w - 0.5, y: io.y + io.d - 0.35, z: 0.42 })}</g>
     ${module({ ...L.done, well: false }).svg}${pad("done")}
     ${callout({ ...c.arrivals, title: "도착 예정", sub: "NEW" })}

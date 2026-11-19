@@ -4,7 +4,7 @@ import "./styles.css";
 import "../../shared/switcher.js";
 import "../../shared/iso.js";
 import { simulateDeadlock } from "./deadlock-engine.js";
-import { describeDeadlockStep, DEADLOCK_MILESTONES, DEADLOCK_SOURCES, DEADLOCK_NOTES } from "./deadlock-lesson.js";
+import { describeDeadlockStep, deadlockPrediction, DEADLOCK_LEGEND, DEADLOCK_MILESTONES, DEADLOCK_SOURCES, DEADLOCK_NOTES } from "./deadlock-lesson.js";
 import { createDeadlockScene } from "./deadlock-scene.js";
 import {
   $,
@@ -27,6 +27,7 @@ import {
 } from "./console.js";
 
 const run = simulateDeadlock();
+let quiz = null;
 const steps = () => run.steps;
 const LAST = run.steps.length - 1;
 let status = "";
@@ -37,7 +38,7 @@ const actions = {
   write: "쓰기",
   wait: "잠금 대기",
   detect: "교착 감지",
-  rollback: "롤백",
+  rollback: "중단·롤백",
   resume: "쓰기 재개",
   commit: "커밋",
 };
@@ -67,7 +68,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
           <div class="hw-section" id="takeaway-section"><p class="hw-note hw-note--accent" id="takeaway"></p></div>
         </div>`,
         `<div class="tx-cta" id="cta">
-          <button class="hw-key tx-wide" data-action="predict">롤백으로 무엇이 취소될까? →</button>
+          <button class="hw-key tx-wide" data-action="predict">중단되면 B는? 결과 맞혀보기 →</button>
         </div>`,
       )}
       ${sidePanel("scenes", `<div class="hw-fill hw-list tx-milestones" id="milestones" aria-label="핵심 장면으로 이동"></div>`)}
@@ -79,6 +80,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
           <div class="hw-section tx-fact"><span class="hw-label">볼 것</span><p class="hw-text">보유 → 대기 → 순환 → 해소 (롤백 → 잠금 해제 → 재개)</p></div>
           <div class="hw-section tx-fact"><span class="hw-label">데이터베이스</span><p class="hw-text">PostgreSQL · READ COMMITTED · 고정된 사건 순서</p></div>
           ${DEADLOCK_NOTES.map((t, i) => `<div class="hw-section tx-fact"><span class="hw-label">모델 ${pad(i + 1)}</span><p class="hw-text">${t}</p></div>`).join("")}
+          ${DEADLOCK_LEGEND.map((t) => `<div class="hw-section tx-fact"><span class="hw-label">장면 표시</span><p class="hw-text">${t}</p></div>`).join("")}
         </div>`,
       )}
     </aside>
@@ -190,7 +192,7 @@ function renderRecords() {
     if (step.client === id) return `${actions[step.action]}${step.row && step.action !== "rollback" ? ` ${step.row}` : ""}`;
     const c = step.state.clients[id];
     if (c.waitingFor) return `${c.waitingFor} ${step.state.rows[c.waitingFor].owner ? "잠금 대기" : "재개 가능"}`;
-    return { idle: "—", active: "진행 중", committed: "커밋 완료", aborted: "롤백 완료" }[c.status];
+    return { idle: "—", active: "진행 중", committed: "커밋 완료", aborted: "중단됨 (ROLLBACK 필요)" }[c.status];
   };
   const blocked = (step, id) => {
     const row = step.state.clients[id].waitingFor;
@@ -222,7 +224,7 @@ function renderRecords() {
   $("#log-table tbody").innerHTML = done
         .map(
           (step) =>
-            `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${step.client ? tx(step.client) : '<span class="tx-id">DB</span>'}</td><td>${describeDeadlockStep(step).title}</td><td><code class="tx-code">${escape(step.sql || (step.action === "rollback" ? "DB가 T2를 중단 · SQLSTATE 40P01" : "DB가 대기 관계의 순환을 확인"))}</code></td><td class="hw-mono tx-nowrap">A ${step.state.rows.A.owner || "—"} · B ${step.state.rows.B.owner || "—"}</td></tr>`,
+            `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${step.client ? tx(step.client) : '<span class="tx-id">DB</span>'}</td><td>${describeDeadlockStep(step).title}</td><td><code class="tx-code">${escape(step.sql || (step.action === "rollback" ? "T2의 A UPDATE → ERROR: deadlock detected (40P01)" : "DB가 대기 관계의 순환을 확인"))}</code></td><td class="hw-mono tx-nowrap">A ${step.state.rows.A.owner || "—"} · B ${step.state.rows.B.owner || "—"}</td></tr>`,
         )
     .join("");
   logRows.refresh();
@@ -242,20 +244,13 @@ function renderRecords() {
 
 function predict() {
   player.pause();
-  $("#prediction-dialog").innerHTML = `${dialogHead("T2를 롤백 대상으로 선택한 직후")}
+  quiz = deadlockPrediction(run);
+  $("#prediction-dialog").innerHTML = `${dialogHead("T2를 중단 대상으로 선택한 직후")}
   <div class="hw-plate-body">
-    <h2 class="hw-title" id="prediction-title">어느 미확정 값이 취소될까요?</h2>
-    <ul class="hw-list tx-gap">
-      <li><span>T1이 쓴 A</span><b class="hw-mono">9 · 미확정</b></li>
-      <li><span>T2가 쓴 B</span><b class="hw-mono">19 · 미확정</b></li>
-      <li><span>확정 재고</span><b class="hw-mono">A 10 · B 20</b></li>
-    </ul>
-    <div class="tx-choices">${[
-      ["t2", "T2의 B = 19만 취소"],
-      ["both", "A = 9와 B = 19 모두 취소"],
-      ["t1", "T1의 A = 9만 취소"],
-    ]
-      .map(([id, label]) => `<button class="hw-key" data-answer="${id}"><span class="hw-led" style="--led:var(--tx-ok)"></span>${label}</button>`)
+    <h2 class="hw-title" id="prediction-title">${quiz.question}</h2>
+    <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="hw-mono">${value}</b></li>`).join("")}</ul>
+    <div class="tx-choices">${quiz.options
+      .map((o) => `<button class="hw-key" data-answer="${o.id}"><span class="hw-led" style="--led:var(--tx-ok)"></span>${o.label}</button>`)
       .join("")}</div>
     <div id="prediction-feedback" aria-live="polite"></div>
   </div>`;
@@ -274,9 +269,10 @@ bindConsole(player, {
       for (const b of document.querySelectorAll("[data-answer]")) {
         b.disabled = true;
         b.classList.toggle("is-chosen", b === button);
-        b.querySelector(".hw-led").classList.toggle("is-on", b.dataset.answer === "t2");
+        b.querySelector(".hw-led").classList.toggle("is-on", b.dataset.answer === quiz.answerId);
       }
-      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${button.dataset.answer === "t2" ? "맞았습니다." : "롤백의 경계는 한 트랜잭션입니다."}</p><p class="hw-text tx-gap">T2가 쓴 B = 19만 폐기합니다. T1의 A = 9는 미확정 상태로 남고, 확정 재고 A = 10·B = 20은 그대로입니다.</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">롤백 과정 확인 →</button></div>`;
+      const chosen = quiz.options.find((o) => o.id === button.dataset.answer);
+      $("#prediction-feedback").innerHTML = `<div class="hw-section"><p class="hw-heading">${chosen.id === quiz.answerId ? "맞았습니다." : `정답은 B = ${quiz.answerId}입니다.`}</p><p class="hw-text tx-gap">${chosen.feedback}</p><button class="hw-key hw-key--accent tx-gap" data-action="verify">롤백 과정 확인 →</button></div>`;
       return true;
     }
     switch (button.dataset.action) {

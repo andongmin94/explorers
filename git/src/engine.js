@@ -1,12 +1,28 @@
 export const FILE_NAME = "welcome.txt";
 
-const file = (title) => `[산책 안내]\n제목: ${title}\n버튼: 코스 보기\n`;
+/** The button line: only main changes it (C0 → C2); feature/title keeps C0's. */
+export const BUTTONS = { base: "코스 보기", main: "동네 코스 보기" };
+
+export const TITLES = {
+  base: "오늘의 산책을 시작하세요",
+  feature: "나만의 산책을 찾아보세요",
+  main: "우리 동네를 함께 걸어요",
+  both: "우리 동네에서 나만의 산책을 찾아보세요",
+};
+
+// Line 3 never changes. It keeps the title (line 2) and the button (line 4)
+// apart, so Git merges main's button change on its own next to the title
+// conflict (changes on touching lines would join the conflict).
+const file = (title, button = BUTTONS.base) => `[산책 안내]\n제목: ${title}\n출발: 공원 입구\n버튼: ${button}\n`;
 
 export const CONTENTS = {
-  base: file("오늘의 산책을 시작하세요"),
-  feature: file("나만의 산책을 찾아보세요"),
-  main: file("우리 동네를 함께 걸어요"),
-  both: file("우리 동네에서 나만의 산책을 찾아보세요"),
+  base: file(TITLES.base),
+  feature: file(TITLES.feature),
+  main: file(TITLES.main, BUTTONS.main),
+  // Merge results: whichever title is chosen, the button keeps main's change,
+  // because against the common ancestor C0 only main changed that line.
+  both: file(TITLES.both, BUTTONS.main),
+  theirs: file(TITLES.feature, BUTTONS.main),
 };
 
 export const RESOLUTIONS = [
@@ -24,9 +40,9 @@ export const RESOLUTIONS = [
   },
   {
     id: "theirs",
-    label: "feature 문장 선택",
-    description: "가져오는 브랜치의 문장을 최종 제목으로 선택합니다.",
-    content: CONTENTS.feature,
+    label: "feature/title 문장 선택",
+    description: "가져오는 브랜치의 문장을 최종 제목으로 선택합니다. 버튼 줄은 자동 병합된 main의 것이 남습니다.",
+    content: CONTENTS.theirs,
   },
 ];
 
@@ -40,11 +56,13 @@ export function indexMatchesHead(state) {
 const conflictContent = [
   "[산책 안내]",
   "<<<<<<< HEAD",
-  "제목: 우리 동네를 함께 걸어요",
+  `제목: ${TITLES.main}`,
   "=======",
-  "제목: 나만의 산책을 찾아보세요",
+  `제목: ${TITLES.feature}`,
   ">>>>>>> feature/title",
-  "버튼: 코스 보기",
+  "출발: 공원 입구",
+  // Auto-merged: C0 → C2 changed this line, C0 → C1 did not.
+  `버튼: ${BUTTONS.main}`,
   "",
 ].join("\n");
 
@@ -119,7 +137,7 @@ export function simulateGit(resolution = "both") {
     state.working = CONTENTS.feature;
     state.status = "modified";
   });
-  event("stage", `git add ${FILE_NAME}`, "수정한 파일을 스테이징", stage);
+  event("stage", `git add ${FILE_NAME}`, "수정한 파일을 인덱스에 등록", stage);
   event(
     "commit",
     'git commit -m "나만의 산책 제목"',
@@ -133,20 +151,20 @@ export function simulateGit(resolution = "both") {
     state.working = CONTENTS.base;
     state.index = { status: "clean", content: CONTENTS.base, stages: null };
   });
-  event("edit", "", "main에서도 같은 줄 수정", () => {
+  event("edit", "", "main에서 제목과 버튼 수정", () => {
     state.working = CONTENTS.main;
     state.status = "modified";
   });
-  event("stage", `git add ${FILE_NAME}`, "main의 변경을 스테이징", stage);
+  event("stage", `git add ${FILE_NAME}`, "main의 변경을 인덱스에 등록", stage);
   event(
     "commit",
-    'git commit -m "함께 걷는 동네 제목"',
+    'git commit -m "함께 걷는 동네 제목과 버튼"',
     "main의 C2 기록",
     () => {
-      commit("C2", "함께 걷는 동네 제목", ["C0"]);
+      commit("C2", "함께 걷는 동네 제목과 버튼", ["C0"]);
     },
   );
-  event("merge", "git merge feature/title", "같은 줄에서 병합 충돌", () => {
+  event("merge", "git merge feature/title", "제목 줄 충돌 · 버튼 줄 자동 병합", () => {
     state.working = conflictContent;
     state.index = {
       status: "unmerged",

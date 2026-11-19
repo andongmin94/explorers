@@ -48,6 +48,8 @@ const requestLabel = (action, mode, client) => {
   if (action === "commit") return "COMMIT";
   const reading = action === "read" || action === "resume-read" || (action === "wait" && mode === "locked");
   if (reading) return mode === "locked" ? "FOR UPD" : "SELECT";
+  // A waiting UPDATE shows no number: the prediction asks what it will write.
+  if (action === "wait") return "UPDATE";
   return `SET ${client.localWrite}`;
 };
 
@@ -182,7 +184,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
         paint(getPresentationState(step, "database"));
         phase(
           `${id}의 SQL이 ${step.before.rowLock.owner}의 잠금 해제를 기다립니다`,
-          mode === "locked" ? "읽기 결과를 아직 받지 못했습니다." : "앱에서 계산한 값은 그대로인 채 UPDATE가 기다립니다.",
+          mode === "locked" ? "읽기 결과를 아직 받지 못했습니다." : "UPDATE가 T1의 행 잠금이 풀리기를 기다립니다.",
         );
         if (!(await runner.hold(420))) return;
       } else {
@@ -210,7 +212,7 @@ export function createTransactionScene(host, { onPhase = () => {} } = {}) {
           reading
             ? `DB → ${id} · 재고 ${c.localRead} 반환`
             : writing
-              ? `DB에 재고 ${c.localWrite} 기록 · 커밋 대기`
+              ? `DB에 재고 ${c.localWrite} 기록 · 커밋 전`
               : action === "commit"
                 ? `DB → ${id} · 커밋 완료`
                 : `DB → ${id} · 처리 완료`,

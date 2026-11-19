@@ -1,3 +1,5 @@
+import { josa } from "./josa.js";
+
 const formatTime = (value) => Number(value.toFixed(2)).toString();
 const idsText = (events) => events.map((event) => event.id).join("·");
 
@@ -21,143 +23,98 @@ export function frameAtMove(frame, view, move) {
   };
 }
 
+const ordinal = (index) => (index === 0 ? "첫" : `${index + 1}번째`);
+const byProcessOrder = (result) => {
+  const order = result.processes.map((process) => process.id);
+  return (a, b) => order.indexOf(a) - order.indexOf(b);
+};
+
+/** Explain why the CPU idles longer under RR, from the two runs themselves. */
 export function describeComparison(rr, fcfs) {
-  if (rr.segments.some((segment) => segment.reason === "quantum")) {
-    return `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle}ms, FCFS ${fcfs.stats.idle}ms입니다.`;
+  if (!rr.segments.some((segment) => segment.reason === "quantum")) {
+    return `모든 CPU 구간이 ${rr.quantum}ms 안에 끝나 라운드 로빈에서도 선점이 일어나지 않습니다. 두 방식의 실행 순서와 완료 순서가 같습니다.`;
   }
-  return `모든 CPU 구간이 ${rr.quantum}ms 안에 끝나 라운드 로빈에서도 선점이 일어나지 않습니다. 두 방식의 실행 순서와 완료 순서가 같습니다.`;
+  const idle = `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle}ms, FCFS ${fcfs.stats.idle}ms입니다.`;
+  const gap = rr.segments.find((segment) => segment.id === null);
+  if (!gap || rr.stats.idle <= fcfs.stats.idle) return idle;
+  // The I/O that the CPU is left waiting for when it falls idle.
+  const io = rr.ioSegments.find((entry) => entry.start <= gap.start && gap.start < entry.end);
+  if (!io) return idle;
+  const nth = rr.ioSegments.filter((entry) => entry.id === io.id).indexOf(io);
+  const same = fcfs.ioSegments.filter((entry) => entry.id === io.id)[nth];
+  if (!same || same.start >= io.start) return idle;
+  const othersDone = rr.frames[gap.start].completed.length === rr.processes.length - 1;
+  return `${idle} 원인은 입출력이 시작되는 시각입니다. 라운드 로빈에서는 ${io.id}의 ${ordinal(nth)} 입출력 요청이 ${same.start}ms에서 ${io.start}ms로 늦어집니다. 늦게 시작한 입출력은 다른 작업의 CPU 실행과 겹치는 시간이 줄어, ${othersDone ? "다른 작업이 모두 끝난 뒤" : "준비된 작업이 없는"} ${gap.start}–${gap.end}ms에 CPU가 쉽니다.`;
 }
 
-/** Explain the same boundary snapshot used by the scene and execution trace. */
-export function describeFrame(frame, result) {
-  const { events, running, states } = frame;
-  const eventOf = (type) => events.find((event) => event.type === type);
-  const preempt = eventOf("preempt");
-  const block = eventOf("block");
-  const complete = eventOf("complete");
-  const returned = events.filter((event) => event.type === "unblock");
-  const arrived = events.filter((event) => event.type === "arrive");
-  const rr = result.algorithm === "rr";
-  const eyebrow = `${frame.t} ms · ${rr ? "라운드 로빈" : "선입선처리"}`;
+/** Sentences for the comparison dialog; every number comes from the two runs. */
+export function comparisonSummary(rr, fcfs) {
+  const diff = rr.stats.averageResponse - fcfs.stats.averageResponse;
+  const response =
+    diff < 0
+      ? `라운드 로빈의 평균 최초 응답이 ${formatTime(-diff)}ms 더 빠릅니다.`
+      : diff > 0
+        ? `FCFS의 평균 최초 응답이 ${formatTime(diff)}ms 더 빠릅니다.`
+        : "두 방식의 평균 최초 응답 시간이 같습니다.";
+  const endDiff = rr.stats.makespan - fcfs.stats.makespan;
+  const finish = `전체 완료 시각(마지막 작업이 끝난 시각)은 ${
+    endDiff > 0 ? `FCFS가 ${endDiff}ms 빠릅니다` : endDiff < 0 ? `라운드 로빈이 ${-endDiff}ms 빠릅니다` : "같습니다"
+  }. 평균 반환 시간은 라운드 로빈 ${formatTime(rr.stats.averageTurnaround)}ms, FCFS ${formatTime(fcfs.stats.averageTurnaround)}ms입니다.`;
+  const caveat = `${endDiff ? "이 모델은 문맥 교환 비용을 0ms로 두므로, 차이는 전환 비용 때문이 아닙니다. " : ""}FCFS가 늘 유리한 것도 아닙니다. 긴 CPU 구간을 가진 작업이 앞에 서면 짧은 작업들이 줄줄이 기다리는 호위 효과(convoy effect)가 생깁니다.`;
+  return { response, finish, cause: describeComparison(rr, fcfs), caveat };
+}
 
-  if (frame.completed.length === result.processes.length) {
+/** Run the same jobs at every slider position, for the quantum trade-off. */
+export function quantumSweep(simulate, processes, quanta = [1, 2, 3, 4, 5]) {
+  return quanta.map((quantum) => {
+    const { stats } = simulate({ algorithm: "rr", quantum, processes });
     return {
-      eyebrow: `${frame.t} ms · 실행 완료`,
-      title: "응답과 완료, 따로 비교하기",
-      body: `모든 작업이 끝났습니다. 평균 최초 응답은 ${formatTime(result.stats.averageResponse)} ms, 평균 반환 시간은 ${formatTime(result.stats.averageTurnaround)} ms입니다. CPU는 전체 ${result.stats.makespan} ms 중 ${result.stats.busy} ms 동안 실행됐습니다.`,
-      insight:
-        "첫 실행이 빠르다고 전체 완료도 빨라지는 것은 아닙니다. 같은 작업을 다른 방식으로 실행해 비교해 보세요.",
+      quantum,
+      makespan: stats.makespan,
+      switches: stats.contextSwitches,
+      response: stats.averageResponse,
     };
-  }
+  });
+}
 
-  if (!running) {
-    const pending = result.processes.filter(
-      (process) => states[process.id].status === "new",
-    );
-    const nextTime = Math.min(
-      ...frame.blocked.map((process) => process.until),
-      ...pending.map((process) => process.arrival),
-    );
-    return {
-      eyebrow: `${frame.t} ms · CPU 유휴`,
-      title: "작업이 남아도 CPU는 쉽니다",
-      body: frame.blocked.length
-        ? `${frame.blocked.map((process) => process.id).join("·")} 작업은 입출력을 기다리고 있고 준비 큐는 비어 있습니다. 다음 작업이 실행 가능해지는 ${nextTime} ms까지 CPU가 쉽니다.`
-        : `아직 도착하지 않은 작업만 남아 있습니다. ${nextTime} ms에 다음 작업이 도착할 때까지 CPU가 쉽니다.`,
-      insight:
-        "입출력 대기 중인 작업은 CPU를 받아도 진행할 수 없습니다. 이 시간은 준비 큐 대기 시간에 포함하지 않습니다.",
-    };
-  }
+function describeQuantum(result) {
+  const q = result.quantum;
+  const longest = Math.max(...result.processes.flatMap((process) => process.cpu));
+  const now = `할당량 ${q}ms에서는 문맥 교환 ${result.stats.contextSwitches}회, 평균 최초 응답 ${formatTime(result.stats.averageResponse)}ms, 전체 완료 ${result.stats.makespan}ms입니다.`;
+  return q >= longest
+    ? `${now} 가장 긴 CPU 구간(${longest}ms)도 한 차례에 끝나 선점이 없고, FCFS와 똑같이 실행됩니다.`
+    : `${now} 할당량을 줄이면 문맥 교환이 잦아지고 첫 응답이 빨라집니다. ${longest}ms 이상으로 키우면 선점이 사라져 FCFS처럼 실행됩니다.`;
+}
 
-  if (preempt) {
-    if (preempt.id === running) {
-      return {
-        eyebrow,
-        title: `${running}, 다시 CPU 배정`,
-        body: `${result.quantum} ms의 시간 할당량이 끝나 ${running} 작업이 준비 큐 뒤로 돌아갔습니다. 다른 준비 작업이 없어 새 할당량으로 바로 이어서 실행합니다.`,
-        insight:
-          "시간 할당량 만료가 항상 다른 프로세스로의 전환을 뜻하지는 않습니다.",
-      };
+/** Short notes for what this exact boundary shows, next to the event list. */
+export function momentNotes(frame, result) {
+  const notes = [];
+  const arrivalOf = (id) => result.processes.find((process) => process.id === id).arrival;
+  for (const event of frame.events) {
+    if (event.type === "complete") {
+      const arrival = arrivalOf(event.id);
+      notes.push(`${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival}ms. CPU 실행·준비 큐 대기·입출력 대기를 모두 포함합니다.`);
+    } else if (event.type === "dispatch" && frame.states[event.id]?.firstRun === frame.t) {
+      const arrival = arrivalOf(event.id);
+      notes.push(`${event.id} 최초 응답 = 첫 실행 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival}ms. 응답은 화면 출력이나 작업 완료를 뜻하지 않습니다.`);
+    } else if (event.type === "preempt" && event.id === frame.running) {
+      notes.push(`준비 큐에 ${event.id}만 있어 ${josa(event.id, "이")} 새 할당량으로 바로 다시 배정됐습니다. 문맥 교환 횟수는 늘지 않습니다.`);
     }
-    const simultaneous = arrived.length || returned.length;
-    return {
-      eyebrow,
-      title: `${preempt.id}에서 ${running}으로 차례 넘기기`,
-      body: `${preempt.id}의 ${result.quantum} ms가 끝났습니다. 남은 작업을 버리지 않고 준비 큐 뒤에 넣은 뒤, 큐 맨 앞의 ${running} 작업을 실행합니다.`,
-      insight: simultaneous
-        ? "이 모델에서는 같은 시각의 도착·입출력 복귀를 먼저 큐에 넣고, 할당량이 끝난 작업을 마지막에 넣습니다."
-        : "선점된 작업의 진행 상태는 보존됩니다. 다음 차례에는 남아 있는 CPU 작업부터 이어갑니다.",
-    };
   }
-
-  if (returned.length && returned.every((event) => event.id !== running)) {
-    return {
-      eyebrow,
-      title: "준비됐다고 바로 실행되지는 않습니다",
-      body: `${idsText(returned)}의 입출력이 끝나 준비 큐 뒤에 합류했습니다. CPU에서는 ${running} 작업이 계속 실행 중입니다. 먼저 줄을 서 있던 작업의 차례를 건너뛰지 않습니다.`,
-      insight: rr
-        ? "이 라운드 로빈에서는 복귀만으로 현재 작업을 선점하지 않습니다. CPU 구간이 끝나거나 할당량이 만료되면 다음 작업을 고릅니다."
-        : "선입선처리는 현재 CPU 구간이 끝날 때까지 실행합니다. 입출력에서 돌아온 작업도 준비 큐에서 차례를 기다립니다.",
-    };
+  const dispatched = frame.events.some((event) => event.type === "dispatch");
+  const joined = frame.events.filter((event) => ["arrive", "unblock"].includes(event.type) && event.id !== frame.running);
+  if (frame.running && !dispatched && joined.length) {
+    notes.push(`${joined[0].type === "arrive" ? "도착은" : "입출력 복귀는"} 실행 중인 ${frame.running} 작업을 선점하지 않습니다.`);
   }
+  return notes;
+}
 
-  if (block) {
-    const remaining = states[block.id].ioRemaining;
-    return {
-      eyebrow,
-      title: `${block.id} 입출력 · ${running} CPU 실행`,
-      body: `${block.id} 작업이 이번 CPU 구간을 마치고 ${remaining} ms의 입출력 대기로 이동했습니다. CPU를 계속 붙잡지 않으므로 준비 큐 맨 앞의 ${running} 작업이 실행할 수 있습니다.`,
-      insight:
-        "한 작업이 입출력을 기다리는 동안 다른 작업이 CPU를 사용합니다. 입출력 대기와 준비 큐 대기는 서로 다른 상태입니다.",
-    };
-  }
-
-  if (complete) {
-    return {
-      eyebrow,
-      title: `${complete.id} 완료, 다음 작업으로`,
-      body: `${complete.id}의 모든 CPU 작업이 끝났습니다. 완료된 작업은 준비 큐로 돌아가지 않고, 기다리던 ${running} 작업이 CPU를 받습니다.`,
-      insight:
-        "반환 시간은 완료 시각에서 도착 시각을 뺀 값입니다. CPU 실행·입출력·준비 큐 대기가 모두 포함됩니다.",
-    };
-  }
-
-  if (arrived.length) {
-    const started = arrived.some((event) => event.id === running);
-    return {
-      eyebrow,
-      title: started
-        ? `${running}의 첫 실행`
-        : `${idsText(arrived)} 도착, 준비 큐에 합류`,
-      body: started
-        ? `${idsText(arrived)} 도착으로 준비 큐가 갱신됐습니다. 큐 맨 앞의 ${running} 작업이 CPU를 받았고, 나머지 작업은 도착 시각에 맞춰 준비 큐에 들어옵니다.`
-        : `${idsText(arrived)} 도착으로 준비 큐가 갱신됐지만 CPU는 ${running} 작업이 사용하고 있습니다. 새 작업은 준비 큐 뒤에 들어가 차례를 기다립니다.`,
-      insight: started
-        ? "최초 응답 시간은 도착부터 처음 CPU를 받기까지입니다. 여기서 응답은 화면 출력이나 작업 완료를 뜻하지 않습니다."
-        : rr
-          ? "이 라운드 로빈에서는 새 작업의 도착만으로 선점하지 않습니다. 할당량은 현재 실행 중인 작업의 CPU 사용 시간을 셉니다."
-          : "선입선처리는 먼저 준비된 작업부터 고릅니다. 실행 중인 작업은 입출력을 요청하거나 CPU 구간을 마칠 때까지 계속합니다.",
-    };
-  }
-
-  if (returned.length) {
-    return {
-      eyebrow,
-      title: `${running}, 입출력을 마치고 복귀`,
-      body: `${idsText(returned)}의 입출력이 끝났습니다. 준비 상태로 돌아왔고, 비어 있던 CPU가 큐 맨 앞의 ${running} 작업을 바로 실행합니다.`,
-      insight:
-        "입출력 완료는 실행 가능해졌다는 뜻입니다. CPU가 비어 있고 큐 맨 앞일 때 바로 실행될 수 있습니다.",
-    };
-  }
-
-  const state = states[running];
+function describeFinish(frame, result) {
   return {
-    eyebrow,
-    title: `${running} 실행 중`,
-    body: `${running}의 이번 CPU 구간은 ${state.burstRemaining} ms 남았습니다.${rr ? ` 현재 시간 할당량은 ${frame.quantumLeft} ms 남아 있습니다.` : " 선입선처리는 이 CPU 구간을 중간에 선점하지 않습니다."}`,
-    insight: frame.ready.length
-      ? `${frame.ready.join(" → ")} 순서로 CPU를 기다립니다. 준비 큐에 있는 동안만 CPU 대기 시간이 늘어납니다.`
-      : "지금 준비 큐에는 기다리는 작업이 없습니다. 입출력 중인 작업의 남은 시간은 CPU 실행과 동시에 줄어듭니다.",
+    eyebrow: `${frame.t} ms · 실행 완료`,
+    title: "응답과 완료, 따로 비교하기",
+    body: `모든 작업이 끝났습니다. 평균 최초 응답은 ${formatTime(result.stats.averageResponse)} ms, 평균 반환 시간은 ${formatTime(result.stats.averageTurnaround)} ms입니다. CPU는 전체 ${result.stats.makespan} ms 중 ${result.stats.busy} ms 동안 실행됐습니다.`,
+    insight: "첫 실행이 빠르다고 작업이 빨리 끝나는 것은 아닙니다. 같은 작업을 다른 방식으로 실행해 비교해 보세요.",
   };
 }
 
@@ -215,11 +172,14 @@ export function buildMilestones(result) {
   return chapterPoints(result).map(({ time, title }) => ({ time, title }));
 }
 
+const BURST = "각 작업은 CPU 구간(CPU 버스트: 쉬지 않고 계산하는 구간)과 입출력을 번갈아 거칩니다.";
+
 /** Keep the conceptual explanation stable while the live state continues to change. */
 export function describeChapter(frame, result) {
   const points = chapterPoints(result);
   const index = points.findLastIndex((point) => point.time <= frame.t);
   const chapter = points[index];
+  const end = points[index + 1]?.time ?? result.stats.makespan + 1;
   const anchor = result.frames.find((entry) => entry.t === chapter.time);
   const eventOf = (type) => anchor.events.find((event) => event.type === type);
   const rr = result.algorithm === "rr";
@@ -228,23 +188,27 @@ export function describeChapter(frame, result) {
 
   switch (chapter.kind) {
     case "start":
-      copy = {
-        title: "한 번에 하나, 차례로 실행",
-        body: rr
-          ? `CPU는 한 번에 한 작업만 실행합니다. 라운드 로빈은 한 차례에 최대 ${result.quantum} ms를 주고, 작업이 남으면 준비 큐 뒤에서 다음 차례를 기다리게 합니다. 입출력이 필요하면 할당량이 남아도 CPU를 놓습니다.`
-          : "CPU는 한 번에 한 작업만 실행합니다. 선입선처리는 먼저 준비된 작업부터 고르고, 입출력을 요청하거나 현재 CPU 구간을 마칠 때까지 실행합니다. 새 작업이 도착해도 실행 중인 작업을 중단하지 않습니다.",
-        insight:
-          "작업의 전체 CPU 시간, 이번 CPU 구간, 한 차례의 시간 할당량은 서로 다릅니다. 작업을 눌러 구간별 진행을 살펴보세요.",
-      };
+      copy = rr
+        ? {
+            title: "한 번에 하나, 차례로 실행",
+            body: `CPU는 한 번에 한 작업만 실행합니다. ${BURST} 라운드 로빈은 한 차례에 최대 ${result.quantum} ms를 줍니다. 할당량을 다 쓰면 실행 중인 작업에게서 CPU를 거둬(선점) 준비 큐 뒤로 보냅니다. 입출력이 필요하면 할당량이 남아도 CPU를 놓습니다.`,
+            insight: `${describeQuantum(result)} 작업을 바꿔 실행하는 것을 문맥 교환(작업 전환)이라고 합니다.`,
+          }
+        : {
+            title: "한 번에 하나, 차례로 실행",
+            body: `CPU는 한 번에 한 작업만 실행합니다. ${BURST} 선입선처리(FCFS)는 준비 큐에 먼저 줄을 선 작업부터 고르고, 그 작업이 입출력을 요청하거나 종료할 때까지 실행합니다. 새 작업이 도착해도 실행 중인 작업의 CPU를 빼앗지(선점하지) 않습니다.`,
+            insight:
+              "작업의 전체 CPU 시간과 이번 CPU 구간은 서로 다릅니다. 작업 탭에서 구간별 진행을 살펴보세요.",
+          };
       break;
     case "arrival": {
       const arrival = eventOf("arrive");
       copy = {
-        title: "도착은 실행 예약입니다",
-        body: `${anchor.t} ms에 ${arrival.id} 작업이 도착했지만 CPU에서는 ${anchor.running} 작업이 실행 중이었습니다. 새 작업은 준비 큐 뒤에 합류합니다. 도착 시각과 첫 실행 시각이 다른 이유입니다.`,
+        title: "도착은 준비 큐에 줄을 서는 것입니다",
+        body: `${anchor.t} ms에 ${arrival.id} 작업이 도착했지만 CPU에서는 ${anchor.running} 작업이 실행 중이었습니다. 새 작업은 준비 큐 뒤에 줄을 섭니다. 그래서 도착 시각과 첫 실행 시각이 다릅니다.`,
         insight: rr
-          ? "할당량은 실행 중인 작업이 CPU를 쓴 시간을 셉니다. 다른 작업이 도착했다고 남은 할당량을 취소하지 않습니다."
-          : "선입선처리는 먼저 준비된 순서로 CPU를 줍니다. 입출력 요청·완료 전까지 현재 작업을 계속 실행하는 비선점 방식입니다.",
+          ? "도착은 실행 중인 작업을 선점하지 않습니다. 할당량은 실행 중인 작업이 CPU를 쓴 시간을 세며, 다른 작업이 도착해도 취소되지 않습니다."
+          : "FCFS는 먼저 줄을 선 순서로 CPU를 줍니다. 입출력을 요청하거나 작업을 마칠 때까지 CPU를 놓지 않는 비선점 방식입니다.",
       };
       break;
     }
@@ -253,11 +217,13 @@ export function describeChapter(frame, result) {
       const decision = result.decisions.find(
         (entry) => entry.time === anchor.t,
       );
+      const joined = anchor.events.filter((event) => ["arrive", "unblock"].includes(event.type));
       copy = {
         title: "끝난 것은 작업이 아니라 이번 차례",
-        body: `${anchor.t} ms에 ${expired.id}의 ${result.quantum} ms 할당량이 끝났습니다. 진행한 작업은 보존하고, 남은 작업을 준비 큐 뒤로 돌립니다. 배정 직전 순서는 ${decision.candidates.join(" → ")}였고, 맨 앞의 ${decision.chosen} 작업이 CPU를 받았습니다.`,
-        insight:
-          "이 모델은 같은 시각의 도착·입출력 복귀를 먼저 큐에 넣고, 시간이 만료된 작업을 마지막에 넣습니다.",
+        body: `${anchor.t} ms에 ${expired.id}의 ${result.quantum} ms 할당량이 끝났습니다. 진행한 계산은 보존하고, 남은 작업을 준비 큐 뒤로 돌립니다. 배정 직전 순서는 ${josa(decision.candidates.join(" → "), "였")}습니다. 맨 앞의 ${decision.chosen} 작업이 CPU를 받았습니다.`,
+        insight: joined.length
+          ? `같은 시각에 ${idsText(joined)} 작업이 들어왔습니다. 이 모델은 같은 시각의 도착·입출력 복귀를 먼저 큐에 넣고, 할당량이 끝난 작업을 마지막에 넣습니다.`
+          : "선점된 작업의 진행 상태는 보존됩니다. 다음 차례에는 남은 CPU 구간부터 이어갑니다.",
       };
       break;
     }
@@ -265,7 +231,7 @@ export function describeChapter(frame, result) {
       const blocked = eventOf("block");
       copy = {
         title: "입출력과 CPU는 동시에 진행",
-        body: `${anchor.t} ms에 ${blocked.id} 작업이 CPU 구간을 마치고 입출력을 요청했습니다. 기다리는 동안 CPU를 놓았고, ${anchor.running ? `${anchor.running} 작업이 그 CPU를 이어받았습니다.` : "다른 준비 작업이 없어 CPU는 쉬게 됐습니다."} 한 작업의 입출력 대기 중에도 다른 작업은 계산할 수 있습니다.`,
+        body: `${anchor.t} ms에 ${blocked.id} 작업이 CPU 구간을 마치고 입출력을 요청했습니다. 입출력을 기다리는 동안에는 CPU를 놓습니다. ${anchor.running ? `그 CPU는 ${anchor.running} 작업이 이어받았습니다.` : "다른 준비 작업이 없어 CPU는 쉬게 됐습니다."} 한 작업이 입출력을 기다리는 동안에도 다른 작업은 계산할 수 있습니다.`,
         insight:
           "입출력 대기는 데이터를 기다리는 상태이고, 준비 큐 대기는 CPU를 기다리는 상태입니다. 둘은 따로 기록합니다.",
       };
@@ -275,38 +241,157 @@ export function describeChapter(frame, result) {
       const returned = anchor.events.filter(
         (event) => event.type === "unblock",
       );
-      const immediatelyRan = returned.some(
-        (event) => event.id === anchor.running,
-      );
+      const returnedIds = returned.map((event) => event.id);
+      const immediatelyRan = returnedIds.includes(anchor.running);
+      const decision = result.decisions.find((entry) => entry.time === anchor.t);
+      const expired = eventOf("preempt");
+      const waitedBefore = result.frames[anchor.t - 1]?.ready ?? [];
+      let cpu;
+      if (immediatelyRan) {
+        cpu = `CPU가 비어 있어 ${anchor.running} 작업이 바로 CPU를 받았습니다.`;
+      } else if (decision) {
+        // Someone else was dispatched at this very boundary.
+        cpu = `그 시각 CPU는 ${waitedBefore.includes(decision.chosen) ? "먼저 기다리던" : "큐 맨 앞의"} ${decision.chosen} 작업이 받았습니다. 복귀한 작업은 준비 큐에서 차례를 기다립니다.${expired ? ` 같은 시각에 할당량이 끝난 ${expired.id}보다는 앞에 줄을 섭니다.` : ""}`;
+      } else {
+        const ahead = anchor.ready
+          .slice(0, anchor.ready.indexOf(returnedIds[0]))
+          .filter((id) => !returnedIds.includes(id));
+        cpu = `그 시각 CPU에는 ${anchor.running} 작업이 실행 중이어서, 복귀한 작업은 차례를 기다립니다. 복귀만으로 실행 중인 작업을 선점하지 않습니다.${ahead.length ? ` 먼저 기다리던 ${ahead.join("·")} 작업을 추월하지도 않습니다.` : ""}`;
+      }
       copy = {
         title: "입출력 완료는 실행 가능하다는 뜻",
-        body: `${anchor.t} ms에 ${idsText(returned)}의 입출력이 끝나 준비 큐에 합류했습니다. ${immediatelyRan ? `비어 있던 CPU를 ${anchor.running} 작업이 바로 받았습니다.` : `그 시각 CPU는 ${anchor.running} 작업에 배정돼 있었고, 복귀한 작업은 차례를 기다렸습니다.`} 복귀한 작업이 이미 기다리던 작업을 추월하지는 않습니다.`,
+        body: `${anchor.t} ms에 ${idsText(returned)}의 입출력이 끝나 준비 큐에 합류했습니다. ${cpu}`,
         insight:
           "준비 상태가 되어도 CPU 배정은 별개의 결정입니다. 현재 작업이 CPU를 놓을 때 큐 맨 앞에서 다음 작업을 고릅니다.",
       };
       break;
     }
-    case "idle":
+    case "idle": {
+      const waiting = anchor.blocked.map((process) => process.id);
       copy = {
         title: "실행할 수 있는 작업이 없습니다",
-        body: `${anchor.t} ms에는 준비 큐가 비었습니다. ${anchor.blocked.map((process) => process.id).join("·")} 작업은 아직 입출력을 기다리고 있어 CPU를 받아도 다음 계산을 시작할 수 없습니다. CPU의 빈 구간과 입출력 대기 구간이 시간표에서 나란히 나타납니다.`,
+        body: waiting.length
+          ? `${anchor.t} ms에는 준비 큐가 비었습니다. ${waiting.join("·")} 작업은 아직 입출력을 기다립니다. CPU를 받아도 다음 계산을 시작할 수 없습니다. 시간표에서 CPU의 빈 구간과 입출력 대기 구간이 나란히 보입니다.`
+          : `${anchor.t} ms에는 준비 큐가 비었습니다. 아직 도착하지 않은 작업만 남아 CPU가 쉽니다.`,
         insight:
           "미완료 작업이 있다고 CPU가 항상 바쁜 것은 아닙니다. CPU 활용률은 실제 실행한 시간을 전체 경과 시간으로 나눠 계산합니다.",
       };
       break;
-    case "resume":
+    }
+    case "resume": {
+      const again = result.frames
+        .filter((entry) => entry.t >= anchor.t && entry.t < end)
+        .filter((entry) => entry.events.some((event) => event.type === "preempt" && event.id === entry.running));
       copy = {
         title: "기다림이 끝나면 남은 구간부터",
-        body: `${anchor.t} ms에 ${anchor.running} 작업이 다시 CPU를 받았습니다. 앞서 처리한 ${anchor.states[anchor.running].cpuDone} ms는 사라지지 않습니다. 입출력 이후의 CPU 구간을 이어서 실행하며, 이미 끝난 구간을 다시 계산하지 않습니다.`,
-        insight:
-          "시간 할당량이 끝나도 다른 준비 작업이 없다면 같은 작업이 다시 CPU를 받습니다. 할당량 만료와 작업 전환은 같은 뜻이 아닙니다.",
+        body: `${anchor.t} ms에 ${anchor.running} 작업이 다시 CPU를 받았습니다. 입출력 전에 처리한 ${anchor.states[anchor.running].cpuDone} ms는 사라지지 않습니다. 입출력 다음의 CPU 구간을 이어서 실행합니다.`,
+        insight: again.length
+          ? `${again.map((entry) => entry.t).join("·")} ms에는 할당량이 끝나도 다른 준비 작업이 없어 같은 작업이 다시 CPU를 받습니다. 할당량 만료가 곧 문맥 교환은 아닙니다.`
+          : "입출력 대기는 대기 시간(준비 큐)에 들어가지 않습니다. CPU가 쉬는 동안 이 작업의 대기 시간은 늘지 않았습니다.",
       };
       break;
+    }
     case "finish":
-      copy = describeFrame(anchor, result);
+      copy = describeFinish(anchor, result);
       break;
   }
   return { ...copy, eyebrow };
+}
+
+/* ---------- Prediction ---------- */
+
+/** Four consecutive candidates; where the answer sits depends on its value. */
+function numberChoices(answer, min) {
+  const low = Math.max(min, answer - (answer % 3));
+  return [0, 1, 2, 3].map((offset) => low + offset);
+}
+
+/**
+ * The next CPU decision with more than one candidate after `time` (or the
+ * first one). Only arrivals and I/O returns are listed: what the running job
+ * does next has to be worked out from its quantum and burst.
+ */
+export function buildPrediction(result, time) {
+  const decision =
+    result.decisions.find((entry) => entry.time > time && entry.candidates.length > 1) ||
+    result.decisions.find((entry) => entry.candidates.length > 1);
+  if (!decision) return null;
+  const order = byProcessOrder(result);
+  const before = result.frames[decision.time - 1];
+  const at = result.frames[decision.time];
+  const rr = result.algorithm === "rr";
+  const running = before.running;
+  const joined = at.events.filter((event) => ["arrive", "unblock"].includes(event.type));
+  const released = at.events.find((event) => ["preempt", "block", "complete"].includes(event.type));
+  const chosen = decision.chosen;
+
+  let why;
+  switch (decision.cause) {
+    case "quantum":
+      why = `${josa(released.id, "은")} 할당량을 다 써서 준비 큐 맨 뒤로 갑니다.${joined.length ? ` 같은 시각에 들어온 ${idsText(joined)} 작업이 그보다 먼저 줄을 섭니다.` : ""}`;
+      break;
+    case "block": {
+      const tie = rr && before.quantumLeft === 1 && before.states[released.id].burstRemaining === 1;
+      why = `${josa(released.id, "은")} CPU 구간을 마치고 입출력을 요청해 CPU를 놓습니다.${tie ? " 할당량도 같은 시각에 끝나지만 구간 종료가 우선입니다." : ""}`;
+      break;
+    }
+    case "complete":
+      why = `${josa(released.id, "은")} 마지막 CPU 구간을 마쳐 완료됩니다. 완료된 작업은 준비 큐로 돌아가지 않습니다.`;
+      break;
+    default:
+      why = `CPU가 쉬던 중 ${idsText(joined)} 작업이 준비 큐에 들어옵니다.`;
+  }
+  const overtakes = joined.length && before.ready.length;
+  const explanation = `${why} 배정 직전 준비 큐는 ${decision.candidates.join(" → ")}입니다. 맨 앞의 ${josa(chosen, "가")} CPU를 받습니다.${overtakes ? " 새로 들어온 작업은 먼저 기다리던 작업을 추월하지 않습니다." : ""}`;
+
+  const arrival = result.processes.find((process) => process.id === chosen).arrival;
+  let followUp;
+  if (at.states[chosen].firstRun === decision.time) {
+    const answer = decision.time - arrival;
+    followUp = {
+      question: `${josa(chosen, "는")} ${arrival}ms에 도착했습니다. 최초 응답 시간은 몇 ms일까요?`,
+      answer,
+      choices: numberChoices(answer, 0),
+      explanation: `최초 응답 = 첫 실행 ${decision.time} − 도착 ${arrival} = ${answer}ms. ${answer ? "그동안 준비 큐에서 기다렸습니다." : "도착하자마자 CPU를 받았습니다."}`,
+    };
+  } else {
+    const segment = result.segments.find((entry) => entry.start === decision.time && entry.id === chosen);
+    const burst = at.states[chosen].burstRemaining;
+    const answer = segment.end - segment.start;
+    const limit = !rr ? "" : burst < result.quantum ? ` 할당량 ${result.quantum}ms보다 먼저 끝납니다.` : " 할당량도 같은 시각에 끝나지만 구간 종료가 우선입니다.";
+    const detail =
+      segment.reason === "quantum"
+        ? `이번 CPU 구간이 ${burst}ms 남아 있어, 할당량 ${result.quantum}ms를 다 쓰고 선점됩니다.`
+        : segment.reason === "complete"
+          ? `마지막 CPU 구간 ${burst}ms를 마치고 완료됩니다.${limit}`
+          : `이번 CPU 구간 ${burst}ms를 마치고 입출력을 요청합니다.${limit}`;
+    followUp = {
+      question: `이번 차례에 ${josa(chosen, "는")} CPU를 몇 ms 연속으로 쓸까요?`,
+      answer,
+      choices: numberChoices(answer, 1),
+      explanation: `${answer}ms입니다. ${detail}`,
+    };
+  }
+
+  return {
+    decision,
+    beforeTime: decision.time - 1,
+    running,
+    runningNote: running
+      ? rr
+        ? `할당량 ${before.quantumLeft}ms · 현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
+        : `현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
+      : "실행 중인 작업 없음",
+    ready: before.ready,
+    joined: joined.map((event) => event.id).toSorted(order).map((id) => {
+      const event = joined.find((entry) => entry.id === id);
+      return event.type === "arrive" ? `${id} 도착` : `${id} 입출력 완료`;
+    }),
+    // Only jobs that can actually receive the CPU, in a fixed order.
+    choices: decision.candidates.toSorted(order),
+    explanation,
+    followUp,
+  };
 }
 
 /** Explain one process using only progress that has occurred by the current frame. */
@@ -387,7 +472,7 @@ export function processDetails(frame, result, id) {
         help: `전체 CPU 작업 ${totalCpu} ms 중 실제로 실행한 시간`,
       },
       {
-        label: "CPU 대기",
+        label: "대기 시간(준비 큐)",
         value: `${state.readyWait} ms`,
         help: "준비 큐에서 기다린 누적 시간. 입출력 대기는 제외",
       },
@@ -415,7 +500,7 @@ export function processDetails(frame, result, id) {
     insight:
       state.status === "new"
         ? "도착하기 전의 시간은 이 작업의 대기 시간이나 반환 시간에 넣지 않습니다."
-        : `${state.status === "done" ? "반환 시간" : "도착 후 경과"} ${elapsed} ms = CPU 실행 ${state.cpuDone} ms + 준비 큐 대기 ${state.readyWait} ms + 입출력 대기 ${spentIo} ms.`,
+        : `${state.status === "done" ? "반환 시간" : "도착 후 경과"} ${elapsed} ms = CPU 실행 ${state.cpuDone} ms + 대기 시간(준비 큐) ${state.readyWait} ms + 입출력 대기 ${spentIo} ms.`,
   };
 }
 

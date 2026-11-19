@@ -9,12 +9,16 @@ import { DEFAULT_PROCESSES, simulate } from "./engine.js";
 import { createSchedulerScene } from "./scene.js";
 import {
   describeChapter,
-  describeComparison,
+  comparisonSummary,
   buildMilestones,
+  buildPrediction,
   eventLabel,
   frameAtMove,
+  momentNotes,
   processDetails,
+  quantumSweep,
 } from "./lesson.js";
+import { josa } from "./josa.js";
 
 const number = (value) => Number(value.toFixed(2)).toLocaleString("ko-KR");
 const ledFor = (id) => `<span class="hw-led is-on" style="--led:var(--${id ? id.toLowerCase() : "muted"})"></span>`;
@@ -134,11 +138,15 @@ app.outerHTML = `
         <span class="hw-label cpu-panel-label">이 실험의 규칙</span>
         <ul class="hw-list hw-fill cpu-rules" id="rules">
           <li>CPU는 하나이며 한 번에 한 작업만 실행합니다.</li>
+          <li>CPU 구간(CPU 버스트)은 입출력 없이 계산하는 구간입니다. 작업은 CPU 구간과 입출력을 번갈아 거칩니다.</li>
+          <li>선점은 실행 중인 작업에게서 CPU를 거두는 것입니다. 라운드 로빈은 할당량이 끝날 때만 선점합니다.</li>
+          <li>도착·입출력 복귀는 실행 중인 작업을 선점하지 않습니다. 준비 큐 뒤에 줄을 섭니다.</li>
+          <li>CPU 구간이 끝나는 시각에 할당량도 끝나면 구간 종료가 우선합니다. 작업은 입출력이나 완료로 갑니다.</li>
+          <li>같은 시각에는 도착·입출력 복귀를 먼저 큐에 넣고, 할당량이 끝난 작업을 맨 뒤에 넣습니다.</li>
           <li>입출력은 CPU와 따로 진행됩니다. 여러 작업의 입출력이 겹칠 수 있습니다.</li>
-          <li>문맥 교환 비용은 0ms로 단순화했습니다.</li>
-          <li>같은 시각에는 도착·입출력 복귀를 먼저 큐에 넣고, 시간이 만료된 작업을 맨 뒤에 넣습니다.</li>
-          <li>CPU 대기에 입출력 대기는 포함하지 않습니다.</li>
-          <li>반환 시간은 작업이 끝나면 표시됩니다.</li>
+          <li>문맥 교환(작업 전환) 비용은 0ms로 단순화했습니다.</li>
+          <li>대기 시간(준비 큐)에 입출력 대기는 포함하지 않습니다. 반환 시간은 완료 시각 − 도착 시각입니다.</li>
+          <li>FCFS는 긴 CPU 구간이 앞에 서면 짧은 작업들이 줄줄이 기다리는 호위 효과(convoy effect)가 생길 수 있습니다.</li>
         </ul>
       </div>
     </aside>
@@ -168,7 +176,7 @@ app.outerHTML = `
         <div class="hw-scroll cpu-log-box"><table class="hw-table"><thead><tr><th>시각</th><th>작업</th><th>일어난 일</th></tr></thead><tbody id="event-log"></tbody></table></div>
       </div>
       <div class="hw-plate-body" id="record-metrics" role="tabpanel" aria-labelledby="tab-metrics" hidden>
-        <div class="cpu-table-scroll"><table class="hw-table"><thead><tr><th>작업 · 눌러서 자세히</th><th>남은 CPU</th><th title="도착부터 처음 CPU를 받기까지">최초 응답</th><th title="준비 큐에서 기다린 누적 시간">CPU 대기</th><th title="도착부터 완료까지">반환 시간</th></tr></thead><tbody id="metrics"></tbody></table></div>
+        <div class="cpu-table-scroll"><table class="hw-table"><thead><tr><th>작업 · 눌러서 자세히</th><th>남은 CPU</th><th title="도착부터 처음 CPU를 받기까지">최초 응답</th><th title="준비 큐에서 기다린 누적 시간">대기 시간(준비 큐)</th><th title="도착부터 완료까지 · 작업이 끝나면 표시">반환 시간</th></tr></thead><tbody id="metrics"></tbody></table></div>
       </div>
     </section>
   </main>
@@ -249,7 +257,7 @@ const moveExplanations = {
   arrive: "도착한 작업이 준비 큐 뒤에 합류합니다.",
   unblock: "입출력이 끝난 작업이 준비 큐 뒤에 합류합니다.",
   preempt: "시간 할당량을 다 쓴 작업이 진행한 계산을 보존한 채 준비 큐 뒤로 이동합니다.",
-  dispatch: "준비 큐에서 가장 오래 기다린 맨 앞 작업이 CPU로 이동합니다.",
+  dispatch: "준비 큐 맨 앞(가장 먼저 줄을 선) 작업이 CPU로 이동합니다.",
   block: "현재 CPU 구간을 마친 작업이 입출력 장치로 이동합니다.",
   complete: "마지막 CPU 구간을 마친 작업이 완료 칸으로 이동합니다.",
 };
@@ -287,11 +295,13 @@ function presentFrame(frame, move = null) {
     description.insight = `이동 직전 준비 큐 · ${frame.ready.join(" → ") || "비어 있음"}`;
   }
   const visibleEvents = move ? [...frame.events, move] : frame.events;
-  const events = visibleEvents.length
+  const notes = move ? [] : momentNotes(frame, result);
+  const events = (visibleEvents.length
     ? visibleEvents
         .map((e) => `<li>${ledFor(e.id)}<span>${eventLabel(e)}${e === move ? '<span class="hw-muted"> · 이동 중</span>' : ""}</span></li>`)
         .join("")
-    : `<li>${ledFor(frame.running)}<span>${frame.running ? `${frame.running}가 다음 사건까지 실행을 이어갑니다.` : "입출력이 끝나기를 기다립니다."}</span></li>`;
+    : `<li>${ledFor(frame.running)}<span>${frame.running ? `${josa(frame.running, "가")} 다음 사건까지 실행을 이어갑니다.` : "입출력이 끝나기를 기다립니다."}</span></li>`) +
+    notes.map((note) => `<li class="cpu-event-note"><span class="hw-muted">${note}</span></li>`).join("");
   refill(
     nowPager,
     $("#now-pages"),
@@ -362,7 +372,7 @@ function updateControls() {
   let led = frame.running,
     text;
   if (transitioning) {
-    text = frame.running ? `${frame.running}가 CPU 사용 중 · 작업 이동 중` : "CPU 비어 있음 · 작업 이동 중";
+    text = frame.running ? `${josa(frame.running, "가")} CPU 사용 중 · 작업 이동 중` : "CPU 비어 있음 · 작업 이동 중";
   } else if (frame.running) {
     text = `${frame.running} 실행 중 · ${algorithm === "rr" ? `할당량 ${frame.quantumLeft}ms 남음` : "입출력 요청 또는 완료까지"}`;
   } else {
@@ -533,53 +543,69 @@ function renderMetrics() {
 
 function openPrediction() {
   pause();
-  const decision =
-    result.decisions.find((d) => d.time > time && d.candidates.length > 1) || result.decisions.find((d) => d.candidates.length > 1);
-  quiz = { decision, answered: false };
-  seek(decision.time - 1);
-  const before = result.frames[time];
-  const nextEvents = result.frames[decision.time].events.filter((e) => e.type !== "dispatch");
-  const running = before.running;
-  const runningNote = running
-    ? algorithm === "rr"
-      ? `할당량 ${before.quantumLeft}ms · 현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
-      : `현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
-    : "실행 중인 작업 없음";
+  const prediction = buildPrediction(result, time);
+  const { decision } = prediction;
+  quiz = { ...prediction, answered: false, followAnswered: false };
+  seek(prediction.beforeTime);
   $("#prediction-body").innerHTML = `
     <div class="hw-plate-body">
       <div class="hw-section">
         <span class="hw-label">${time}MS 장면에서 멈춤</span>
         <h2 class="hw-title" id="prediction-title">${decision.time}ms, 다음 CPU는 누구에게 돌아갈까요?</h2>
-        <p class="hw-text hw-muted">지금의 준비 큐에 다음 사건을 적용해 순서를 예상해 보세요.</p>
+        <p class="hw-text hw-muted">실행 중인 작업의 남은 할당량·구간과 규칙을 근거로 ${decision.time}ms의 준비 큐를 직접 만들어 보세요.</p>
       </div>
       <div class="hw-section">
         <dl class="hw-list cpu-quiz-context">
-          <div><dt class="hw-label">지금 CPU</dt><dd><b>${running || "유휴"}</b> <span class="hw-muted">${runningNote}</span></dd></div>
-          <div><dt class="hw-label">준비 큐 · 앞 → 뒤</dt><dd><b>${before.ready.join(" → ") || "비어 있음"}</b></dd></div>
-          <div><dt class="hw-label">${decision.time}ms 사건</dt><dd>${nextEvents.map((e) => eventLabel(e)).join(" · ") || "없음"}</dd></div>
+          <div><dt class="hw-label">지금 CPU</dt><dd><b>${prediction.running || "유휴"}</b> <span class="hw-muted">${prediction.runningNote}</span></dd></div>
+          <div><dt class="hw-label">준비 큐 · 앞 → 뒤</dt><dd><b>${prediction.ready.join(" → ") || "비어 있음"}</b></dd></div>
+          <div><dt class="hw-label">${decision.time}ms에 들어오는 작업</dt><dd>${prediction.joined.join(" · ") || "도착·입출력 복귀 없음"}</dd></div>
         </dl>
       </div>
       <div class="hw-section">
         <span class="hw-label">${decision.time}ms에 CPU를 받을 작업</span>
-        <div class="cpu-choices">${DEFAULT_PROCESSES.map((p) => `<button class="hw-key" data-answer="${p.id}">${ledFor(p.id)}<span><b>${p.id}</b> ${p.name}</span></button>`).join("")}</div>
+        <div class="cpu-choices">${prediction.choices
+          .map((id) => `<button class="hw-key" data-answer="${id}">${ledFor(id)}<span><b>${id}</b> ${DEFAULT_PROCESSES.find((p) => p.id === id).name}</span></button>`)
+          .join("")}</div>
         <div id="quiz-feedback" aria-live="polite"></div>
+      </div>
+      <div class="hw-section" id="quiz-follow" hidden>
+        <span class="hw-label">이어서 · 숫자로 예측</span>
+        <p class="hw-text">${prediction.followUp.question}</p>
+        <div class="cpu-choices cpu-choices--numbers">${prediction.followUp.choices.map((n) => `<button class="hw-key" data-number="${n}"><b class="hw-mono">${n}ms</b></button>`).join("")}</div>
+        <div id="quiz-follow-feedback" aria-live="polite"></div>
       </div>
     </div>
     <div class="hw-plate-foot cpu-dialog-actions"><button class="hw-key hw-key--accent" data-action="quiz-continue" hidden>실제 이동을 보며 확인 ${icon("arrow")}</button></div>`;
   $("#prediction-dialog").showModal();
 }
+function markChoices(selector, attribute, correctValue, picked) {
+  root.querySelectorAll(selector).forEach((b) => {
+    const value = b.dataset[attribute];
+    b.disabled = value !== correctValue && value !== picked;
+    b.setAttribute("aria-disabled", "true");
+    if (value === correctValue) b.insertAdjacentHTML("beforeend", '<span class="hw-tag">정답</span>');
+    else if (value === picked) b.insertAdjacentHTML("beforeend", '<span class="hw-tag">내 선택</span>');
+  });
+}
 function answerPrediction(answer) {
   if (quiz.answered) return;
   quiz.answered = true;
-  const d = quiz.decision,
-    correct = answer === d.chosen;
-  root.querySelectorAll("[data-answer]").forEach((b) => {
-    b.disabled = b.dataset.answer !== d.chosen && b.dataset.answer !== answer;
-    b.setAttribute("aria-disabled", "true");
-    if (b.dataset.answer === d.chosen) b.insertAdjacentHTML("beforeend", '<span class="hw-tag">정답</span>');
-    else if (b.dataset.answer === answer) b.insertAdjacentHTML("beforeend", '<span class="hw-tag">내 선택</span>');
-  });
-  $("#quiz-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? "맞았습니다." : `실제 차례는 ${d.chosen}입니다.`}</p><p>배정 직전 준비 큐는 <b>${d.candidates.join(" → ")}</b>입니다. 맨 앞의 ${d.chosen}가 먼저 CPU를 받습니다.</p><p class="hw-muted">${d.cause === "quantum" ? "같은 시각에 도착·복귀한 작업을 넣은 뒤, 시간이 만료된 작업을 맨 뒤에 넣습니다." : "입출력 완료와 새 도착은 기존에 기다리던 작업을 추월하지 않습니다."}</p></div></div>`;
+  const chosen = quiz.decision.chosen,
+    correct = answer === chosen;
+  markChoices("[data-answer]", "answer", chosen, answer);
+  $("#quiz-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? "맞았습니다." : `실제 차례는 ${chosen}입니다.`}</p><p>${quiz.explanation}</p></div></div>`;
+  // The feedback restates the queue, so the context makes room for the follow-up.
+  $("#prediction-body .cpu-quiz-context").closest(".hw-section").hidden = true;
+  $("#prediction-body .hw-section > .hw-text.hw-muted").hidden = true;
+  $("#quiz-follow").hidden = false;
+  $("[data-number]")?.focus();
+}
+function answerNumber(value) {
+  if (!quiz.answered || quiz.followAnswered) return;
+  quiz.followAnswered = true;
+  const { answer, explanation } = quiz.followUp;
+  markChoices("[data-number]", "number", String(answer), String(value));
+  $("#quiz-follow-feedback").innerHTML = `<div class="hw-note ${Number(value) === answer ? "hw-note--accent" : ""}"><div><p>${Number(value) === answer ? "맞았습니다. " : ""}${explanation}</p></div></div>`;
   $('[data-action="quiz-continue"]').hidden = false;
   $('[data-action="quiz-continue"]').focus();
 }
@@ -597,23 +623,16 @@ function openComparison() {
   const rr = simulate({ algorithm: "rr", quantum }),
     fcfs = simulate({ algorithm: "fcfs" });
   const scale = Math.max(rr.stats.makespan, fcfs.stats.makespan);
-  const diff = rr.stats.averageResponse - fcfs.stats.averageResponse;
-  const responseMessage =
-    diff < 0
-      ? `라운드 로빈의 평균 최초 응답은 ${number(-diff)}ms 더 빠릅니다.`
-      : diff > 0
-        ? `FCFS의 평균 최초 응답은 ${number(diff)}ms 더 빠릅니다.`
-        : "두 방식의 평균 최초 응답 시간이 같습니다.";
-  const endDiff = rr.stats.makespan - fcfs.stats.makespan;
-  const finishMessage =
-    endDiff > 0 ? `전체 완료는 FCFS가 ${endDiff}ms 빠릅니다.` : endDiff < 0 ? `전체 완료도 라운드 로빈이 ${-endDiff}ms 빠릅니다.` : "전체 완료 시각은 같습니다.";
+  const summary = comparisonSummary(rr, fcfs);
+  const sweep = quantumSweep(simulate, DEFAULT_PROCESSES);
+  const mark = (q, value) => (q === quantum ? `<b>${value}</b>` : value);
   const rows = [
     ["평균 최초 응답", "도착 → 첫 CPU 실행", "averageResponse", "ms"],
-    ["평균 CPU 대기", "준비 큐에서 기다린 시간", "averageWaiting", "ms"],
+    ["평균 대기 시간(준비 큐)", "준비 큐에서 기다린 시간", "averageWaiting", "ms"],
     ["평균 반환 시간", "도착 → 완료", "averageTurnaround", "ms"],
     ["전체 완료 시각", "모든 작업이 끝난 시각", "makespan", "ms"],
     ["CPU 활용률", "실행 시간 ÷ 전체 시간", "utilization", "%"],
-    ["작업 전환", "서로 다른 작업 사이의 전환", "contextSwitches", "회"],
+    ["문맥 교환", "서로 다른 작업 사이의 전환(작업 전환)", "contextSwitches", "회"],
   ];
   const better = (key, a, b) => {
     if (a === b) return ["", ""];
@@ -640,11 +659,12 @@ function openComparison() {
           .join("")}</tbody></table>
       </div>
       <div class="hw-section">
-        <div class="hw-note hw-note--accent"><div><p class="hw-heading">${responseMessage}</p><p>${finishMessage} ${describeComparison(rr, fcfs)}</p><p class="hw-muted">특정 방식이 항상 더 좋다는 뜻은 아닙니다. 실제 운영체제에서는 문맥 교환 비용도 발생합니다.</p></div></div>
+        <div class="hw-note hw-note--accent"><div><p class="hw-heading">${summary.response}</p><p>${summary.finish} ${summary.cause}</p><p class="hw-muted">${summary.caveat}</p></div></div>
+        <p class="hw-text hw-muted cpu-sweep">할당량 ${sweep.map((r) => mark(r.quantum, `${r.quantum}`)).join("·")}ms → 문맥 교환 ${sweep.map((r) => mark(r.quantum, r.switches)).join("·")}회, 전체 완료 ${sweep.map((r) => mark(r.quantum, r.makespan)).join("·")}ms. 할당량이 작을수록 전환이 늘고, 가장 긴 CPU 구간 이상이면 FCFS와 같아집니다.</p>
       </div>
     </div>
     <div class="hw-plate-foot cpu-dialog-actions">
-      <button class="hw-key" data-action="try-other">${algorithm === "rr" ? "FCFS" : "라운드 로빈"}으로 직접 실행 ${icon("arrow")}</button>
+      <button class="hw-key" data-action="try-other">${josa(algorithm === "rr" ? "FCFS" : "라운드 로빈", "으로")} 직접 실행 ${icon("arrow")}</button>
       <button class="hw-key hw-key--accent" data-action="close-dialog">계속 살펴보기</button>
     </div>`;
   $("#comparison-dialog").showModal();
@@ -688,6 +708,7 @@ root.addEventListener("click", (event) => {
     return;
   }
   if (target.dataset.answer) return answerPrediction(target.dataset.answer);
+  if (target.dataset.number) return answerNumber(target.dataset.number);
   switch (target.dataset.action) {
     case "guided":
       guided = !guided;

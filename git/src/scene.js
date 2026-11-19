@@ -17,7 +17,7 @@ import {
   server,
   token,
 } from "../../shared/iso-kit.js";
-import { CONTENTS } from "./engine.js";
+import { BUTTONS, TITLES } from "./engine.js";
 
 const LAPTOP = { x: 1, y: 7, w: 6, d: 4 };
 const INDEX = { x: 9.5, y: 4.5, w: 5, d: 4, h: 0.9 };
@@ -55,10 +55,13 @@ const KIND_COLOR = {
 };
 /** Which title a file snapshot carries: base, main, feature, both or conflict. */
 export function contentKind(content) {
-  if (content == null) return "conflict";
-  const hit = Object.entries(CONTENTS).find(([, value]) => value === content);
+  if (content == null || /^<<<<<<< /m.test(content)) return "conflict";
+  const title = /^제목: (.*)$/m.exec(content)?.[1];
+  const hit = Object.entries(TITLES).find(([, value]) => value === title);
   return hit ? hit[0] : "conflict";
 }
+/** Whether a snapshot carries main's button change (C0 → C2). */
+export const hasMainButton = (content) => content != null && content.includes(`버튼: ${BUTTONS.main}\n`);
 const BRANCH_COLOR = { main: "var(--git-main)", "feature/title": "var(--git-feature)" };
 const COMMIT_COLOR = { C0: KIND_COLOR.base, C1: KIND_COLOR.feature, C2: KIND_COLOR.main, C3: KIND_COLOR.main };
 
@@ -85,11 +88,12 @@ function screenSvg(state) {
   const gutter = "color-mix(in srgb, var(--hw-lcd-ink) 22%, transparent)";
   const conflict = state.status === "conflict";
   const kind = contentKind(state.working);
+  const button = [2.2, hasMainButton(state.working) ? KIND_COLOR.main : muted];
   const lines = conflict
-    ? [[1.5, muted], [1.0, KIND_COLOR.conflict], [2.5, KIND_COLOR.main], [0.7, KIND_COLOR.conflict], [2.5, KIND_COLOR.feature], [1.0, KIND_COLOR.conflict], [1.9, muted]]
-    : [[1.5, muted], [2.8, KIND_COLOR[kind]], [1.9, muted]];
-  const step = conflict ? 0.19 : 0.42;
-  const barH = conflict ? 0.11 : 0.16;
+    ? [[1.5, muted], [1.0, KIND_COLOR.conflict], [2.5, KIND_COLOR.main], [0.7, KIND_COLOR.conflict], [2.5, KIND_COLOR.feature], [1.0, KIND_COLOR.conflict], [1.6, muted], button]
+    : [[1.5, muted], [2.8, KIND_COLOR[kind]], [1.6, muted], button];
+  const step = conflict ? 0.17 : 0.34;
+  const barH = conflict ? 0.1 : 0.15;
   const top = conflict ? 1.66 : 1.5;
   const tab = `${frontQuad({ x: left, y, z: 1.98, w: width, h: 0.58, fill: "rgb(255 255 255 / .05)" })}
     ${frontQuad({ x: left + 0.12, y, z: 1.98, w: 2.7, h: 0.5, fill: "rgb(255 255 255 / .1)" })}
@@ -144,7 +148,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       ${STAGES.map((stage) => `<g class="git-slot" data-stage="${stage.key}" style="transform:${translate(screen(stage.slot))}"></g>`).join("")}
     </g>
     ${callout({ x: LAPTOP.x + 0.6, y: LAPTOP.y, z: 2.82, dx: -26, dy: -36, title: "작업 트리", sub: "WORKING TREE", cls: "git-callout-work" })}
-    ${callout({ x: 12, y: INDEX.y, z: INDEX.h, dx: 0, dy: -96, title: "인덱스 · 스테이징", sub: "INDEX", cls: "git-callout-index" })}
+    ${callout({ x: 12, y: INDEX.y, z: INDEX.h, dx: 0, dy: -96, title: "인덱스(스테이징)", sub: "INDEX", cls: "git-callout-index" })}
     ${callout({ x: REPO.x + REPO.w, y: REPO.y, z: REPO_TOP, dx: -10, dy: -112, title: "로컬 저장소", sub: ".git · 커밋 이력", cls: "git-callout-history" })}
     <g class="git-refs">
       <g class="git-ref" data-ref="main">${refSvg("main")}</g>
@@ -308,7 +312,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
     stage: "작업 트리의 현재 내용이 인덱스로 복사됩니다.",
     commit: "인덱스의 스냅샷으로 새 커밋을 만들고 현재 브랜치를 옮깁니다.",
     switch: "main이 가리키는 커밋에서 작업 트리와 인덱스를 함께 복원합니다.",
-    merge: "공통 조상 C0, 현재 C2, 가져올 C1의 세 버전을 인덱스로 불러와 비교합니다.",
+    merge: "Git이 공통 조상 C0, 현재 C2, 가져올 C1로 병합을 계산하고, 자동으로 합칠 수 없는 파일의 세 버전을 인덱스에 기록합니다.",
     resolve: "선택한 최종 문장으로 충돌 표시를 교체합니다. 아직 git add 전입니다.",
   };
   const stageNames = { base: "공통 조상", ours: "현재 main", theirs: "가져올 feature/title" };
@@ -356,7 +360,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       paintIndex({ ...before, merge: state.merge }, {});
       for (const [i, { key, slot }] of STAGES.entries()) {
         const id = state.merge[key];
-        phase("request", `${i + 1}/3 · ${stageNames[key]} ${id} → 인덱스`, `${stageNames[key]}의 제목 줄을 인덱스에 올려 비교합니다.`, comparing({ ...stages }));
+        phase("request", `${i + 1}/3 · ${stageNames[key]} ${id} → 인덱스 stage ${i + 1}`, `${stageNames[key]}의 파일 버전을 인덱스에 기록합니다.`, comparing({ ...stages }));
         await travel(run, "a", [node(id), ...lifted([...ROUTES.commit].reverse()), slot], {
           label: id,
           color: COMMIT_COLOR[id],
@@ -366,7 +370,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
         stages[key] = state.index.stages[key];
         paintIndex({ ...before, merge: state.merge }, { ...stages });
       }
-      phase("request", "충돌 표시 → 작업 트리", "같은 줄을 서로 다르게 바꿔 자동으로 합칠 수 없습니다. 두 문장이 충돌 표시와 함께 파일에 들어갑니다.", comparing({ ...stages }));
+      phase("request", "충돌 표시 → 작업 트리", "버튼 줄은 C0에서 main만 바꿔 자동으로 합쳐졌습니다. 제목 줄은 양쪽이 다르게 바꿔 두 문장이 충돌 표시와 함께 파일에 들어갑니다.", comparing({ ...stages }));
       light("add:conflict");
       $("#route-commit").classList.remove("is-active");
       await travel(run, "a", [INDEX_SLOT, ...lifted([...ROUTES.add].reverse()), WORK_SLOT], {
@@ -390,7 +394,7 @@ export function createGitScene(host, { onPhase = () => {} } = {}) {
       {
         merge: "자동 병합이 멈췄습니다. main은 여전히 C2를 가리키고, 새 커밋은 없습니다.",
         resolve: "작업 트리는 고쳤지만 인덱스에는 아직 세 버전이 남아 있습니다.",
-        commit: state.commits.length === 4 ? "C3은 C2와 C1을 부모로 갖습니다. main만 C3로 이동합니다." : "",
+        commit: state.commits.length === 4 ? "C3는 C2와 C1을 부모로 갖습니다. main만 C3로 이동합니다." : "",
       }[step.action] ?? "",
       state,
     );

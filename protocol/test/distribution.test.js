@@ -46,6 +46,9 @@ const reviewedCorrections = {
     encoding: "7e337b2cfa85ca4b086f60d8bf7f476ff682ad4ffd6822c7c8b4852d8d5e5dd6",
     sequence: "3425b096af9689c3727f8b7c64c2a06c5a727b7cd77343272c7b128588baacc3",
   },
+  // Steps 2–4 state as a fact that the resolver's own queries are iterative
+  // (RD=0); only the facts changed, not the packets or the sequence.
+  dns: { lesson: "98da24902b9d294738ec1a22020190f315666ba9238adde6e25b4b6e18076ec0" },
   tls: { lesson: "61f24c71bd8eb9ed1980cce0526c8a17dda3c331885702019280ad7363378155" },
   https: { lesson: "3b63bedaf277bebd6807d8770cdfd3c602b5d04d469823b704ee0572d0cd6333" },
 };
@@ -148,4 +151,16 @@ test("TLS and HTTPS distinguish the compatibility CCS from encrypted Finished", 
       ["20 (Change Cipher Spec)", "23 (Application Data)"],
     );
   }
+});
+
+test("DNS names the resolver's queries iterative (RD=0) and the laptop's recursive", () => {
+  const lesson = lessonsById.dns;
+  const frames = getEncodedLessonPackets(lesson);
+  const flags = (i) => frames[i].fields.findLast((f) => f.name === "Flags").value;
+  assert.match(flags(0), /RD/);
+  for (const [step, packet] of [[1, 1], [2, 3], [3, 5]]) {
+    assert.deepEqual(lesson.steps[step].facts.at(-1), ["Query flags", "RD=0 (iterative query)"]);
+    assert.doesNotMatch(flags(packet), /RD/);
+  }
+  assert.match(translate(lesson.steps[1].detail), /재귀 질의\(RD=1\).*반복 질의\(RD=0\)/);
 });

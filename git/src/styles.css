@@ -133,6 +133,28 @@
   margin-inline-end: 8px;
   color: var(--hw-screen-muted);
 }
+/* Lines Git merged on its own beside the conflict. */
+.git-auto {
+  margin-inline-start: 8px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  font-size: 0.82em;
+  opacity: 0.8;
+}
+
+/* git status as the terminal prints it, beside the lesson. */
+.git-terminal pre {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--rule);
+  border-radius: 4px;
+  font-size: var(--fs-1);
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
 
 /* ---------- Stage foot, deck ---------- */
 

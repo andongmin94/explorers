@@ -186,7 +186,7 @@ const interfaceStrings = {
   '"abcdefghijklmnopqrstuvwabcdefghi" (32 bytes)':
     '"abcdefghijklmnopqrstuvwabcdefghi"(32바이트)',
   '"hello, anyone here" (18 bytes)': '"hello, anyone here"(18바이트)',
-  "32 bits (IPv4), 128 (IPv6)": "32비트(IPv4), 128(IPv6)",
+  "32 bits (IPv4), 128 (IPv6)": "32비트(IPv4), 128비트(IPv6)",
   "64 → 52 (12 routers)": "64 → 52(라우터 12개)",
   "52 (64 − 12 routers)": "52(64 − 라우터 12개)",
   "1 (Ethernet)": "1(이더넷)",
@@ -196,6 +196,15 @@ const interfaceStrings = {
   "RTP + audio": "RTP + 오디오",
 };
 const lessonStrings = {
+  // Fact values that were shown untranslated.
+  "To": "받는 곳",
+  "Query flags": "질의 플래그",
+  "RD=0 (iterative query)": "RD=0(반복 질의)",
+  "No": "아니요",
+  "0.094 s": "0.094초",
+  "3600 s (TTL)": "3600초(TTL)",
+  "86,400 s (24 h)": "86,400초(24시간)",
+  "Change cipher spec": "암호 사양 변경(CCS)",
   "Hypertext Transfer Protocol": "하이퍼텍스트 전송",
   "HTTP Secure": "보안 HTTP",
   "Transmission Control Protocol": "전송 제어",
@@ -412,7 +421,7 @@ const lessonStrings = {
   "TLS Handshake": "TLS 핸드셰이크",
   "Agrees on keys, checks the certificate": "키를 합의하고 인증서를 확인",
   "The browser and server exchange key shares in plaintext. The server then sends its certificate and Finished under the handshake keys. The browser verifies the certificate. The compatibility Change Cipher Spec (CCS) record between Server Hello and the encrypted handshake is plaintext.":
-    "브라우저와 서버가 평문으로 키 공유 값을 교환합니다. 이어 서버는 핸드셰이크 키로 인증서와 Finished 메시지를 암호화해 보냅니다. 브라우저는 인증서를 검증합니다. Server Hello와 암호화된 핸드셰이크 사이에 보이는 Change Cipher Spec(CCS)는 옛 장비와의 호환을 위한 평문 레코드입니다.",
+    "브라우저와 서버가 평문으로 키 공유 값을 교환합니다. 서버는 핸드셰이크 키로 Encrypted Extensions, 인증서, 서명(CertificateVerify), Finished를 보내고, 브라우저는 인증서 체인과 서명을 검증한 뒤 자신의 Finished를 보냅니다. Server Hello와 암호화된 핸드셰이크 사이에 보이는 Change Cipher Spec(CCS)는 옛 장비와의 호환을 위한 평문 레코드입니다. 메시지 하나하나는 TLS 레슨에서 자세히 다룹니다.",
   Version: "버전",
   "Key exchange": "키 교환",
   "X25519MLKEM768 (hybrid)": "X25519MLKEM768(하이브리드)",
@@ -504,9 +513,9 @@ const lessonStrings = {
   "Bytes delivered": "전달된 바이트",
   "78 up, 2,920 down": "업로드 78, 다운로드 2,920",
   "Retransmission trigger": "재전송 계기",
-  "1 s RTO EXPIRED": "재전송 타이머 1초 만료",
+  "1 s RTO EXPIRED": "RTO 1초 만료",
   "1.105 s": "1.105초",
-  "1 s timeout (RTO)": "재전송 타이머 1초 만료",
+  "1 s timeout (RTO)": "재전송 타이머(RTO) 1초 만료",
   "Open Connection": "연결 열기",
   "curl already knows the server’s address. Before any data moves, both sides choose a starting sequence number and confirm it: SYN, SYN-ACK, ACK. The numbers here are relative; real ones start at a random value.":
     "curl은 이미 서버의 주소를 알고 있습니다. 데이터가 오가기 전에 양쪽은 시작 시퀀스 번호를 골라 확인합니다. SYN, SYN-ACK, ACK. 여기 나온 번호는 상대값이며, 실제 번호는 무작위 값에서 시작합니다.",
@@ -539,7 +548,7 @@ const lessonStrings = {
   "Resend the Gap": "빈틈 재전송",
   "The retransmission timer expires": "재전송 타이머 만료",
   "The SACK reports that segment 2 arrived. With just one duplicate ACK, the server still cannot tell whether segment 1 was lost or delayed. In this example its retransmission timer is 1 second. At 1.052 s the timer expires and the server resends segment 1. The laptop now has both segments and advances its cumulative ACK to 2921.":
-    "SACK는 두 번째 세그먼트를 받았다는 뜻입니다. 서버는 중복 ACK 하나만으로 첫 세그먼트가 사라졌는지 늦게 오는지 구별할 수 없습니다. 이 예시의 재전송 타이머는 1초입니다. 1.052초에 타이머가 만료되면 서버는 첫 세그먼트를 다시 보냅니다. 이제 노트북은 두 세그먼트를 모두 받았으므로 누적 ACK를 2921로 올립니다.",
+    "SACK는 두 번째 세그먼트를 받았다는 뜻입니다. 서버는 중복 ACK 하나만으로 첫 세그먼트가 사라졌는지 늦게 오는지 구별할 수 없습니다. 이 예시의 재전송 타이머(RTO, 확인 응답을 기다리는 최대 시간으로 측정한 왕복 시간에서 계산)는 1초입니다. 1.052초에 타이머가 만료되면 서버는 첫 세그먼트를 다시 보냅니다. 이제 노트북은 두 세그먼트를 모두 받았으므로 누적 ACK를 2921로 올립니다.",
   Resent: "재전송한 것",
   "bytes 1–1460 only": "바이트 1–1460만",
   "Next ACK": "다음 ACK",
@@ -569,7 +578,7 @@ const lessonStrings = {
   "Their voice": "상대방 목소리",
   "Media Server": "미디어 서버",
   "UDP sends data in independent packets called datagrams, with no connection, no acknowledgements and no resends. That keeps it fast and light: right for voice, video, games and DNS, where a late answer is worse than a missing one.":
-    "UDP는 데이터그램이라는 독립된 패킷으로 데이터를 보냅니다. 연결도, 확인 응답도, 재전송도 없습니다. 그래서 빠르고 가볍습니다. 늦게 온 답이 아예 없는 답보다 나쁜 음성, 영상, 게임, DNS에 알맞습니다.",
+    "UDP는 데이터그램이라는 독립된 패킷으로 데이터를 보냅니다. 연결도, 확인 응답도, 재전송도 없습니다. 그래서 빠르고 가볍습니다. 늦게 온 답이 아예 없는 답보다 나쁜 음성, 영상, 게임에 알맞고, 작은 질문과 답 한 번으로 끝나는 DNS도 UDP를 씁니다.",
   None: "없음",
   "None (no ACKs, no resends)": "없음(ACK 없음, 재전송 없음)",
   Ordering: "순서",
@@ -773,14 +782,14 @@ const lessonStrings = {
   "flags: RD": "플래그: RD",
   "Points the way to .com": ".com으로 가는 길을 알려 줌",
   "The resolver’s cache is empty (it has just started), so it begins at the top. A root server doesn’t know the address, but it knows which servers handle .com and replies with a referral. Many resolvers send it only “com”, not the full name.":
-    "리졸버의 캐시는 비어 있으므로(방금 시작했습니다) 꼭대기부터 시작합니다. 루트 서버는 주소를 모르지만 .com을 맡은 서버는 알고 있어서 리퍼럴로 답합니다. 많은 리졸버는 전체 이름이 아니라 ‘com’만 보냅니다.",
+    "리졸버의 캐시는 비어 있으므로(방금 시작했습니다) 꼭대기부터 시작합니다. 노트북→리졸버 질의는 ‘끝까지 찾아 달라’는 재귀 질의(RD=1)였지만, 리졸버→루트·TLD·권한 서버 질의는 ‘아는 만큼만 알려 달라’는 반복 질의(RD=0)입니다. 루트 서버는 주소를 모르지만 .com을 맡은 서버는 알고 있어서 리퍼럴로 답합니다. 많은 리졸버는 전체 이름이 아니라 ‘com’만 보냅니다.",
   "Root servers": "루트 서버",
   "13 names, 1,000+ anycast sites": "이름 13개, 애니캐스트 지점 1,000곳 이상",
   "Referral (13 .com servers)": "리퍼럴(.com 서버 13대)",
   "no answer: ask .com": "답 없음: .com에 물어보라",
   "Points the way to example.com": "example.com으로 가는 길을 알려 줌",
   "The resolver asks one of the .com servers. They don’t store addresses for every site either, but they know which name servers each .com domain uses, so this reply is another referral, with those servers’ addresses (glue) attached.":
-    "리졸버는 .com 서버 중 하나에 묻습니다. 이 서버들도 모든 사이트의 주소를 저장하지는 않지만, 각 .com 도메인이 어떤 네임 서버를 쓰는지는 알고 있습니다. 그래서 이 응답도 리퍼럴이며, 그 서버들의 주소(글루)가 붙어 있습니다.",
+    "리졸버는 .com 서버 중 하나에 묻습니다. 이 서버들도 모든 사이트의 주소를 저장하지는 않지만, 각 .com 도메인이 어떤 네임 서버를 쓰는지는 알고 있습니다. 그래서 이 응답도 리퍼럴이며, 그 서버들의 주소가 붙어 있습니다. 이렇게 함께 실린 주소를 글루라고 합니다. ns1.example.com의 주소를 얻으려고 다시 example.com에 물어야 하는 순환을 막아 줍니다.",
   Knows: "아는 것",
   "Name servers of .com domains": ".com 도메인의 네임 서버",
   "Referral + glue addresses": "리퍼럴 + 글루 주소",
@@ -804,10 +813,10 @@ const lessonStrings = {
   "Response A 203.0.113.10 (authoritative)": "응답 A 203.0.113.10(권한 있음)",
   "As sent: this system starts at 128.":
     "보낸 그대로: 이 시스템은 128에서 시작합니다.",
-  "0x0000: query": "0x0000: 쿼리",
+  "0x0000: query": "0x0000: 쿼리, RD=0(반복 질의)",
   "UDP size 1232, DNSSEC OK = 0": "UDP 크기 1232, DNSSEC OK = 0",
   "Says how big a UDP answer can be. DNSSEC signatures are not asked for here, to keep the lesson short; a validating resolver like 8.8.8.8 does ask for them.":
-    "UDP 응답이 얼마나 커도 되는지 알려 줍니다. 레슨을 짧게 하려고 여기서는 DNSSEC 서명을 요청하지 않습니다. 8.8.8.8 같은 검증 리졸버는 요청합니다.",
+    "UDP 응답이 얼마나 커도 되는지 알려 줍니다. 실제 검증 리졸버(예: 8.8.8.8)는 DO=1로 서명을 요청하지만, 이 레슨에서는 생략했습니다.",
   "0x8000: response": "0x8000: 응답",
   Authority: "권한",
   Additional: "추가",
@@ -861,7 +870,7 @@ const lessonStrings = {
   "Gateway, DNS": "게이트웨이, DNS",
   "offer: 192.168.1.10/24": "제안: 192.168.1.10/24",
   "gateway, DNS, lease 24 h": "게이트웨이, DNS, 임대 24시간",
-  "Accept, out loud": "모두가 듣게 수락",
+  "Accept, out loud": "브로드캐스트로 수락",
   "The laptop asks for the offered address, naming the server it chose. It still broadcasts, so any other DHCP server that made an offer learns it wasn’t picked and can release its address.":
     "노트북은 제안받은 주소를 요청하면서 자신이 고른 서버를 지목합니다. 여전히 브로드캐스트로 보내므로, 제안했던 다른 DHCP 서버는 선택되지 않았음을 알고 그 주소를 풀어 줄 수 있습니다.",
   Requests: "요청하는 것",
@@ -873,7 +882,7 @@ const lessonStrings = {
   "The server confirms, and the laptop configures its address, mask, gateway and DNS server. Many systems first check with ARP that no other device is already using the address.":
     "서버가 확인해 주면 노트북은 주소, 마스크, 게이트웨이, DNS 서버를 설정합니다. 많은 시스템은 먼저 ARP로 다른 장치가 이미 그 주소를 쓰고 있지 않은지 확인합니다.",
   "DNS server": "DNS 서버",
-  "192.168.1.10 is yours": "192.168.1.10은 당신의 것",
+  "192.168.1.10 is yours": "192.168.1.10은 노트북의 것",
   "for 24 hours": "24시간 동안",
   Renew: "갱신",
   "Halfway through the lease": "임대 기간의 절반에",
@@ -902,7 +911,7 @@ const lessonStrings = {
   "Client address": "클라이언트 주소",
   "Filled in only when the client already has an address (renewing).":
     "클라이언트에게 이미 주소가 있을 때(갱신)만 채웁니다.",
-  "Your address": "당신의 주소",
+  "Your address": "할당할 주소(yiaddr)",
   "The address the server is giving out.": "서버가 나눠 주는 주소.",
   "Next server": "다음 서버",
   "Relay agent": "릴레이 에이전트",
@@ -1005,7 +1014,7 @@ const lessonStrings = {
     "어떤 앱이 아무것도 기다리지 않는 9999번 포트로 UDP 데이터그램을 보냅니다. 서버는 이를 전달할 수 없으므로 데이터그램의 앞부분을 인용해 목적지 도달 불가(Destination Unreachable), 코드 3(포트 도달 불가)으로 응답합니다. 많은 방화벽은 대신 이런 패킷을 조용히 버립니다.",
   "3, 3 (port unreachable)": "3, 3(포트 도달 불가)",
   "Other codes": "다른 코드",
-  "0 net, 1 host, 4 too big": "0 네트워크, 1 호스트, 4 너무 큼",
+  "0 net, 1 host, 4 too big": "0 네트워크, 1 호스트, 4 조각화 필요(DF)",
   Firewalls: "방화벽",
   "Often silent instead": "대신 침묵하는 경우가 많음",
   "to port 9999": "9999번 포트로",
@@ -1066,11 +1075,11 @@ const lessonStrings = {
   "Greeting & Login": "인사와 로그인",
   "EHLO, then AUTH": "EHLO, 그다음 AUTH",
   "The server greets with code 220. The app says EHLO and the server lists what it supports, including AUTH. The app logs in with AUTH PLAIN (user name and password, base64-encoded) and gets 235: authenticated.":
-    "서버는 코드 220으로 인사합니다. 앱이 EHLO라고 말하면 서버는 AUTH를 포함해 지원하는 기능을 나열합니다. 앱은 AUTH PLAIN(사용자 이름과 비밀번호를 base64로 인코딩)으로 로그인하고 235(인증 성공)를 받습니다.",
+    "서버는 코드 220으로 인사합니다. 앱이 EHLO라고 말하면 서버는 AUTH를 포함해 지원하는 기능을 나열합니다. 앱은 AUTH PLAIN(사용자 이름과 비밀번호를 base64로 인코딩)으로 로그인하고 235(인증 성공)를 받습니다. base64는 암호화가 아니라 인코딩이라 누구나 되돌릴 수 있습니다. 비밀번호를 지키는 것은 바깥의 TLS입니다.",
   Greeting: "인사",
   Capabilities: "지원 기능",
   "Login result": "로그인 결과",
-  "user and password, base64": "사용자 이름과 비밀번호, base64",
+  "user and password, base64": "사용자 이름과 비밀번호, base64 인코딩(암호화 아님)",
   "Send the Message": "메시지 보내기",
   "Envelope, then content": "봉투 먼저, 그다음 내용",
   "MAIL FROM and RCPT TO are the envelope: sender and recipient. PIPELINING lets all three commands share one packet. After 354 comes the message, ended by a line holding just a dot.":
@@ -1097,7 +1106,7 @@ const lessonStrings = {
   Deliver: "배달",
   "The same transaction again": "같은 절차를 한 번 더",
   "After STARTTLS, the provider repeats EHLO and sends the envelope and signed message. Bob’s server checks SPF, DKIM and DMARC, queues the message and replies 250. Its local delivery service then moves the queued message into Bob’s mailbox.":
-    "STARTTLS 뒤에 송신 서버가 다시 EHLO를 보내고 봉투 정보와 서명된 메시지를 전송합니다. Bob의 서버는 SPF·DKIM·DMARC를 확인하고 메시지를 대기열에 넣은 뒤 250으로 접수를 확인합니다. 다음으로 수신 서버의 로컬 배달 서비스가 Bob의 메일함에 저장합니다.",
+    "STARTTLS 뒤에 송신 서버가 다시 EHLO를 보내고 봉투 정보와 서명된 메시지를 전송합니다. 메시지가 316바이트에서 1,316바이트로 커진 것은 제공업체가 DKIM 서명 헤더와 Received 같은 전달 기록 헤더를 덧붙였기 때문입니다. Bob의 서버는 SPF(보낸 서버의 IP가 그 도메인이 허용한 발신 서버인지), DKIM(헤더의 서명이 도메인의 공개 키로 검증되는지), DMARC(이 결과가 보낸 사람 주소의 도메인과 맞는지, 실패하면 어떻게 처리할지 정한 도메인 정책)를 확인하고 메시지를 대기열에 넣은 뒤 250으로 접수를 확인합니다. 다음으로 수신 서버의 로컬 배달 서비스가 Bob의 메일함에 저장합니다.",
   "Login needed": "로그인 필요 여부",
   "No (server to server)": "아니요(서버 간)",
   "1,316 bytes (signed)": "1,316바이트(서명됨)",
@@ -1202,7 +1211,7 @@ const lessonStrings = {
   "Open the Inbox": "받은편지함 열기",
   "SELECT a folder": "폴더 SELECT",
   "SELECT INBOX opens the folder. The server reports the message count, the flags it supports and the first unread message, then confirms the folder is open read-write.":
-    "SELECT INBOX는 폴더를 엽니다. 서버는 메시지 수, 지원하는 플래그, 읽지 않은 첫 메시지를 알려 주고, 폴더가 읽기·쓰기 모드로 열렸음을 확인합니다.",
+    "SELECT INBOX는 폴더를 엽니다. 서버는 메시지 수, 지원하는 플래그, 읽지 않은 첫 메시지를 알려 주고, 폴더가 읽기·쓰기 모드로 열렸음을 확인합니다. [UNSEEN] 응답 코드를 쓰는 이 예시는 IMAP4rev1(RFC 3501) 서버의 응답입니다.",
   "First unread": "첫 번째 안 읽은 메시지",
   Access: "접근",
   "Read a Message": "메시지 읽기",
@@ -1255,7 +1264,7 @@ const lessonStrings = {
   "Passive Mode": "패시브 모드",
   "The server names a data port": "서버가 데이터 포트를 알려 줌",
   "TYPE I asks for a byte-for-byte binary copy. PASV asks the server to open a port for the data connection. The reply encodes the address and port as six numbers: 195 × 256 + 149 = port 50069. The laptop connects out, which works through NAT.":
-    "TYPE I는 바이트 그대로의 바이너리 사본을 요청합니다. PASV는 데이터 연결용 포트를 열어 달라고 서버에 요청합니다. 응답은 주소와 포트를 숫자 여섯 개로 나타냅니다. 195 × 256 + 149 = 포트 50069. 노트북 쪽에서 바깥으로 연결하므로 NAT를 거쳐도 동작합니다.",
+    "TYPE I는 바이트 그대로의 바이너리 사본을 요청합니다. PASV는 데이터 연결용 포트를 열어 달라고 서버에 요청합니다. 응답은 주소와 포트를 숫자 여섯 개로 나타냅니다. 195 × 256 + 149 = 포트 50069. 노트북 쪽에서 바깥으로 연결하므로 NAT를 거쳐도 동작합니다. 액티브 모드에서는 클라이언트가 PORT 명령으로 자기 주소와 포트를 알려 주고 서버가 20번 포트에서 클라이언트로 거꾸로 연결하므로, NAT나 방화벽에 막히기 쉽습니다.",
   "Data port": "데이터 포트",
   "Active mode": "액티브 모드",
   "Server dials in: NAT blocks": "서버가 안으로 연결: NAT가 차단",
@@ -1295,7 +1304,7 @@ const lessonStrings = {
   "Logged in securely": "안전하게 로그인됨",
   "Encrypted from the key exchange on": "키 교환 이후 모두 암호화",
   "The two sides agreed on algorithms, built shared keys with a post-quantum hybrid exchange, and the server proved its identity with its host key. Alice proved hers by signing with a private key that never left the laptop, then typed a command, one packet per key.":
-    "양쪽은 알고리즘을 합의하고, 포스트 양자 하이브리드 교환으로 공유 키를 만들었으며, 서버는 호스트 키로 신원을 증명했습니다. Alice는 노트북을 한 번도 떠나지 않은 개인 키로 서명해 자신의 신원을 증명했고, 그다음 키마다 패킷 하나씩 명령을 입력했습니다.",
+    "양쪽은 알고리즘을 합의하고, 포스트 양자 하이브리드 교환으로 공유 키를 만들었으며, 서버는 호스트 키로 신원을 증명했습니다. Alice는 기기 밖으로 나간 적 없는 개인 키로 서명해 자신의 신원을 증명했고, 그다음 키마다 패킷 하나씩 명령을 입력했습니다.",
   Login: "로그인",
   "Ed25519 key, no password": "Ed25519 키, 비밀번호 없음",
   "Say Hello": "인사하기",
@@ -1324,7 +1333,7 @@ const lessonStrings = {
   "Log In with a Key": "키로 로그인",
   "Sign, don’t send a secret": "비밀을 보내지 않고 서명",
   "The server lists the login methods it accepts. The laptop offers Alice’s public key, and the server says it would accept it. The laptop then signs this session with the private key, which never leaves the laptop. The server checks the signature against authorized_keys.":
-    "서버는 받아들이는 로그인 방식을 나열합니다. 노트북이 Alice의 공개 키를 제시하면 서버는 받아들이겠다고 답합니다. 그러면 노트북은 노트북을 결코 떠나지 않는 개인 키로 이 세션에 서명합니다. 서버는 authorized_keys와 대조해 서명을 확인합니다.",
+    "노트북이 먼저 ‘none’ 방식(인증 없이)으로 로그인을 시도하면, 서버는 실패와 함께 받아들이는 로그인 방식(publickey, password)을 나열합니다. 노트북이 Alice의 공개 키를 제시하면 서버는 받아들이겠다고(PK_OK) 답합니다. 그러면 노트북은 기기 밖으로 나가지 않는 개인 키로 이 세션에 서명합니다. 서버는 authorized_keys와 대조해 서명을 확인합니다.",
   Methods: "방식",
   "Ed25519, private stays here": "Ed25519, 개인 키는 여기 남음",
   "Checked with": "확인 기준",
@@ -1462,9 +1471,9 @@ const lessonStrings = {
   "1 round trip": "왕복 1번",
   "Everything the browser supports": "브라우저가 지원하는 모든 것",
   "After the TCP handshake the browser lists what it can do: TLS versions, cipher suites, and key shares for the groups it expects, including the post-quantum hybrid X25519MLKEM768. It also names the site (SNI) and the protocols it speaks (ALPN).":
-    "TCP 핸드셰이크 뒤 브라우저는 자신이 할 수 있는 것을 나열합니다. TLS 버전, 암호 스위트, 그리고 예상하는 그룹용 키 공유로, 여기에는 포스트 양자 하이브리드인 X25519MLKEM768도 들어 있습니다. 사이트 이름(SNI)과 사용할 수 있는 프로토콜(ALPN)도 알립니다.",
+    "TCP 핸드셰이크 뒤 브라우저는 자신이 할 수 있는 것을 나열합니다. TLS 버전, 암호 스위트, 그리고 서버가 고를 것으로 예상한 그룹의 키 공유 값입니다. 여기에는 포스트 양자 하이브리드인 X25519MLKEM768도 들어 있습니다. 사이트 이름(SNI)과 사용할 수 있는 프로토콜(ALPN)도 알립니다.",
   Versions: "버전",
-  "versions, ciphers, key shares": "버전, 암호, 키 공유",
+  "versions, ciphers, key shares": "버전, 암호 스위트, 키 공유",
   "Choices made, keys computed": "선택 완료, 키 계산",
   "The server selects TLS 1.3 and sends its key share. Both sides derive handshake keys. The next handshake messages, including the certificate and Finished, are encrypted. This trace also includes a plaintext compatibility Change Cipher Spec (CCS) record, which does not change the keys.":
     "서버가 TLS 1.3을 선택하고 키 공유 값을 보냅니다. 양쪽이 핸드셰이크 키를 계산하면 이어지는 인증서와 Finished를 포함한 핸드셰이크 메시지가 암호화됩니다. 이 예시의 Change Cipher Spec(CCS)는 평문 호환용 레코드이며 키를 바꾸지 않습니다.",
@@ -1474,10 +1483,10 @@ const lessonStrings = {
   Certificate: "인증서",
   "Who the server is, proven": "서버가 누구인지 증명",
   "Now encrypted, the flight continues: the chosen protocol (http/1.1), the certificate chain, a signature made with the certificate’s private key, and Finished.":
-    "이제 암호화된 채로 전송이 이어집니다. 선택한 프로토콜(http/1.1), 인증서 체인, 인증서의 개인 키로 만든 서명, 그리고 Finished입니다.",
+    "이제 암호화된 채로 전송이 이어집니다. 선택한 프로토콜(http/1.1), 인증서 체인, 인증서 공개 키에 짝이 되는 개인 키로 만든 서명, 그리고 Finished입니다.",
   Chain: "체인",
   "Site → intermediate → root": "사이트 → 중간 → 루트",
-  "Proves the private key": "개인 키 보유를 증명",
+  "Proves the private key": "짝이 되는 개인 키 보유를 증명",
   Checked: "확인하는 것",
   "Name, dates, trusted root": "이름, 유효 기간, 신뢰하는 루트",
   "encrypted: http/1.1, certificates,": "암호화됨: http/1.1, 인증서,",
@@ -1504,7 +1513,7 @@ const lessonStrings = {
   Closing: "종료",
   "close_notify, then TCP": "close_notify, 그다음 TCP",
   "After 75 idle seconds the server closes the connection. It first sends a close_notify alert, encrypted like everything else, so the browser knows the data ended on purpose and wasn’t cut short by an attacker. Then TCP closes as usual.":
-    "75초 동안 아무 활동이 없으면 서버가 연결을 닫습니다. 먼저 다른 모든 것처럼 암호화된 close_notify 경고를 보내므로, 브라우저는 데이터가 일부러 끝난 것이지 공격자가 중간에 자른 것이 아님을 압니다. 그다음 TCP가 평소처럼 닫힙니다.",
+    "75초 동안 아무 활동이 없으면 서버가 연결을 닫습니다. 먼저 다른 모든 것처럼 암호화된 close_notify 경고를 보내므로, 브라우저는 데이터가 일부러 끝난 것이지 공격자가 중간에 자른 것이 아님을 압니다. 그다음 TCP가 평소처럼 닫힙니다. 규격상 브라우저도 자신의 close_notify를 보내야 하지만(RFC 8446 §6.1), 실제 브라우저는 이를 생략하고 TCP를 닫는 경우가 많아 이 예시에도 서버 쪽 close_notify만 있습니다.",
   Alert: "경고",
   "Shows nothing was cut off": "잘린 것이 없음을 보여 줌",
   "TCP FIN from both sides": "양쪽의 TCP FIN",
@@ -1529,6 +1538,7 @@ const languagePack = {
     ...interfaceStrings,
   },
   patterns: [
+    [/^(.+) \(TTL ([\d,]+) s\)$/, "$1 (TTL $2초)"],
     [/^([\d,]+) bytes$/, "$1바이트"],
     [/^(Ethernet II|IPv4|UDP|TCP) · (\d+) bytes$/, "$1 · $2바이트"],
     [

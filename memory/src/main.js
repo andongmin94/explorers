@@ -8,6 +8,7 @@ import { paginate, plateTabs, rowWindow } from "../../shared/fit.js";
 import { REFERENCE_STRING, simulate } from "./engine.js";
 import { buildMilestones, describeStep, predictionFor } from "./lesson.js";
 import { createMemoryScene, pageColor } from "./scene.js";
+import { countFaults } from "./policies.js";
 
 const $ = (selector) => document.querySelector(selector);
 const TOTAL = REFERENCE_STRING.length;
@@ -32,7 +33,7 @@ const policyName = (name) => name.toUpperCase();
 const chipFor = (page) => (page ? `<span class="mem-pg" style="--pg:${pageColor(page)}">${page}</span>` : `<span class="mem-pg is-empty">—</span>`);
 const outcome = (step) =>
   `<span class="mem-outcome ${step.hit ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span>${step.hit ? "적중" : "부재"}</span>`;
-const STAGES = ["조회", "판정", "프레임 선택", "SSD 적재", "CPU 읽기"];
+const STAGES = ["조회", "판정", "프레임 선택", "적재", "CPU 읽기"];
 const MILESTONE_SHORT = ["개념", "빈 칸", "재사용", "교체", "영향", "비교"];
 const RULES = {
   fifo: "가장 먼저 들어온 페이지를 내보냅니다. 적중해도 적재 순서는 바뀌지 않습니다.",
@@ -118,7 +119,7 @@ $("#app").outerHTML = `
           <div><div class="hw-note hw-note--accent" id="insight"></div></div>
         </div>
         <div class="mem-side-foot">
-          <button class="hw-key" data-action="predict">다음 교체 맞혀보기 →</button>
+          <button class="hw-key" data-action="predict">다음 접근 맞혀보기 →</button>
           <button class="hw-key hw-key--accent" data-action="compare" id="conclusion">전체 결과 비교 →</button>
           <div class="hw-pager" id="now-pager"></div>
         </div>
@@ -135,14 +136,26 @@ $("#app").outerHTML = `
       <div class="hw-plate-body hw-fit" data-panel="rules" hidden>
         <span class="hw-label">이 실험의 규칙과 용어</span>
         <dl class="hw-list hw-fill mem-gap-sm mem-rules" id="rules">
-          <div><dt>페이지</dt><dd>프로그램이 쓰는 메모리 단위. A~E 다섯 개</dd></div>
-          <div><dt>프레임</dt><dd>페이지 하나가 들어가는 RAM 자리. F0~F2</dd></div>
+          <div><dt>가상 주소</dt><dd>프로그램이 보는 주소. 실제 RAM 위치와 따로 매겨집니다.</dd></div>
+          <div><dt>페이지</dt><dd>가상 주소 공간을 같은 크기로 나눈 단위. A~E 다섯 개</dd></div>
+          <div><dt>프레임</dt><dd>RAM을 같은 크기로 나눈 칸. F0~F2</dd></div>
+          <div><dt>페이지 테이블</dt><dd>페이지마다 상주 여부와 프레임 번호를 적은 표</dd></div>
+          <div><dt>MMU</dt><dd>주소 변환 장치. 접근마다 페이지 테이블로 가상 주소를 RAM 주소로 바꿉니다.</dd></div>
+          <div><dt>상주·미상주</dt><dd>페이지가 지금 RAM 프레임에 있으면 상주, 없으면 미상주(—)</dd></div>
+          <div><dt>적중</dt><dd>상주 페이지에 접근. 운영체제 없이 MMU만으로 끝납니다.</dd></div>
+          <div><dt>페이지 부재</dt><dd>page fault. 미상주 페이지에 접근해 운영체제가 저장장치에서 읽어 옵니다.</dd></div>
+          <div><dt>부재 비용</dt><dd>RAM 접근은 약 100ns, 저장장치 읽기는 SSD 수십 µs 이상·HDD 수 ms. 그동안 프로세스는 기다립니다.</dd></div>
+          <div><dt>강제 부재</dt><dd>초기 부재(cold miss). 빈 RAM을 처음 채울 때의 부재로, 교체가 없습니다.</dd></div>
+          <div><dt>교체</dt><dd>빈 프레임이 없을 때 한 페이지를 내보내고 그 프레임을 재사용하는 일</dd></div>
+          <div><dt>적중률</dt><dd>적중 횟수 ÷ 전체 접근 횟수</dd></div>
           <div><dt>FIFO</dt><dd>${RULES.fifo}</dd></div>
           <div><dt>LRU</dt><dd>${RULES.lru}</dd></div>
+          <div><dt>LRU 근사</dt><dd>실제로는 접근 순서 대신 참조 비트만 기록되고, 운영체제가 클럭 알고리즘 등으로 근사합니다. 이 화면은 정확한 LRU입니다.</dd></div>
+          <div><dt>OPT(MIN)</dt><dd>앞으로 가장 늦게 쓰일 페이지를 내보내는 이론상 최적 정책. 미래를 알아야 해 기준선으로만 씁니다.</dd></div>
           <div><dt>시작</dt><dd>RAM 프레임 3개는 처음에 모두 비어 있습니다.</dd></div>
-          <div><dt>원본</dt><dd>A~E는 SSD에 원본이 있는 읽기 전용 페이지입니다.</dd></div>
+          <div><dt>원본</dt><dd>A~E는 저장장치(SSD)에 원본이 있는 읽기 전용 페이지입니다.</dd></div>
           <div><dt>빈 칸</dt><dd>빈 프레임이 있으면 교체 없이 적재합니다.</dd></div>
-          <div><dt>쓰기</dt><dd>내보내는 사본은 수정되지 않아 SSD에 다시 쓰지 않습니다.</dd></div>
+          <div><dt>쓰기</dt><dd>내보내는 사본은 수정되지 않아 저장장치에 다시 쓰지 않습니다.</dd></div>
           <div><dt>범위</dt><dd>TLB·수정 페이지·실제 지연 시간은 다루지 않습니다. 1단계는 1번의 접근입니다.</dd></div>
         </dl>
       </div>
@@ -263,7 +276,7 @@ function render() {
 
   const occupied = step.frames.filter((frame) => frame.page !== null);
   const key = algorithm === "fifo" ? "loadedAt" : "lastUsedAt";
-  $("#frames-note").textContent = busy ? "직전 접근 기준" : algorithm === "fifo" ? "적재 차례가 가장 작은 쪽이 다음 교체" : "최근 접근이 가장 작은 쪽이 다음 교체";
+  $("#frames-note").textContent = busy ? "직전 접근 기준" : algorithm === "fifo" ? "적재 번호가 가장 작은 페이지가 다음 교체" : "최근 접근 번호가 가장 작은 페이지가 다음 교체";
   $("#frame-list").innerHTML = occupied.length
     ? occupied
         .map(
@@ -273,7 +286,9 @@ function render() {
         .join("")
     : '<li class="hw-muted">RAM이 비어 있습니다.</li>';
 
-  const showPredict = !busy && Boolean(run().steps[index + 1] && predictionFor(run().steps[index + 1]));
+  const nextQuiz = !busy && run().steps[index + 1] ? predictionFor(run().steps[index + 1], run()) : null;
+  const showPredict = Boolean(nextQuiz);
+  if (nextQuiz) $('[data-action="predict"]').textContent = nextQuiz.kind === "outcome" ? "적중일까 부재일까 맞혀보기 →" : "다음 교체 맞혀보기 →";
   const showConclusion = index === TOTAL && !busy;
   $('[data-action="predict"]').hidden = !showPredict;
   $("#conclusion").hidden = !showConclusion;
@@ -330,7 +345,7 @@ function renderRecords() {
 
   const at = committed;
   $("#record-results").innerHTML = `<table class="hw-table">
-    <thead><tr><th>정책</th><th>처리한 접근</th><th>페이지 부재</th><th>RAM 적중</th><th>페이지 교체</th><th>적중률</th></tr></thead>
+    <thead><tr><th>정책</th><th>처리한 접근</th><th>페이지 부재</th><th>적중</th><th>페이지 교체</th><th>적중률</th></tr></thead>
     <tbody>${Object.entries(runs)
       .map(([name, r]) => {
         const s = r.steps[at];
@@ -407,7 +422,7 @@ const dialogHead = (label, id) =>
   `<div class="hw-plate-head"><span class="hw-label">${label}</span><button class="hw-key hw-key--sm hw-key--icon" data-close="${id}" aria-label="닫기">${icon("close")}</button></div>`;
 
 function showPrediction() {
-  quiz = predictionFor(run().steps[index + 1]);
+  quiz = predictionFor(run().steps[index + 1], run());
   if (!quiz) return;
   pause();
   $("#prediction-dialog").innerHTML = `${dialogHead("다음 접근을 먼저 예측하기", "prediction-dialog")}
@@ -415,11 +430,12 @@ function showPrediction() {
       <span class="hw-label"><span class="hw-index">${policyName(algorithm)}</span> ${quiz.atIndex}번째 접근</span>
       <h2 class="hw-title mem-gap-sm" id="prediction-title">${quiz.question}</h2>
       <p class="hw-text hw-muted mem-gap-sm">${quiz.rule}</p>
+      <p class="hw-label mem-gap-sm mem-history-line">지금까지의 접근 · ${quiz.history.map((page, i) => `<span class="hw-mono">${i + 1}</span>${chipFor(page)}`).join(" ")}</p>
       <div class="hw-list mem-gap-md mem-choices">${quiz.choices
-        .map((c) => `<button data-answer="${c.id}">${chipFor(c.id)}<span class="mem-choice-text"><span>${c.label}</span><span class="hw-label">${c.detail}</span></span><span class="mem-verdict mem-end"></span></button>`)
+        .map((c) => `<button data-answer="${c.id}">${quiz.kind === "outcome" ? `<span class="mem-outcome ${c.id === "hit" ? "is-hit" : "is-fault"}"><span class="hw-led is-on"></span></span>` : chipFor(c.id)}<span class="mem-choice-text"><span>${c.label}</span><span class="hw-label" data-detail="${c.detail}">${quiz.kind === "outcome" ? c.detail : `F${c.slot}`}</span></span><span class="mem-verdict mem-end"></span></button>`)
         .join("")}</div>
       <div id="prediction-feedback" class="mem-gap-md" aria-live="polite"></div>
-      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="reveal" hidden>실제 교체를 보며 확인 →</button></div>
+      <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="reveal" hidden>실제 ${quiz.kind === "outcome" ? "접근" : "교체"}을 보며 확인 →</button></div>
     </div>`;
   $("#prediction-dialog").showModal();
 }
@@ -431,14 +447,18 @@ function answer(id) {
     b.classList.toggle("is-correct", correct);
     b.classList.toggle("is-wrong", wrong);
     b.querySelector(".mem-verdict").textContent = correct ? "정답" : wrong ? "선택" : "";
+    // The evidence (load and last-access order) is shown once the learner has committed.
+    const detail = b.querySelector("[data-detail]");
+    detail.textContent = detail.dataset.detail;
   });
-  $("#prediction-feedback").innerHTML = `<div class="hw-note ${id === quiz.correctId ? "hw-note--accent" : ""}"><p class="hw-text"><b>${id === quiz.correctId ? "맞았습니다." : `다음 교체 대상은 ${quiz.correctId}입니다.`}</b> ${quiz.explanation}</p></div>`;
+  $("#prediction-feedback").innerHTML = `<div class="hw-note ${id === quiz.correctId ? "hw-note--accent" : ""}"><p class="hw-text"><b>${id === quiz.correctId ? "맞았습니다." : quiz.kind === "outcome" ? `실제로는 ${quiz.correctId === "hit" ? "적중" : "부재"}입니다.` : `다음 교체 대상은 ${quiz.correctId}입니다.`}</b> ${quiz.explanation}</p></div>`;
   $('[data-action="reveal"]').hidden = false;
   $('[data-action="reveal"]').focus();
 }
 
 function showComparison() {
   pause();
+  const opt = countFaults(REFERENCE_STRING, 3, "opt");
   $("#comparison-dialog").innerHTML = `${dialogHead(`같은 ${TOTAL}번의 접근 · 같은 3개 프레임`, "comparison-dialog")}
     <div class="hw-plate-body">
       <span class="hw-label">전체 실행 결과</span>
@@ -458,8 +478,8 @@ function showComparison() {
         )
         .join("")}
       <div class="hw-section">
-        <p class="hw-text"><b>갈림길은 4번째 A 적중입니다.</b> FIFO는 A의 최초 적재 순서를 유지하고, LRU는 A를 가장 최근에 사용한 페이지로 바꿉니다. 5번째 D를 넣을 때 FIFO는 A, LRU는 B를 내보내므로 6번째 A 접근이 각각 부재와 적중으로 갈립니다.</p>
-        <p class="hw-text hw-muted mem-gap-sm">이 접근 순서에서는 LRU의 부재가 1회 적습니다. 모든 접근 순서에서 항상 같은 차이가 나는 것은 아니며, 이 화면은 실제 실행 시간을 측정하지 않습니다.</p>
+        <p class="hw-text"><b>갈림길은 4번째 A 적중입니다.</b> FIFO는 A의 최초 적재 순서를 유지하고, LRU는 A의 마지막 접근을 4번째로 기록합니다. 5번째 D를 넣을 때 FIFO는 A, LRU는 B를 내보내므로 6번째 A 접근이 각각 부재와 적중으로 갈립니다.</p>
+        <p class="hw-text hw-muted mem-gap-sm">이 접근 순서에서는 LRU의 부재가 ${runs.fifo.stats.faults - runs.lru.stats.faults}회 적습니다. 기준선인 OPT(MIN)는 부재 ${opt.faults}회입니다. 모든 접근 순서에서 같은 차이가 나는 것은 아니며, 이 화면은 실제 실행 시간을 측정하지 않습니다.</p>
         <p class="mem-legend hw-label mem-gap-sm"><span class="mem-outcome is-hit"><span class="hw-led is-on"></span>적중</span><span class="mem-outcome is-fault"><span class="hw-led is-on"></span>부재</span></p>
       </div>
       <div class="mem-dialog-actions"><button class="hw-key hw-key--accent" data-action="turning-point">4번째 접근으로 돌아가 비교 →</button></div>

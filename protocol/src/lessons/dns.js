@@ -175,6 +175,7 @@ const dnsLesson = {
         ["Server", "a.root-servers.net"],
         ["Root servers", "13 names, 1,000+ anycast sites"],
         ["Reply", "Referral (13 .com servers)"],
+        ["Query flags", "RD=0 (iterative query)"],
       ],
       events: [
         {
@@ -260,6 +261,7 @@ const dnsLesson = {
         ["Server", "a.gtld-servers.net"],
         ["Knows", "Name servers of .com domains"],
         ["Reply", "Referral + glue addresses"],
+        ["Query flags", "RD=0 (iterative query)"],
       ],
       events: [
         {
@@ -327,6 +329,7 @@ const dnsLesson = {
         ["Server", "ns1.example.com"],
         ["Answer", "A 203.0.113.10"],
         ["Flags", "AA (authoritative), TTL 3600"],
+        ["Query flags", "RD=0 (iterative query)"],
       ],
       events: [
         {

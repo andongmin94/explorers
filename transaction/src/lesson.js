@@ -11,10 +11,18 @@ export const SOURCES = Object.freeze([
 
 export const MODEL_NOTES = Object.freeze([
   "PostgreSQL의 READ COMMITTED에서 재고 한 행을 다룹니다. 두 트랜잭션은 각각 재고를 1 줄이려 합니다.",
-  "SELECT 결과를 앱이 기억하고 1을 뺀 숫자를 UPDATE에 넣습니다. SET stock = stock - 1을 실행하는 경우와 다릅니다.",
+  "SELECT 결과를 앱이 기억하고 1을 뺀 숫자를 UPDATE에 넣습니다. SET stock = stock - 1이었다면 READ COMMITTED가 대기 후 새 행 버전에서 식을 다시 평가해 8이 됩니다.",
   "확정 재고와 아직 커밋하지 않은 값을 구분합니다. 화면의 버전 번호는 설명용이며 PostgreSQL의 실제 트랜잭션 ID가 아닙니다.",
-  "일반 SELECT는 행 쓰기 잠금에 막히지 않습니다. UPDATE도 행을 잠그며, 이 예제에서 잠금은 COMMIT까지 유지됩니다.",
+  "일반 SELECT는 행 쓰기 잠금에 막히지 않습니다. 일반 UPDATE는 FOR NO KEY UPDATE, SELECT … FOR UPDATE는 FOR UPDATE 잠금을 얻습니다. 두 모드는 서로 충돌하므로 어느 방식이든 T2가 기다리고, 잠금은 COMMIT까지 유지됩니다.",
+  "잠금 해제와 대기 요청의 재개는 관찰하려고 두 사건으로 나눴습니다. 실제 DB에서는 잠금이 풀리는 즉시 재개됩니다.",
   "사건 기록은 DB에 보낸 SQL, 앱에서 한 계산, 잠금을 기다리던 SQL의 재개를 각각 셉니다. 재개 사건에서 처음 대기한 요청을 다시 볼 수 있습니다.",
+]);
+
+// Plain-language glossary for the English labels printed in the scene.
+export const SCENE_LEGEND = Object.freeze([
+  "상태 · IDLE 시작 전 · ACTIVE 진행 중 · WAITING 잠금 대기 · COMMITTED 커밋 완료",
+  "노트북 화면 · READ 앱이 읽은 값 · CALC 앱이 계산한 값",
+  "DB 윗면 · LOCK 행 잠금 보유자 (FREE = 잠금 없음) · STOCK 확정 재고 · PENDING 커밋 전 쓰기",
 ]);
 
 export function describeEventLog(steps) {
@@ -111,7 +119,7 @@ export function describeStep(step, run) {
         details: [
           locked
             ? "읽을 때 얻은 FOR UPDATE 잠금을 계속 보유합니다."
-            : "일반 UPDATE도 행 쓰기 잠금을 얻습니다. 잠금 없이 덮어쓰는 상황이 아닙니다.",
+            : "일반 UPDATE도 행 쓰기 잠금을 얻습니다 (FOR NO KEY UPDATE). 잠금 없이 덮어쓰는 상황이 아닙니다.",
           "자기 트랜잭션은 이 쓰기를 볼 수 있지만, 다른 트랜잭션의 일반 SELECT에는 아직 보이지 않습니다.",
         ],
         takeaway: "UPDATE가 끝나도 COMMIT 전까지 행 잠금은 유지됩니다.",
@@ -122,13 +130,16 @@ export function describeStep(step, run) {
         title: locked ? "T2는 읽기 전에 대기" : "T2의 UPDATE도 잠금을 기다림",
         summary: locked
           ? "T1이 행을 잠갔으므로 T2의 SELECT FOR UPDATE가 멈춥니다. T2에는 아직 읽은 값이 없습니다."
-          : "T1의 UPDATE가 행을 잠갔으므로 T2의 UPDATE가 대기합니다. 앱에서 계산한 숫자 9는 그대로입니다.",
+          : "T1의 UPDATE가 행을 잠갔으므로 T2의 UPDATE가 대기합니다. 잠금이 풀리면 이 UPDATE는 무엇을 쓸까요?",
         details: [
+          locked
+            ? "T1이 쥔 FOR UPDATE 잠금과 T2가 요청한 FOR UPDATE 잠금이 충돌합니다."
+            : "T1이 쥔 FOR NO KEY UPDATE 잠금과 T2의 UPDATE가 요청한 같은 잠금이 충돌합니다.",
           "대기 중인 SQL은 T1이 커밋하여 잠금을 놓으면 이어서 실행됩니다. 새로운 쿼리를 다시 보내는 과정이 아닙니다.",
         ],
         takeaway: locked
-          ? "읽기 자체가 기다리므로 오래된 값으로 계산하지 않습니다."
-          : "쓰기 순서만 기다린다고 앱의 이전 계산이 고쳐지지는 않습니다.",
+          ? "읽기 자체가 기다리므로 아직 계산할 값이 없습니다."
+          : "T2의 UPDATE는 DB 안에서 잠금이 풀리기를 기다립니다.",
       };
     case "resume-read":
       return {
@@ -151,6 +162,7 @@ export function describeStep(step, run) {
         details: [
           "WHERE id = 1은 여전히 참입니다. DB가 앱의 10 − 1 계산을 9 − 1로 다시 수행하지는 않습니다.",
           "T2가 행 잠금을 얻어 새 미확정 버전 9를 만듭니다. T1의 감소 효과 하나가 사라집니다.",
+          "SET stock = stock - 1이었다면 READ COMMITTED가 대기 후 새 행 버전(9)에서 식을 다시 평가해 8을 썼을 것입니다.",
         ],
         takeaway:
           "행 잠금이 있어도, 읽기와 쓰기 사이의 오래된 계산은 남을 수 있습니다.",
@@ -164,11 +176,11 @@ export function describeStep(step, run) {
             "커밋된 재고가 10에서 9로 바뀝니다. T1의 미확정 버전이 확정되고 행 잠금을 놓습니다.",
           details: [
             locked
-            ? "다음 사건에서 대기하던 SELECT FOR UPDATE가 재개됩니다. 확정 재고와 T2의 읽기 상태를 근거로 결과를 예측하세요."
-            : "다음 사건에서 대기하던 UPDATE가 재개됩니다. 확정 재고와 앱이 기억하는 값을 비교하고 다음 쓰기를 예측하세요.",
+            ? "다음 사건에서 대기하던 SELECT FOR UPDATE가 재개됩니다. T2가 커밋한 뒤의 최종 재고를 예측하세요."
+            : "다음 사건에서 대기하던 UPDATE가 재개됩니다. T2가 커밋한 뒤의 최종 재고를 예측하세요.",
           ],
           takeaway:
-            "잠금 해제와 대기 요청의 재개를 두 사건으로 나누어 보여줍니다.",
+            "관찰하려고 잠금 해제와 재개를 두 사건으로 나눴습니다. 실제 DB에서는 잠금이 풀리는 즉시 재개됩니다.",
         };
       }
       return {
@@ -183,11 +195,11 @@ export function describeStep(step, run) {
           locked
             ? "차이는 쓰기에 잠금이 있느냐가 아니라, 읽기부터 보호했느냐입니다."
             : "두 모드 모두 UPDATE는 잠금을 얻습니다. 일반 읽기 후 앱에서 만든 오래된 숫자가 문제였습니다.",
-          "SET stock = stock - 1처럼 DB 안에서 한 문장으로 감소시키는 경우는 이 예제의 분리된 읽기·계산·쓰기와 다릅니다.",
+          "SET stock = stock - 1처럼 DB 안에서 감소시키면 대기 후 새 행 버전에서 식을 다시 평가하므로, 일반 UPDATE만으로도 8이 됩니다.",
         ],
         takeaway: locked
           ? "읽기 → 계산 → 쓰기를 같은 행 잠금으로 보호했습니다."
-          : "읽기부터 잠그기 모드에서 T2가 언제 값을 얻는지 비교하세요.",
+          : "SELECT FOR UPDATE 모드에서 T2가 언제 값을 얻는지 비교하세요.",
       };
   }
 }
@@ -225,21 +237,32 @@ export function buildMilestones(run) {
   ];
 }
 
+// Asked at T1's commit, before the waiting request resumes: the final stock
+// after T2 commits (9 with a plain read, 8 with FOR UPDATE). The facts shown
+// never include T2's computed number, so the answer is not printed beforehand.
 export function predictionFor(step, run) {
   if (step.action !== "commit" || step.client !== "T1") return null;
   const locked = run.mode === "locked";
+  const t2 = step.state.clients.T2;
+  const feedback = locked
+    ? {
+        8: "T2의 읽기 자체가 T1의 커밋을 기다렸으므로 확정된 9를 읽고 8을 씁니다. 대기가 계산보다 먼저 일어났기 때문입니다.",
+        9: "T2가 10을 읽었다면 9가 됐을 것입니다. 하지만 FOR UPDATE 읽기가 T1의 커밋까지 기다렸으므로 T2는 아직 아무 값도 읽지 않았습니다.",
+        10: "T1의 9는 이미 확정됐습니다. T2가 그 위에서 1을 더 빼므로 10으로 돌아가지 않습니다.",
+      }
+    : {
+        8: "기다리면 최신 값으로 다시 계산될 것 같지만 그렇지 않습니다. T2의 UPDATE에는 앱이 10 − 1로 만든 숫자 9가 이미 들어 있고, DB는 그 숫자를 그대로 씁니다.",
+        9: "잠금 대기는 쓰기 순서만 정합니다. T2는 앱이 10으로 계산한 9를 그대로 써서 커밋하므로 감소 한 번이 사라집니다.",
+        10: "T1의 9는 이미 확정됐고 취소되지 않습니다. T2도 숫자를 써서 커밋하므로 10으로 돌아가지 않습니다.",
+      };
   return {
-    question: locked
-      ? "다음 사건에서 T2의 읽기는 무엇을 반환할까요?"
-      : "다음 사건에서 T2의 UPDATE는 어떤 숫자를 쓸까요?",
-    options: [
-      { id: "8", label: "8" },
-      { id: "9", label: "9" },
-      { id: "10", label: "10" },
+    question: "T2가 커밋한 뒤 최종 확정 재고는 몇 개일까요?",
+    facts: [
+      ["현재 확정 재고", `${step.state.committedStock}개`],
+      ["T2가 읽은 값", String(t2.localRead ?? "아직 없음")],
+      ["T2가 기다리는 SQL", locked ? "SELECT … FOR UPDATE" : "UPDATE (앱이 계산한 숫자)"],
     ],
-    answerId: "9",
-    explanation: locked
-      ? "T1이 커밋한 갱신 버전을 잠그고 9를 읽습니다. 그 뒤 앱이 1을 빼면 8입니다."
-      : "UPDATE에 이미 들어간 숫자는 9입니다. 행을 기다린 뒤에도 앱에서 한 계산을 자동으로 다시 하지 않습니다.",
+    options: ["8", "9", "10"].map((id) => ({ id, label: `${id}개`, feedback: feedback[id] })),
+    answerId: String(run.stats.actualStock),
   };
 }

@@ -210,6 +210,9 @@ body {
 .disk-distances b {
   font-size: var(--fs-3);
 }
+.disk-distances .is-chosen b {
+  color: var(--head);
+}
 .disk-distances .hw-muted {
   font-size: var(--fs-1);
 }

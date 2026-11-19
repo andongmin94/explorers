@@ -6,6 +6,8 @@ import {
   describeStep,
   buildMilestones,
   predictionFor,
+  MODEL_NOTES,
+  SCENE_LEGEND,
   SOURCES,
 } from "../src/lesson.js";
 
@@ -57,23 +59,40 @@ test("milestones target the actual divergent read/write events and final results
   }
 });
 
-test("prediction resolves to the next executed read/write value, not a future app calculation", () => {
+test("prediction asks for the final committed stock, which differs by mode", () => {
+  const answers = {};
   for (const mode of ["naive", "locked"]) {
     const run = simulate({ mode });
     const available = run.steps.filter((step) => predictionFor(step, run));
     assert.equal(available.length, 1);
     const step = available[0];
+    assert.equal(step.action, "commit");
+    assert.equal(step.client, "T1");
     const question = predictionFor(step, run);
-    const nextEvent = run.steps[step.index + 1].events.find(
-      (event) => event.type === (mode === "locked" ? "read" : "write"),
-    );
-    assert.equal(question.answerId, String(nextEvent.value));
-    assert.equal(
-      question.options.filter((option) => option.id === question.answerId)
-        .length,
-      1,
-    );
+    assert.equal(question.answerId, String(run.steps.at(-1).state.committedStock));
+    answers[mode] = question.answerId;
+    assert.deepEqual(question.options.map((o) => o.id), ["8", "9", "10"]);
+    for (const option of question.options) assert.ok(option.feedback.length > 20, `${mode} ${option.id}`);
+    // The facts shown before answering never print T2's computed number.
+    assert.ok(!question.facts.some(([label]) => /계산$/.test(label)));
+    assert.ok(!question.facts.some(([, value]) => value === String(step.state.clients.T2.localWrite)));
   }
+  assert.deepEqual(answers, { naive: "9", locked: "8" });
+  // The wrong answer that assumes waiting recomputes the value is addressed.
+  const naive = simulate({ mode: "naive" });
+  const q = predictionFor(naive.steps[9], naive);
+  assert.match(q.options.find((o) => o.id === "8").feedback, /기다리면/);
+});
+
+test("lock modes, atomic re-evaluation and the observation split are stated", () => {
+  const notes = MODEL_NOTES.join(" ");
+  assert.match(notes, /FOR NO KEY UPDATE/);
+  assert.match(notes, /잠금이 풀리는 즉시 재개/);
+  const naive = simulate({ mode: "naive" });
+  assert.match(describeStep(naive.steps[10], naive).details.join(" "), /stock - 1.*8/);
+  assert.match(describeStep(naive.steps[8], naive).details.join(" "), /FOR NO KEY UPDATE/);
+  assert.doesNotMatch(describeStep(naive.steps[8], naive).summary, /9/);
+  assert.ok(SCENE_LEGEND.join(" ").includes("WAITING"));
 });
 
 test("ordinary UPDATE locking and fresh locked reading are stated explicitly", () => {
