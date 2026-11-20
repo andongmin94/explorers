@@ -88,7 +88,7 @@ $("#app").outerHTML = `
           <button class="hw-key hw-key--accent disk-play" data-action="play" aria-label="재생"></button>
           <button class="hw-key" data-action="next">다음 요청 ${icon("next")}</button>
           <button class="hw-key hw-key--icon" data-action="replay" aria-label="${LABELS.now} 요청 다시 보기">${icon("replay")}</button>
-          <button class="hw-key hw-key--icon hw-mono" data-action="speed" aria-label="재생 속도 1배, 바꾸기">1×</button>
+          <button class="hw-key hw-key--icon" data-action="speed" aria-label="재생 속도 1배, 바꾸기">1×</button>
         </div>
       </div>
       <div class="hw-seek">
@@ -129,7 +129,7 @@ $("#app").outerHTML = `
       <div class="hw-plate-head">
         <div class="hw-tabs" role="tablist" aria-label="관찰 기록">
           <button role="tab" aria-selected="true" id="tab-path" aria-controls="record-path" data-record="path">헤드 이동 경로</button>
-          <button role="tab" aria-selected="false" id="tab-log" aria-controls="record-log" data-record="log" tabindex="-1">요청 기록 <span class="hw-mono hw-muted" id="log-count">0</span></button>
+          <button role="tab" aria-selected="false" id="tab-log" aria-controls="record-log" data-record="log" tabindex="-1">요청 기록 <span class="hw-muted" id="log-count">0</span></button>
           <button role="tab" aria-selected="false" id="tab-results" aria-controls="record-results" data-record="results" tabindex="-1">누적 결과</button>
         </div>
         <span class="hw-label disk-records-hint">완료한 요청을 눌러 그 순간으로 이동</span>
@@ -359,8 +359,8 @@ function renderRecords() {
   const px = (k) => ((k / N) * 100).toFixed(2);
   const py = (c) => ((c / 199) * 100).toFixed(2);
   const TICKS = [0, 50, 100, 150, 199];
-  $("#record-path").innerHTML = `<div class="hw-screen disk-route-screen">
-      <div class="hw-screen-head"><span class="is-on">HEAD ROUTE</span><span>${NAMES[algorithm]} · ${committed} / ${N}</span><span>${committed < N ? "처리한 요청만 표시" : `누적 ${current().state.total} CYL`}</span></div>
+  $("#record-path").innerHTML = `<div class="disk-chart">
+      <div class="disk-chart-head"><span class="hw-label"><b>${NAMES[algorithm]}</b>${committed} / ${N} 요청 · 실린더 0 위, 199 아래</span><span class="hw-label">${committed < N ? "처리한 요청만 표시" : `누적 ${current().state.total}칸`}</span></div>
       <div class="disk-plot">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${TICKS.map((c) => `<line class="disk-plot-row" x1="0" y1="${py(c)}" x2="100" y2="${py(c)}"/>`).join("")}
@@ -394,9 +394,9 @@ function renderRecords() {
   const s = current().state;
   const longest = Math.max(0, ...seen.slice(1).map((x) => x.distance));
   $("#record-results").innerHTML = `<dl class="disk-metrics">
-      <div><dt class="hw-label">처리한 요청</dt><dd class="hw-mono">${committed}<small>/ ${N}</small></dd></div>
-      <div><dt class="hw-label">요청당 평균 이동</dt><dd class="hw-mono">${committed ? (s.total / committed).toFixed(1) : "—"}<small>칸</small></dd></div>
-      <div><dt class="hw-label">가장 긴 한 번 이동</dt><dd class="hw-mono">${committed ? longest : "—"}<small>칸</small></dd></div>
+      <div><dt class="hw-label">처리한 요청</dt><dd>${committed}<small>/ ${N}</small></dd></div>
+      <div><dt class="hw-label">요청당 평균 이동</dt><dd>${committed ? (s.total / committed).toFixed(1) : "—"}<small>칸</small></dd></div>
+      <div><dt class="hw-label">가장 긴 한 번 이동</dt><dd>${committed ? longest : "—"}<small>칸</small></dd></div>
     </dl>
     <p class="hw-text hw-muted disk-small">${committed === N ? "같은 요청 전체를 처리한 결과입니다. 결과 비교에서 이동 경로와 합계를 함께 확인하세요." : "현재까지 완료한 요청의 결과입니다. 누적 이동 거리는 장면의 표시창에 있습니다."}</p>`;
 }
@@ -422,8 +422,8 @@ function renderWaits(seen) {
     const near = REQUESTS.find((o) => o !== c && Math.abs(o - c) < 8);
     return near === undefined ? "" : c < near ? " is-l" : " is-r";
   };
-  $("#record-results").innerHTML = `<div class="hw-screen disk-route-screen disk-wait-screen">
-      <div class="hw-screen-head"><span class="is-on">WAIT · CYL</span><span>${NAMES[algorithm]} · ${committed} / ${N}</span><span>${committed ? `대기 ${Math.min(...waits)}–${Math.max(...waits)}칸` : "처리한 요청만 표시"}${worst.length ? " · ▬ 최악(계속 도착)" : ""}</span></div>
+  $("#record-results").innerHTML = `<div class="disk-chart disk-wait-chart">
+      <div class="disk-chart-head"><span class="hw-label"><b>${NAMES[algorithm]}</b>${committed} / ${N} 요청 · 요청 실린더별 대기(칸)</span><span class="hw-label">${committed ? `대기 ${Math.min(...waits)}–${Math.max(...waits)}칸` : "처리한 요청만 표시"}${worst.length ? ` · <i class="disk-key-worst"></i>최악(계속 도착)` : ""}</span></div>
       <div class="disk-plot disk-waits">
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           ${[0.25, 0.5, 0.75, 1].map((f) => `<line class="disk-plot-row" x1="0" y1="${py(top * f)}" x2="100" y2="${py(top * f)}"/>`).join("")}
@@ -536,8 +536,8 @@ function miniPath(r) {
     x = (k) => 10 + k * ((w - 20) / N),
     y = (c) => 8 + (c / 199) * (h - 16);
   const pts = routePoints(r.steps).map(([c, k]) => `${x(k).toFixed(1)},${y(c).toFixed(1)}`).join(" ");
-  return `<div class="hw-screen disk-mini-screen">
-    <div class="hw-screen-head"><span class="is-on">HEAD ROUTE</span><span>CYL 0 → 199 ↓</span></div>
+  return `<div class="disk-mini-chart">
+    <div class="disk-chart-head"><span class="hw-label">헤드 이동 경로</span><span class="hw-label">실린더 0 → 199 ↓</span></div>
     <svg class="disk-mini" viewBox="0 0 ${w} ${h}" role="img" aria-label="${r.order.join(", ")} 순서의 헤드 이동 경로">
       ${[0, 50, 100, 150, 199].map((c) => `<line x1="4" y1="${y(c)}" x2="${w - 4}" y2="${y(c)}"/>`).join("")}
       <polyline points="${pts}"/>
@@ -584,7 +584,7 @@ function prediction() {
     <div class="hw-plate-body">
       <p class="hw-text">${p.prompt}</p>
       <div class="disk-choices">${choices
-        .map((c) => `<button class="hw-key" data-answer="${c.id}"><b class="hw-mono">${c.label}</b></button>`)
+        .map((c) => `<button class="hw-key" data-answer="${c.id}"><b>${c.label}</b></button>`)
         .join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;

@@ -50,7 +50,7 @@ const appElement = document.querySelector("#app");
 appElement.innerHTML = `
   <div class="hw-page pe-page shell">
     ${renderTopbar()}
-    <main class="hw-console pe-console workspace">
+    <main class="hw-console has-rail pe-console workspace">
       ${renderSidebar(lessonsById)}
       ${renderSimulationPanel()}
       ${renderDeck()}
@@ -61,7 +61,7 @@ appElement.innerHTML = `
       <span>조작: <kbd>Space</kbd> 재생·일시정지 <kbd>←</kbd><kbd>→</kbd> 이전·다음 단계 (검사 중에는 패킷) <kbd>R</kbd> 처음으로 <kbd>V</kbd> 보기 전환 <kbd>Esc</kbd> 닫기</span>
       <span>교육용 패킷 시나리오 · 실제 통신을 캡처하지 않습니다</span>
     </footer>
-    <div class="pe-scrim" aria-hidden="true"></div>
+    <div class="hw-rail-scrim pe-scrim" aria-hidden="true"></div>
     ${renderQuizDialog()}
   </div>
 `;
@@ -86,6 +86,7 @@ const isDrawerOpen = () => shellElement.classList.contains("is-drawer-open");
 function setDrawerOpen(open) {
   const isDrawer = drawerQuery.matches;
   shellElement.classList.toggle("is-drawer-open", open && isDrawer);
+  shellElement.classList.toggle("is-rail-open", open && isDrawer);
   documentRoot.classList.toggle("is-locked", open && isDrawer);
   drawerButton.setAttribute("aria-expanded", open && isDrawer);
   sidebarElement.inert = isDrawer && !open;

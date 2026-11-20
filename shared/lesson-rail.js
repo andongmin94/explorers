@@ -1,5 +1,5 @@
-// Lesson rail: the left column listing an explorer's lessons, each with a
-// progress LED (off: new, amber: in progress, lit: done) and a percentage.
+// Lesson rail: the glass sidebar listing an explorer's lessons, each with a
+// status dot (ring: new, half: in progress, filled: done) and a percentage.
 // Same look as the protocol explorer's picker. From 1280px wide it is a
 // column left of the stage; below that it is a drawer opened from the top bar.
 //
@@ -56,7 +56,7 @@ export function railHtml({ explorer, title, lessons, current }) {
     .join("");
   return `<aside class="hw-plate hw-rail" id="lessons" aria-label="${esc(title)} 레슨">
     <div class="hw-plate-head">
-      <span class="hw-label"><span class="hw-index">L</span> ${esc(title)}</span>
+      <span class="hw-label">${esc(title)}</span>
       <button class="hw-key hw-key--sm hw-key--icon hw-rail-close" type="button" aria-label="레슨 목록 닫기">${icon("close")}</button>
     </div>
     <nav class="hw-rail-body"><div class="hw-list hw-rail-list">${rows}</div></nav>

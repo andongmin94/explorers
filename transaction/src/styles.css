@@ -8,14 +8,18 @@
   --t2: #168264;
   --t1-ink: #2f62c4;
   --t2-ink: #12735a;
-  --tx-ok: #1f9d55;
-  --tx-well: #1b1b1a;
-  --tx-screen-dim: color-mix(in srgb, var(--hw-lcd-ink) 62%, #8a8a86);
+  --tx-ok: var(--sys-green);
+  /* Readouts printed on the dark glass of the row table and the laptop
+     screens (dark in both themes): the accent lifted towards white. */
+  --tx-screen-ink: color-mix(in oklch, var(--accent) 58%, white);
+  --tx-screen-dim: color-mix(in srgb, var(--tx-screen-ink) 62%, #8a8a86);
+  /* SQL console block: a quiet code well with label-coloured monospace. */
+  --tx-code-fill: var(--fill-2);
+  --tx-code-ink: var(--label);
 }
 :root[data-explorer="transaction"][data-theme="dark"] {
   --t1-ink: #8eb0ff;
   --t2-ink: #6ccead;
-  --tx-well: #0f0f0e;
 }
 
 [hidden] {
@@ -23,7 +27,7 @@
 }
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--window);
 }
 
 /* ---------- Stage ---------- */
@@ -34,16 +38,14 @@ body {
 .hw-stage .hw-plate-head .hw-lcd {
   margin-inline-start: auto;
 }
-.hw-scene {
+.hw-stage > .hw-scene {
   min-height: 0;
-  padding: 6px 12px 4px;
 }
 @media (max-width: 759px) {
   .hw-stage .hw-plate-head .hw-tag { display: none; }
-  .hw-scene { padding: 0; }
 }
 .hw-plate-foot #status {
-  color: var(--ink);
+  color: var(--label);
   font-size: var(--fs-2);
 }
 
@@ -65,7 +67,6 @@ body {
 .tx-park.is-blocked { animation: tx-blink 1.4s ease-in-out infinite; }
 .tx-client[data-status="waiting"] .tx-screen-value,
 .tx-client[data-status="aborted"] .tx-screen-value { fill: var(--accent); }
-.tx-lcd-text { text-shadow: 0 0 7px color-mix(in srgb, var(--accent) 65%, transparent); }
 
 /* Wait-for graph on the deadlock floor */
 .tx-edge { opacity: 0; transition: opacity 240ms ease; }
@@ -75,7 +76,6 @@ body {
   stroke: var(--accent);
   stroke-width: 2.4;
   stroke-dasharray: none;
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 70%, transparent));
 }
 .tx-edge.is-detected .iso-path { animation: tx-blink 0.9s ease-in-out infinite; }
 .tx-floor-mark { opacity: 0.8; }
@@ -105,21 +105,29 @@ body {
 .tx-gap {
   margin-top: 10px;
 }
+/* SQL is code: the only monospace in the lesson. */
 .tx-sql,
 .tx-code {
   font-family: var(--font-mono);
   font-size: var(--fs-1);
+  font-variant-ligatures: none;
   line-height: 1.6;
   word-break: break-word;
 }
 .tx-sql {
   display: block;
   margin-top: 8px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--hw-well);
-  box-shadow: var(--hw-well-shadow);
-  color: var(--hw-lcd-ink);
+  padding: 9px 12px;
+  border-radius: var(--r-small);
+  background: var(--tx-code-fill);
+  box-shadow: none;
+  color: var(--tx-code-ink);
+  font-weight: var(--w-medium);
+}
+/* Numbers and short state text that line up: tabular digits, system font. */
+.tx-num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 .tx-details {
   display: grid;
@@ -132,7 +140,7 @@ body {
   text-wrap: pretty;
 }
 .tx-details:empty { display: none; }
-.tx-details li::marker { color: var(--muted); }
+.tx-details li::marker { color: var(--label-3); }
 #changes { margin-top: 14px; }
 .tx-changes > li {
   justify-content: space-between;
@@ -145,11 +153,10 @@ body {
 .tx-changes > li > span:last-child { text-align: right; }
 .tx-milestones > button {
   gap: 12px;
-  color: var(--ink);
+  color: var(--label);
   font-size: var(--fs-2);
 }
-.tx-milestones > button[aria-current="true"] { font-weight: 650; }
-.tx-milestones > button[aria-current="true"] .hw-index { text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent); }
+.tx-milestones > button[aria-current="true"] { font-weight: var(--w-semibold); }
 .tx-grow {
   flex: 1;
   min-width: 0;
@@ -169,13 +176,14 @@ body {
 .hw-records .hw-scroll { max-height: 420px; }
 .tx-hint { white-space: nowrap; }
 .tx-table td { vertical-align: middle; }
-.tx-table tr.is-future td { color: var(--muted); }
+.tx-table tr.is-future td { color: var(--label-2); }
 .tx-id {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .tx-id .hw-led { width: 6px; height: 6px; }
@@ -186,32 +194,38 @@ body {
   border: 0;
   border-radius: 6px;
   background: none;
-  color: var(--ink);
-  font-family: var(--font-mono);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 .tx-link {
   display: block;
   margin: 4px -4px -2px;
-  color: var(--muted);
+  color: var(--label-2);
   font-family: var(--font-sans);
   font-size: var(--fs-1);
   text-align: left;
 }
 .tx-seek:hover,
-.tx-link:hover { color: var(--accent); }
+.tx-link:hover { color: var(--accent-text); }
 .tx-seek:focus-visible,
 .tx-link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
-tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
-.tx-wait { color: var(--accent); }
+.tx-wait { color: var(--accent-text); }
+/* The current row is filled with the accent: everything on it reads in the
+   on-accent colour (secondary text a little quieter). */
+.hw-table tr[aria-current="true"] :is(.tx-seek, .tx-wait, .tx-link, .tx-code, .hw-muted) { color: inherit; }
+.hw-table tr[aria-current="true"] .tx-seek { font-weight: var(--w-semibold); }
+.hw-table tr[aria-current="true"] :is(.hw-muted, .tx-link) { opacity: 0.78; }
+.hw-table tr[aria-current="true"] .tx-seek:focus-visible { outline-color: var(--on-accent); }
 .tx-nowrap { white-space: nowrap; }
 .tx-log-sum { margin: 0 0 6px; }
 .tx-group th {
   padding-top: 14px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .tx-results {
   display: grid;
@@ -239,7 +253,7 @@ tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
   display: grid;
   grid-template-columns: 1fr 1fr;
   margin-top: 16px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 .tx-compare-col {
   display: grid;
@@ -249,7 +263,7 @@ tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
 }
 .tx-compare-col + .tx-compare-col {
   padding: 16px 0 0 20px;
-  border-inline-start: 1px solid var(--hw-edge);
+  border-inline-start: 1px solid var(--separator-soft);
 }
 .tx-compare-col .hw-list > li { gap: 12px; }
 .tx-compare-col > .hw-key { justify-self: start; }
@@ -259,6 +273,15 @@ tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
   gap: 12px;
 }
 .tx-foot { margin-top: 18px; font-size: var(--fs-1); }
+.tx-foot code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--tx-code-fill);
+  color: var(--label);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-variant-ligatures: none;
+}
 .tx-choices {
   display: flex;
   flex-wrap: wrap;
@@ -267,13 +290,13 @@ tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
 }
 .tx-choices > .hw-key { min-width: 96px; }
 .tx-choices > .hw-key:disabled { opacity: 1; cursor: default; }
-.tx-choices > .hw-key:disabled:not(.is-chosen) { color: var(--muted); }
+.tx-choices > .hw-key:disabled:not(.is-chosen) { color: var(--label-2); }
 #prediction-feedback:not(:empty) { margin-top: 16px; }
 @media (max-width: 759px) {
   .tx-compare { grid-template-columns: minmax(0, 1fr); }
   .tx-compare-col,
   .tx-compare-col + .tx-compare-col { padding: 16px 0 0; border-inline-start: 0; }
-  .tx-compare-col + .tx-compare-col { margin-top: 16px; border-top: 1px solid var(--hw-edge); }
+  .tx-compare-col + .tx-compare-col { margin-top: 16px; border-top: 1px solid var(--separator-soft); }
   .tx-choices > .hw-key { flex: 1 1 100%; }
 }
 
@@ -302,9 +325,11 @@ tr[aria-current="true"] .tx-seek { color: var(--accent); font-weight: 700; }
   }
 }
 
-/* The floor runs past the scene edges at every width; the stage clips it. */
-.hw-stage > .hw-scene {
-  overflow: hidden;
+/* The floor runs past the scene edges. On the desktop console the stage
+   reaches under the toolbar and the rail and clips it at the window edge
+   (shared/hw.css); on smaller screens the scene box clips it. */
+@media not ((min-width: 1100px) and (min-height: 700px)) {
+  .hw-stage > .hw-scene { overflow: hidden; }
 }
 
 /* ---------- One screen, nothing scrolls (shared/fit.js) ---------- */

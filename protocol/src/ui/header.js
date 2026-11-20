@@ -23,14 +23,14 @@ const menuIcon =
 function renderTopbar() {
   const osiLeds = OSI_LAYER_NAMES.map(
     (name, index) =>
-      `<span class="osi-cell" data-layer="${index + 1}" title="${translate("Layer {n}: {name}", { n: index + 1, name: translate(name) })}"><span class="hw-led"></span><span class="hw-mono">${index + 1}</span></span>`,
+      `<span class="osi-cell" data-layer="${index + 1}" title="${translate("Layer {n}: {name}", { n: index + 1, name: translate(name) })}"><span class="hw-led"></span><span class="osi-num">${index + 1}</span></span>`,
   ).join("");
   const progressLeds = protocolCatalog
     .map((protocol) => `<span class="hw-led" data-progress="${protocol.id}"></span>`)
     .join("");
   return `
   <header class="hw-topbar topbar">
-    <button class="hw-key hw-key--sm drawer-btn" type="button" aria-expanded="false" aria-controls="protocols">${menuIcon}<span>프로토콜</span></button>
+    <button class="hw-key hw-key--sm hw-rail-btn drawer-btn" type="button" aria-expanded="false" aria-controls="protocols">${menuIcon}<span>프로토콜</span></button>
     <div class="hw-brand"><h1>프로토콜 탐색기</h1><p>인터넷 작동 원리 배우기</p></div>
     <div class="hw-context now">
       <span class="hw-label">${translate("NOW LEARNING")}</span>

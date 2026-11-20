@@ -74,7 +74,7 @@ function client(id, labels) {
     .map(
       (label, i) =>
         frontText({ x: l.x + 0.42, y, z: SCREEN_LINES[i], text: label, size: 15, anchor: "start", weight: 600, fill: "var(--tx-screen-dim)", cls: "tx-screen-label" }) +
-        `<g data-screen="${id}-${i}">${frontText({ x: l.x + l.w - 0.42, y, z: SCREEN_LINES[i], text: "—", size: 20, anchor: "end", fill: "var(--hw-lcd-ink)", weight: 700, cls: "tx-screen-value" })}</g>`,
+        `<g data-screen="${id}-${i}">${frontText({ x: l.x + l.w - 0.42, y, z: SCREEN_LINES[i], text: "—", size: 20, anchor: "end", fill: "var(--tx-screen-ink)", weight: 700, cls: "tx-screen-value" })}</g>`,
     )
     .join("");
   return `<g class="tx-client" data-client="${id}" style="--tx:${COLORS[id]}">${laptop({ ...l }).svg}<g class="tx-screen">${rows}</g></g>`;
@@ -107,7 +107,7 @@ export function rowTable(rows, { valueHeader = "STOCK", valueSize } = {}) {
     if (c === 0) body += [[valueHeader, vy], ["NEW", ny], ["LOCK", ly]]
       .map(([text, y]) => topText({ x: left, y, z, text, size: 12, anchor: "start", weight: 600, fill: "var(--tx-screen-dim)", cls: "tx-field" }))
       .join("");
-    body += `<g data-lcd="${r.id}">${topText({ x: right, y: vy, z, text: "", size: valueSize ?? (single ? 26 : 22), anchor: "end", weight: 700, fill: "var(--hw-lcd-ink)", cls: "tx-lcd-text" })}</g>`;
+    body += `<g data-lcd="${r.id}">${topText({ x: right, y: vy, z, text: "", size: valueSize ?? (single ? 26 : 22), anchor: "end", weight: 700, fill: "var(--tx-screen-ink)", cls: "tx-lcd-text" })}</g>`;
     body += `<g data-lock-owner="${r.id}">${topText({ x: right, y: ly, z, text: "FREE", size: 13, anchor: "end", weight: 800, fill: "var(--tx-screen-dim)" })}</g>`;
   });
   const cols = Object.fromEntries(rows.map((r, c) => [r.id, c]));

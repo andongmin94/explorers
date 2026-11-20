@@ -39,7 +39,7 @@ const floorMarks = `
   ${Object.entries(EDGES)
     .map(([id, route]) => `<g class="tx-edge" data-edge="${id}" style="--edge:${COLORS[id]}">${floorPath(route, { gap: 0.6 })}</g>`)
     .join("")}
-  ${topText({ x: 12.2, y: 10.0, z: 0.01, text: "WAIT-FOR", size: 13, weight: 700, fill: "var(--muted)", cls: "tx-floor-mark" })}
+  ${topText({ x: 12.2, y: 10.0, z: 0.01, text: "WAIT-FOR", size: 13, weight: 700, fill: "var(--label-2)", cls: "tx-floor-mark" })}
 `;
 
 function completedTitle(step) {

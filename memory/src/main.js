@@ -125,7 +125,7 @@ $("#app").outerHTML = `
           <button class="hw-key hw-key--accent mem-play" data-action="play"></button>
           <button class="hw-key" data-action="next">다음 접근${icon("next")}</button>
           <button class="hw-key hw-key--icon" data-action="replay" aria-label="이번 접근 다시 보기" title="이번 접근 다시 보기">${icon("replay")}</button>
-          <button class="hw-key hw-key--icon hw-mono" data-action="speed" aria-label="재생 속도 1배">1×</button>
+          <button class="hw-key hw-key--icon mem-num" data-action="speed" aria-label="재생 속도 1배">1×</button>
         </div>
       </div>
       <div class="hw-seek">
@@ -189,7 +189,7 @@ $("#app").outerHTML = `
       <div class="hw-plate-head">
         <div class="hw-tabs" role="tablist" aria-label="관찰 기록">
           <button role="tab" id="tab-history" aria-controls="record-history" aria-selected="true" data-record="history">프레임 기록</button>
-          <button role="tab" id="tab-events" aria-controls="record-events" aria-selected="false" data-record="events" tabindex="-1">접근 기록 <span class="hw-mono hw-muted" id="event-count"></span></button>
+          <button role="tab" id="tab-events" aria-controls="record-events" aria-selected="false" data-record="events" tabindex="-1">접근 기록 <span class="hw-muted mem-num" id="event-count"></span></button>
           <button role="tab" id="tab-results" aria-controls="record-results" aria-selected="false" data-record="results" tabindex="-1">${LESSON.id === "belady" ? "프레임 수별 결과" : "정책별 결과"}</button>
         </div>
         <span class="hw-label mem-hide-sm">기록을 눌러 그 접근으로 이동</span>
@@ -266,7 +266,9 @@ function renderStages(kind = "ready") {
     const text = i === 1 && decided ? (step.hit ? "적중" : "부재") : i === 4 && kind === "retry" ? "재시도" : label;
     const skipped = decided && step.hit && (i === 2 || i === 3);
     const state = skipped ? "is-skipped" : i === position ? "is-active" : i < position ? "is-done" : "";
-    return `<li class="${state}"${i === position ? ' aria-current="step"' : ""}><span class="hw-led${i === position ? " is-on" : ""}"></span>${text}${skipped ? '<span class="visually-hidden"> (생략)</span>' : ""}</li>`;
+    // Status dots as in the lesson rail: ring (to come), half (now), filled (done).
+    const dot = skipped ? "is-new" : i === position ? "is-progress" : i < position ? "is-done" : "is-new";
+    return `<li class="${state}"${i === position ? ' aria-current="step"' : ""}><span class="hw-led ${dot}"></span>${text}${skipped ? '<span class="visually-hidden"> (생략)</span>' : ""}</li>`;
   }).join("");
 }
 
@@ -384,7 +386,7 @@ function render() {
   const chapter = MILESTONES.findIndex((m) => m.index === lesson.chapterId);
   $("#milestones").innerHTML = MILESTONES.map(
     (m, i) =>
-      `<button data-seek="${m.index}"${i === chapter ? ' aria-current="true"' : ""}><span class="hw-index">${String(i + 1).padStart(2, "0")}</span>${m.title}<span class="hw-mono hw-muted mem-end">${m.index === 0 ? "시작" : `${m.index}번째`}</span></button>`,
+      `<button data-seek="${m.index}"${i === chapter ? ' aria-current="true"' : ""}><span class="hw-index">${String(i + 1).padStart(2, "0")}</span>${m.title}<span class="hw-muted mem-end mem-num">${m.index === 0 ? "시작" : `${m.index}번째`}</span></button>`,
   ).join("");
   scenePager.refresh();
   if (chapter !== shownChapter) scenePager.showItem($("#milestones").children[(shownChapter = chapter) < 0 ? 0 : chapter]);
@@ -429,7 +431,7 @@ function renderRecords() {
   $("#record-history").innerHTML = `<table class="hw-table mem-history" style="--cols:${TOTAL}" data-frames="${slots}">
     <thead><tr><th>접근</th>${head}</tr></thead>
     <tbody>
-      ${row("요청", (s, page) => (s ? chipFor(page) : `<span class="hw-mono hw-muted">${page}</span>`))}
+      ${row("요청", (s, page) => (s ? chipFor(page) : `<span class="mem-pg is-future">${page}</span>`))}
       ${Array.from({ length: slots }, (_, slot) => row(`F${slot}`, (s) => (s ? (s.frames[slot].page ? `<span class="${s.frameIndex === slot && s.fault ? "mem-new" : ""}">${chipFor(s.frames[slot].page)}</span>` : chipFor(null)) : ""))).join("")}
       ${row("결과", (s) => (s ? outcome(s) : ""))}
     </tbody></table>`;
@@ -441,7 +443,7 @@ function renderRecords() {
     .slice(1, committed + 1)
     .map(
       (s) =>
-        `<tr data-seek="${s.index}"${s.index === committed ? ' aria-current="true"' : ""}><td class="hw-mono"><button class="mem-row-key" data-seek="${s.index}" aria-label="${s.index}번째 접근으로 이동">${s.index}번째</button></td><td>${chipFor(s.page)}</td><td>${outcome(s, true)}</td><td class="hw-mono">F${s.frameIndex}</td><td class="hw-mono">${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${reasonOf(s)}</td></tr>`,
+        `<tr data-seek="${s.index}"${s.index === committed ? ' aria-current="true"' : ""}><td><button class="mem-row-key" data-seek="${s.index}" aria-label="${s.index}번째 접근으로 이동">${s.index}번째</button></td><td>${chipFor(s.page)}</td><td>${outcome(s, true)}</td><td>F${s.frameIndex}</td><td>${s.victim ? `${s.victim} → ${s.page}` : "—"}</td><td>${reasonOf(s)}</td></tr>`,
     )
     .join("");
   eventsWindow.refresh();
@@ -452,7 +454,7 @@ function renderRecords() {
     <thead><tr><th>${LESSON.modeLabel}</th><th>처리한 접근</th><th>페이지 부재</th><th>적중</th><th>페이지 교체</th><th>적중률</th></tr></thead>
     <tbody>${MODES.map((m) => {
       const s = runs[m.id].steps[at];
-      return `<tr${m.id === mode ? ' aria-current="true"' : ""}><td><b>${m.label}</b></td><td class="hw-mono">${s.index}회</td><td class="hw-mono">${s.faults}회</td><td class="hw-mono">${s.hits}회</td><td class="hw-mono">${s.replacements}회</td><td class="hw-mono">${s.index ? `${Math.round((s.hits / s.index) * 100)}%` : "—"}</td></tr>`;
+      return `<tr${m.id === mode ? ' aria-current="true"' : ""}><td><b>${m.label}</b></td><td class="mem-num">${s.index}회</td><td class="mem-num">${s.faults}회</td><td class="mem-num">${s.hits}회</td><td class="mem-num">${s.replacements}회</td><td class="mem-num">${s.index ? `${Math.round((s.hits / s.index) * 100)}%` : "—"}</td></tr>`;
     }).join("")}</tbody></table>
     <p class="hw-text hw-muted mem-gap-md">${at ? `${at}번째 접근까지 같은 순서를 두 조건에 적용한 결과입니다. ${policyName()}의 부재 ${current().faults}회 중 ${cold}회는 처음 참조한 강제 부재이고, ${current().faults - current().replacements}회는 빈 프레임에 적재했습니다.` : "첫 접근 전에는 적중률을 계산하지 않습니다."} 부재와 교체는 같은 횟수가 아닙니다.</p>`;
 }
@@ -535,8 +537,8 @@ function showPrediction() {
       <span class="hw-label"><span class="hw-index">${policyName()}</span> ${quiz.atIndex}번째 접근</span>
       <h2 class="hw-title mem-gap-sm" id="prediction-title">${quiz.question}</h2>
       <p class="hw-text hw-muted mem-gap-sm">${quiz.rule}</p>
-      <p class="hw-label mem-gap-sm mem-history-line">지금까지의 접근 · ${quiz.history.map((page, i) => `<span class="hw-mono">${i + 1}</span>${chipFor(page)}`).join(" ")}</p>
-      ${algorithm() === "opt" ? `<p class="hw-label mem-gap-sm mem-history-line">OPT가 아는 앞으로의 접근 · ${REFS.slice(quiz.atIndex).map((page, i) => `<span class="hw-mono">${quiz.atIndex + i + 1}</span>${chipFor(page)}`).join(" ")}</p>` : ""}
+      <p class="hw-label mem-gap-sm mem-history-line">지금까지의 접근 · ${quiz.history.map((page, i) => `<span class="mem-num">${i + 1}</span>${chipFor(page)}`).join(" ")}</p>
+      ${algorithm() === "opt" ? `<p class="hw-label mem-gap-sm mem-history-line">OPT가 아는 앞으로의 접근 · ${REFS.slice(quiz.atIndex).map((page, i) => `<span class="mem-num">${quiz.atIndex + i + 1}</span>${chipFor(page)}`).join(" ")}</p>` : ""}
       <div class="hw-list mem-gap-md mem-choices">${quiz.choices
         .map(
           (c) =>

@@ -1,25 +1,36 @@
 /*
- * Hardware component kit shared by every explorer (after SPEC-01/HARDWARE).
- * Tokens live in theme.css; this file builds the parts every page is made of.
+ * The parts every explorer page is made of, in Apple's Liquid Glass (macOS 26
+ * and iOS/iPadOS 26 UI kits; numbers and node ids in LIQUID-GLASS.md).
+ * Tokens live in theme.css.
  *
  * Rules the parts encode:
- * - Depth belongs to plates and keys only. Inside a plate everything is flat:
- *   hairlines separate, nothing gets its own border box or shadow.
- * - Only things you can press look like keys. A label is a .hw-tag or text.
- * - Numbers that change read from an LCD (.hw-lcd). State lights are LEDs.
- * - Four text roles: .hw-title, body text, .hw-label (mono), LCD digits.
+ * - Two layers. Content (scene, lesson text, records) sits on the window
+ *   background and is never glass. Chrome floats over it as glass: toolbar
+ *   controls, the lesson sidebar, the control palette, menus, sheets.
+ * - Inside a content group everything is flat: hairline separators, no
+ *   boxes with their own shadow.
+ * - Controls are capsules. On glass they are glass; inside content they are
+ *   the kit's bordered (filled) buttons. The primary action is tinted with
+ *   the explorer's system colour.
+ * - Four text roles: .hw-title (Title 2), body text, .hw-label (secondary
+ *   label), readouts (.hw-lcd, monospaced digits).
  */
 
-/* ---------- Page frame ---------- */
+/* ---------- Page frame (the window) ---------- */
 
 .hw-page {
+  --page-pad-x: 16px;
+  --toolbar-h: 52px;
+  --console-gap: 12px;
   box-sizing: border-box;
   min-height: 100dvh;
-  padding: 18px 22px 28px;
+  padding: 10px var(--page-pad-x) 28px;
   font-family: var(--font-sans);
   font-size: var(--fs-2);
-  line-height: 1.55;
-  color: var(--ink);
+  line-height: 1.45;
+  color: var(--label);
+  background: var(--window);
+  font-synthesis-weight: none;
 }
 .hw-page *,
 .hw-page *::before,
@@ -35,42 +46,86 @@
   display: none !important;
 }
 
+/* ---------- Liquid Glass surfaces ---------- */
+
+/* Medium glass: sidebars, palettes, any floating panel (.hw-glass opts in). */
+.hw-glass,
+.hw-deck,
+.hw-rail {
+  background: var(--lg-sheen), var(--lg-medium);
+  -webkit-backdrop-filter: var(--lg-backdrop-webkit, blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright)));
+  backdrop-filter: var(--lg-backdrop);
+  box-shadow: var(--lg-rim), var(--lg-shadow);
+  border-radius: var(--r-panel);
+}
+/* Small glass: a single floating control or control group. */
+.hw-glass--sm {
+  background: var(--lg-sheen), var(--lg-small);
+  border-radius: var(--r-key);
+}
+
+/* ---------- Toolbar ---------- */
+
 .hw-topbar {
+  position: relative;
+  z-index: 3;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 10px;
   max-width: 1680px;
-  margin: 0 auto 18px;
+  min-height: var(--toolbar-h);
+  margin: 0 auto 12px;
 }
 .hw-brand {
   flex: none;
 }
 .hw-brand h1 {
   margin: 0;
-  font-size: var(--fs-4);
+  font-family: var(--font-display);
+  font-size: var(--fs-3);
+  font-weight: var(--w-bold);
 }
 .hw-brand p {
   margin: 0;
+  color: var(--label-2);
 }
+/* Window title: title over a secondary subtitle (kit Window Title 177:11506). */
 .hw-context {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: center;
+  gap: 1px;
   min-width: 0;
-  padding-inline-start: 20px;
-  border-inline-start: 1px solid var(--hw-edge);
+  padding-inline-start: 4px;
 }
 .hw-context strong {
+  overflow: hidden;
+  font-family: var(--font-display);
   font-size: var(--fs-3);
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-weight: var(--w-bold);
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hw-context .hw-label {
+  font-weight: var(--w-medium);
+  line-height: 15px;
 }
 .hw-actions {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   margin-inline-start: auto;
 }
+.hw-topbar .hw-key {
+  min-height: 36px;
+}
+.hw-topbar .hw-key--icon {
+  width: 36px;
+}
 
-/* Console: stage + side column, deck under the stage, records full width. */
+/* ---------- Console grid ---------- */
+
 .hw-console {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -79,7 +134,7 @@
     "deck side"
     "records records";
   grid-template-rows: auto 1fr auto;
-  gap: 18px;
+  gap: var(--console-gap);
   max-width: 1680px;
   margin: 0 auto;
   align-items: start;
@@ -96,366 +151,406 @@
   }
 }
 @media (max-width: 759px) {
-  .hw-page { padding: 12px 12px 24px; }
-  .hw-topbar { flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
-  .hw-context { order: 3; flex-basis: 100%; padding: 0; border: 0; }
-  .hw-console { gap: 12px; }
+  .hw-page { --page-pad-x: 12px; padding: 8px 12px 24px; }
+  .hw-topbar { flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .hw-context { order: 3; flex-basis: 100%; padding: 0; }
+  .hw-console { --console-gap: 10px; }
 }
 
-/* ---------- Plates ---------- */
+/* ---------- Content groups (plates) ---------- */
 
+/* A plate is a content group (kit Form Group 2302:6716): a quiet fill on the
+   window background, r 12. Not glass. */
 .hw-plate {
   min-width: 0;
-  border-radius: var(--r-panel);
-  background: var(--hw-panel);
-  box-shadow: var(--hw-panel-shadow);
+  border-radius: var(--r-group);
+  background: var(--group);
 }
-/* SPEC-01 heading: "01 LABEL ————" — the index, the label, then a hairline
-   that runs to whatever sits at the end of the head. No rule under the head. */
 .hw-plate-head {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 14px 22px 8px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 14px 4px;
 }
 .hw-plate-head > .hw-label:first-child {
   flex: 1 1 auto;
   min-width: 0;
 }
-.hw-plate-head > .hw-label:first-child::after {
-  content: "";
-  flex: 1 1 auto;
-  min-width: 16px;
-  height: 1px;
-  margin-inline-start: 4px;
-  background: var(--hw-edge);
-}
 .hw-plate-head > :last-child:not(:first-child) {
   margin-inline-start: auto;
 }
 .hw-plate-body {
-  padding: 18px 20px 20px;
+  padding: 12px 14px 14px;
 }
 .hw-plate-foot {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  padding: 10px 20px;
-  border-top: 1px solid var(--hw-edge);
-  color: var(--muted);
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--separator-soft);
+  color: var(--label-2);
   font-size: var(--fs-1);
 }
 @media (max-width: 759px) {
-  .hw-plate-head { padding: 10px 14px; min-height: 46px; }
-  .hw-plate-body { padding: 14px; }
-  .hw-plate-foot { padding: 10px 14px; }
+  .hw-plate-head { padding: 10px 12px 4px; min-height: 44px; }
+  .hw-plate-body { padding: 12px; }
+  .hw-plate-foot { padding: 8px 12px; }
 }
 
-/* A section inside a plate: label + hairline, never a box. */
+/* A section inside a group: a hairline, never a box. */
 .hw-section + .hw-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--hw-edge);
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--separator-soft);
+}
+
+/* The stage is content on the window itself: no group fill. */
+.hw-stage {
+  position: relative;
+  z-index: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.hw-stage > .hw-plate-head,
+.hw-stage > .hw-plate-foot {
+  position: relative;
+  z-index: 1;
+}
+.hw-stage > .hw-plate-head {
+  padding-inline: 4px;
+}
+.hw-stage > .hw-plate-foot {
+  padding-inline: 4px;
+  border-top: 0;
 }
 
 /* ---------- Type ---------- */
 
+/* Secondary label (kit section header / Callout emphasized). */
 .hw-label {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
-  line-height: 1.3;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 15px;
 }
 .hw-label .hw-index,
 .hw-index {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  color: var(--accent-text);
+  font-family: var(--font-sans);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 .hw-title {
   margin: 0;
+  font-family: var(--font-display);
   font-size: var(--fs-4);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.3;
+  font-weight: var(--w-bold);
+  letter-spacing: -0.01em;
+  line-height: 22px;
   text-wrap: balance;
+  word-break: keep-all;
 }
 .hw-heading {
   margin: 0;
   font-size: var(--fs-3);
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.35;
+  font-weight: var(--w-semibold);
+  line-height: 20px;
 }
 .hw-text {
   margin: 0;
-  color: var(--ink);
-  font-size: var(--fs-2);
-  line-height: 1.7;
+  color: var(--label);
+  font-size: var(--fs-text);
+  line-height: 1.6;
   text-wrap: pretty;
   word-break: keep-all;
 }
 .hw-muted {
-  color: var(--muted);
+  color: var(--label-2);
 }
 .hw-mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* Flat tag: a printed marking, not a control. */
+/* Badge: a quiet capsule, not a control. */
 .hw-tag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--hw-edge);
-  border-radius: 6px;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  padding: 0 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill-3);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
   white-space: nowrap;
 }
 
-/* ---------- LCD and LED ---------- */
+/* ---------- Readout and status dot ---------- */
 
+/* A number that changes: monospaced digits on a quiet capsule. Over the
+   scene (stage head) it floats as small glass. */
 .hw-lcd {
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
-  min-height: 34px;
-  padding: 5px 12px 6px;
-  border-radius: 9px;
-  background: var(--hw-well);
-  box-shadow: var(--hw-well-shadow);
-  color: var(--hw-lcd-ink);
-  font-family: var(--font-mono);
-  font-size: var(--fs-4);
-  font-weight: 700;
+  gap: 4px;
+  min-height: 28px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--fill-3);
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: var(--fs-3);
+  font-weight: var(--w-semibold);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  line-height: 1.1;
-  text-shadow: 0 0 7px color-mix(in srgb, var(--accent) 65%, transparent);
+  letter-spacing: 0;
+  line-height: 18px;
+  text-shadow: none;
   white-space: nowrap;
 }
 .hw-lcd small {
-  color: color-mix(in srgb, var(--hw-lcd-ink) 70%, transparent);
+  color: var(--label-2);
   font-size: var(--fs-1);
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
 }
 .hw-lcd.is-large {
-  min-height: 52px;
-  padding: 8px 16px 10px;
+  min-height: 40px;
+  padding: 7px 16px;
   font-size: var(--fs-5);
-  border-radius: 12px;
+  font-weight: var(--w-bold);
+  line-height: 26px;
+}
+.hw-stage .hw-lcd {
+  background: var(--lg-sheen), var(--lg-small);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: var(--lg-backdrop);
+  box-shadow: var(--lg-rim), 0 4px 16px rgb(0 0 0 / 0.08);
 }
 
+/* Status dot: 8px, the label tertiary colour when off. No glow. */
 .hw-led {
   display: inline-block;
   flex: none;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--hw-led-off);
-  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.25);
+  background: var(--label-4);
+  box-shadow: none;
 }
 .hw-led.is-on,
 [aria-pressed="true"] > .hw-led,
 [aria-selected="true"] > .hw-led,
 [aria-checked="true"] > .hw-led {
   background: var(--led, var(--accent));
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--led, var(--accent)) 22%, transparent),
-    0 0 8px color-mix(in srgb, var(--led, var(--accent)) 80%, transparent);
+  box-shadow: none;
 }
 
-/* ---------- Keys ---------- */
+/* ---------- Buttons ---------- */
 
+/* Glass capsule button (Liquid Glass Small, kit 483:9270): the default. */
 .hw-key {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 16px;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 14px;
   border: 0;
   border-radius: var(--r-key);
-  background: var(--hw-key);
+  background: var(--lg-sheen), var(--lg-small);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: var(--lg-backdrop);
   box-shadow: var(--hw-key-shadow);
-  color: var(--ink);
-  /* SPEC-01 keys are printed in a mono face; Hangul falls back to Pretendard. */
+  color: var(--vlabel);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: var(--fs-2);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  line-height: 16px;
+  text-decoration: none;
+  text-transform: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: transform 80ms ease, box-shadow 80ms ease, filter 120ms ease;
+  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background-color 120ms ease, filter 120ms ease;
   -webkit-tap-highlight-color: transparent;
 }
 .hw-key svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .hw-key:hover:not(:disabled) {
-  filter: brightness(1.02);
+  background: linear-gradient(var(--lg-hover), var(--lg-hover)), var(--lg-sheen), var(--lg-small);
 }
 .hw-key:active:not(:disabled),
 .hw-key.is-down {
-  transform: translateY(2px);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.8),
-    0 0 0 1px var(--hw-edge),
-    0 1px 0 var(--hw-lip),
-    0 2px 3px rgb(83 80 70 / 0.12);
+  transform: scale(0.97);
+  background: linear-gradient(var(--lg-press), var(--lg-press)), var(--lg-sheen), var(--lg-small);
 }
 .hw-key:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
 }
 .hw-key:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.4;
 }
-.hw-key--accent {
-  background: var(--hw-key-accent);
+/* Latching button that is on: the selected fill and a tinted label. */
+.hw-key[aria-pressed="true"] {
+  background: linear-gradient(var(--lg-selected), var(--lg-selected)), var(--lg-sheen), var(--lg-small);
+  color: var(--accent-text);
+}
+/* Primary (kit Small Primary 483:9264 / push button Default 502:5866). */
+.hw-key--accent,
+.hw-key--accent:hover:not(:disabled),
+.hw-key--accent[aria-pressed="true"] {
+  background: linear-gradient(rgb(255 255 255 / 0.18), rgb(255 255 255 / 0) 60%), var(--accent);
   box-shadow: var(--hw-key-accent-shadow);
   color: var(--on-accent);
+  font-weight: var(--w-semibold);
+}
+.hw-key--accent:hover:not(:disabled) {
+  filter: brightness(1.06);
 }
 .hw-key--accent:active:not(:disabled) {
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.25),
-    0 1px 0 color-mix(in oklch, var(--accent) 62%, black),
-    0 3px 8px -2px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: linear-gradient(rgb(0 0 0 / 0.15), rgb(0 0 0 / 0.15)), var(--accent);
 }
 .hw-key--icon {
-  width: 42px;
+  width: 32px;
   padding: 0;
 }
 .hw-key--sm {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 10px;
-  font-size: var(--fs-1);
+  min-height: 28px;
+  padding: 0 11px;
+  font-size: var(--fs-2);
 }
 .hw-key--sm.hw-key--icon {
-  width: 34px;
+  width: 28px;
+  padding: 0;
 }
-.hw-key--dark {
-  background: linear-gradient(#2a2a28, #1d1d1c);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.12),
-    0 0 0 1px #000,
-    0 3px 0 #000,
-    var(--hw-key-drop);
-  color: #f1f0ec;
+.hw-key--sm svg {
+  width: 15px;
+  height: 15px;
 }
-/* Latching key: the LED shows its state. */
-.hw-key[aria-pressed] {
-  padding-inline-start: 14px;
+/* Prominent neutral (dark glass). */
+.hw-key--dark,
+.hw-key--dark:hover:not(:disabled) {
+  background: linear-gradient(rgb(255 255 255 / 0.12), rgb(255 255 255 / 0) 60%), rgb(28 28 30 / 0.86);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.18), 0 2px 10px rgb(0 0 0 / 0.2);
+  color: #fff;
+}
+/* Inside content (lesson, records, sheets) buttons are the kit's bordered
+   push buttons: a fill, no glass (kit 121:11924). */
+:is(.hw-side, .hw-records, .hw-dialog, .hw-content) .hw-key:not(.hw-key--accent, .hw-key--dark) {
+  background: var(--control-fill);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  color: var(--label);
+}
+:is(.hw-side, .hw-records, .hw-dialog, .hw-content) .hw-key:not(.hw-key--accent, .hw-key--dark):hover:not(:disabled) {
+  background: linear-gradient(var(--fill-4), var(--fill-4)), var(--control-fill);
+}
+:is(.hw-side, .hw-records, .hw-dialog, .hw-content) .hw-key:not(.hw-key--accent, .hw-key--dark):active:not(:disabled) {
+  background: var(--control-fill-press);
+}
+:is(.hw-side, .hw-records, .hw-dialog, .hw-content) .hw-key[aria-pressed="true"]:not(.hw-key--accent, .hw-key--dark) {
+  background: var(--accent-fill);
+  color: var(--accent-text);
 }
 
-/* ---------- Segmented selector ---------- */
+/* ---------- Segmented control (kit 121:12398) ---------- */
 
 .hw-seg {
   display: inline-grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 14px;
-  background: linear-gradient(#efefec, #f4f4f2);
-  box-shadow:
-    inset 0 1px 3px rgb(83 80 70 / 0.12),
-    inset 0 0 0 1px rgb(83 80 70 / 0.05),
-    inset 0 -1px 0 rgb(255 255 255 / 0.8);
-}
-:root[data-theme="dark"] .hw-seg {
-  background: linear-gradient(#141413, #1b1b1a);
-  box-shadow: var(--hw-well-shadow);
+  gap: 0;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--fill-3);
+  box-shadow: none;
 }
 .hw-seg > button {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 18px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 14px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--label);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: var(--fs-2);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
 }
-/* Each position has a small LED in its corner, lit on the selected one. */
-.hw-seg > button::after {
+/* Separator between two unselected segments: 1×14, quaternary. */
+.hw-seg > button + button::before {
   content: "";
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--hw-led-off);
-  box-shadow: inset 0 1px 1px rgb(0 0 0 / 0.25);
+  top: 50%;
+  left: 0;
+  width: 1px;
+  height: 14px;
+  margin-top: -7px;
+  background: var(--separator);
 }
-.hw-seg > button[aria-pressed="true"]::after,
-.hw-seg > button[aria-selected="true"]::after,
-.hw-seg > button[aria-checked="true"]::after {
+.hw-seg > button:is([aria-pressed="true"], [aria-selected="true"], [aria-checked="true"])::before,
+.hw-seg > button:is([aria-pressed="true"], [aria-selected="true"], [aria-checked="true"]) + button::before {
+  opacity: 0;
+}
+.hw-seg > button:hover:not(:disabled, [aria-pressed="true"], [aria-selected="true"], [aria-checked="true"]) {
+  background: var(--fill-3);
+}
+.hw-seg > button:is([aria-pressed="true"], [aria-selected="true"], [aria-checked="true"]) {
   background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 85%, transparent);
-}
-.hw-seg > button[aria-pressed="true"],
-.hw-seg > button[aria-selected="true"],
-.hw-seg > button[aria-checked="true"] {
-  background: var(--hw-key);
-  box-shadow: var(--hw-key-shadow);
-  color: var(--ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), inset 0 0 0 0.5px rgb(255 255 255 / 0.2);
+  color: var(--on-accent);
 }
 .hw-seg > button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
 }
 .hw-seg > button:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
-/* ---------- Slider ---------- */
+/* ---------- Slider (kit 512:3367): 4px track, glass knob ---------- */
 
 .hw-slider {
   --fill: 0%;
   width: 100%;
-  height: 28px;
+  height: 24px;
   margin: 0;
   background: transparent;
   -webkit-appearance: none;
@@ -463,44 +558,54 @@
   cursor: pointer;
 }
 .hw-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent) var(--fill), var(--ink) var(--fill));
-  box-shadow: 0 0 8px -2px color-mix(in srgb, var(--accent) 40%, transparent);
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) var(--fill), var(--track) var(--fill));
 }
 .hw-slider::-moz-range-track {
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent) var(--fill), var(--ink) var(--fill));
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent) var(--fill), var(--track) var(--fill));
 }
 .hw-slider::-webkit-slider-thumb {
-  width: 24px;
-  height: 24px;
-  margin-top: -9px;
+  width: 26px;
+  height: 20px;
+  margin-top: -8px;
   border: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, #fff, #e9e9e6 70%, #dcdcd8);
-  box-shadow:
-    0 0 0 1px rgb(83 80 70 / 0.12),
-    0 2px 0 var(--hw-lip),
-    0 4px 8px rgb(83 80 70 / 0.25);
+  border-radius: 999px;
+  background: linear-gradient(rgb(255 255 255 / 0.35), rgb(255 255 255 / 0)), var(--knob);
+  box-shadow: var(--knob-shadow);
   -webkit-appearance: none;
   appearance: none;
+  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background-color 120ms ease;
 }
 .hw-slider::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 20px;
   border: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 35%, #fff, #e9e9e6 70%, #dcdcd8);
-  box-shadow: 0 0 0 1px rgb(83 80 70 / 0.12), 0 2px 0 var(--hw-lip), 0 4px 8px rgb(83 80 70 / 0.25);
+  border-radius: 999px;
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+}
+/* Dragging: the knob turns to clear glass and grows (kit 531:11145). */
+.hw-slider:active::-webkit-slider-thumb {
+  transform: scale(1.18);
+  background: rgb(255 255 255 / 0.22);
+  box-shadow:
+    inset 1px 1px 0 rgb(255 255 255 / 0.95),
+    inset -1px -1px 0 rgb(255 255 255 / 0.5),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.8),
+    0 2px 10px rgb(0 0 0 / 0.18);
+}
+.hw-slider:active::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 85%, black) var(--fill), var(--track) var(--fill));
 }
 .hw-slider:focus-visible {
   outline: none;
 }
 .hw-slider:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
 }
 .hw-slider:disabled {
   cursor: default;
@@ -510,83 +615,121 @@
   display: flex;
   justify-content: space-between;
   padding: 0 11px;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Switch ---------- */
+/* ---------- Switch (kit 468:808): 44×20 track, 26×16 knob ---------- */
 
 .hw-switch {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-height: 24px;
   padding: 0;
   border: 0;
   background: none;
-  color: var(--ink);
-  font-size: var(--fs-1);
-  font-weight: 600;
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2);
+  font-weight: var(--w-medium);
+  text-align: left;
   cursor: pointer;
 }
 .hw-switch::before {
   content: "";
-  width: 40px;
-  height: 22px;
   flex: none;
-  border-radius: 11px;
-  background:
-    radial-gradient(circle at 11px 50%, #fff 0 8px, transparent 8.5px),
-    linear-gradient(#d4d3ce, #dedcd7);
-  box-shadow: inset 0 1px 3px rgb(0 0 0 / 0.2);
-  transition: background 140ms ease;
+  width: 44px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--track);
+  box-shadow: inset 0 0 0 0.5px var(--fill-3);
+  transition: background-color 200ms ease;
+}
+.hw-switch::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 26px;
+  height: 16px;
+  margin-top: -8px;
+  border-radius: 999px;
+  background: var(--knob);
+  box-shadow: var(--knob-shadow);
+  transition: transform 260ms cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 .hw-switch[aria-checked="true"]::before {
-  background:
-    radial-gradient(circle at 29px 50%, #fff 0 8px, transparent 8.5px),
-    linear-gradient(var(--accent), color-mix(in oklch, var(--accent) 85%, white));
+  background: var(--accent);
+}
+.hw-switch[aria-checked="true"]::after {
+  transform: translateX(14px);
+}
+.hw-switch:active::after {
+  width: 30px;
+}
+.hw-switch[aria-checked="true"]:active::after {
+  transform: translateX(10px);
 }
 .hw-switch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
   border-radius: 12px;
 }
+.hw-switch:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
 
-/* ---------- Tabs ---------- */
+/* ---------- Tabs: a tab bar (iOS 26 Tab Bars 507:24689) ---------- */
 
+/* A glass capsule; the selected tab is a grey pill with a tinted label. */
 .hw-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--lg-sheen), var(--lg-small);
+  box-shadow: var(--lg-rim), 0 2px 10px rgb(0 0 0 / 0.06);
   overflow-x: auto;
   scrollbar-width: none;
 }
 .hw-tabs > [role="tab"] {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 12px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--vlabel);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font-size: var(--fs-2);
+  font-weight: var(--w-medium);
+  letter-spacing: 0;
+  text-transform: none;
   white-space: nowrap;
   cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.hw-tabs > [role="tab"]:hover:not([aria-selected="true"]) {
+  background: var(--lg-hover);
 }
 .hw-tabs > [role="tab"][aria-selected="true"] {
-  background: var(--hw-key);
-  box-shadow: var(--hw-key-shadow);
-  color: var(--ink);
+  background: var(--lg-selected);
+  box-shadow: none;
+  color: var(--accent-text);
+  font-weight: var(--w-semibold);
 }
 .hw-tabs > [role="tab"]:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
 }
 
 /* ---------- Lists, rows, tables ---------- */
@@ -601,9 +744,9 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 40px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--hw-edge);
+  min-height: 36px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--separator-soft);
 }
 .hw-list > *:last-child {
   border-bottom: 0;
@@ -613,140 +756,163 @@
   width: 100%;
   border-inline: 0;
   border-top: 0;
+  border-radius: 0;
   background: none;
+  color: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 0;
 }
 .hw-list > button:hover {
-  background: color-mix(in srgb, var(--soft) 70%, transparent);
+  border-radius: var(--r-small);
+  background: var(--fill-4);
 }
+/* Selected row: the sidebar's rounded grey fill (kit 655:2379). */
 .hw-list > button[aria-current="true"],
 .hw-list > button[aria-pressed="true"] {
-  font-weight: 700;
+  border-bottom-color: transparent;
+  border-radius: var(--r-small);
+  background: var(--lg-selected);
+  font-weight: var(--w-semibold);
+}
+.hw-list > :has(+ button[aria-current="true"]),
+.hw-list > :has(+ button[aria-pressed="true"]) {
+  border-bottom-color: transparent;
 }
 .hw-list > button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
   outline-offset: -2px;
+  border-radius: var(--r-small);
 }
 
-/* Tables are read off a reflective LCD, like SPEC-01's item list. */
+/* Table (kit Lists and Tables 121:12606): column header, alternating rows,
+   the current row selected in the accent with rounded ends. */
 .hw-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  padding: 4px 10px 8px;
-  border-radius: 14px;
-  background: var(--hw-paper);
-  box-shadow: var(--hw-paper-shadow);
-  color: var(--hw-paper-ink);
-  font-family: var(--font-mono);
-  font-size: 13px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
 }
 .hw-table th {
   position: sticky;
   top: 0;
   z-index: 2;
-  /* Covers the strip above the header so scrolled rows never show through. */
-  box-shadow: 0 -12px 0 var(--hw-paper);
-  padding: 10px 12px 8px;
-  border-bottom: 1px dashed var(--hw-paper-rule);
-  background: var(--hw-paper);
-  background-attachment: local;
-  color: var(--hw-paper-muted);
-  font-family: var(--font-mono);
+  height: 28px;
+  padding: 5px 10px 4px;
+  border-bottom: 1px solid var(--separator-soft);
+  background: linear-gradient(var(--group), var(--group)), var(--window);
+  box-shadow: none;
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  text-transform: none;
   text-align: left;
   white-space: nowrap;
 }
+.hw-table th + th {
+  border-left: 1px solid var(--separator-soft);
+}
 .hw-table td {
   position: relative;
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-bottom: 0;
   vertical-align: top;
 }
-.hw-table tbody tr:first-child td {
-  padding-top: 10px;
+.hw-table tbody tr:nth-child(even) td {
+  background: var(--fill-4);
 }
 .hw-table tbody tr[data-time],
 .hw-table tbody tr.is-clickable {
   cursor: pointer;
 }
 .hw-table tbody tr:hover td {
-  background: rgb(0 0 0 / 0.045);
+  background: var(--fill-3);
 }
 .hw-table tbody tr[aria-current="true"] td {
-  color: var(--hw-paper-hot);
-  font-weight: 700;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--w-medium);
 }
-/* The current row is bracketed by dashes in the gutter. */
-.hw-table tbody tr[aria-current="true"] td:first-child::before,
-.hw-table tbody tr[aria-current="true"] td:last-child::after {
-  content: "";
-  position: absolute;
-  top: calc(0.5em + 9px);
-  width: 9px;
-  height: 2px;
-  background: currentColor;
+.hw-table tbody tr[aria-current="true"] td :is(.hw-muted, .hw-mono, a, button, .hw-label) {
+  color: inherit;
 }
-.hw-table tbody tr[aria-current="true"] td:first-child::before { left: -8px; }
-.hw-table tbody tr[aria-current="true"] td:last-child::after { right: -8px; }
+.hw-table tbody tr[aria-current="true"] td :is(.hw-led, .hw-dot) {
+  box-shadow: 0 0 0 1.5px var(--on-accent);
+}
+.hw-table tbody tr[aria-current="true"] td .hw-key:not(.hw-key--accent) {
+  background: rgb(255 255 255 / 0.22);
+  color: var(--on-accent);
+}
+.hw-table tbody tr[aria-current="true"] td:first-child {
+  border-radius: var(--r-small) 0 0 var(--r-small);
+}
+.hw-table tbody tr[aria-current="true"] td:last-child {
+  border-radius: 0 var(--r-small) var(--r-small) 0;
+}
 .hw-scroll {
   overflow: auto;
   max-height: 320px;
 }
 
-/* Callout inside a plate, after SPEC-01's alert: a rule above and below and
-   a status LED, never a tinted box. */
+/* Callout inside content (TipKit-style inline tip): a rounded fill with a
+   status dot. --accent tints it. */
 .hw-note {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
-  padding: 12px 2px;
-  border-block: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
-  border-radius: 0;
-  background: none;
-  color: var(--ink);
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--fill-3);
+  color: var(--label);
   font-size: var(--fs-2);
-  line-height: 1.6;
+  line-height: 1.55;
   word-break: keep-all;
 }
 .hw-note::before {
   content: "";
   flex: none;
-  width: 7px;
-  height: 7px;
-  margin-top: 0.62em;
+  width: 8px;
+  height: 8px;
+  margin-top: 0.5em;
   border-radius: 50%;
-  background: var(--muted);
+  background: var(--label-3);
+  box-shadow: none;
+}
+.hw-note--accent {
+  background: var(--accent-fill);
 }
 .hw-note--accent::before {
   background: var(--accent);
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent),
-    0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+  box-shadow: none;
 }
 
-/* ---------- Deck: the control strip under the stage ---------- */
+/* ---------- Deck: the floating control palette (Medium glass) ---------- */
 
 .hw-deck {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 18px 28px;
-  padding: 16px 20px 18px;
+  gap: 14px 20px;
+  padding: 14px 16px 16px;
 }
 .hw-field {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 .hw-field > .hw-label:first-child {
-  min-height: 16px;
+  min-height: 15px;
 }
 .hw-transport {
   display: flex;
@@ -757,15 +923,20 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex: 1 1 280px;
   min-width: 220px;
 }
 .hw-deck .hw-spacer {
   flex: 1;
 }
+/* Labels on glass use the vibrant secondary label. */
+.hw-deck .hw-label,
+.hw-rail .hw-label {
+  color: var(--vlabel-2);
+}
 @media (max-width: 759px) {
-  .hw-deck { gap: 14px; padding: 14px; }
+  .hw-deck { gap: 12px; padding: 12px; }
   .hw-transport { flex-wrap: wrap; }
   .hw-seek { flex-basis: 100%; }
 }
@@ -775,9 +946,7 @@
 .hw-scene {
   position: relative;
   min-height: 460px;
-  background:
-    radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--surface) 70%, transparent), transparent 70%),
-    transparent;
+  background: none;
 }
 .hw-scene > svg {
   display: block;
@@ -789,21 +958,26 @@
   .hw-scene { min-height: 0; }
 }
 
-/* ---------- Dialog ---------- */
+/* ---------- Sheet (dialog): Large glass, r 26 ---------- */
 
 .hw-dialog {
   width: min(720px, calc(100vw - 24px));
   max-height: calc(100dvh - 40px);
   padding: 0;
   border: 0;
-  border-radius: var(--r-panel);
-  background: var(--hw-panel);
-  box-shadow: var(--hw-panel-shadow), 0 30px 80px rgb(0 0 0 / 0.25);
-  color: var(--ink);
+  border-radius: var(--r-window);
+  background: var(--lg-sheen), var(--lg-large);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(var(--lg-bright));
+  box-shadow: var(--lg-rim), 0 24px 70px rgb(0 0 0 / 0.28);
+  color: var(--label);
+  font-family: var(--font-sans);
 }
 .hw-dialog::backdrop {
-  background: rgb(30 29 26 / 0.35);
-  backdrop-filter: blur(3px);
+  background: rgb(0 0 0 / 0.18);
+}
+:root[data-theme="dark"] .hw-dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
 }
 
 /* ---------- Footer ---------- */
@@ -812,22 +986,24 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px 20px;
+  gap: 6px 20px;
   max-width: 1680px;
-  margin: 20px auto 0;
-  color: var(--muted);
+  margin: 18px auto 0;
+  color: var(--label-2);
   font-size: var(--fs-1);
 }
 .hw-footer kbd {
   display: inline-block;
-  min-width: 22px;
+  min-width: 20px;
   margin: 0 2px;
   padding: 1px 6px;
   border-radius: 5px;
-  background: var(--hw-key);
-  box-shadow: 0 0 0 1px var(--hw-edge), 0 2px 0 var(--hw-lip);
-  font-family: var(--font-mono);
+  background: var(--fill-3);
+  box-shadow: none;
+  color: var(--label);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
   text-align: center;
 }
 .hw-footer a {
@@ -836,69 +1012,68 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hw-key,
-  .hw-switch::before {
+  .hw-seg > button,
+  .hw-tabs > [role="tab"],
+  .hw-switch::before,
+  .hw-switch::after,
+  .hw-slider::-webkit-slider-thumb {
     transition: none;
+  }
+  .hw-key:active:not(:disabled) {
+    transform: none;
   }
 }
 
 /* ======================================================================
- * Full-screen console
+ * Full-screen console (desktop ≥ 1100 × 700)
  *
- * On a desktop-sized window the page is one instrument that fills the
- * viewport: the topbar plate, then the console, then a thin footer. Nothing
- * scrolls at page level; the side plate and the records scroll inside
- * themselves. The stage takes every pixel that is left, and the scene SVG
- * scales to it (preserveAspectRatio "meet").
+ * The page is one window that fills the viewport and never scrolls. The
+ * toolbar floats over the top edge; the stage takes every pixel that is
+ * left and its scene is the window backdrop: the stage box reaches under
+ * the toolbar (and the lesson sidebar), so the floor of the scene runs
+ * behind the glass. The scene SVG itself stays fitted to the visible part.
  *
  * Explorers tune the split with:
  *   --side-w     width of the lesson column
- *   --records-h  height of the records plate under the deck
+ *   --records-h  height of the records group under the stage
  * ==================================================================== */
-
-/* Topbar: one long plate, like SPEC-01's lid. */
-.hw-topbar {
-  padding: 8px 10px 8px 8px;
-  border-radius: 24px;
-  background: var(--hw-panel);
-  box-shadow: var(--hw-panel-shadow);
-}
-.hw-topbar .hw-context {
-  border-inline-start-color: var(--hw-edge);
-}
 
 @media (min-width: 1100px) and (min-height: 700px) {
   .hw-page {
+    --page-pad-x: 10px;
+    --console-gap: 10px;
     display: flex;
     flex-direction: column;
     height: 100dvh;
-    padding: 12px 16px 8px;
+    padding: 0 var(--page-pad-x) 8px;
     overflow: hidden;
   }
   .hw-topbar {
     flex: none;
     max-width: none;
-    margin: 0 0 12px;
+    height: var(--toolbar-h);
+    margin: 0 0 var(--console-gap);
+    padding-block: 6px;
   }
   .hw-console {
     --side-w: clamp(340px, 25vw, 440px);
     --records-h: clamp(200px, 30vh, 340px);
+    --stage-reach-x: var(--page-pad-x);
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
     max-width: none;
     grid-template-columns: minmax(0, 1fr) var(--side-w);
     /* The deck sits under the lesson, beside the records. The records span
-       two rows and the lesson the first two, so a taller records plate takes
+       two rows and the lesson the first two, so a taller records group takes
        its height from the stage only; the lesson keeps everything above the
-       deck. */
-    /* --records-extra is set by shared/fit.js: max(0, records height - deck
-       height - gap). */
+       deck. --records-extra is set by shared/fit.js: max(0, records height
+       - deck height - gap). */
     grid-template-rows: minmax(0, 1fr) var(--records-extra, 0px) auto;
     grid-template-areas:
       "stage side"
       "records side"
       "records deck";
-    gap: 12px;
     align-items: stretch;
   }
   .hw-console > .hw-records {
@@ -919,14 +1094,20 @@
     min-height: 0;
     overflow: hidden;
   }
-  /* The side spans every row; without size containment its content would
-     grow the auto (deck) row instead of scrolling. */
   .hw-side {
     contain: size;
+  }
+  /* The stage reaches under the toolbar and to the window's left edge. */
+  .hw-console > .hw-stage {
+    margin-top: calc(-1 * (var(--toolbar-h) + var(--console-gap)));
+    margin-left: calc(-1 * var(--stage-reach-x));
+    padding-top: calc(var(--toolbar-h) + var(--console-gap));
+    padding-left: var(--stage-reach-x);
   }
   .hw-stage > .hw-scene {
     flex: 1 1 auto;
     min-height: 0;
+    overflow: visible;
   }
   /* The scene draws into whatever height is left. */
   .hw-stage > .hw-scene > svg:first-child {
@@ -949,18 +1130,16 @@
   .hw-deck {
     align-content: flex-start;
     align-items: flex-start;
-    padding: 14px 18px 16px;
-    gap: 12px 16px;
+    padding: 12px 14px 14px;
+    gap: 10px 14px;
+    min-width: 0;
+    overflow: hidden;
   }
   .hw-deck .hw-seek {
     flex-basis: 100%;
   }
   /* The deck lives in the narrow side column: everything in it wraps to the
      column instead of running off its right edge. */
-  .hw-deck {
-    min-width: 0;
-    overflow: hidden;
-  }
   .hw-deck > *,
   .hw-deck .hw-field {
     max-width: 100%;
@@ -974,25 +1153,19 @@
     overflow-x: auto;
     scrollbar-width: none;
   }
-  /* The floor may run past the stage edges; it reads as the table the
-     devices stand on. Devices are what the viewBox is fitted to. */
-  .hw-stage > .hw-scene {
-    overflow: hidden;
-  }
   .hw-footer {
     flex: none;
     max-width: none;
-    margin: 8px 4px 0;
+    margin: 6px 4px 0;
   }
 }
 
-/* Mobile topbar: the switcher shrinks, actions stay on its row as icon keys. */
+/* Mobile toolbar: the switcher shrinks, actions stay on its row as icons. */
 @media (max-width: 759px) {
   .hw-topbar {
     flex-wrap: nowrap;
     gap: 8px;
-    padding: 6px;
-    border-radius: 20px;
+    min-height: 0;
   }
   .hw-topbar .hw-brand {
     flex: 1 1 auto;
@@ -1008,12 +1181,14 @@
     flex: none;
     gap: 6px;
   }
-  .hw-actions .hw-key {
+  .hw-actions .hw-key,
+  .hw-topbar .hw-key {
     width: 42px;
     min-height: 42px;
     padding: 0;
   }
-  .hw-actions .hw-key > span {
+  .hw-actions .hw-key > span,
+  .hw-topbar .hw-key > span {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1021,40 +1196,43 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
+  .hw-key {
+    min-height: 42px;
+  }
+  .hw-key--icon {
+    width: 42px;
+  }
 }
 
-/* ---------- Screen: light-on-dark display in a bezel (charts) ---------- */
+/* ---------- Chart well (was the SPEC-01 screen) ---------- */
 
 .hw-screen {
-  /* Lit marks inside a screen use the screen's own lit colour. */
-  --hw-lcd-ink: var(--hw-screen-lit);
+  --hw-lcd-ink: var(--accent-text);
   position: relative;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
   background: var(--hw-screen);
-  box-shadow: var(--hw-screen-shadow);
-  color: var(--hw-screen-ink);
-  font-family: var(--font-mono);
-  font-size: 13px;
+  box-shadow: none;
+  color: var(--label);
+  font-family: var(--font-sans);
+  font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
 }
 .hw-screen-head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 8px;
-  margin-bottom: 10px;
-  border-bottom: 1px dashed var(--hw-screen-rule);
-  color: var(--hw-screen-muted);
+  gap: 12px;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--separator-soft);
+  color: var(--label-2);
   font-size: var(--fs-1);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--w-semibold);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .hw-screen-head > .is-on {
-  color: var(--hw-screen-lit);
-}
-:root[data-theme="dark"] .hw-screen-head > .is-on {
-  text-shadow: 0 0 7px color-mix(in srgb, var(--accent) 60%, transparent);
+  color: var(--accent-text);
 }
 .hw-screen-head > :last-child:not(:first-child) {
   margin-inline-start: auto;
@@ -1065,92 +1243,71 @@
   overflow: visible;
 }
 
-/* ---------- Meter: a row of dots, lit up to the value ---------- */
+/* ---------- Progress dots ---------- */
 
 .hw-meter {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: linear-gradient(#e6e6e3, #ededea);
-  box-shadow: inset 0 1px 3px rgb(83 80 70 / 0.22), inset 0 -1px 0 rgb(255 255 255 / 0.7);
-}
-:root[data-theme="dark"] .hw-meter {
-  background: linear-gradient(#141413, #1b1b1a);
-  box-shadow: var(--hw-well-shadow);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
 }
 .hw-meter > i {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--hw-led-off);
+  background: var(--fill-1);
 }
 .hw-meter > i.is-on {
   background: var(--led, var(--accent));
-  box-shadow: 0 0 5px color-mix(in srgb, var(--led, var(--accent)) 75%, transparent);
+  box-shadow: none;
 }
 .hw-meter > i.is-half {
-  background: color-mix(in srgb, var(--led, var(--accent)) 45%, var(--hw-led-off));
+  background: color-mix(in srgb, var(--led, var(--accent)) 45%, transparent);
 }
 
-/* ---------- Form fields: a dark recessed input, like SPEC-01's text field ---------- */
+/* ---------- Text field (kit 687:28078) ---------- */
 
 .hw-input {
   min-width: 0;
-  height: 40px;
-  padding: 0 12px;
+  height: 32px;
+  padding: 0 10px;
   border: 0;
-  border-radius: 10px;
-  background: var(--hw-well);
-  box-shadow: var(--hw-well-shadow);
-  color: var(--hw-screen-ink);
-  font-family: var(--font-mono);
+  border-radius: var(--r-field);
+  background: var(--field);
+  box-shadow: var(--field-ring);
+  color: var(--label);
+  font-family: var(--font-sans);
   font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
   caret-color: var(--accent);
 }
 .hw-input::placeholder {
-  color: var(--hw-screen-muted);
+  color: var(--label-3);
 }
 .hw-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 0;
 }
 .hw-input[aria-invalid="true"] {
-  outline: 2px solid oklch(0.6 0.22 27);
-  outline-offset: 2px;
+  outline: 2px solid var(--sys-red);
+  outline-offset: 0;
 }
 .hw-input--sm {
-  height: 32px;
+  height: 28px;
   padding: 0 8px;
-  font-size: 13px;
-  border-radius: 8px;
+  font-size: var(--fs-2);
+  border-radius: 7px;
 }
 
 /* ---------- Detail fixes ---------- */
 
-/* A note inside a section already sits between the section rules; its own
-   rules would double them. */
-.hw-section > .hw-note:first-child {
-  border-top: 0;
-  padding-top: 2px;
-}
-.hw-section > .hw-note:last-child {
-  border-bottom: 0;
-  padding-bottom: 2px;
-}
-.hw-plate-body > .hw-note:first-child {
-  border-top: 0;
-}
-.hw-plate-body > .hw-note:last-child {
-  border-bottom: 0;
-}
-
-/* Keys at the end of a scrolling plate keep room for their lip and shadow. */
+/* Keys at the end of a fitted panel keep room for their shadow. */
 .hw-side > .hw-plate-body,
 .hw-records > .hw-plate-body {
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
 
 /* Korean text never breaks inside a word in any part. */
@@ -1163,14 +1320,13 @@
   word-break: keep-all;
 }
 
-/* Records: the body is a rounded window set into the plate. Tables, screens
-   and lists scroll inside it and are clipped by its corners, so an LCD table
-   never runs into the plate's edge while scrolling. */
+/* Records: the body is a window into the group; tables are clipped by its
+   corners. */
 @media (min-width: 1100px) and (min-height: 700px) {
   .hw-records > .hw-plate-body {
-    margin: 12px 16px 16px;
+    margin: 4px 10px 10px;
     padding: 0;
-    border-radius: 14px;
+    border-radius: 8px;
   }
 }
 
@@ -1191,22 +1347,24 @@
 }
 .hw-pager-count {
   min-width: 44px;
-  color: var(--muted);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-/* Tabs that sit in a plate head (side panel views, record views) */
+/* Tabs that sit in a group head (side views, record views) */
 .hw-plate-head .hw-tabs {
-  gap: 2px;
+  gap: 1px;
 }
 .hw-plate-head .hw-tabs > [role="tab"] {
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: var(--fs-1);
+  min-height: 26px;
+  padding: 0 11px;
+  font-size: var(--fs-2);
 }
 
-/* A plate body that fills its plate and never scrolls: a column whose
+/* A group body that fills its group and never scrolls: a column whose
    flexible child (.hw-fill) takes the remaining height. */
 .hw-fit {
   display: flex;
@@ -1233,32 +1391,25 @@
 }
 
 /* Short desktop windows (≈720–820px tall): tighter rhythm so a step reads
-   on one page and records show more rows, without going below the type scale. */
+   on one page and records show more rows, without going below 12px. */
 @media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px) {
-  .hw-side .hw-text { line-height: 1.55; }
-  .hw-side .hw-title { font-size: var(--fs-3); }
+  .hw-side .hw-text { line-height: 1.5; }
+  .hw-side .hw-title { font-size: var(--fs-3); line-height: 20px; }
   .hw-side .hw-section + .hw-section { margin-top: 10px; padding-top: 10px; }
-  .hw-plate-head { min-height: 44px; padding-block: 8px; }
-  .hw-side > .hw-plate-body { padding-block: 12px 14px; }
-  .hw-table th { padding-block: 6px 5px; }
-  .hw-table td { padding-block: 5px; }
-  /* Short screens (e.g. 1280×720): the scene is what needs the height. Tighter
-     top bar, stage head and foot, and deck give the stage ~50px back. */
-  .hw-page { padding-top: 8px; }
-  .hw-topbar { margin-bottom: 8px; padding-block: 4px; }
-  .hw-console { gap: 10px; }
-  .explorer-trigger { min-height: 46px; padding-block: 4px; }
-  .explorer-brand-mark { width: 36px; height: 36px; }
-  .hw-stage > .hw-plate-head { min-height: 38px; padding-block: 6px 4px; }
+  .hw-plate-head { min-height: 40px; padding-block: 8px 2px; }
+  .hw-side > .hw-plate-body { padding-block: 10px 12px; }
+  .hw-table th { height: 26px; padding-block: 4px 3px; }
+  .hw-table td { padding-block: 4px; }
+  .hw-page { --toolbar-h: 48px; --console-gap: 8px; }
+  .hw-stage > .hw-plate-head { min-height: 36px; padding-block: 4px 2px; }
   .hw-stage > .hw-plate-foot { min-height: 30px; padding-block: 4px; }
-  .hw-deck { padding: 10px 14px 12px; gap: 8px 12px; }
-  .hw-deck .hw-key { min-height: 36px; }
+  .hw-deck { padding: 10px 12px 12px; gap: 8px 12px; }
 }
 
 /* ---------- Learning model: 정리 panel, recall questions, progress ---------- */
 
 .hw-recap-points > li {
-  font-size: var(--fs-2);
+  font-size: var(--fs-text);
   line-height: 1.55;
   word-break: keep-all;
 }
@@ -1266,7 +1417,7 @@
   margin: 6px 0 8px;
 }
 .hw-recall-choices > button[aria-pressed="true"] {
-  font-weight: 750;
+  font-weight: var(--w-semibold);
 }
 .hw-recall-why {
   margin-top: 8px;
@@ -1289,60 +1440,92 @@
   word-break: keep-all;
 }
 
-/* ---------- Lesson rail (shared/lesson-rail.js) ----------
-   A column left of the stage from 1280px; a drawer below that. Same look as
-   the protocol picker. */
+/* ---------- Lesson rail = the sidebar (shared/lesson-rail.js) ----------
+   Medium glass, floating inset from the window edge (kit Sidebar 684:18069).
+   A column left of the stage from 1280px; a drawer below that. */
 
-.hw-rail { display: flex; flex-direction: column; min-height: 0; }
+.hw-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.hw-rail > .hw-plate-head {
+  min-height: 40px;
+  padding: 12px 12px 2px 16px;
+}
 .hw-rail-body {
   flex: 1;
   min-height: 0;
-  padding: 12px 14px 10px;
+  padding: 4px 8px 10px;
   overflow: auto;
   scrollbar-width: thin;
 }
 .hw-rail-list > .hw-rail-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 52px;
-  padding: 7px 8px;
-  border-radius: 0;
-  color: inherit;
+  gap: 10px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--r-small);
+  color: var(--vlabel);
   text-decoration: none;
 }
-.hw-rail-list > .hw-rail-item:hover { background: color-mix(in srgb, var(--ink) 4%, transparent); }
-.hw-rail-list > .hw-rail-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
-.hw-rail-list > .hw-rail-item[aria-current="page"] {
-  border-radius: 12px;
-  border-bottom-color: transparent;
-  background: var(--hw-key);
-  box-shadow: var(--hw-key-shadow);
+.hw-rail-list > .hw-rail-item:hover {
+  background: var(--lg-hover);
 }
-.hw-rail-list > .hw-rail-item:has(+ .hw-rail-item[aria-current="page"]) { border-bottom-color: transparent; }
-.hw-rail-text { display: grid; flex: 1; min-width: 0; line-height: 1.3; }
-.hw-rail-name { font-size: var(--fs-2); font-weight: 700; word-break: keep-all; }
-.hw-rail-name .hw-index { margin-inline-end: 4px; }
+.hw-rail-list > .hw-rail-item:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: -1px;
+}
+.hw-rail-list > .hw-rail-item:is([aria-current="page"], [aria-current="true"]) {
+  background: var(--lg-selected);
+  box-shadow: none;
+}
+.hw-rail-list > .hw-rail-item:is([aria-current="page"], [aria-current="true"]) .hw-index {
+  color: var(--accent-text);
+}
+.hw-rail-text { display: grid; flex: 1; min-width: 0; gap: 1px; line-height: 16px; }
+.hw-rail-name {
+  font-size: var(--fs-2);
+  font-weight: var(--w-medium);
+  word-break: keep-all;
+}
+.hw-rail-name .hw-index {
+  margin-inline-end: 4px;
+  color: var(--vlabel-2);
+}
 .hw-rail-sub {
   overflow: hidden;
-  color: var(--muted);
+  color: var(--vlabel-2);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.hw-rail-pct { color: var(--muted); font-size: var(--fs-1); font-weight: 500; }
+.hw-rail-pct {
+  color: var(--vlabel-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+}
+/* Lesson status: an empty ring (new), a half-filled ring (in progress), a
+   filled dot (done), all in the accent. */
+.hw-led.is-new {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--label-3);
+}
 .hw-led.is-progress {
-  background: #e0a020;
-  box-shadow: 0 0 6px color-mix(in srgb, #e0a020 70%, transparent);
+  background: conic-gradient(var(--accent) 0 50%, transparent 0);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
 }
 .hw-led.is-done {
   background: var(--accent);
-  box-shadow:
-    0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent),
-    0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+  box-shadow: none;
 }
-.hw-rail-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.hw-rail-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .hw-rail-btn { gap: 6px; flex: none; }
 
 @media (min-width: 1280px) {
@@ -1350,17 +1533,18 @@
   .hw-rail-close,
   .hw-rail-scrim { display: none; }
   .hw-console.has-rail {
-    --rail-w: clamp(224px, 15vw, 280px);
+    --rail-w: clamp(224px, 15vw, 272px);
     grid-template-columns: var(--rail-w) minmax(0, 1fr) 360px;
     grid-template-areas:
       "rail stage side"
       "rail deck side"
       "records records records";
   }
-  .hw-console.has-rail > .hw-rail { grid-area: rail; align-self: stretch; }
+  .hw-console.has-rail > .hw-rail { grid-area: rail; align-self: stretch; position: relative; z-index: 2; }
 }
 @media (min-width: 1280px) and (min-height: 700px) {
   .hw-console.has-rail {
+    --stage-reach-x: calc(var(--page-pad-x) + var(--rail-w) + var(--console-gap));
     grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--side-w);
     grid-template-rows: minmax(0, 1fr) var(--records-extra, 0px) auto;
     grid-template-areas:
@@ -1376,16 +1560,16 @@
     position: fixed;
     inset: 10px auto 10px 10px;
     z-index: 60;
-    width: min(340px, calc(100vw - 40px));
+    width: min(320px, calc(100vw - 40px));
     transform: translateX(calc(-100% - 24px));
-    transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 0.36s cubic-bezier(0.2, 1.1, 0.3, 1);
   }
   .is-rail-open .hw-console.has-rail > .hw-rail { transform: none; }
   .hw-rail-scrim {
     position: fixed;
     inset: 0;
     z-index: 55;
-    background: rgb(30 29 26 / 0.32);
+    background: rgb(0 0 0 / 0.16);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.25s;
@@ -1395,4 +1579,22 @@
 @media (prefers-reduced-motion: reduce) {
   .hw-console.has-rail > .hw-rail,
   .hw-rail-scrim { transition: none; }
+}
+
+/* Lensing: in Chromium the glass also bends the backdrop at its edges
+   (shared/glass.js defines #lg-lens and sets data-lens on <html>). */
+:root[data-lens="on"] :is(.hw-deck, .hw-rail, .hw-glass) {
+  backdrop-filter: blur(var(--lg-blur)) url(#lg-lens) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+:root[data-lens="on"] :is(.hw-topbar .hw-key, .explorer-trigger, .hw-stage .hw-lcd) {
+  backdrop-filter: blur(6px) url(#lg-lens-sm) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-lens="on"] :is(.hw-deck, .hw-rail, .hw-glass, .hw-topbar .hw-key, .explorer-trigger, .hw-stage .hw-lcd) {
+    backdrop-filter: none;
+  }
+  .hw-key, .hw-deck, .hw-rail, .hw-glass, .hw-dialog, .hw-tabs, .hw-stage .hw-lcd {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }

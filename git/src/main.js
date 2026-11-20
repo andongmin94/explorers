@@ -363,6 +363,7 @@ function render() {
   $("#command-label").textContent = step.command ? "실행 명령" : "작업 트리 편집";
   $("#command").textContent = step.command || lesson.editNote(step);
   $("#command").classList.toggle("is-git", Boolean(step.command));
+  $("#command").classList.toggle("hw-mono", Boolean(step.command));
   now.takeaway.querySelector("#takeaway-text").textContent = text.takeaway ?? "";
   // Terminal output: one page item per paragraph (split at blank lines), so a
   // long git status continues on the next page instead of being cut.
@@ -464,7 +465,7 @@ function renderRecords() {
       // title would answer the open prediction ("git add", "두 부모").
       const future = s.index > completed;
       const command = future ? "…" : s.command || (s.index ? "직접 편집" : "—");
-      return `<tr data-time="${s.index}" tabindex="0"${s.index === index ? ' aria-current="true"' : ""} class="${future ? "is-future" : ""}"><td class="hw-mono">${pad(s.index)}</td><td><code class="hw-mono">${esc(command)}</code></td><td>${future ? "" : esc(s.title)}</td><td class="hw-mono">${future ? "" : `${esc(st.currentBranch)} → ${esc(st.refs[st.currentBranch])}`}</td></tr>`;
+      return `<tr data-time="${s.index}" tabindex="0"${s.index === index ? ' aria-current="true"' : ""} class="${future ? "is-future" : ""}"><td class="hw-mono">${pad(s.index)}</td><td>${s.command && !future ? `<code class="hw-mono">${esc(command)}</code>` : esc(command)}</td><td>${future ? "" : esc(s.title)}</td><td class="hw-mono">${future ? "" : `${esc(st.currentBranch)} → ${esc(st.refs[st.currentBranch])}`}</td></tr>`;
     })
     .join("");
   logRows.refresh();

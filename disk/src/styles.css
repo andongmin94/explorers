@@ -16,8 +16,9 @@ body {
   margin: 0;
 }
 
-/* Semantic colours. The yellow accent is the active path and LCD glow; the
-   head and the selected request use a contrasting blue, served requests green. */
+/* Semantic colours. The yellow accent is the active path; the head and the
+   selected request use a contrasting blue, served requests green (token
+   colours, dark enough for white digits). */
 .disk-page {
   --head: #2f6ad8;
   --done: #168264;
@@ -38,22 +39,21 @@ body {
   margin-inline-start: auto;
 }
 .disk-lcds .hw-label + .hw-lcd {
-  margin-inline-end: 6px;
+  margin-inline-end: 4px;
 }
+/* Readout badges (shared .hw-lcd: small glass over the scene) keep a steady
+   width so changing digits don't shift the head. */
 .disk-lcds .hw-lcd {
-  min-width: 92px;
-  justify-content: flex-end;
+  min-width: 8.5ch;
+  justify-content: center;
 }
 .disk-scene {
   min-height: 0;
   padding: 8px 12px 4px;
   outline: none;
 }
-.disk-scene > svg {
-  max-height: 600px;
-}
 .hw-plate-foot #status {
-  color: var(--ink);
+  color: var(--label);
 }
 
 /* Scene parts */
@@ -73,11 +73,11 @@ body {
 }
 .disk-slot-num {
   fill: var(--iso-metal-ink);
-  font: 700 14.5px var(--font-mono);
+  font: 600 14.5px var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 :root[data-theme="dark"] .disk-slot-num {
-  fill: var(--ink);
-  opacity: 0.8;
+  fill: var(--label-2);
 }
 .disk-ruler-face {
   fill: color-mix(in oklch, var(--iso-front) 88%, var(--iso-side));
@@ -128,8 +128,9 @@ body {
   fill: var(--head);
 }
 .disk-mark.is-selected .disk-mark-halo {
-  fill: color-mix(in srgb, var(--head) 45%, transparent);
-  filter: blur(2px);
+  fill: color-mix(in srgb, var(--head) 22%, transparent);
+  stroke: color-mix(in srgb, var(--head) 55%, transparent);
+  stroke-width: 1;
 }
 .disk-mark.is-served .disk-mark-core {
   fill: var(--done);
@@ -146,7 +147,6 @@ body {
   stroke: color-mix(in oklch, var(--accent) 80%, black);
   stroke-width: 2.8;
   opacity: 1;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 :root[data-theme="dark"] .disk-arc.is-now {
   stroke: var(--accent);
@@ -161,7 +161,7 @@ body {
   fill: var(--accent);
 }
 .disk-arc-dot {
-  fill: var(--hw-plate);
+  fill: var(--window);
   stroke: var(--iso-guide);
   stroke-width: 1.2;
 }
@@ -203,7 +203,6 @@ body {
   fill: none;
   stroke: var(--head);
   stroke-width: 2.2;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--head) 60%, transparent));
 }
 .disk-target-track {
   fill: none;
@@ -301,9 +300,6 @@ body {
   stroke-width: 1;
   stroke-linecap: round;
 }
-.disk-head.is-lit.disk-arm-top {
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--head) 70%, transparent));
-}
 .disk-token .iso-token {
   transition: none;
 }
@@ -340,8 +336,18 @@ body {
   font-size: var(--fs-1);
   line-height: 1.6;
 }
+/* The stage in progress is the list's selected row (kit sidebar row). */
+.disk-stages > li {
+  padding-inline: 8px;
+}
 .disk-stages li[aria-current] {
-  font-weight: 650;
+  border-bottom-color: transparent;
+  border-radius: var(--r-small);
+  background: var(--lg-selected);
+  font-weight: var(--w-semibold);
+}
+.disk-stages > :has(+ li[aria-current]) {
+  border-bottom-color: transparent;
 }
 .disk-stage-detail {
   margin-inline-start: auto;
@@ -374,14 +380,33 @@ body {
 }
 
 /* ---------- Records ---------- */
-/* Head route screen: a seek graph, order across, cylinder 0–199 down. */
-.disk-route-screen {
-  padding: 12px 18px 10px 16px;
+/* Charts sit straight on the records group (content, no well): grid in
+   separators, axis text in secondary labels, marks in the accent. The disk
+   accent is a light yellow, so points and text use --accent-text and a
+   label on the accent uses --on-accent. */
+.disk-chart {
+  padding: 8px 12px 6px;
+  font-variant-numeric: tabular-nums;
 }
+.disk-chart-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 22px;
+}
+.disk-chart-head > :last-child:not(:first-child) {
+  margin-inline-start: auto;
+  font-weight: var(--w-medium);
+}
+.disk-chart-head b {
+  color: var(--label);
+  font-weight: var(--w-semibold);
+}
+/* Head route: order across, cylinder 0–199 down. */
 .disk-plot {
   position: relative;
   height: 160px;
-  margin: 18px 22px 18px 44px;
+  margin: 18px 22px 14px 36px;
 }
 .disk-plot > svg {
   position: absolute;
@@ -392,36 +417,38 @@ body {
 }
 .disk-plot-col,
 .disk-plot-row {
-  stroke: var(--hw-screen-rule);
+  stroke: var(--separator);
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
-.disk-plot-row {
-  stroke-dasharray: 2 4;
+.disk-plot-col {
+  stroke: var(--separator-soft);
 }
 .disk-plot-line {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 .disk-plot-cyl {
   position: absolute;
   top: var(--y);
-  right: calc(100% + 12px);
+  right: calc(100% + 10px);
   transform: translateY(-50%);
-  color: var(--hw-screen-muted);
+  color: var(--label-2);
   font-size: var(--fs-1);
+  line-height: 1;
   white-space: nowrap;
 }
 .disk-plot-axis {
   position: relative;
   height: 16px;
-  margin: 0 22px 0 44px;
-  color: var(--hw-screen-muted);
+  margin: 0 22px 0 36px;
+  color: var(--label-2);
   font-size: var(--fs-1);
+  line-height: 16px;
 }
 .disk-plot-axis > span {
   position: absolute;
@@ -435,19 +462,19 @@ body {
 .disk-plot-axis > span:last-child {
   transform: translateX(-100%);
 }
-/* A stop is a dot-sized key; its label floats above the dot. */
+/* A stop is a point mark that is also a key (seek to that moment); its
+   label sits in a free corner next to the point. */
 .disk-stop {
   position: absolute;
   top: var(--y);
   left: var(--x);
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: none;
-  color: var(--hw-screen-ink);
-  font-family: var(--font-mono);
+  color: var(--label);
   font-size: var(--fs-1);
   white-space: nowrap;
   transform: translate(-50%, -50%);
@@ -457,42 +484,63 @@ body {
   position: absolute;
   inset: 5px;
   border-radius: 50%;
-  background: var(--hw-screen-ink);
+  background: var(--accent-text);
+  box-shadow: 0 0 0 2px var(--window);
 }
 .disk-stop > span {
   position: absolute;
-  bottom: 11px;
-  left: 13px;
+  bottom: 12px;
+  left: 14px;
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
   line-height: 1;
 }
 .disk-stop.is-left > span {
-  right: 13px;
+  right: 14px;
   left: auto;
 }
 .disk-stop.is-below > span {
-  top: 11px;
+  top: 12px;
   bottom: auto;
 }
 .disk-stop b {
-  font-weight: 700;
+  font-weight: var(--w-semibold);
 }
 .disk-stop small {
-  color: var(--hw-screen-muted);
+  color: var(--label-2);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+}
+.disk-stop:hover i {
+  inset: 4px;
 }
 .disk-stop:hover b {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .disk-stop[aria-current="true"] i {
+  inset: 3px;
   background: var(--accent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent), 0 0 8px var(--accent);
+  box-shadow: 0 0 0 2px var(--window), 0 0 0 3px var(--accent-text);
 }
-.disk-stop[aria-current="true"] b {
-  color: var(--hw-lcd-ink);
-  text-shadow: 0 0 7px color-mix(in srgb, var(--accent) 60%, transparent);
+/* The current stop's label is a selection annotation: a capsule on the accent. */
+.disk-stop[aria-current="true"] > span {
+  margin-bottom: -3px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.disk-stop.is-below[aria-current="true"] > span {
+  margin: -3px 0 0;
+}
+.disk-stop[aria-current="true"] b,
+.disk-stop[aria-current="true"]:hover b {
+  color: inherit;
+}
+.disk-stop[aria-current="true"] small {
+  color: inherit;
+  opacity: 0.72;
 }
 .disk-stop:focus-visible,
 .disk-rowlink:focus-visible {
@@ -503,10 +551,10 @@ body {
   padding: 0;
   border: 0;
   background: none;
-  font-weight: 600;
+  font-weight: var(--w-semibold);
   cursor: pointer;
   text-decoration: underline;
-  text-decoration-color: var(--hw-edge);
+  text-decoration-color: var(--separator);
   text-underline-offset: 3px;
 }
 .disk-metrics {
@@ -514,6 +562,7 @@ body {
   flex-wrap: wrap;
   gap: 16px 48px;
   margin: 0;
+  padding: 8px 12px 0;
 }
 .disk-metrics div {
   display: grid;
@@ -522,17 +571,21 @@ body {
 .disk-metrics dd {
   margin: 0;
   font-size: var(--fs-5);
-  font-weight: 700;
+  font-weight: var(--w-bold);
+  font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 .disk-metrics small {
   margin-inline-start: 4px;
-  color: var(--muted);
+  color: var(--label-2);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: var(--w-medium);
+}
+#record-results > .disk-small {
+  padding-inline: 12px;
 }
 
-/* ---------- Dialogs ---------- */
+/* ---------- Dialogs (sheets) ---------- */
 .disk-dialog {
   width: min(760px, calc(100vw - 24px));
 }
@@ -549,10 +602,10 @@ body {
   align-content: start;
   justify-items: start;
   gap: 12px;
-  padding: 18px 20px 20px;
+  padding: 14px 20px 20px;
 }
 .disk-compare > section + section {
-  border-inline-start: 1px solid var(--hw-edge);
+  border-inline-start: 1px solid var(--separator);
 }
 .disk-compare .hw-text {
   min-height: 3.4em;
@@ -560,57 +613,63 @@ body {
 .disk-order {
   margin: 0;
   font-size: var(--fs-1);
-  color: var(--muted);
+  color: var(--label-2);
 }
-.disk-mini-screen {
-  padding: 10px 12px 12px;
+/* The same seek graph, small, straight on the sheet. */
+.disk-mini-chart {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
 }
-.disk-mini-screen .hw-screen-head {
+.disk-mini-chart .disk-chart-head {
   margin-bottom: 6px;
 }
 .disk-mini {
+  display: block;
   width: 100%;
   height: auto;
+  overflow: visible;
 }
 .disk-mini line {
-  stroke: var(--hw-screen-rule);
+  stroke: var(--separator);
   stroke-width: 1;
-  stroke-dasharray: 2 4;
 }
 .disk-mini polyline {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 .disk-mini circle {
-  fill: var(--hw-screen-ink);
+  fill: var(--accent-text);
+  stroke: var(--window);
+  stroke-width: 1.5;
 }
 .disk-dialog .hw-plate-foot {
   line-height: 1.6;
   word-break: keep-all;
 }
+/* Prediction: the answers are push buttons in one row (wrapping as needed). */
 .disk-choices {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
   margin-top: 16px;
 }
 .disk-choices .hw-key {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  min-height: 78px;
-  padding: 8px;
+  min-height: 40px;
+  padding: 0 12px;
 }
 .disk-choices .hw-key b {
-  font-size: var(--fs-4);
+  font-size: var(--fs-3);
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
 }
 .disk-choices .hw-key.is-correct {
   opacity: 1;
-  outline: 2px solid var(--head);
-  outline-offset: 2px;
+  background: var(--accent-fill);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--label);
 }
 #prediction-feedback .hw-section {
   display: grid;
@@ -618,7 +677,7 @@ body {
   gap: 10px;
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator);
 }
 
 /* ---------- Mobile ---------- */
@@ -658,7 +717,7 @@ body {
   }
   .disk-compare > section + section {
     border-inline-start: 0;
-    border-top: 1px solid var(--hw-edge);
+    border-top: 1px solid var(--separator);
   }
   .disk-choices {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -677,13 +736,14 @@ body {
 @media (min-width: 1100px) and (min-height: 700px) {
   /* Records scroll inside; only the deck sets the height of the lower row. */
   .hw-records { contain: size; }
-  /* The route screen fills the records plate; the plot takes what is left. */
-  #record-path:not([hidden]) {
+  /* The route chart fills the records plate; the plot takes what is left. */
+  #record-path:not([hidden]),
+  #record-results:not([hidden]):has(> .disk-chart) {
     display: flex;
     flex-direction: column;
     height: 100%;
   }
-  .disk-route-screen {
+  .disk-chart {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
@@ -730,9 +790,13 @@ body {
   }
 }
 
-/* The floor runs past the scene edges at every width; the stage clips it. */
-.hw-stage > .hw-scene {
-  overflow: hidden;
+/* The floor runs past the scene edges. On the desktop console it reaches
+   under the toolbar and rail glass and the stage box clips it at the window
+   edge (shared contract); elsewhere the scene clips it. */
+@media (max-width: 1099px), (max-height: 699px) {
+  .hw-stage > .hw-scene {
+    overflow: hidden;
+  }
 }
 
 /* ---------- One screen, nothing scrolls (shared/fit.js) ---------- */
@@ -758,7 +822,7 @@ body {
 .disk-note { margin: 4px 0 0; }
 .disk-cta { padding-top: 12px; }
 .disk-cta > .hw-key + .hw-key { margin-top: 10px; }
-.disk-stages > li { min-height: 36px; padding: 6px 0; }
+.disk-stages > li { min-height: 36px; padding: 6px 8px; }
 
 @media (min-width: 1100px) and (min-height: 700px) {
   .hw-side > .hw-plate-body.hw-fit {
@@ -776,7 +840,7 @@ body {
 .disk-goal { margin: 0; }
 
 .disk-choices .hw-key[aria-pressed="true"] { font-weight: 750; }
-.disk-recap-more > li { border-top: 1px solid var(--hw-edge); }
+.disk-recap-more > li { border-top: 1px solid var(--separator-soft); }
 /* The progress line wraps in the narrow side column instead of being cut off. */
 .disk-pages .hw-progress { flex-wrap: wrap; row-gap: 6px; }
 .disk-pages .hw-progress .hw-label { white-space: normal; }
@@ -800,36 +864,45 @@ body {
 }
 
 /* ---------- Sweep lessons: wait per request (records › 누적 결과) ---------- */
+/* A bar at each request's cylinder: served in a neutral fill, the request
+   just served in the accent; the worst wait under a steady stream is a red
+   rule mark. */
 .disk-wait-bar {
-  stroke: var(--hw-screen-ink);
-  stroke-width: 6;
+  stroke: var(--label-3);
+  stroke-width: 8;
   vector-effect: non-scaling-stroke;
-  opacity: 0.55;
 }
 .disk-wait-bar.is-now {
   stroke: var(--accent);
-  opacity: 1;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 .disk-wait-worst {
-  stroke: var(--accent);
+  stroke: var(--sys-red);
   stroke-width: 2;
-  stroke-dasharray: 3 2;
+  stroke-dasharray: 4 3;
   vector-effect: non-scaling-stroke;
+}
+.disk-key-worst {
+  display: inline-block;
+  width: 14px;
+  margin-inline-end: 4px;
+  border-top: 2px dashed var(--sys-red);
+  vertical-align: middle;
 }
 .disk-wait-label {
   position: absolute;
   top: var(--y);
   left: var(--x);
-  color: var(--hw-screen-ink);
-  font-family: var(--font-mono);
+  color: var(--label-2);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
   line-height: 1;
   white-space: nowrap;
   transform: translate(-50%, calc(-100% - 4px));
+  /* Kept legible where the worst-wait rule runs behind it. */
+  text-shadow: 0 0 2px var(--window), 0 0 4px var(--window), 0 0 6px var(--window);
 }
-.disk-wait-label.is-now { color: var(--hw-lcd-ink); }
-.disk-wait-label.is-worst { color: var(--accent); }
+.disk-wait-label.is-now { color: var(--label); font-weight: var(--w-bold); }
+.disk-wait-label.is-worst { color: var(--sys-red); font-weight: var(--w-semibold); }
 .disk-wait-label.is-l { transform: translate(calc(-100% - 2px), calc(-100% - 4px)); }
 .disk-wait-label.is-r { transform: translate(2px, calc(-100% - 4px)); }
 .disk-wait-axis > span.is-l { transform: translateX(calc(-100% - 1px)); }

@@ -1,17 +1,22 @@
 /* Git explorer: only what the shared kit (hw.css, iso-kit.js) does not cover. */
 
+/* Branch colours are Apple system colours, so they follow the theme. */
 .git-page {
-  --git-main: #3b6fe0;
-  --git-feature: #13896a;
-  --git-base: #8d8a82;
-  --git-conflict: #d6453d;
+  --git-main: var(--sys-blue);
+  --git-feature: var(--sys-green);
+  --git-base: var(--sys-gray);
+  --git-conflict: var(--sys-red);
 }
 
 /* ---------- Scene ---------- */
 
 .hw-scene#git-scene {
   min-height: 0;
-  padding: 8px 12px 0;
+}
+/* Callout subs are labels: system font, sentence case. */
+#git-scene .iso-callout-sub {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 /* Cables carry a pulse only while a snapshot moves along them; the conflict
    route runs red. */
@@ -22,7 +27,6 @@
 .git-cable.is-conflict .iso-cable-hi { stroke: color-mix(in oklch, var(--git-conflict) 45%, white); }
 .git-cable.is-conflict .iso-cable-pulse {
   stroke: color-mix(in oklch, var(--git-conflict) 30%, white);
-  filter: drop-shadow(0 0 3px var(--git-conflict));
 }
 /* Commit graph edges: lit traces on the server's glass top. */
 .git-edge {
@@ -32,15 +36,14 @@
 .git-edge.is-feature { stroke: var(--git-feature); }
 .git-edge.is-conflict {
   stroke: var(--git-conflict);
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--git-conflict) 70%, transparent));
 }
 .git-ref-line {
   stroke: var(--iso-line);
   stroke-width: 1;
 }
 .git-ref-text {
-  fill: var(--ink);
-  font: 600 12px var(--font-mono);
+  fill: var(--label);
+  font: 600 12px var(--font-sans);
   dominant-baseline: central;
 }
 .git-head-tag {
@@ -48,8 +51,8 @@
 }
 .git-head-text {
   fill: var(--on-accent);
-  font: 700 12px var(--font-mono);
-  letter-spacing: 0.06em;
+  font: 700 12px var(--font-sans);
+  letter-spacing: 0;
   text-anchor: middle;
   dominant-baseline: central;
 }
@@ -61,102 +64,118 @@
   fill: var(--accent);
 }
 
-/* ---------- File well: welcome.txt as it sits in each place ---------- */
+/* ---------- File panel: welcome.txt as it sits in each place ---------- */
 
-/* A .hw-screen: three columns under the scene, or one stacked column beside
-   it in the full-screen console. */
+/* A content panel like a small code editor floating on the scene: three
+   sections (작업 트리 / 인덱스 / HEAD 커밋), each a header over numbered
+   lines. A line is tinted with the system colour of whoever wrote it;
+   conflict markers are red. */
 .git-well {
+  --git-marker-ink: color-mix(in oklch, var(--git-conflict) 80%, black);
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 4px 20px 18px;
   padding: 0;
+  overflow: hidden;
+  border-radius: var(--r-group);
+  background: var(--window);
+  box-shadow: 0 0 0 1px var(--separator), 0 8px 30px rgb(0 0 0 / 0.08);
+  color: var(--label);
   font-size: var(--fs-1);
   line-height: 1.55;
 }
+:root[data-theme="dark"] .git-well {
+  --git-marker-ink: color-mix(in oklch, var(--git-conflict) 70%, white);
+  background: color-mix(in srgb, var(--window) 90%, white);
+  box-shadow: 0 0 0 1px var(--separator), 0 8px 30px rgb(0 0 0 / 0.35);
+}
 .git-well-col {
   min-width: 0;
-  padding: 12px 16px 14px;
+  padding: 10px 0 12px;
 }
 .git-well-col + .git-well-col {
-  border-inline-start: 1px dashed var(--hw-screen-rule);
+  border-inline-start: 1px solid var(--separator-soft);
 }
 .git-well-head {
   display: block;
-  margin-bottom: 6px;
-  padding-bottom: 5px;
-  border-bottom: 1px dashed var(--hw-screen-rule);
-  color: var(--hw-screen-lit);
-  letter-spacing: 0.05em;
+  margin: 0 0 6px;
+  padding: 0 14px 7px;
+  border-bottom: 1px solid var(--separator-soft);
+  color: var(--label-2);
+  font-weight: var(--w-semibold);
 }
 .git-well ol {
   display: grid;
-  gap: 1px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .git-well li {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr);
-  gap: 6px;
-  color: color-mix(in srgb, var(--hw-screen-ink) 62%, transparent);
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 8px;
+  padding: 1px 14px 1px 8px;
+  color: var(--label);
+  font-family: var(--font-mono);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
+/* Line numbers: the editor gutter, in the tertiary label. */
 .git-ln {
-  color: color-mix(in srgb, var(--hw-screen-ink) 35%, transparent);
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
-.git-well li.is-base { color: var(--hw-screen-ink); }
-.git-well li.is-main { color: var(--git-well-main); }
-.git-well li.is-feature { color: var(--git-well-feature); }
-.git-well li.is-both { color: var(--git-well-both); }
-.git-well li.is-marker { color: var(--git-well-marker); }
-/* Screen inks: deep on the light screen, pale on the dark one. */
-.git-well {
-  --git-well-main: color-mix(in oklch, var(--git-main) 85%, black);
-  --git-well-feature: color-mix(in oklch, var(--git-feature) 85%, black);
-  --git-well-both: color-mix(in oklch, var(--accent) 85%, black);
-  --git-well-marker: color-mix(in oklch, var(--git-conflict) 85%, black);
+.git-well li.is-plain { color: var(--label-2); }
+/* Written by one side: a tint and a bar in that side's colour. */
+.git-well li:is(.is-main, .is-feature, .is-both, .is-marker, .is-conflict) {
+  background: color-mix(in srgb, var(--git-row) 13%, transparent);
+  box-shadow: inset 3px 0 var(--git-row);
 }
-:root[data-theme="dark"] .git-well {
-  --git-well-main: color-mix(in oklch, var(--git-main) 55%, white);
-  --git-well-feature: color-mix(in oklch, var(--git-feature) 50%, white);
-  --git-well-both: color-mix(in oklch, var(--accent) 50%, white);
-  --git-well-marker: color-mix(in oklch, var(--git-conflict) 60%, white);
+.git-well li.is-main { --git-row: var(--git-main); }
+.git-well li.is-feature { --git-row: var(--git-feature); }
+.git-well li.is-both { --git-row: var(--accent); }
+.git-well li:is(.is-marker, .is-conflict) { --git-row: var(--git-conflict); }
+.git-well li.is-marker {
+  color: var(--git-marker-ink);
+  font-weight: var(--w-semibold);
 }
+/* A line that differs from the HEAD commit: its number in the accent. */
 .git-well li.is-changed .git-ln {
-  color: var(--hw-lcd-ink);
-}
-.git-well li.is-changed .git-ln::before {
-  content: "~";
-  margin-inline-end: 2px;
+  color: var(--accent-text);
+  font-weight: var(--w-bold);
 }
 .git-stage-name {
   margin-inline-end: 8px;
-  color: var(--hw-screen-muted);
+  color: var(--label-2);
+  font-family: var(--font-sans);
 }
-/* Lines Git merged on its own beside the conflict. */
+/* Lines Git merged on its own beside the conflict: a capsule badge. */
 .git-auto {
+  display: inline-block;
   margin-inline-start: 8px;
-  padding: 0 5px;
-  border: 1px solid currentColor;
-  border-radius: 3px;
-  font-size: 0.82em;
-  opacity: 0.8;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--fill-2);
+  color: var(--label-2);
+  font-family: var(--font-sans);
+  font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+  line-height: 1.5;
 }
 
 /* git status as the terminal prints it, beside the lesson. */
+/* An Apple code block: a quiet fill, rounded, monospaced. */
 .git-terminal pre {
-  margin: 4px 0 0;
-  padding: 8px 10px;
-  border: 1px dashed var(--rule);
-  border-radius: 4px;
+  margin: 6px 0 0;
+  padding: 8px 12px;
+  border-radius: var(--r-small);
+  background: var(--fill-3);
   font-size: var(--fs-1);
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  color: var(--ink);
+  color: var(--label);
 }
 
 /* ---------- Stage foot, deck ---------- */
@@ -186,41 +205,51 @@
 .git-gap { margin-top: 10px; }
 .git-command {
   display: grid;
-  gap: 2px;
+  justify-items: start;
+  gap: 4px;
   margin: 10px 0 0;
 }
 .git-command code {
   font-size: var(--fs-2);
-  color: var(--ink);
+  color: var(--label);
   overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+.git-command code:not(.is-git) { font-family: var(--font-sans); }
+/* The command as a code block; an edit note stays plain text. */
+.git-command code.is-git {
+  justify-self: stretch;
+  padding: 6px 12px;
+  border-radius: var(--r-small);
+  background: var(--fill-3);
 }
 .git-command code.is-git::before {
   content: "$ ";
-  color: var(--accent);
+  color: var(--label-3);
 }
-/* Row headers on the paper LCD: printed like a label, not like a sticky
-   column head. */
+/* Row headers: a secondary label on the row, aligned with its cells and
+   striped with them. */
 .git-page .hw-table tbody th {
   position: static;
-  padding: 7px 12px;
+  padding: 5px 12px 5px 10px;
   border-bottom: 0;
   background: none;
   text-align: left;
   vertical-align: top;
   white-space: nowrap;
 }
-.git-page .hw-table tbody tr:first-child th {
-  padding-top: 10px;
+.git-page .hw-table tbody tr:nth-child(even) th {
+  background: var(--fill-4);
 }
 .git-facts td {
   overflow-wrap: anywhere;
 }
 .git-facts td.hw-muted {
-  color: var(--hw-paper-muted);
+  color: var(--label-2);
 }
 .git-facts tr.is-changed td:last-child {
-  color: var(--hw-paper-hot);
-  font-weight: 700;
+  color: var(--accent-text);
+  font-weight: var(--w-semibold);
 }
 /* Side plate: tabs in the head, each panel a column of whole items that
    paginate (shared/fit.js) instead of scrolling. */
@@ -234,10 +263,10 @@
 }
 .git-pages > * + * {
   padding-top: 10px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator);
 }
 .git-pages > .hw-note {
-  border-top: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+  border-top: 1px solid var(--separator);
 }
 /* The first item on a later page carries no rule above it. */
 .git-pages > [hidden] + * {
@@ -246,7 +275,7 @@
 }
 .git-pages > [hidden] + .hw-note {
   padding-top: 12px;
-  border-top: 1px solid color-mix(in srgb, var(--ink) 38%, transparent);
+  border-top: 1px solid var(--separator);
 }
 .git-pages-label {
   margin-bottom: 8px;
@@ -294,7 +323,7 @@
 /* ---------- Records ---------- */
 
 .git-log tbody tr.is-future td {
-  color: var(--muted);
+  color: var(--label-2);
 }
 .git-log tbody tr:focus-visible {
   outline: 2px solid var(--accent);
@@ -320,7 +349,7 @@
   grid-template-columns: 130px minmax(0, 1fr);
   gap: 4px 20px;
   padding: 8px 0;
-  border-bottom: 1px solid var(--hw-edge);
+  border-bottom: 1px solid var(--separator-soft);
 }
 .git-glossary dt {
   font-weight: 650;
@@ -354,7 +383,7 @@
 .git-feedback {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 
 /* ---------- Narrow screens ---------- */
@@ -370,7 +399,7 @@
   .git-rows { padding-bottom: 12px; }
 }
 @media (max-width: 759px) {
-  .hw-scene#git-scene { padding: 4px 0 0; overflow: hidden; }
+  .hw-scene#git-scene { overflow: hidden; }
   /* labelScale() keeps callouts legible; the subs would crowd a phone. */
   #git-scene .iso-callout-sub { display: none; }
   .git-well {
@@ -379,7 +408,7 @@
   }
   .git-well-col + .git-well-col {
     border-inline-start: 0;
-    border-top: 1px solid rgb(255 255 255 / 0.08);
+    border-top: 1px solid var(--separator-soft);
   }
   .git-play { order: -1; flex: 1 1 100%; }
   .git-page .hw-actions .hw-key--sm { min-height: 42px; }
@@ -422,28 +451,30 @@
   }
   .hw-stage > .hw-plate-head,
   .hw-stage > .hw-plate-foot { grid-column: 1 / -1; }
-  .hw-scene#git-scene { grid-area: 2 / 1; padding: 8px 4px 8px 12px; }
+  .hw-scene#git-scene { grid-area: 2 / 1; }
   .git-well {
     grid-area: 2 / 2;
     grid-template-columns: minmax(0, 1fr);
     align-self: center;
     max-height: calc(100% - 16px);
-    margin: 0 18px 0 0;
+    margin: 0 4px 0 0;
     overflow: hidden;
     line-height: 1.45;
   }
   /* Too short for the whole file: keep the title lines and markers, the
      only lines that change; the line numbers show what is left out. */
   .git-well.is-compact li.is-plain { display: none; }
-  .git-well.is-compact .git-well-col { padding-block: 8px; }
-  .git-well.is-compact .git-well-head { margin-bottom: 4px; padding-bottom: 4px; }
-  .git-well.is-tight { line-height: 1.3; }
-  .git-well.is-tight .git-well-col { padding-block: 6px; }
-  .git-well.is-tight .git-stage-name { display: block; margin: 0; }
-  .git-well-col { padding: 10px 14px 10px; }
+  .git-well-col { padding: 10px 0; }
+  .git-well.is-compact .git-well-col { padding-block: 7px 8px; }
+  .git-well.is-compact .git-well-head { margin-bottom: 4px; padding-bottom: 5px; }
+  .git-well.is-tight { line-height: 1.25; }
+  .git-well.is-tight .git-well-col { padding-block: 4px; }
+  .git-well.is-tight .git-well-head { margin-bottom: 2px; padding-bottom: 3px; }
+  .git-well.is-tight li { padding-block: 0; }
+  .git-well.is-tight .git-stage-name { margin-inline-end: 6px; }
   .git-well-col + .git-well-col {
     border-inline-start: 0;
-    border-top: 1px dashed var(--hw-screen-rule);
+    border-top: 1px solid var(--separator-soft);
   }
   /* Transport: two tidy rows in the side column — icon, icon, wide key. */
   .hw-deck > .hw-field { flex: 1 1 100%; }
@@ -464,10 +495,9 @@
 
 /* Branch tags in the scene */
 .git-ref-pill {
-  fill: var(--surface);
-  stroke: var(--hw-edge);
+  fill: var(--window);
+  stroke: var(--separator);
   stroke-width: 1;
-  filter: drop-shadow(0 1px 1.5px rgb(83 80 70 / 0.18));
 }
 .git-ref-text { dominant-baseline: central; }
 
@@ -503,7 +533,7 @@
 .git-terminal.has-more pre { border-bottom: 0; border-end-start-radius: 0; border-end-end-radius: 0; padding-bottom: 0; }
 .git-term-more pre { margin-top: 0; border-top: 0; border-start-start-radius: 0; border-start-end-radius: 0; padding-top: 1.45em; }
 .git-term-more:not(:last-child):has(+ .git-term-more) pre { border-bottom: 0; border-end-start-radius: 0; border-end-end-radius: 0; padding-bottom: 0; }
-.git-pages > [hidden] + .git-term-more pre { border-top: 1px dashed var(--rule); }
+.git-pages > [hidden] + .git-term-more pre { border-start-start-radius: var(--r-small); border-start-end-radius: var(--r-small); padding-top: 8px; }
 /* The answer note is its own page item, read with the question above it. */
 .git-pages > .git-recall-after { padding-top: 0; border-top: 0; }
 .git-pages > .git-recall-after:has(> [hidden]) { display: none; }

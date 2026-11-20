@@ -1,22 +1,21 @@
 /* CPU explorer: only what the shared kit (hw.css) does not already cover. */
 
-/* Process colours: semantic, used by tokens, LEDs and timeline bars. */
+/* Process colours: semantic, used by tokens, status dots and chart bars. */
 :root {
   --p1: #3971d9;
   --p2: #168264;
   --p3: #8055c6;
-  --cpu-slot: #dcdcd8;
+  --cpu-ready-mix: 24%;
 }
 :root[data-theme="dark"] {
+  --cpu-ready-mix: 36%;
   --p1: #6a96ed;
   --p2: #4fae94;
   --p3: #a98ae0;
-  --cpu-slot: #2e2d2a;
 }
 
 body {
   margin: 0;
-  background: var(--bg);
 }
 
 [hidden] {
@@ -30,21 +29,33 @@ body {
 .cpu-nowrap {
   white-space: nowrap;
 }
+/* Numbers line up with tabular digits in the system face; monospace is for
+   code and bytes only. */
+.cpu-page .hw-mono {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- Stage ---------- */
 
+/* The scene is content on the window: on the desktop console its floor runs
+   on under the toolbar, rail and deck glass (the stage clips it at the
+   window edge), so the scene box itself never clips. */
 .cpu-scene {
   display: grid;
   place-items: center;
   min-height: 0;
   padding: 8px 12px 4px;
   outline: none;
-  /* The floor runs well past the devices; the scene box clips it. */
-  overflow: hidden;
 }
-/* The floor runs past the framed devices; the svg crops it. */
-.cpu-scene > svg {
-  overflow: hidden;
+@media (max-width: 1099px), (max-height: 699px) {
+  /* Stacked layout: the stage does not reach under any glass. */
+  .cpu-scene { overflow: hidden; }
+}
+/* Callout subtitles read as secondary labels, not code. */
+.cpu-scene .iso-callout-sub {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
 }
 /* Only the cable in use carries a pulse. */
 .cpu-scene .iso-cable:not(.is-active) .iso-cable-pulse {
@@ -62,12 +73,13 @@ body {
 .cpu-token .iso-token {
   transition: filter 160ms ease;
 }
-.cpu-token:hover .iso-token,
-.cpu-token:focus-visible .iso-token {
-  filter: drop-shadow(0 0 4px var(--accent));
+.cpu-token:hover .iso-token {
+  filter: brightness(1.08);
 }
+/* Selection: a crisp accent ring around the token, no glow. */
+.cpu-token:focus-visible .iso-token,
 .cpu-token.is-selected .iso-token {
-  filter: drop-shadow(0 0 0 var(--accent)) drop-shadow(0 0 5px var(--accent));
+  filter: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent));
 }
 .cpu-token.is-moving {
   pointer-events: none;
@@ -76,7 +88,7 @@ body {
   display: none;
 }
 .hw-stage .hw-plate-foot #status-text {
-  color: var(--ink);
+  color: var(--label);
 }
 
 /* ---------- Deck ---------- */
@@ -88,10 +100,11 @@ body {
   justify-content: space-between;
 }
 .cpu-quantum output {
-  color: var(--ink);
+  color: var(--label);
+  font-variant-numeric: tabular-nums;
 }
 .cpu-quantum.is-disabled output {
-  color: var(--muted);
+  color: var(--label-2);
 }
 .cpu-play {
   min-width: 140px;
@@ -144,7 +157,7 @@ body {
 }
 .cpu-pages > :not([hidden]) ~ :not([hidden]) {
   padding-top: 12px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 /* The step's key and the page switch share one row. */
 .cpu-side-actions {
@@ -212,7 +225,7 @@ body {
   font-weight: 400;
 }
 .cpu-milestones > button.is-done .hw-index {
-  color: var(--muted);
+  color: var(--label-2);
 }
 /* Process detail */
 .cpu-phases > li {
@@ -223,18 +236,19 @@ body {
   gap: 6px;
 }
 .cpu-phases .is-future {
-  color: var(--muted);
+  color: var(--label-2);
 }
 .cpu-meter {
   display: block;
   height: 4px;
-  border-radius: 2px;
-  background: var(--hw-edge);
+  border-radius: 999px;
+  background: var(--fill-1);
   overflow: hidden;
 }
 .cpu-meter i {
   display: block;
   height: 100%;
+  border-radius: inherit;
   background: var(--led);
 }
 .cpu-detail-metrics {
@@ -262,23 +276,29 @@ body {
 .cpu-records-hint {
   white-space: nowrap;
 }
-/* The timeline is a light-on-dark chart in a .hw-screen. Process colours
-   use their bright (dark-theme) values on the black glass. */
+/* The run chart sits on the records group like a Swift Charts timeline:
+   capsule lanes in a quaternary fill, capsule bars in the process colours,
+   label colours for text, the accent for the playhead. */
 .cpu-tl-screen {
-  --p1: #6a96ed;
-  --p2: #4fae94;
-  --p3: #a98ae0;
-  --lane: color-mix(in srgb, var(--hw-screen-ink) 6%, transparent);
-  --stripe: color-mix(in srgb, var(--hw-screen-ink) 16%, transparent);
-  padding: 12px 16px 12px;
+  padding: 2px 2px 4px;
+  font-variant-numeric: tabular-nums;
 }
-.cpu-tl-screen .hw-label {
-  color: var(--hw-screen-muted);
+.cpu-tl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--separator-soft);
+  color: var(--label-2);
+  font-size: var(--fs-1);
+  font-weight: var(--w-medium);
 }
 .cpu-tl-scroll {
   overflow-x: auto;
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--hw-screen-ink) 20%, transparent) transparent;
+  scrollbar-color: var(--fill-1) transparent;
 }
 .cpu-tl {
   position: relative;
@@ -288,52 +308,48 @@ body {
   align-items: center;
   gap: 8px 10px;
 }
+.cpu-tl > .hw-label {
+  color: var(--label-2);
+}
 .cpu-ticks,
 .cpu-lane {
   position: relative;
   height: 28px;
 }
 .cpu-lane {
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--soft) 80%, transparent);
-}
-.cpu-tl-screen .cpu-lane {
-  background: var(--lane);
+  border-radius: 999px;
+  background: var(--fill-3);
 }
 .cpu-ticks {
   height: 24px;
 }
 .cpu-tick {
   position: absolute;
-  top: 0;
+  top: 1px;
   min-width: 22px;
-  height: 24px;
-  padding: 0 3px;
+  height: 22px;
+  padding: 0 5px;
   border: 0;
-  border-radius: 5px;
+  border-radius: 999px;
   background: none;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 22px;
   transform: translateX(-50%);
   cursor: pointer;
 }
 .cpu-tick:hover {
-  color: var(--ink);
+  background: var(--fill-3);
+  color: var(--label);
 }
+/* The playhead's time: an accent capsule on the axis. */
 .cpu-tick[aria-current="true"] {
-  color: var(--accent);
-  font-weight: 700;
-}
-.cpu-tl-screen .cpu-tick {
-  color: var(--hw-screen-muted);
-}
-.cpu-tl-screen .cpu-tick:hover {
-  color: var(--hw-screen-ink);
-}
-.cpu-tl-screen .cpu-tick[aria-current="true"] {
-  color: var(--hw-lcd-ink);
-  text-shadow: 0 0 7px color-mix(in srgb, var(--accent) 60%, transparent);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--w-semibold);
 }
 .cpu-tick:focus-visible,
 .cpu-bar:focus-visible,
@@ -341,24 +357,28 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+/* A bar is a capsule; the transparent border leaves a hairline gap between
+   neighbouring bars so each run reads on its own. */
 .cpu-bar {
-  --c: var(--muted);
+  --c: var(--sys-gray);
   position: absolute;
   top: 3px;
   bottom: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 2px;
+  min-width: 4px;
   padding: 0;
   overflow: hidden;
-  border: 0;
-  border-radius: 4px;
+  border: 1px solid transparent;
+  border-radius: 999px;
   background: var(--c);
+  background-clip: padding-box;
   color: #fff;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
-  font-weight: 700;
+  font-weight: var(--w-semibold);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -366,33 +386,23 @@ body {
 .cpu-bar.is-p2 { --c: var(--p2); }
 .cpu-bar.is-p3 { --c: var(--p3); }
 .cpu-bar.is-ready {
-  background: color-mix(in srgb, var(--c) 22%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent);
+  background: color-mix(in srgb, var(--c) var(--cpu-ready-mix), transparent);
+  background-clip: padding-box;
 }
 .cpu-bar.is-io {
-  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 55%, transparent) 0 3px, color-mix(in srgb, var(--c) 18%, transparent) 3px 7px);
-  color: var(--ink);
-  font-weight: 500;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 50%, transparent) 0 3px, color-mix(in srgb, var(--c) 16%, transparent) 3px 7px);
+  background-clip: padding-box;
+  color: var(--label);
+  font-weight: var(--w-medium);
 }
 .cpu-bar.is-idle {
-  background: repeating-linear-gradient(135deg, var(--hw-edge) 0 3px, transparent 3px 7px);
-  box-shadow: inset 0 0 0 1px var(--hw-edge);
-  color: var(--muted);
-  font-weight: 500;
+  background: repeating-linear-gradient(135deg, var(--fill-1) 0 3px, transparent 3px 7px);
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px var(--separator);
+  color: var(--label-2);
+  font-weight: var(--w-medium);
 }
-.cpu-tl-screen .cpu-bar.is-ready {
-  background: color-mix(in srgb, var(--c) 26%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent);
-}
-.cpu-tl-screen .cpu-bar.is-io {
-  color: var(--hw-screen-ink);
-}
-.cpu-tl-screen .cpu-bar.is-idle,
-.cpu-tl-screen .cpu-swatch.is-idle {
-  background: repeating-linear-gradient(135deg, var(--stripe) 0 3px, transparent 3px 7px);
-  box-shadow: inset 0 0 0 1px var(--stripe);
-  color: var(--hw-screen-muted);
-}
+/* Playhead: a 2px accent rule from the axis down through the lanes. */
 .cpu-cursor {
   position: absolute;
   top: 26px;
@@ -400,15 +410,9 @@ body {
   left: calc(62px + (100% - 74px) * var(--at));
   width: 2px;
   margin-left: -1px;
+  border-radius: 1px;
   background: var(--accent);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 60%, transparent);
   pointer-events: none;
-}
-.cpu-tl-head {
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  text-transform: none;
-  letter-spacing: 0.02em;
 }
 .cpu-legend {
   display: inline-flex;
@@ -416,16 +420,18 @@ body {
   gap: 6px;
 }
 .cpu-swatch {
-  width: 18px;
-  height: 10px;
-  border-radius: 3px;
+  width: 16px;
+  height: 8px;
+  border-radius: 999px;
 }
 .cpu-swatch.is-run { background: var(--p1); }
-.cpu-swatch.is-ready { background: color-mix(in srgb, var(--p1) 22%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--p1) 45%, transparent); }
-.cpu-swatch.is-io { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--p1) 55%, transparent) 0 3px, color-mix(in srgb, var(--p1) 18%, transparent) 3px 7px); }
-.cpu-swatch.is-idle { background: repeating-linear-gradient(135deg, var(--hw-edge) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 1px var(--hw-edge); }
+.cpu-swatch.is-ready { background: color-mix(in srgb, var(--p1) var(--cpu-ready-mix), transparent); }
+.cpu-swatch.is-io { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--p1) 50%, transparent) 0 3px, color-mix(in srgb, var(--p1) 16%, transparent) 3px 7px); }
+.cpu-swatch.is-idle { background: repeating-linear-gradient(135deg, var(--fill-1) 0 3px, transparent 3px 7px); box-shadow: inset 0 0 0 1px var(--separator); }
 .cpu-usage {
   margin-inline-start: auto;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
 }
 .cpu-process-link {
   display: inline-flex;
@@ -467,13 +473,17 @@ body {
   word-break: keep-all;
 }
 
-/* ---------- Dialogs ---------- */
+/* ---------- Sheets (prediction, comparison) ---------- */
 
-/* Head and actions stay put; only the dialog body scrolls. */
+/* Head and actions stay put; only the sheet body scrolls (small windows). */
 .hw-dialog[open] {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.hw-dialog > .hw-plate-head {
+  min-height: 0;
+  padding: 18px 18px 2px 24px;
 }
 .hw-dialog > div:last-child {
   display: flex;
@@ -483,6 +493,7 @@ body {
 }
 .hw-dialog > div:last-child > .hw-plate-body {
   min-height: 0;
+  padding: 6px 24px 22px;
   overflow-y: auto;
 }
 .hw-dialog .hw-title {
@@ -490,6 +501,12 @@ body {
 }
 .hw-dialog .hw-text {
   margin-top: 6px;
+}
+/* Sheet buttons sit bottom-right with no rule above them. */
+.hw-dialog .hw-plate-foot {
+  min-height: 0;
+  padding: 0 20px 20px 24px;
+  border-top: 0;
 }
 .cpu-quiz-context {
   margin: 0;
@@ -549,7 +566,9 @@ body {
   gap: 10px 12px;
 }
 .cpu-compare-runs .hw-mono {
+  color: var(--label-2);
   font-size: var(--fs-1);
+  font-weight: var(--w-semibold);
   text-align: right;
 }
 .cpu-compare-lane .cpu-bar {
@@ -609,7 +628,7 @@ body {
     min-height: 0;
     padding-block: 8px;
   }
-  .cpu-tl-screen .hw-screen-head { flex: none; margin-bottom: 4px; padding-bottom: 4px; }
+  .cpu-tl-head { flex: none; margin-bottom: 4px; padding-bottom: 6px; }
   .cpu-tl-scroll { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   #timeline { height: 100%; }
   .cpu-tl {
@@ -619,7 +638,8 @@ body {
     gap: 3px 10px;
   }
   .cpu-tl > .cpu-lane { height: 100%; max-height: 28px; }
-  .cpu-ticks, .cpu-tick { height: 22px; }
+  .cpu-ticks { height: 22px; }
+  .cpu-tick { top: 0; }
   .cpu-cursor { top: 24px; }
   .cpu-log-box {
     flex: 1 1 auto;

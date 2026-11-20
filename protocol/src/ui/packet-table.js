@@ -15,7 +15,7 @@ function renderPacketRows(lesson) {
         <td class="hw-mono">${escapeHtml(row.time)}</td>
         <td class="hw-mono">${escapeHtml(row.src)}</td>
         <td class="hw-mono">${escapeHtml(row.dst)}</td>
-        <td class="hw-mono">${escapeHtml(row.proto)}</td>
+        <td class="pk-proto">${escapeHtml(row.proto)}</td>
         <td class="pk-info" title="${escapeHtml(translate(row.info))}"><span>${escapeHtml(translate(row.info))}</span>${lost ? `<span class="hw-tag lost-tag">${translate("LOST")}</span>` : ""}</td>
         <td class="hw-mono pk-len">${escapeHtml(row.len)}</td>
       </tr>`,

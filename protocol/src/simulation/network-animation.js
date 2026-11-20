@@ -233,6 +233,26 @@ function createNetworkAnimation(networkSvg) {
       "viewBox",
       viewBox.map((coordinate) => coordinate.toFixed(2)).join(" "),
     );
+    markOffFrameNodes(viewBox);
+  }
+  // The scene runs on under the glass around the stage, so a device whose
+  // centre is outside the framed area keeps its body but hides its callout
+  // (no half-cut labels at the window edge).
+  function markOffFrameNodes([x, y, w, h]) {
+    const { width, height } = networkSvg.getBoundingClientRect();
+    if (width && height) {
+      const scale = Math.min(width / w, height / h);
+      const extraX = (width / scale - w) / 2;
+      const extraY = (height / scale - h) / 2;
+      x -= extraX;
+      y -= extraY;
+      w += extraX * 2;
+      h += extraY * 2;
+    }
+    for (const [nodeId, nodeElement] of Object.entries(nodeElements)) {
+      const [cx, cy] = NETWORK_NODE_CENTERS[nodeId];
+      nodeElement.classList.toggle("is-off-frame", cx < x || cx > x + w || cy < y || cy > y + h);
+    }
   }
   let cameraCancellation = {
     cancelled: false,

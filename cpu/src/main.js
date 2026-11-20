@@ -14,7 +14,7 @@ import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../.
 import { currentLesson, mountRail, nextLesson, progressIdFor } from "../../shared/lesson-rail.js";
 
 const number = (value) => Number(value.toFixed(2)).toLocaleString("ko-KR");
-const ledFor = (id) => `<span class="hw-led is-on" style="--led:var(--${id ? id.toLowerCase() : "muted"})"></span>`;
+const ledFor = (id) => `<span class="hw-led is-on" style="--led:var(--${id ? id.toLowerCase() : "sys-gray"})"></span>`;
 const recipe = (p) =>
   p.cpu.map((c, i) => `${i ? `입출력 ${p.io[i - 1]} → ` : ""}CPU ${c}`).join(" → ");
 const app = document.querySelector("#app");
@@ -69,7 +69,7 @@ app.outerHTML = `
       <div class="hw-plate-head">
         <span class="hw-label" id="stage-label"><span class="hw-index">A</span> 스케줄러</span>
         <span class="hw-tag" id="algo-tag"></span>
-        <span class="hw-lcd" role="timer" aria-label="시뮬레이션 시각"><span id="clock">0</span><small>MS</small></span>
+        <span class="hw-lcd" role="timer" aria-label="시뮬레이션 시각"><span id="clock">0</span><small>ms</small></span>
       </div>
       <div class="hw-scene cpu-scene" id="scene" role="group" tabindex="-1"></div>
       <div class="hw-plate-foot" aria-hidden="true"><span class="hw-led is-on" id="status-led"></span><span id="status-text"></span></div>
@@ -81,7 +81,7 @@ app.outerHTML = `
         <div class="hw-seg" role="group" aria-labelledby="algorithm-label">${lesson.methods.map((m) => `<button data-algorithm="${m}" aria-pressed="${m === algorithm}">${METHODS[m].label}</button>`).join("")}</div>
       </div>
       ${hasQuantum ? `<div class="hw-field cpu-quantum">
-        <label class="hw-label" for="quantum">시간 할당량 <output class="hw-mono" id="quantum-value" for="quantum">${quantum} MS</output></label>
+        <label class="hw-label" for="quantum">시간 할당량 <output class="hw-mono" id="quantum-value" for="quantum">${quantum}ms</output></label>
         <input class="hw-slider" id="quantum" type="range" min="1" max="5" step="1" value="${quantum}" aria-describedby="quantum-help" />
         <div class="hw-ticks" id="quantum-help"><span>1</span><span>5</span></div>
       </div>` : ""}
@@ -99,7 +99,7 @@ app.outerHTML = `
       <div class="hw-seek">
         <span class="hw-label">0</span>
         <input class="hw-slider" id="seek" type="range" min="0" step="1" value="0" aria-label="시뮬레이션 시각" />
-        <span class="hw-label" id="seek-end">20MS</span>
+        <span class="hw-label" id="seek-end">20ms</span>
       </div>
       <div class="cpu-guided">
         <button class="hw-switch" data-action="guided" role="switch" aria-checked="true">${LABELS.guided}</button>
@@ -151,13 +151,13 @@ app.outerHTML = `
         <span class="hw-label cpu-records-hint">기록을 눌러 그 순간으로 이동</span>
       </div>
       <div class="hw-plate-body" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline">
-        <div class="hw-screen cpu-tl-screen">
-          <div class="hw-screen-head cpu-tl-head">
+        <div class="cpu-tl-screen">
+          <div class="cpu-tl-head">
             <span class="cpu-legend"><i class="cpu-swatch is-run"></i>CPU 실행</span>
             <span class="cpu-legend"><i class="cpu-swatch is-ready"></i>준비 큐 대기</span>
             ${hasIo ? `<span class="cpu-legend"><i class="cpu-swatch is-io"></i>입출력 대기</span>
             <span class="cpu-legend"><i class="cpu-swatch is-idle"></i>CPU 유휴</span>` : ""}
-            <span class="is-on cpu-usage" id="live-usage"></span>
+            <span class="cpu-usage" id="live-usage"></span>
           </div>
           <div class="cpu-tl-scroll"><div id="timeline"></div></div>
         </div>
@@ -273,11 +273,11 @@ function updateSettings() {
   if (hasQuantum) {
     $("#quantum").disabled = !rr;
     $("#quantum").value = quantum;
-    $("#quantum-value").textContent = rr ? `${quantum} MS` : "사용 안 함";
+    $("#quantum-value").textContent = rr ? `${quantum}ms` : "사용 안 함";
     $(".cpu-quantum").classList.toggle("is-disabled", !rr);
   }
   $("#seek").max = result.stats.makespan;
-  $("#seek-end").textContent = `${result.stats.makespan}MS`;
+  $("#seek-end").textContent = `${result.stats.makespan}ms`;
   $("#milestones").innerHTML = content.milestones(result)
     .map(
       (m, i) =>
@@ -452,7 +452,7 @@ function updateControls() {
   } else {
     text = finished ? "세 작업을 모두 처리했습니다" : time < 0 ? "시작 전 · 아직 도착한 작업이 없습니다" : "CPU 유휴 · 준비된 작업이 없습니다";
   }
-  $("#status-led").style.setProperty("--led", led ? `var(--${led.toLowerCase()})` : "var(--hw-led-off)");
+  $("#status-led").style.setProperty("--led", led ? `var(--${led.toLowerCase()})` : "var(--label-3)");
   $("#status-led").classList.toggle("is-on", !!led);
   $("#status-text").textContent = text;
 
@@ -584,7 +584,7 @@ function renderTimeline() {
     return `<span class="hw-label">${ledFor(p.id)}${p.id}</span><div class="cpu-lane">${bars}</div>`;
   }).join("");
   $("#timeline").innerHTML = `<div class="cpu-tl">
-    <span class="hw-label">MS</span><div class="cpu-ticks">${ticks}</div>
+    <span class="hw-label">ms</span><div class="cpu-ticks">${ticks}</div>
     <span class="hw-label">CPU</span><div class="cpu-lane">${cpu}</div>
     ${rows}
     <i class="cpu-cursor" aria-hidden="true" style="--at:${Math.max(0, time) / total}"></i>
@@ -630,7 +630,7 @@ function openPrediction() {
   $("#prediction-body").innerHTML = `
     <div class="hw-plate-body">
       <div class="hw-section">
-        <span class="hw-label">${time < 0 ? "시작 전" : `${time}MS`}에서 멈춤</span>
+        <span class="hw-label">${time < 0 ? "시작 전" : `${time}ms`}에서 멈춤</span>
         <h2 class="hw-title" id="prediction-title">${decision.time}ms, ${decision.cause === "keep" ? "CPU는 누가 쓰게 될까요?" : "다음 CPU는 누구에게 돌아갈까요?"}</h2>
         <p class="hw-text hw-muted">${prediction.hint}</p>
       </div>

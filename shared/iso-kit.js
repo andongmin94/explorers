@@ -1112,7 +1112,7 @@ const KIT_CSS = `
 .iso-callout-label { transform: scale(var(--iso-label-k, 1)); }
 .iso-callout-title, .iso-callout-sub { paint-order: stroke; stroke: var(--hw-plate, var(--bg)); stroke-width: 4px; stroke-linejoin: round; }
 .iso-callout-title { fill: var(--ink); font: 700 ${LABEL.title}px var(--font-sans); letter-spacing: -.01em; }
-.iso-callout-sub { fill: var(--muted); font: 500 ${LABEL.sub}px var(--font-mono); letter-spacing: .04em; }
+.iso-callout-sub { fill: var(--muted); font: 500 ${LABEL.sub}px var(--font-sans); letter-spacing: 0; }
 .iso-led-halo { fill: transparent; }
 .iso-led-bezel { fill: rgb(0 0 0 / .35); }
 .iso-led-core { fill: var(--hw-led-off); }

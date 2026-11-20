@@ -53,55 +53,66 @@ body {
 .mem-gap-md { margin-top: 12px; }
 .mem-end { margin-inline-start: auto; }
 
-/* ---------- Stage head: access stages + LCDs ---------- */
+/* ---------- Stage head: step indicator + readouts ---------- */
 
 .mem-stage-head {
   flex-wrap: wrap;
   row-gap: 8px;
 }
+/* The five sub-stages of one access: a status capsule floating over the
+   scene like the readouts beside it. Status dots as in the lesson rail:
+   ring = to come, half = now, filled = done. */
 .mem-stages {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: center;
-  gap: 4px 0;
   min-width: 0;
+  min-height: 28px;
   margin: 0;
-  padding: 0;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--lg-sheen), var(--lg-small);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: var(--lg-backdrop);
+  box-shadow: var(--lg-rim), 0 4px 16px rgb(0 0 0 / 0.08);
   list-style: none;
 }
 .mem-stages li {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  color: var(--muted);
+  gap: 6px;
+  color: var(--vlabel-2);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+  line-height: 15px;
   white-space: nowrap;
 }
 .mem-stages li + li::before {
   content: "";
-  width: 14px;
+  flex: none;
+  width: 10px;
   height: 1px;
-  margin-inline: 4px 3px;
-  background: var(--iso-line);
+  margin-inline: 6px 2px;
+  background: var(--label-3);
+}
+.mem-stages li.is-done {
+  color: var(--vlabel);
 }
 .mem-stages li.is-active {
-  color: var(--ink);
-  font-weight: 650;
-}
-.mem-stages li.is-done .hw-led {
-  background: color-mix(in srgb, var(--accent) 45%, var(--hw-led-off));
+  color: var(--vlabel);
+  font-weight: var(--w-semibold);
 }
 .mem-stages li.is-skipped {
+  color: var(--label-3);
   text-decoration: line-through;
-  opacity: 0.55;
+}
+.mem-stages li.is-skipped .hw-led {
+  box-shadow: inset 0 0 0 1.5px var(--label-3);
 }
 .mem-lcds {
   display: flex;
   gap: 8px;
   margin-inline-start: auto;
-}
-.mem-lcds .hw-lcd {
-  font-size: var(--fs-3);
 }
 /* Below 1440px the head keeps one row: the strip names the plate, the label stays for screen readers. */
 @media (min-width: 1100px) and (max-width: 1439px) and (min-height: 700px) {
@@ -140,9 +151,10 @@ body {
   opacity: 1;
   stroke-dasharray: 6 4;
 }
+/* A hit: the frame's outline turns solid. No glow (DESIGN.md). */
 .mem-slot-ring.is-hit {
   opacity: 1;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 70%, transparent));
+  stroke-width: 3;
 }
 .mem-chip-glow {
   opacity: 0;
@@ -200,7 +212,7 @@ body {
 }
 
 .hw-stage .hw-plate-foot {
-  color: var(--ink);
+  color: var(--label);
 }
 #status-led:is([data-kind="miss"], [data-kind="select"], [data-kind="evict"], [data-kind="load"]) {
   --led: var(--mem-fault);
@@ -225,26 +237,30 @@ body {
   line-height: 1.15;
 }
 .mem-sequence small {
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
 }
 .mem-sequence b {
   color: var(--pg);
-  font-family: var(--font-mono);
   font-size: var(--fs-2);
-  font-weight: 700;
+  font-weight: var(--w-bold);
 }
 .mem-sequence > button:not(.is-visited):not([aria-pressed="true"]) b {
-  color: color-mix(in srgb, var(--pg) 50%, var(--muted));
+  color: color-mix(in srgb, var(--pg) 50%, var(--label-2));
 }
 .mem-play {
   min-width: 132px;
 }
+/* Numbers that line up (counts, access numbers): tabular digits in the system font. */
+.mem-num {
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---------- Page chip (records, lists, dialogs) ---------- */
 
+/* A page is a small rounded square in its semantic colour, like the tokens. */
 .mem-pg {
   display: inline-grid;
   place-items: center;
@@ -254,15 +270,21 @@ body {
   border-radius: 7px;
   background: var(--pg);
   color: #fff;
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
-  font-weight: 700;
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.18);
+  font-weight: var(--w-bold);
+  line-height: 1;
+  box-shadow: inset 0 0 0 0.5px rgb(0 0 0 / 0.12);
 }
-.mem-pg.is-empty {
+.mem-pg.is-empty,
+.mem-pg.is-future {
   background: none;
   box-shadow: none;
-  color: var(--muted);
+  color: var(--label-3);
+}
+.mem-pg.is-future {
+  color: var(--label-2);
+  font-weight: var(--w-medium);
 }
 .mem-outcome {
   display: inline-flex;
@@ -282,14 +304,14 @@ body {
   display: flex;
   gap: 14px;
   margin-inline-start: auto;
-  color: var(--muted);
+  color: var(--label-2);
   font-size: var(--fs-1);
 }
 .mem-frame-nums b {
   font-weight: 500;
 }
 .mem-frame-nums .is-key {
-  color: var(--ink);
+  color: var(--label);
 }
 .mem-frame-nums .is-key b {
   font-weight: 700;
@@ -306,15 +328,21 @@ body {
     overflow: hidden;
   }
 }
-/* Blocks split by hairlines; pages hide whole blocks. */
+/* Blocks are spaced with a row gap, not margins: paginate() (shared/fit.js)
+   counts the gap when it fills a page, so the last block never gets clipped. */
 .mem-pages {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+}
+/* Sentences split from one paragraph read as one paragraph. */
+.mem-pages > [data-split="cont"] {
+  margin-top: -14px !important;
 }
 .mem-pages > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 14px;
+  margin-top: 0;
   padding-top: 12px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 .mem-pages .hw-note {
   margin: 0;
@@ -349,7 +377,7 @@ body {
   text-transform: none;
 }
 #milestones > button {
-  color: var(--ink);
+  color: var(--label);
   font-size: var(--fs-2);
 }
 .mem-rules {
@@ -363,7 +391,7 @@ body {
 .mem-rules dt {
   flex: none;
   width: 72px;
-  font-weight: 650;
+  font-weight: var(--w-semibold);
 }
 .mem-rules dd {
   min-width: 0;
@@ -374,69 +402,126 @@ body {
 
 /* ---------- Records ---------- */
 
+/* Frame record: the kit's content table turned on its side. Accesses are
+   columns; the current access is the selected column (accent number in
+   the header, accent tint down the column); rows alternate as in the kit. */
 .mem-history th,
 .mem-history td {
   text-align: center;
 }
-.mem-history tbody th {
-  text-align: left;
-  color: var(--muted);
-  font-family: var(--font-mono);
+.hw-table.mem-history tbody th {
+  height: auto;
+  border-bottom: 0;
+  background: none;
+  color: var(--label-2);
   font-size: var(--fs-1);
-  font-weight: 500;
+  font-weight: var(--w-medium);
+  text-align: left;
+}
+.hw-table.mem-history tbody tr:nth-child(even) th {
+  background: var(--fill-4);
+}
+.hw-table.mem-history tbody tr > :first-child {
+  border-radius: var(--r-small) 0 0 var(--r-small);
+}
+.hw-table.mem-history tbody tr > :last-child {
+  border-radius: 0 var(--r-small) var(--r-small) 0;
 }
 .mem-history td {
   padding: 8px 6px;
   vertical-align: middle;
   cursor: pointer;
 }
-.mem-history td.is-current,
-.mem-history thead th[aria-current="true"] {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+/* Hover marks the cell (one access), not the row. */
+.hw-table.mem-history tbody tr:hover td {
+  background: none;
+}
+.hw-table.mem-history tbody tr:nth-child(even):hover td {
+  background: var(--fill-4);
+}
+.hw-table.mem-history tbody tr:is(:hover, :nth-child(n)) td:hover {
+  background: var(--fill-3);
+}
+.hw-table.mem-history tbody tr:is(:hover, :nth-child(n)) td.is-current {
+  border-radius: 0;
+  background: var(--accent-fill);
+}
+.hw-table.mem-history tbody tr:last-child td.is-current {
+  border-radius: 0 0 var(--r-small) var(--r-small);
+}
+.mem-history thead th[aria-current="true"] .mem-col-key {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: var(--w-semibold);
 }
 .mem-history .mem-outcome {
   font-size: var(--fs-1);
 }
+/* The page just loaded: a ring in its colour. */
 .mem-new .mem-pg {
-  box-shadow: inset 0 -2px 0 rgb(0 0 0 / 0.18), 0 0 0 2px var(--hw-plate), 0 0 0 3.5px var(--pg);
+  box-shadow: 0 0 0 2px var(--window), 0 0 0 3.5px var(--pg);
 }
+/* Access numbers in the headers are links to that access. */
 .mem-col-key,
 .mem-row-key {
   min-width: 28px;
-  padding: 2px 4px;
+  min-height: 22px;
+  padding: 2px 7px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 999px;
   background: none;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 .mem-row-key {
-  color: var(--ink);
+  min-width: 0;
+  padding-inline: 0;
+  color: inherit;
   font-size: var(--fs-2);
+  text-align: start;
 }
-.mem-col-key:hover,
+.mem-col-key:hover:not(:is([aria-current="true"] > *)),
 .mem-row-key:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .mem-col-key:focus-visible,
 .mem-row-key:focus-visible {
   outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .hw-records .hw-table td {
   vertical-align: middle;
 }
+/* Access log: the current row is the kit's selected row (accent fill, white
+   label); its page chip and status dot keep a white edge on the accent. */
+.hw-table tbody tr[aria-current="true"] .mem-row-key:hover {
+  color: inherit;
+}
+.hw-table tbody tr[aria-current="true"] .mem-outcome .hw-led {
+  box-shadow: 0 0 0 1.5px var(--on-accent);
+}
+.hw-table tbody tr[aria-current="true"] .mem-pg {
+  box-shadow: 0 0 0 1.5px var(--on-accent);
+}
 
-/* ---------- Dialogs ---------- */
+/* ---------- Sheets (prediction, comparison) ---------- */
 
+/* The shared .hw-dialog is the Large-glass sheet. A question sheet is
+   narrow like the kit's; the comparison keeps the full width. */
+#prediction-dialog {
+  width: min(580px, calc(100vw - 24px));
+}
 .hw-dialog .hw-plate-head > :last-child {
   margin-inline-start: auto;
 }
 .mem-choices > button {
   gap: 12px;
-  padding: 10px 6px;
-  color: var(--ink);
+  padding: 9px 8px;
+  color: var(--label);
 }
 .mem-choices > button:disabled {
   cursor: default;
@@ -445,29 +530,34 @@ body {
   display: grid;
   gap: 2px;
   font-size: var(--fs-2);
-  font-weight: 600;
+  font-weight: var(--w-semibold);
 }
 .mem-choice-text .hw-label {
-  text-transform: none;
+  font-weight: var(--w-medium);
+}
+.mem-choices > button:is(.is-correct, .is-wrong) {
+  border-bottom-color: transparent;
+  border-radius: var(--r-small);
 }
 .mem-choices > button.is-correct {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--accent-fill);
 }
 .mem-choices > button.is-wrong {
   background: color-mix(in srgb, var(--mem-fault) 12%, transparent);
 }
 .mem-verdict {
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--label-2);
   font-size: var(--fs-1);
+  font-weight: var(--w-medium);
 }
 .is-correct .mem-verdict {
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--accent-text);
+  font-weight: var(--w-semibold);
 }
 .mem-dialog-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-top: 18px;
 }
 .mem-trace {
@@ -502,12 +592,14 @@ body {
     width: 6px;
     margin-inline: 3px 2px;
   }
+  /* The scene is not clipped: as on desktop, the floor runs on under the
+     stage head (the page itself clips it; no horizontal scroll at 390px). */
   .hw-stage .hw-scene { padding: 4px 4px 0; }
+  .mem-transport-field { width: 100%; }
   .mem-sequence-field,
   .mem-sequence { width: 100%; }
   .mem-sequence { grid-auto-columns: minmax(0, 1fr); }
   .mem-sequence > button { padding: 2px 0; }
-  .hw-stage .hw-scene { overflow: hidden; }
   .hw-transport {
     display: grid;
     grid-template-columns: auto auto minmax(0, 1fr) auto auto;
@@ -646,7 +738,7 @@ body {
 }
 /* 학습 목표: one line under the start question. */
 .mem-goal {
-  color: var(--muted);
+  color: var(--label-2);
 }
 /* 이번 접근: RAM before → after as page chips. */
 .mem-ram-line {
@@ -676,9 +768,9 @@ body {
   border-top: 0;
 }
 .hw-side .mem-pages > :not([hidden]) ~ .mem-recap-part.hw-section:not([hidden]) {
-  margin-top: 14px;
+  margin-top: 0;
   padding-top: 12px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 .mem-recap-part .hw-progress {
   flex-basis: 100%;
@@ -688,7 +780,7 @@ body {
   text-transform: none;
 }
 .mem-recap-part .hw-recall-choices > button {
-  color: var(--ink);
+  color: var(--label);
   font-size: var(--fs-2);
   text-align: start;
 }
@@ -714,7 +806,7 @@ body {
 .mem-compare-grid + .hw-section {
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 1px solid var(--hw-edge);
+  border-top: 1px solid var(--separator-soft);
 }
 .mem-compare .mem-trace {
   grid-template-columns: repeat(5, minmax(0, 1fr));

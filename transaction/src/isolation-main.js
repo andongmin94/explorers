@@ -101,7 +101,7 @@ export function start(lessonId) {
             </div>
             <ul class="tx-details" id="lesson-details"></ul>
             <div class="hw-section" id="changes"></div>
-            <div class="hw-section" id="key-section"><p class="hw-note hw-note--accent"><span class="hw-label">${LABELS.key}</span> <span id="lesson-key"></span></p></div>
+            <div class="hw-section" id="key-section"><p class="hw-note hw-note--accent"><span><b>${LABELS.key}</b> <span id="lesson-key"></span></span></p></div>
           </div>`,
           `<div class="tx-cta" id="cta">
             <button class="hw-key tx-wide" data-action="predict" hidden></button>
@@ -120,7 +120,7 @@ export function start(lessonId) {
         )}
       </aside>
       <section class="hw-plate hw-records" aria-label="관찰 기록">
-        ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="hw-mono" id="log-count"></span>`], ["results", "결과"]])}
+        ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="tx-num" id="log-count"></span>`], ["results", "결과"]])}
         <div class="hw-plate-body hw-scroll" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline" data-record-panel="timeline">
           <table class="hw-table tx-table"><thead><tr><th>사건</th><th>${L.names.T1}</th><th>${L.names.T2}</th><th>확정 값</th><th>행 잠금</th></tr></thead><tbody></tbody></table>
         </div>
@@ -188,7 +188,7 @@ export function start(lessonId) {
     $("#changes").classList.toggle("tx-off", !step.index);
     $("#changes").innerHTML = `<span class="hw-label">DB 상태 · 직전 → 현재</span>${
       changed.length
-        ? `<ul class="hw-list tx-changes">${changed.map(([label, was, now]) => `<li><span>${label}</span><span class="hw-mono"><span class="hw-muted">${was}</span> → <b>${now}</b></span></li>`).join("")}</ul>`
+        ? `<ul class="hw-list tx-changes">${changed.map(([label, was, now]) => `<li><span>${label}</span><span class="tx-num"><span class="hw-muted">${was}</span> → <b>${now}</b></span></li>`).join("")}</ul>`
         : `<p class="hw-text hw-muted tx-gap">DB 상태는 바뀌지 않았습니다.</p>`
     }`;
   }
@@ -234,7 +234,7 @@ export function start(lessonId) {
     $("#milestones").innerHTML = milestones
       .map((m, i) => {
         const seen = s.done >= m.index;
-        return `<button data-seek="${m.index}"${i === active ? ' aria-current="true"' : ""}><span class="hw-index">${pad(i + 1)}</span><span class="tx-grow">${seen ? `${m.label}<span class="hw-muted tx-desc"> · ${m.description}</span>` : `<span class="hw-muted">${m.index}번째 사건에서 확인</span>`}</span><span class="hw-mono hw-muted">#${pad(m.index)}</span></button>`;
+        return `<button data-seek="${m.index}"${i === active ? ' aria-current="true"' : ""}><span class="hw-index">${pad(i + 1)}</span><span class="tx-grow">${seen ? `${m.label}<span class="hw-muted tx-desc"> · ${m.description}</span>` : `<span class="hw-muted">${m.index}번째 사건에서 확인</span>`}</span><span class="tx-num hw-muted">#${pad(m.index)}</span></button>`;
       })
       .join("");
     const key = `${mode}:${s.index}`;
@@ -270,15 +270,15 @@ export function start(lessonId) {
         const reached = step.index <= s.done;
         const head = reached
           ? `<button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button>`
-          : `<span class="hw-muted hw-mono">${pad(step.index)}</span>`;
+          : `<span class="hw-muted tx-num">${pad(step.index)}</span>`;
         if (!reached) return `<tr class="is-future" data-step="${step.index}"><td>${head}</td><td colspan="4" class="hw-muted">·</td></tr>`;
         const cell = (id) => {
           if (step.client !== id) return "<td></td>";
           const value = cellValue(step);
           const alert = ["wait", "error", "commit-error"].includes(step.action);
-          return `<td class="${alert ? "tx-wait" : ""}">${tx(id)} ${ACTIONS[step.action]}${value !== null ? ` <b class="hw-mono">${value}</b>` : ""}</td>`;
+          return `<td class="${alert ? "tx-wait" : ""}">${tx(id)} ${ACTIONS[step.action]}${value !== null ? ` <b class="tx-num">${value}</b>` : ""}</td>`;
         };
-        return `<tr data-row-seek="${step.index}" data-step="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td>${head}</td>${cell("T1")}${cell("T2")}<td class="hw-mono">${committedText(step.state)}</td><td>${lockText(step.state)}</td></tr>`;
+        return `<tr data-row-seek="${step.index}" data-step="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td>${head}</td>${cell("T1")}${cell("T2")}<td class="tx-num">${committedText(step.state)}</td><td>${lockText(step.state)}</td></tr>`;
       })
       .join("");
     timelineRows.refresh();
@@ -295,7 +295,7 @@ export function start(lessonId) {
         const c = step.state.clients[step.client];
         const detail = step.sql || `${L.screens[0]} ${c.read} → ${c.plan.toUpperCase()}`;
         const result = step.error ? `<span class="tx-wait">ERROR ${step.error.code}</span>` : `확정 ${committedText(step.state)}`;
-        return `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${tx(step.client)}</td><td>${kind(step)}</td><td><code class="tx-code">${escape(detail)}</code></td><td class="hw-mono tx-nowrap">${result}</td></tr>`;
+        return `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${tx(step.client)}</td><td>${kind(step)}</td><td><code class="tx-code">${escape(detail)}</code></td><td class="tx-num tx-nowrap">${result}</td></tr>`;
       })
       .join("");
     logRows.refresh();
@@ -305,7 +305,7 @@ export function start(lessonId) {
     const r = L.result(run(), state, final);
     $("#record-results").innerHTML = `<div class="tx-results">
       <div class="tx-results-lcd"><span class="hw-label">${r.lcd.label}</span><span class="hw-lcd is-large">${r.lcd.value}<small>${r.lcd.unit}</small></span></div>
-      <ul class="hw-list">${r.facts.map(([label, value]) => `<li><span>${label}</span><span class="hw-mono">${value}</span></li>`).join("")}</ul>
+      <ul class="hw-list">${r.facts.map(([label, value]) => `<li><span>${label}</span><span class="tx-num">${value}</span></li>`).join("")}</ul>
       <p class="hw-text">${r.text}</p>
     </div>`;
   }
@@ -341,7 +341,7 @@ export function start(lessonId) {
     $("#prediction-dialog").innerHTML = `${dialogHead(`${LABELS.predictTitle} · ${quiz.label}`)}
     <div class="hw-plate-body">
       <h2 class="hw-title" id="prediction-title">${quiz.question}</h2>
-      <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="hw-mono">${escape(value)}</b></li>`).join("")}</ul>
+      <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="tx-num">${escape(value)}</b></li>`).join("")}</ul>
       <div class="tx-choices">${quiz.options.map((o) => `<button class="hw-key" data-answer="${o.id}"><span class="hw-led" style="--led:var(--tx-ok)"></span>${o.label}</button>`).join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;

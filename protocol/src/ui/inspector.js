@@ -41,7 +41,7 @@ function renderPacketInspector() {
   <div class="inspector" hidden role="region" aria-label="${translate("Packet inspector")}">
     <div class="ins-head">
       <span class="hw-led is-on ins-led"></span>
-      <span class="ins-badge hw-mono"></span>
+      <span class="ins-badge"></span>
       <div class="ins-title"><b></b><span class="hw-mono hw-muted"></span></div>
       <div class="ins-nav">
         <button class="hw-key hw-key--sm hw-key--icon" type="button" data-ins="prev" aria-label="${translate("Previous packet")}" title="${translate("Previous packet (←)")}">${icon("back")}</button>

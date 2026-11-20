@@ -216,7 +216,7 @@ function sceneSvg(mode) {
   return `<svg role="img" aria-labelledby="disk-scene-title" preserveAspectRatio="xMidYMid meet">
     <title id="disk-scene-title">요청 큐, 컨트롤러, 하드 디스크와 실린더 눈금 위의 헤드 이동</title>
     ${defs()}
-    ${floor({ x: -14, y: -22, w: 50, d: 52 })}
+    ${floor({ x: -40, y: -46, w: 100, d: 110 })}
     ${cabQ}
     ${cabD}
     ${queue.svg}

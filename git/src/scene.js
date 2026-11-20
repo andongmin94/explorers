@@ -180,8 +180,8 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   // The commit graph lies on a dark glass panel set into the server top.
   const graphGlass = pocket({ x: REPO.x + 0.45, y: REPO.y + 0.45, z: REPO_TOP, w: REPO.w - 0.9, d: REPO.d - 0.9, depth: 0.05, floor: "url(#hw-iso-lcd) var(--iso-glass)", wall: "var(--iso-glass)", lip: "rgb(255 255 255 / .55)" });
   const NOTES = {
-    work: { x: LAPTOP.x + 1.2, y: LAPTOP.y - 0.2, z: 2.82, dx: -10, dy: -34, title: "작업 트리", sub: "WORKING TREE", cls: "git-callout-work" },
-    index: { x: TRAY.x + 2.6, y: TRAY.y + TRAY.d, z: 0.2, dx: -6, dy: 42, title: "인덱스(스테이징)", sub: "STAGE 0 · 1 · 2 · 3", cls: "git-callout-index" },
+    work: { x: LAPTOP.x + 1.2, y: LAPTOP.y - 0.2, z: 2.82, dx: -10, dy: -34, title: "작업 트리", sub: "working tree", cls: "git-callout-work" },
+    index: { x: TRAY.x + 2.6, y: TRAY.y + TRAY.d, z: 0.2, dx: -6, dy: 42, title: "인덱스(스테이징)", sub: "stage 0 · 1 · 2 · 3", cls: "git-callout-index" },
     history: { x: REPO.x + 3.2, y: REPO.y + REPO.d, z: 0.4, dx: -8, dy: 84, title: "로컬 저장소", sub: ".git · 커밋 이력", cls: "git-callout-history" },
   };
 

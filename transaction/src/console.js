@@ -56,7 +56,7 @@ export function deck({ total, before = "" }) {
         <button class="hw-key hw-key--accent tx-play" data-action="play">${icon("play")}<span>학습 시작</span></button>
         <button class="hw-key" data-action="next">다음 사건${icon("next")}</button>
         <button class="hw-key hw-key--icon" data-action="replay" aria-label="이번 사건 다시 보기" disabled>${icon("replay")}</button>
-        <button class="hw-key hw-key--icon hw-mono" data-action="speed" aria-label="재생 속도 1배, 눌러서 변경">1×</button>
+        <button class="hw-key hw-key--icon tx-num" data-action="speed" aria-label="재생 속도 1배, 눌러서 변경">1×</button>
       </div>
     </div>
     <div class="hw-seek">

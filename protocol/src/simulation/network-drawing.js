@@ -398,7 +398,9 @@ const DRAW_ORDER = Object.keys(DEVICES).sort(
   (a, b) => centerOf(a)[0] + centerOf(a)[1] - (centerOf(b)[0] + centerOf(b)[1]),
 );
 
-const FLOOR = { x: -22, y: -22, w: 44, d: 46 };
+// One generous floor: it runs on under the toolbar, the picker and the deck
+// (the stage clips it at the window edge), so the scene is the backdrop.
+const FLOOR = { x: -50, y: -50, w: 100, d: 102 };
 // Before the first camera fit: frame every device.
 const NETWORK_VIEWBOX = (() => {
   const s = Object.values(NETWORK_NODE_BOUNDS).flat().map(([x, y, z]) => project(x, y, z));

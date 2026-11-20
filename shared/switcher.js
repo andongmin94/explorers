@@ -1,9 +1,12 @@
-// The explorer switcher in every page header. ui-sdk's menu owns the popup:
-// focus, arrow keys, typeahead, Escape and outside clicks. This file only
-// builds the markup and swaps it in for the explorer's own title.
+// The explorer switcher in every page toolbar: a Liquid Glass capsule that
+// opens a macOS menu. ui-sdk's menu owns the popup: focus, arrow keys,
+// typeahead, Escape and outside clicks. This file only builds the markup and
+// swaps it in for the explorer's own title.
 import "@ui-sdk/web/menu";
 import { explorers } from "./explorers.js";
 import "./switcher.css";
+// Liquid Glass refraction filters (Chromium) for every page.
+import "./glass.js";
 // Sizes the console rows on every page (see fit.js).
 import "./fit.js";
 
@@ -15,7 +18,11 @@ const drawings = {
   disk: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="11" cy="11" r="5"/><path d="m17 17-5-5m4 5h1v-1"/>',
   git: '<circle cx="7" cy="5" r="2.5"/><circle cx="7" cy="19" r="2.5"/><circle cx="18" cy="7" r="2.5"/><path d="M7 7.5v9M18 9.5c0 5-11 2-11 7"/>',
   chevron: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="m4 12.5 5 5L20 6.5"/>',
 };
+
+// Each explorer's Apple system colour (theme.css), for its dot in the menu.
+const tint = { protocol: "blue", cpu: "orange", memory: "green", transaction: "pink", disk: "yellow", git: "purple" };
 
 const icon = (name) =>
   `<svg viewBox="0 0 24 24" aria-hidden="true">${drawings[name]}</svg>`;
@@ -38,14 +45,14 @@ function mountSwitcher() {
   titleGroup.replaceWith(heading);
 
   const items = explorers
-    .map((explorer, index) => {
+    .map((explorer) => {
       const here = explorer.slug === slug;
       return `<ui-menu-item as-child>
-        <a class="explorer-item" href="${here ? location.href : `${BASE}${explorer.slug}/`}"${here ? ' aria-current="page"' : ""}>
-          <span class="explorer-item-index">${String(index + 1).padStart(2, "0")}</span>
+        <a class="explorer-item" href="${here ? location.href : `${BASE}${explorer.slug}/`}"${here ? ' aria-current="page"' : ""} style="--item-accent: var(--sys-${tint[explorer.slug] ?? "blue"})">
+          <span class="explorer-item-check" aria-hidden="true">${icon("check")}</span>
           ${icon(explorer.slug)}
           <span class="explorer-item-label">${escape(explorer.label)}</span>
-          <span class="explorer-led" aria-hidden="true"></span>
+          <span class="explorer-item-dot" aria-hidden="true"></span>
         </a>
       </ui-menu-item>`;
     })
@@ -56,7 +63,7 @@ function mountSwitcher() {
   heading.innerHTML = `<ui-menu>
     <ui-menu-trigger>
       <button class="explorer-trigger" type="button" aria-label="탐색기 선택, 현재 ${escape(current.label)}" aria-describedby="explorer-caption">
-        <span class="explorer-brand-mark">${icon(slug)}<span class="explorer-led" aria-hidden="true"></span></span>
+        <span class="explorer-brand-mark">${icon(slug)}</span>
         <span class="explorer-brand-copy">
           <span class="explorer-brand-name">${escape(current.label)}</span>
           <span class="explorer-brand-caption" id="explorer-caption">${escape(caption)}</span>

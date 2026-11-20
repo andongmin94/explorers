@@ -99,7 +99,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
           </div>
           <ul class="tx-details" id="lesson-details"></ul>
           <div class="hw-section" id="changes"></div>
-          <div class="hw-section" id="key-section"><p class="hw-note hw-note--accent"><span class="hw-label">${LABELS.key}</span> <span id="lesson-key"></span></p></div>
+          <div class="hw-section" id="key-section"><p class="hw-note hw-note--accent"><span><b>${LABELS.key}</b> <span id="lesson-key"></span></span></p></div>
         </div>`,
         `<div class="tx-cta" id="cta">
           <button class="hw-key tx-wide" data-action="predict" hidden>${LABELS.predict("재개 후 B의 값")}</button>
@@ -118,7 +118,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
       )}
     </aside>
     <section class="hw-plate hw-records" aria-label="관찰 기록">
-      ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="hw-mono" id="log-count"></span>`], ["results", "재고 결과"]])}
+      ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="tx-num" id="log-count"></span>`], ["results", "재고 결과"]])}
       <div class="hw-plate-body hw-scroll" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline" data-record-panel="timeline">
         <table class="hw-table tx-table"><thead><tr><th>사건</th><th>T1 · 주문 1</th><th>T2 · 주문 2</th><th>행 A</th><th>행 B</th></tr></thead><tbody></tbody></table>
       </div>
@@ -197,7 +197,7 @@ function renderChanges(step, state) {
   $("#changes").classList.toggle("tx-off", !step.index);
   $("#changes").innerHTML = `<span class="hw-label">DB 상태 · 직전 → 현재</span>${
     changed.length
-      ? `<ul class="hw-list tx-changes">${changed.map(([label, was, now]) => `<li><span>${label}</span><span class="hw-mono"><span class="hw-muted">${was}</span> → <b>${now}</b></span></li>`).join("")}</ul>`
+      ? `<ul class="hw-list tx-changes">${changed.map(([label, was, now]) => `<li><span>${label}</span><span class="tx-num"><span class="hw-muted">${was}</span> → <b>${now}</b></span></li>`).join("")}</ul>`
       : `<p class="hw-text hw-muted tx-gap">잠금과 재고는 바뀌지 않았습니다.</p>`
   }`;
 }
@@ -239,7 +239,7 @@ function render() {
   $("#milestones").innerHTML = milestones
     .map(
       (m, i) =>
-        `<button data-seek="${m.index}"${i === active ? ' aria-current="true"' : ""} title="${escape(s.done >= m.index ? m.description : `${m.index}번째 사건에서 확인`)}"><span class="hw-index">${pad(i + 1)}</span><span class="tx-grow">${m.label}${s.done >= m.index ? `<span class="hw-muted tx-desc"> · ${m.description}</span>` : ""}</span><span class="hw-mono hw-muted">#${pad(m.index)}</span></button>`,
+        `<button data-seek="${m.index}"${i === active ? ' aria-current="true"' : ""} title="${escape(s.done >= m.index ? m.description : `${m.index}번째 사건에서 확인`)}"><span class="hw-index">${pad(i + 1)}</span><span class="tx-grow">${m.label}${s.done >= m.index ? `<span class="hw-muted tx-desc"> · ${m.description}</span>` : ""}</span><span class="tx-num hw-muted">#${pad(m.index)}</span></button>`,
     )
     .join("");
   const key = `${order}:${s.index}`;
@@ -268,7 +268,7 @@ function renderRecords() {
   };
   const rowCell = (step, row) => {
     const r = step.state.rows[row];
-    return `<td class="tx-nowrap">${r.owner ? tx(r.owner) : '<span class="hw-muted">잠금 없음</span>'} <span class="hw-mono">확정 ${r.committed}<span class="hw-muted"> · ${r.pending ? `미확정 ${r.pending.value}` : "미확정 없음"}</span></span></td>`;
+    return `<td class="tx-nowrap">${r.owner ? tx(r.owner) : '<span class="hw-muted">잠금 없음</span>'} <span class="tx-num">확정 ${r.committed}<span class="hw-muted"> · ${r.pending ? `미확정 ${r.pending.value}` : "미확정 없음"}</span></span></td>`;
   };
   const groups = GROUPS[order];
   const body = all
@@ -277,7 +277,7 @@ function renderRecords() {
       const group = groups[step.index] && reached ? `<tr class="tx-group"><th colspan="5">${groups[step.index]}</th></tr>` : "";
       const head = reached
         ? `<button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button>`
-        : `<span class="hw-muted hw-mono">${pad(step.index)}</span>`;
+        : `<span class="hw-muted tx-num">${pad(step.index)}</span>`;
       if (!reached) return `<tr class="is-future" data-step="${step.index}"><td>${head}</td><td colspan="4" class="hw-muted">·</td></tr>`;
       const actor = (id) => `<td class="${blocked(step, id) ? "tx-wait" : step.client === id ? "" : "hw-muted"}">${actorText(step, id)}</td>`;
       return `${group}<tr data-row-seek="${step.index}" data-step="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td>${head}</td>${actor("T1")}${actor("T2")}${rowCell(step, "A")}${rowCell(step, "B")}</tr>`;
@@ -293,7 +293,7 @@ function renderRecords() {
   $("#log-table tbody").innerHTML = done
     .map(
       (step) =>
-        `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${step.client ? tx(step.client) : '<span class="tx-id">DB</span>'}</td><td>${describeDeadlockStep(step).title}</td><td><code class="tx-code">${escape(step.sql || (step.action === "rollback" ? "T2의 A UPDATE → ERROR: deadlock detected (40P01)" : "DB가 대기 관계의 순환을 확인"))}</code></td><td class="hw-mono tx-nowrap">A ${step.state.rows.A.owner || "—"} · B ${step.state.rows.B.owner || "—"}</td></tr>`,
+        `<tr data-row-seek="${step.index}"${step.index === s.index ? ' aria-current="true"' : ""}><td><button class="tx-seek" data-seek="${step.index}" aria-label="${step.index}번째 사건으로 이동">${pad(step.index)}</button></td><td>${step.client ? tx(step.client) : '<span class="tx-id">DB</span>'}</td><td>${describeDeadlockStep(step).title}</td><td><code class="tx-code">${escape(step.sql || (step.action === "rollback" ? "T2의 A UPDATE → ERROR: deadlock detected (40P01)" : "DB가 대기 관계의 순환을 확인"))}</code></td><td class="tx-num tx-nowrap">A ${step.state.rows.A.owner || "—"} · B ${step.state.rows.B.owner || "—"}</td></tr>`,
     )
     .join("");
   logRows.refresh();
@@ -307,9 +307,9 @@ function renderRecords() {
   $("#record-results").innerHTML = `<div class="tx-results">
     <div class="tx-results-lcd"><span class="hw-label">${final ? "최종" : "현재"} 확정 재고 A · B</span><span class="hw-lcd is-large">${state.rows.A.committed}<small>A</small> ${state.rows.B.committed}<small>B</small></span></div>
     <ul class="hw-list">
-      <li><span>처음 확정 재고</span><span class="hw-mono">A 10 · B 20</span></li>
-      <li><span>커밋한 주문</span><span class="hw-mono">${state.commits} / 2</span></li>
-      <li><span>롤백한 주문</span><span class="hw-mono">${state.rollbacks} / 2</span></li>
+      <li><span>처음 확정 재고</span><span class="tx-num">A 10 · B 20</span></li>
+      <li><span>커밋한 주문</span><span class="tx-num">${state.commits} / 2</span></li>
+      <li><span>롤백한 주문</span><span class="tx-num">${state.rollbacks} / 2</span></li>
     </ul>
     <p class="hw-text">${final ? ending : "현재까지 완료한 사건의 결과입니다. 미확정 쓰기는 이 숫자를 아직 바꾸지 않습니다."}</p>
   </div>`;
@@ -363,7 +363,7 @@ function predict() {
   $("#prediction-dialog").innerHTML = `${dialogHead(`${LABELS.predictTitle} · T2 롤백 직후`)}
   <div class="hw-plate-body">
     <h2 class="hw-title" id="prediction-title">${quiz.question}</h2>
-    <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="hw-mono">${value}</b></li>`).join("")}</ul>
+    <ul class="hw-list tx-gap">${quiz.facts.map(([label, value]) => `<li><span>${label}</span><b class="tx-num">${value}</b></li>`).join("")}</ul>
     <div class="tx-choices">${quiz.options
       .map((o) => `<button class="hw-key" data-answer="${o.id}"><span class="hw-led" style="--led:var(--tx-ok)"></span>${o.label}</button>`)
       .join("")}</div>

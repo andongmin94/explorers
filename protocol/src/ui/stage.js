@@ -19,7 +19,7 @@ function renderSimulationPanel() {
     <div class="hw-plate-head">
       <span class="hw-label"><span class="hw-index">A</span> 통신 장면</span>
       <div class="hw-seg view-switch" role="tablist" aria-label="${translate("View")}" title="${translate("Switch view (V)")}">${viewButtons}</div>
-      <span class="hw-lcd stage-lcd" aria-hidden="true"><span class="stage-lcd-value">--</span><small class="stage-lcd-unit">STEP</small></span>
+      <span class="hw-lcd stage-lcd" aria-hidden="true"><span class="stage-lcd-value">--</span><small class="stage-lcd-unit">단계</small></span>
     </div>
     <div class="hw-scene pe-scene simulation">
       ${renderNetworkDiagram()}
