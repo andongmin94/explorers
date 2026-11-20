@@ -1,6 +1,6 @@
 /*
  * Liquid Glass tokens (from Apple's macOS 26 and iOS/iPadOS 26 UI kits; table
- * with node ids in shared/LIQUID-GLASS.md). Port of shared/theme.css for the
+ * with node ids in docs/LIQUID-GLASS.md). Port of shared/theme.css for the
  * React pages: the same custom properties, so the iso scene SVGs (which read
  * var(--iso-*), var(--ink), var(--accent) …) look the same. Tailwind reads
  * them through @theme inline in app.css (bg-window, text-label, bg-fill-3 …).

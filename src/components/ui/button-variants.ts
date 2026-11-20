@@ -1,7 +1,7 @@
 import { cva, type VariantProps } from "class-variance-authority";
 
 /**
- * Keys (shared/DESIGN.md → `.hw-key`). Three looks:
+ * Keys (docs/DESIGN.md → `.hw-key`). Three looks:
  * - glass: a Liquid Glass Small capsule, for chrome (toolbar, deck, over the scene).
  * - filled: the kit's bordered push button, for content (side panel, records, sheets).
  * - primary: tinted with the explorer accent (one per group at most).

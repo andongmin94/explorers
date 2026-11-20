@@ -52,7 +52,7 @@ P1 0–2 → P2 2–4 → P3 4–6 → P1 6–8
 
 ## 학습 흐름
 
-탐색기 모음의 공통 학습 모델(`shared/DESIGN.md` → Learning model, 문구는 `shared/lesson-kit.js`의 `LABELS`)을 따릅니다.
+탐색기 모음의 공통 학습 모델(`docs/DESIGN.md` → Learning model, 문구는 `src/lib/lesson-kit.ts`의 `LABELS`)을 따릅니다.
 
 - **목표**: 재생 전 시작 화면은 질문 "빠른 응답과 빠른 완료는 같은 뜻일까요?", 시나리오 설명, `학습 목표: …` 한 줄과 용어(최초 응답·반환 시간·준비 큐)만 보여 줍니다. 실행 결과는 미리 보여 주지 않습니다.
 - **관찰**: `핵심 장면에서 멈추기`를 켜면 핵심 장면(RR 2 ms 7개, FCFS 5개)마다 멈춥니다. 재생 키는 `학습 시작 / 이어서 재생 / 일시정지 / 다시 재생`, `이번 사건 다시 보기`로 방금 시각의 이동을 다시 봅니다.
@@ -108,5 +108,5 @@ React 19 + TypeScript + Tailwind CSS v4 + Base UI 페이지입니다(이식 방�
 
 - [OSTEP 7장 — Scheduling: Introduction](https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf): RR·FCFS, 응답·반환 시간, 입출력과 CPU 실행의 중첩
 - [University of Illinois CS341 — Scheduling](https://cs341.cs.illinois.edu/coursebook/Scheduling): 작업 상태와 대기·응답·반환 시간
-- UI와 장면은 탐색기 모음의 공통 하드웨어 디자인(`shared/DESIGN.md`)을 따릅니다.
-- Pretendard는 로컬 파일을 사용하며 라이선스는 `public/fonts/Pretendard-LICENSE.txt`에 있습니다.
+- UI와 장면은 탐색기 모음의 공통 디자인(`docs/DESIGN.md`)을 따릅니다.
+- Pretendard는 npm `pretendard` 패키지로 번들하며 라이선스는 `public/fonts/Pretendard-LICENSE.txt`에 있습니다.

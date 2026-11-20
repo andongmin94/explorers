@@ -1,0 +1,97 @@
+/*
+ * Transaction explorer: the transaction colours and the classes the scene SVG
+ * (stage.ts and the lesson scenes) is built with. Everything else is Tailwind
+ * in the components.
+ */
+
+:root {
+  /* Transaction colours: tokens and LEDs use the solid tone in both themes;
+     printed text uses the -ink tone so it stays readable on dark plates. */
+  --t1: #3971d9;
+  --t2: #168264;
+  --t1-ink: #2f62c4;
+  --t2-ink: #12735a;
+  /* Readouts printed on the dark glass of the row table and the laptop
+     screens (dark in both themes): the accent lifted towards white. */
+  --tx-screen-ink: color-mix(in oklch, var(--accent) 58%, white);
+  --tx-screen-dim: color-mix(in srgb, var(--tx-screen-ink) 62%, #8a8a86);
+}
+:root[data-theme="dark"] {
+  --t1-ink: #8eb0ff;
+  --t2-ink: #6ccead;
+}
+
+/* Scene details the kit leaves to the explorer */
+.tx-scene .tx-callout-t1 .iso-callout-title {
+  fill: var(--t1-ink);
+}
+.tx-scene .tx-callout-t2 .iso-callout-title {
+  fill: var(--t2-ink);
+}
+/* Cables: the pulse runs only on the cable carrying the current request. */
+.tx-scene .tx-lane .iso-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
+}
+/* Row table: the LOCK cell takes the owner's colour. */
+.tx-scene .tx-rows .iso-cell[data-owner="T1"] {
+  fill: color-mix(in oklch, var(--t1) 78%, var(--iso-glass));
+}
+.tx-scene .tx-rows .iso-cell[data-owner="T2"] {
+  fill: color-mix(in oklch, var(--t2) 78%, var(--iso-glass));
+}
+.tx-scene :is(.tx-mover, .tx-pend, .tx-park, .tx-parked > g) {
+  pointer-events: none;
+}
+.tx-scene .tx-mover {
+  opacity: 0;
+}
+.tx-scene .tx-park.is-blocked {
+  animation: tx-blink 1.4s ease-in-out infinite;
+}
+.tx-scene .tx-client:is([data-status="waiting"], [data-status="aborted"]) .tx-screen-value {
+  fill: var(--accent);
+}
+
+/* Wait-for graph on the deadlock floor */
+.tx-scene .tx-edge {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+.tx-scene .tx-edge.is-on {
+  opacity: 1;
+}
+.tx-scene .tx-edge .iso-path {
+  stroke: var(--edge);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+}
+.tx-scene .tx-edge.is-cycle .iso-path {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-dasharray: none;
+}
+.tx-scene .tx-edge.is-detected .iso-path {
+  animation: tx-blink 0.9s ease-in-out infinite;
+}
+/* The WAIT-FOR caption shows only while the graph has an edge to caption. */
+.tx-scene .tx-floor-mark {
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+.tx-scene .tx-edge.is-on ~ .tx-floor-mark {
+  opacity: 0.8;
+}
+
+@keyframes tx-blink {
+  50% {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tx-scene :is(.tx-park.is-blocked, .tx-edge.is-detected .iso-path) {
+    animation: none;
+  }
+  .tx-scene :is(.tx-edge, .tx-floor-mark) {
+    transition: none;
+  }
+}

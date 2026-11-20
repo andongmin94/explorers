@@ -1,0 +1,146 @@
+/*
+ * Memory explorer: the page colours and the classes the scene SVG (scene.ts)
+ * is built with. Everything else is Tailwind in the components.
+ */
+
+/* Page colours A–E: semantic colours for tokens, chips and their LEDs. */
+:root {
+  --page-a: #3971d9;
+  --page-b: #168264;
+  --page-c: #8055c6;
+  --page-d: #b07213;
+  --page-e: #c24f4f;
+  --mem-fault: #c56a1c;
+  /* Ink printed on the frame tray face (the kit metal ink is too dark in dark mode). */
+  --mem-face-ink: #36383b;
+  --mem-face-engrave: rgb(255 255 255 / 0.8);
+}
+:root[data-theme="dark"] {
+  --page-a: #5d8ff0;
+  --page-b: #2aa07c;
+  --page-c: #9a74e0;
+  --page-d: #c98a26;
+  --page-e: #d96565;
+  --mem-fault: #e08a3c;
+  --mem-face-ink: #f1f0ea;
+  --mem-face-engrave: rgb(0 0 0 / 0.55);
+}
+
+/* ---------- Scene ---------- */
+
+/* Cables: the pulse only runs on the cable in use. */
+.mem-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
+}
+.mem-slot-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.mem-slot-ring.is-selected {
+  opacity: 1;
+  stroke-dasharray: 6 4;
+}
+/* A hit: the frame's outline turns solid. No glow (DESIGN.md). */
+.mem-slot-ring.is-hit {
+  opacity: 1;
+  stroke-width: 3;
+}
+.mem-chip-glow {
+  opacity: 0;
+  mix-blend-mode: screen;
+  transition: opacity 160ms ease;
+}
+.mem-chip-glow.is-lit {
+  opacity: 0.6;
+}
+.mem-table .iso-cell.mem-cell-miss {
+  fill: color-mix(in oklch, var(--mem-fault) 70%, var(--iso-glass));
+}
+.mem-entry-frame text {
+  opacity: 0.55;
+}
+.mem-entry.is-resident .mem-entry-frame text {
+  opacity: 1;
+}
+.mem-hand-arrow {
+  fill: var(--accent);
+  stroke: color-mix(in oklch, var(--accent) 60%, black);
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.3));
+}
+.mem-hand-label {
+  fill: var(--accent);
+  font: 800 15px var(--font-sans);
+  paint-order: stroke;
+  stroke: var(--hw-plate);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  /* Grows with the callouts when the scene is drawn small (labelScale). */
+  transform: scale(var(--iso-label-k, 1));
+  transform-box: fill-box;
+  transform-origin: right center;
+}
+.mem-hand-pointer {
+  transition: transform 260ms cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.mem-face-led .iso-led-core {
+  stroke: rgb(0 0 0 / 0.35);
+  stroke-width: 0.5;
+}
+.mem-request[data-state="pending"] .iso-token {
+  opacity: 0.6;
+}
+.mem-request .iso-token,
+.mem-token .iso-token,
+.mem-mover .iso-token {
+  transition: none;
+}
+.mem-movers {
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mem-slot-ring,
+  .mem-chip-glow,
+  .mem-hand-pointer {
+    transition: none;
+  }
+}
+
+/* While the result of an access is asked, what is in RAM would answer it. */
+.mem-scene[data-masked] :is(.mem-tokens, .mem-entry-frame, .mem-entry .iso-led, .mem-rank) {
+  visibility: hidden;
+}
+
+/* Phones: scene callouts keep only their titles, at a readable size. */
+@media (max-width: 759px) {
+  .mem-scene .iso-callout-sub {
+    display: none;
+  }
+}
+
+/* ---------- Frame record ---------- */
+
+/* Console windows up to 1100px tall: the frame record's six rows fit the
+   records plate without scrolling. */
+@media (min-width: 1100px) and (min-height: 700px) and (max-height: 1100px) {
+  .mem-history {
+    padding-block: 2px 4px;
+  }
+  .mem-history thead th {
+    padding-block: 6px 4px;
+  }
+  .mem-history tbody :is(th, td) {
+    height: 26px;
+    padding-block: 2px;
+  }
+  .mem-history [data-slot="page-chip"] {
+    width: 22px;
+    height: 22px;
+  }
+}

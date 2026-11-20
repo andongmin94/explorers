@@ -10,15 +10,13 @@
     "lint": "oxlint --deny-warnings --format unix --no-error-on-unmatched-pattern src scripts tests vite.config.ts playwright.config.ts && oxfmt --check --no-error-on-unmatched-pattern src scripts tests vite.config.ts playwright.config.ts tsconfig.json package.json wrangler.jsonc .oxlintrc.json .oxfmtrc.json",
     "format": "oxlint --fix --no-error-on-unmatched-pattern src scripts tests vite.config.ts playwright.config.ts && oxfmt --write --no-error-on-unmatched-pattern src scripts tests vite.config.ts playwright.config.ts tsconfig.json package.json wrangler.jsonc .oxlintrc.json .oxfmtrc.json",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\" \"shared/test/*.test.js\" \"protocol/test/*.test.js\" \"memory/test/*.test.js\" \"transaction/test/*.test.js\" \"disk/test/*.test.js\" \"git/test/*.test.js\"",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "test:browser": "playwright test",
     "check:scroll": "node scripts/check-scroll.mjs",
     "deploy:cloudflare": "wrangler deploy"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
-    "@ui-sdk/core": "0.1.0-beta.6",
-    "@ui-sdk/web": "0.1.0-beta.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.76.0",

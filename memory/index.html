@@ -2,7 +2,11 @@
 <html lang="ko" data-explorer="memory">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%2334c759'/%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%2334c759'/%3E%3C/svg%3E"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f4f4f6" />
     <meta
@@ -10,16 +14,23 @@
       content="세 개의 RAM 프레임으로 FIFO와 LRU의 페이지 교체를 보고, 예측하고, 비교하는 메모리 탐색기."
     />
     <title>메모리 탐색기 · FIFO와 LRU</title>
-    <link
-      rel="preload"
-      href="/fonts/PretendardVariable.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
+    <script>
+      // Theme before first paint: the saved choice, else the system setting.
+      (() => {
+        let theme = "light";
+        try {
+          theme =
+            localStorage.getItem("memory-explorer:theme") ||
+            (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        } catch {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle("dark", theme === "dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="./src/main.js"></script>
+    <noscript>메모리 탐색기를 실행하려면 JavaScript를 켜 주세요.</noscript>
+    <script type="module" src="/src/explorers/memory/main.tsx"></script>
   </body>
 </html>

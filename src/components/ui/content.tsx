@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn.ts";
 /*
  * Content parts (not glass, not controls): the tag badge, the readout, the
  * status dot, progress dots, the inline note, lists and the keyboard key.
- * shared/DESIGN.md → Liquid Glass parts.
+ * docs/DESIGN.md → Liquid Glass parts.
  */
 
 /** Badge: a quiet capsule, not a control. */

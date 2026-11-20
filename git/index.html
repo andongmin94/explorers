@@ -2,7 +2,11 @@
 <html lang="ko" data-explorer="git">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23af52de'/%3E%3C/svg%3E" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23af52de'/%3E%3C/svg%3E"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f2f2f4" />
     <meta
@@ -10,9 +14,24 @@
       content="fast-forward, 3-way 자동 병합, 충돌 해결, rebase로 브랜치를 합치는 Git 실험실"
     />
     <title>Git 탐색기 · 브랜치와 병합</title>
+    <script>
+      // Theme before first paint: the saved choice (also the vanilla page's key), else the system setting.
+      (() => {
+        let theme = "light";
+        try {
+          theme =
+            localStorage.getItem("git-explorer:theme") ||
+            localStorage.getItem("git-theme") ||
+            (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        } catch {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle("dark", theme === "dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="./src/main.js"></script>
+    <noscript>Git 탐색기를 실행하려면 JavaScript를 켜 주세요.</noscript>
+    <script type="module" src="/src/explorers/git/main.tsx"></script>
   </body>
 </html>

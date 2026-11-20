@@ -1,0 +1,96 @@
+/*
+ * Git explorer: the branch colours and the classes the scene SVG (scene.ts)
+ * is built with. Everything else is Tailwind in the components.
+ */
+
+/* Branch colours are Apple system colours, so they follow the theme. */
+:root {
+  --git-main: var(--sys-blue);
+  --git-feature: var(--sys-green);
+  --git-base: var(--sys-gray);
+  --git-conflict: var(--sys-red);
+  --git-marker-ink: color-mix(in oklch, var(--git-conflict) 80%, black);
+}
+:root[data-theme="dark"] {
+  --git-marker-ink: color-mix(in oklch, var(--git-conflict) 70%, white);
+}
+
+/* Callout subs are labels: system font, sentence case. */
+.git-scene .iso-callout-sub {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+/* Cables carry a pulse only while a snapshot moves along them; the conflict
+   route runs red. */
+.git-cable:not(.is-active):not(.is-conflict) .iso-cable-pulse {
+  display: none;
+}
+.git-cable.is-conflict {
+  --iso-cable-color: color-mix(in oklch, var(--git-conflict) 85%, black);
+}
+.git-cable.is-conflict .iso-cable-hi {
+  stroke: color-mix(in oklch, var(--git-conflict) 45%, white);
+}
+.git-cable.is-conflict .iso-cable-pulse {
+  stroke: color-mix(in oklch, var(--git-conflict) 30%, white);
+}
+/* Commit graph edges: lit traces on the server's glass top. */
+.git-edge {
+  stroke-width: 3.4;
+}
+.git-edge.is-main {
+  stroke: var(--git-main);
+}
+.git-edge.is-feature {
+  stroke: var(--git-feature);
+}
+.git-edge.is-conflict {
+  stroke: var(--git-conflict);
+}
+.git-ref-line {
+  stroke: var(--iso-line);
+  stroke-width: 1;
+}
+.git-ref-text {
+  fill: var(--label);
+  font: 600 12px var(--font-sans);
+  dominant-baseline: central;
+}
+/* Branch tags in the scene */
+.git-ref-pill {
+  fill: var(--window);
+  stroke: var(--separator);
+  stroke-width: 1;
+}
+.git-head-tag {
+  fill: var(--accent);
+}
+.git-head-text {
+  fill: var(--on-accent);
+  font: 700 12px var(--font-sans);
+  letter-spacing: 0;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+/* The device the current lesson is about: its callout title takes the accent. */
+.git-scene[data-focus="working"] .git-callout-work .iso-callout-title,
+.git-scene[data-focus="index"] .git-callout-index .iso-callout-title,
+.git-scene[data-focus="history"] .git-callout-history .iso-callout-title,
+.git-scene[data-focus="merge"] .git-callout-history .iso-callout-title {
+  fill: var(--accent);
+}
+/* After a rebase the original commit stays in the repository, but no branch
+   reaches it: printed faint, its edge dashed. */
+.git-scene .git-slot.is-orphan {
+  opacity: 0.5;
+}
+.git-edge.is-orphan {
+  stroke-dasharray: 5 5;
+  opacity: 0.5;
+}
+/* Phones: labelScale() keeps callouts legible; the subs would crowd a phone. */
+@media (max-width: 759px) {
+  .git-scene .iso-callout-sub {
+    display: none;
+  }
+}

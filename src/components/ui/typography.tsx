@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn.ts";
 
 /*
- * The four text roles (shared/DESIGN.md → Rules 4): Title (Title 2, 17 bold,
+ * The four text roles (docs/DESIGN.md → Rules 4): Title (Title 2, 17 bold,
  * one per group), Text (body 14 / 1.6), Label (12 semibold, secondary,
  * sentence case) and readouts (readout.tsx). Plus Index (an accent number in
  * a label), Heading (15 semibold, inside notes) and Muted.

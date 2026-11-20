@@ -1,6 +1,6 @@
 # 디스크 스케줄링 탐색기
 
-같은 8개 디스크 요청을 세 레슨(01 FCFS와 SSTF, 02 SCAN과 LOOK, 03 C-SCAN과 SCAN)으로 처리하며 헤드 이동 경로·거리·대기를 비교하는 한국어 학습 앱입니다. 왼쪽 레슨 목록(`shared/lesson-rail.js`)에서 레슨을 고르며, 레슨은 `?lesson=scan-look`, `?lesson=cscan`으로 엽니다(첫 레슨은 `/disk/`).
+같은 8개 디스크 요청을 세 레슨(01 FCFS와 SSTF, 02 SCAN과 LOOK, 03 C-SCAN과 SCAN)으로 처리하며 헤드 이동 경로·거리·대기를 비교하는 한국어 학습 앱입니다. 왼쪽 레슨 레일(`src/components/shell/lesson-rail.tsx`, 1280px 미만에서는 상단 `레슨` 키로 여는 서랍)에서 레슨을 고르며, 레슨은 `?lesson=scan-look`, `?lesson=cscan`으로 엽니다(첫 레슨은 `/disk/`).
 
 ## 실행
 
@@ -44,10 +44,29 @@
 - SSD에는 이 모델의 기계적 헤드 탐색이 없습니다.
 - 팔의 움직임은 위치 관계를 보여 주는 투영도이며 실제 디스크 부품의 치수나 지연 측정값이 아닙니다.
 
-## 구현과 검증
+## 소스 구성
 
-`src/engine.js`는 FCFS·SSTF·SCAN·LOOK·C-SCAN의 각 선택(지나는 끝 `path` 포함)과 이전·이후 상태, 요청별 대기, 최악 대기(`worstWait`)를 계산합니다. `src/lessons.js`는 레슨 목록과 레슨별 문구(01: `src/lesson.js`, 02·03: `src/lesson-sweep.js`)를 묶습니다. `src/scene.js`는 대기 큐와 투영된 HDD, 취소·일시정지 가능한 애니메이션을 담당합니다. `src/main.js`는 해설·예측·재생·기록을 연결합니다. 로컬 Pretendard와 자체 SVG를 사용합니다.
+React 19 + TypeScript + Tailwind CSS v4 + Base UI 페이지입니다(이식 방법: [docs/REACT-PORT.md](../docs/REACT-PORT.md)). `disk/index.html`이 `src/explorers/disk/main.tsx`를 불러옵니다. 아래 파일은 모두 `src/explorers/disk/`에 있습니다.
 
-Node 기본 테스트 러너로 FCFS 순서·거리, SSTF의 매 선택 최단 거리·합계, 동률·중복 요청 처리 및 이전 상태 보존, SCAN·LOOK·C-SCAN의 경로와 합계(236·208·386/187), 최악 대기, 레슨별 예측·정리 문구를 검사합니다(`test/sweep.test.js`). 외부 브라우저 검증 프레임워크는 포함하지 않습니다.
+| 파일 | 내용 |
+| --- | --- |
+| `types.ts` | 요청·상태·단계·실행 결과·레슨 내용(핵심 장면, 해설, 예측, 정리)의 타입 |
+| `engine.ts` | 순수 함수 FCFS·SSTF·SCAN·LOOK·C-SCAN: 각 선택(지나는 끝 `path` 포함)과 이전·이후 상태, 요청별 대기, 경로 점(`routePoints`), 최악 대기(`worstWait`) |
+| `lessons.ts` | 레슨 목록(레일 데이터)과 `buildLesson(id)`: 두 방식의 실행·핵심 장면·정지 지점·진도 합계를 한 객체로 묶음 |
+| `lesson.ts` | 레슨 01(FCFS·SSTF)의 시작 화면, 단계 문장, 핵심 메모, 예측 선택지별 이유, 비교 문장, 정리·확인 문제, 범위 |
+| `lesson-sweep.ts` | 레슨 02(SCAN·LOOK)·03(C-SCAN·SCAN)의 같은 내용 |
+| `scene.ts` | `src/lib/iso`로 그린 아이소메트릭 장면(명령형): 요청 큐 레일·컨트롤러·HDD(베어링, 창이 있는 팔, 로드 빔, 슬라이더, 보이스 코일, 플렉스 케이블)·실린더 눈금(헤드 캐리지, 이동 호), 취소·일시정지 가능한 네 단계 애니메이션 |
+| `disk-scene.tsx` | 장면의 React 래퍼(호스트 요소만 소유) |
+| `playback.ts` | 재생 상태 기계(현재 요청, 핵심 장면 정지, 이동 중 단계, 속도)와 `usePlayback`·`useHead` |
+| `app.tsx` | 툴바·레일·콘솔·바닥글·시트와 키보드 연결 |
+| `deck.tsx` | 기준 선택, 재생 키, 처리한 요청 수 막대, 핵심 장면 정지 스위치 |
+| `side.tsx` | 학습 패널(해설+정리, 거리, 장면, 범위): 쪽으로 나뉘며 스크롤하지 않음 |
+| `records.tsx` | 관찰 기록(헤드 이동 경로, 요청 기록, 누적 결과·요청별 대기) |
+| `prediction.tsx` · `comparison.tsx` | 예측 시트와 두 방식 비교 시트 |
+| `format.ts` | C-SCAN·등호 줄바꿈 방지(`fix`), 방식 이름 뒤 조사 |
+| `disk.css` | 요청·헤드·완료 색과 장면 SVG 클래스 |
+| `test/*.test.ts` | FCFS 순서·거리, SSTF의 매 선택 최단 거리·합계, 동률·중복 요청, SCAN·LOOK·C-SCAN의 경로와 합계(236·208·386/187), 최악 대기, 레슨별 예측·정리 문구(35개, `npm test`) |
+
+브라우저 검사는 `tests/disk.spec.ts`(Playwright)입니다.
 
 학습 근거: [OSTEP — Hard Disk Drives, 디스크 구조·탐색·스케줄링](https://pages.cs.wisc.edu/~remzi/OSTEP/file-disks.pdf).

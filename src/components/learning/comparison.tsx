@@ -1,4 +1,4 @@
-// 비교 (shared/DESIGN.md → Learning model): the same input run with the other
+// 비교 (docs/DESIGN.md → Learning model): the same input run with the other
 // method, side by side, with one 갈림길 sentence. The explorer fills the body;
 // the frame gives the head "C 두 방식 비교 · 같은 입력 · 다른 방식" and the
 // two actions.

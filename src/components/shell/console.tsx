@@ -1,4 +1,4 @@
-// The console: rail | stage | side over records | deck (shared/DESIGN.md →
+// The console: rail | stage | side over records | deck (docs/DESIGN.md →
 // Full-screen console). On a desktop ≥ 1100 × 700 it fills the window and
 // never scrolls; below that it stacks (≤ 1099px) and the page scrolls.
 import { useLayoutEffect, useRef, type ReactNode } from "react";

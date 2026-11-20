@@ -1,5 +1,5 @@
 // Content that does not fit is split into pages, never scrolled
-// (shared/DESIGN.md → Nothing scrolls). <PagedList> renders blocks in a box
+// (docs/DESIGN.md → Nothing scrolls). <PagedList> renders blocks in a box
 // with a definite height and hides whole blocks that do not fit on the current
 // page; <Pager> (‹ 1 / 3 ›) steps through them and may sit anywhere (e.g. in
 // an action row under the list). Both share a PagerStore from usePager().

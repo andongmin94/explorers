@@ -1,0 +1,279 @@
+/*
+ * Disk explorer: the semantic colours and the classes the scene SVG
+ * (scene.ts) is built with (copied from disk/src/styles.css). Everything else
+ * is Tailwind in the components.
+ */
+
+/* Semantic colours. The yellow accent is the active path; the head and the
+   selected request use a contrasting blue, served requests green (token
+   colours, dark enough for white digits). */
+:root {
+  --head: #2f6ad8;
+  --done: #168264;
+  --req: #5d6470;
+  --tok: var(--req);
+}
+:root[data-theme="dark"] {
+  --head: #6f9cf5;
+  --done: #3fae8c;
+  --req: #6b7280;
+}
+
+/* Only the cable in use carries a pulse. */
+.disk-scene .iso-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
+}
+/* Scene parts */
+/* Cylinder scale: a white plastic bar facing the viewer. */
+.disk-ruler-shadow {
+  fill: var(--iso-shadow);
+  filter: blur(7px);
+  opacity: 0.55;
+}
+.disk-ruler-ao {
+  fill: var(--iso-contact, var(--iso-shadow));
+  filter: blur(1.5px);
+  opacity: 0.7;
+}
+.disk-slot-num {
+  fill: var(--iso-metal-ink);
+  font: 600 14.5px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+:root[data-theme="dark"] .disk-slot-num {
+  fill: var(--label-2);
+}
+.disk-ruler-face {
+  fill: color-mix(in oklch, var(--iso-front) 88%, var(--iso-side));
+  stroke: var(--iso-line);
+  stroke-width: 0.8;
+  stroke-opacity: 0.5;
+}
+.disk-ruler-top {
+  fill: var(--iso-top-fill);
+  stroke: var(--iso-line);
+  stroke-width: 0.8;
+  stroke-opacity: 0.5;
+}
+.disk-ruler-groove {
+  fill: color-mix(in oklch, var(--iso-side) 70%, black);
+  opacity: 0.45;
+}
+.disk-ruler-edge {
+  stroke: var(--iso-edge-lit, rgb(255 255 255 / 0.9));
+  stroke-width: 1.1;
+}
+.disk-ruler-lip {
+  stroke: var(--iso-rim);
+  stroke-width: 1;
+}
+.disk-tick {
+  stroke: var(--iso-plastic-ink);
+  stroke-width: 1.2;
+  opacity: 0.55;
+}
+.disk-tick.is-major {
+  stroke-width: 1.8;
+  opacity: 0.95;
+}
+.disk-tick-num {
+  fill: var(--iso-plastic-ink);
+  font: 700 16px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+.disk-mark-halo {
+  fill: transparent;
+}
+.disk-mark-core {
+  fill: var(--req);
+  stroke: rgb(0 0 0 / 0.25);
+  stroke-width: 0.8;
+}
+.disk-mark.is-selected .disk-mark-core {
+  fill: var(--head);
+}
+.disk-mark.is-selected .disk-mark-halo {
+  fill: color-mix(in srgb, var(--head) 22%, transparent);
+  stroke: color-mix(in srgb, var(--head) 55%, transparent);
+  stroke-width: 1;
+}
+.disk-mark.is-served .disk-mark-core {
+  fill: var(--done);
+}
+/* Seek arcs over the scale. */
+.disk-arc {
+  fill: none;
+  stroke: var(--iso-guide);
+  stroke-width: 1.4;
+  opacity: 0.55;
+  stroke-linecap: round;
+}
+.disk-arc.is-now {
+  stroke: color-mix(in oklch, var(--accent) 80%, black);
+  stroke-width: 2.8;
+  opacity: 1;
+}
+:root[data-theme="dark"] .disk-arc.is-now {
+  stroke: var(--accent);
+}
+.disk-arc.is-return {
+  stroke-dasharray: 5 5;
+}
+.disk-arc-head {
+  fill: color-mix(in oklch, var(--accent) 80%, black);
+}
+:root[data-theme="dark"] .disk-arc-head {
+  fill: var(--accent);
+}
+.disk-arc-dot {
+  fill: var(--window);
+  stroke: var(--iso-guide);
+  stroke-width: 1.2;
+}
+/* Head carriage riding the scale. */
+.disk-needle {
+  stroke: var(--head);
+  stroke-width: 2;
+}
+.disk-carriage-shadow {
+  fill: var(--iso-shadow);
+  filter: blur(3px);
+  opacity: 0.6;
+}
+.disk-carriage-side {
+  fill: color-mix(in oklch, var(--req) 80%, black);
+}
+.disk-carriage-top {
+  fill: var(--req);
+  stroke: rgb(255 255 255 / 0.35);
+  stroke-width: 0.8;
+}
+.disk-carriage.is-lit .disk-carriage-side {
+  fill: color-mix(in oklch, var(--head) 70%, black);
+}
+.disk-carriage.is-lit .disk-carriage-top {
+  fill: var(--head);
+}
+.disk-carriage-num {
+  fill: #fff;
+  font: 700 15px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
+/* Platter and arm (unchanged look). */
+.disk-guide {
+  fill: none;
+  stroke: rgb(70 68 60 / 0.22);
+  stroke-width: 0.8;
+}
+.disk-head-track {
+  fill: none;
+  stroke: var(--head);
+  stroke-width: 2.2;
+}
+.disk-target-track {
+  fill: none;
+  stroke: var(--head);
+  stroke-width: 1.6;
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+/* Head stack assembly (scene.js armSvg): cast arm, stainless load beam,
+   slider, voice-coil fork with copper coil, bearing, amber flex cable. */
+.disk-hsa {
+  --disk-arm-top: #d4d5d7;
+  --disk-arm-edge: #7a7c80;
+  --disk-beam-top: #eceded;
+  --disk-beam-edge: #9a9c9f;
+  --disk-fork-top: #5c5e62;
+  --disk-fork-edge: #2e3033;
+  --disk-slider-top: #3b3c3f;
+  --disk-slider-edge: #1d1e20;
+  --disk-metal-top: #e2e3e5;
+  --disk-metal-wall: #8e9094;
+  --disk-cap-top: #f2f2f3;
+  --disk-line: rgb(30 31 33 / 0.55);
+}
+:root[data-theme="dark"] .disk-hsa {
+  --disk-arm-top: #a9abaf;
+  --disk-arm-edge: #4a4c50;
+  --disk-beam-top: #c3c5c8;
+  --disk-beam-edge: #6c6e72;
+  --disk-metal-top: #b9bbbe;
+  --disk-metal-wall: #5d5f63;
+  --disk-cap-top: #d0d2d4;
+}
+.disk-arm-shadow {
+  fill: rgb(30 28 24 / 0.28);
+  filter: blur(2px);
+}
+.disk-hsa .disk-arm-top,
+.disk-hsa .disk-arm-edge,
+.disk-hsa [class$="-wall"],
+.disk-hsa [class$="-top"] {
+  stroke: var(--disk-line);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+.disk-hsa .disk-arm-top {
+  stroke-width: 0.6;
+}
+.disk-arm-window {
+  fill: rgb(28 29 31 / 0.62);
+  stroke: rgb(255 255 255 / 0.5);
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+.disk-beam-rib {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.85);
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.disk-coil {
+  fill: #b46d34;
+  stroke: #6e3d17;
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+.disk-coil-hole {
+  fill: #2c2d30;
+  stroke: #d99a62;
+  stroke-width: 0.6;
+  stroke-linejoin: round;
+}
+.disk-flex {
+  fill: none;
+  stroke: #c98a2b;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.disk-flex-hi {
+  fill: none;
+  stroke: rgb(255 226 160 / 0.7);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+.disk-flex-conn {
+  fill: #2c2d30;
+  stroke: #111;
+  stroke-width: 0.6;
+}
+.disk-screw {
+  fill: #b9bbbe;
+  stroke: var(--disk-line);
+  stroke-width: 0.6;
+}
+.disk-screw-slot {
+  stroke: #55575b;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+.disk-token .iso-token {
+  transition: none;
+}
+.disk-token.is-selected {
+  --tok: var(--head);
+}
+.disk-token.is-served {
+  --tok: var(--done);
+}

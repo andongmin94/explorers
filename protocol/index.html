@@ -102,6 +102,7 @@
           ? saved === "dark"
           : matchMedia("(prefers-color-scheme: dark)").matches;
         document.documentElement.dataset.theme = dark ? "dark" : "light";
+        document.documentElement.classList.toggle("dark", dark);
         if (saved)
           for (const meta of document.querySelectorAll(
             'meta[name="theme-color"]',
@@ -111,10 +112,11 @@
         document.documentElement.dataset.theme = "light";
       }
     </script>
-    <script type="module" src="./src/main.js"></script>
+    
   </head>
   <body>
     <div id="app"></div>
+    <script type="module" src="/src/explorers/protocol/main.tsx"></script>
     <noscript>
       <p
         style="

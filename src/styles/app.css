@@ -1,6 +1,6 @@
 /*
  * Explorer pages: Tailwind CSS v4 on the Liquid Glass tokens (tokens.css).
- * Read shared/DESIGN.md (the contract) and docs/REACT-PORT.md (how the React
+ * Read docs/DESIGN.md (the contract) and docs/REACT-PORT.md (how the React
  * shell implements it). Every explorer imports this file once from its
  * main.tsx, then its own small stylesheet for scene SVG classes.
  */
@@ -13,7 +13,7 @@
 /* Dark mode follows <html data-theme="dark"> (also set as .dark). */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
 
-/* Layout conditions of the console (shared/DESIGN.md → Full-screen console).
+/* Layout conditions of the console (docs/DESIGN.md → Full-screen console).
    Declared from the widest to the most specific: later variants win. */
 @custom-variant stacked (@media (max-width: 1099px));
 @custom-variant phone (@media (max-width: 759px));
@@ -218,7 +218,7 @@
   outline-offset: 1px;
 }
 
-/* ---------- Console layout (shared/DESIGN.md → Full-screen console) ---------- */
+/* ---------- Console layout (docs/DESIGN.md → Full-screen console) ---------- */
 
 /* The window: stacks and scrolls below 1100 × 700; one fixed screen above. */
 @utility explorer-page {

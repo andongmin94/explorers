@@ -1,6 +1,6 @@
 # 트랜잭션 탐색기
 
-두 트랜잭션의 재고 갱신, 교착 상태, 격리 수준을 따라가는 한국어 학습 앱입니다. 왼쪽 레슨 목록(`shared/lesson-rail.js`, 1280px 미만에서는 상단 "레슨" 키로 여는 서랍)에서 네 레슨을 고릅니다.
+두 트랜잭션의 재고 갱신, 교착 상태, 격리 수준을 따라가는 한국어 학습 앱입니다. 왼쪽 레슨 목록(`src/components/shell/lesson-rail.tsx`, 1280px 미만에서는 상단 "레슨" 키로 여는 서랍)에서 네 레슨을 고릅니다.
 
 | 레슨 | 주소 | 비교하는 두 조건 |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ PostgreSQL의 `READ COMMITTED`에서 재고 한 행의 초기 값은 10입니다
 
 학습 화면은 SQL 요청과 응답의 이동, 클라이언트가 기억하는 값, DB의 미확정 쓰기와 확정 재고, 잠금 소유자와 대기자를 함께 보여 줍니다. 주문 카드의 잠금 상태와 DB 앞에 멈춘 SQL로 보유·대기·재개를 구분합니다. 커밋 요청이 도착하면 재고 확정과 잠금 해제를 동시에 적용하고, 직전·현재 값으로 변화를 강조합니다. T2의 잠금 획득은 다음 재개 사건에서 일어납니다.
 
-두 페이지 모두 공통 학습 흐름(목표 → 관찰 → 예측 → 확인 → 설명 → 비교 → 정리, `shared/lesson-kit.js`)을 따릅니다. 핵심 장면 정지, 현재 사건 다시 보기, 사건 이동, T1 커밋 직후의 최종 재고 예측, 두 방식 비교, 마지막 사건의 정리(핵심 정리·확인 문제·학습 진도)를 지원합니다. 두 방식 모두 11개 사건을 진행합니다. 각 트랜잭션이 보낸 BEGIN·SELECT·UPDATE·COMMIT은 총 8건, 앱 계산은 2건, 대기 중이던 SQL의 재개는 1건입니다. 사건 기록에서 일반 SELECT의 10번 쓰기 재개는 8번 UPDATE 요청으로, 읽기부터 잠그는 방식의 8번 읽기 재개는 4번 SELECT FOR UPDATE 요청으로 연결됩니다.
+두 페이지 모두 공통 학습 흐름(목표 → 관찰 → 예측 → 확인 → 설명 → 비교 → 정리, `src/lib/lesson-kit.ts`)을 따릅니다. 핵심 장면 정지, 현재 사건 다시 보기, 사건 이동, T1 커밋 직후의 최종 재고 예측, 두 방식 비교, 마지막 사건의 정리(핵심 정리·확인 문제·학습 진도)를 지원합니다. 두 방식 모두 11개 사건을 진행합니다. 각 트랜잭션이 보낸 BEGIN·SELECT·UPDATE·COMMIT은 총 8건, 앱 계산은 2건, 대기 중이던 SQL의 재개는 1건입니다. 사건 기록에서 일반 SELECT의 10번 쓰기 재개는 8번 UPDATE 요청으로, 읽기부터 잠그는 방식의 8번 읽기 재개는 4번 SELECT FOR UPDATE 요청으로 연결됩니다.
 
 ## 모델의 범위
 
@@ -74,15 +74,25 @@ SSI 검사는 두 트랜잭션 사이의 읽기·쓰기 의존 순환만 보는 
 
 ## 구현과 근거
 
-`src/engine.js`가 사건별 상태를 계산하고, `src/lesson.js`가 해설·예측·학습 근거를 제공합니다. `src/presentation.js`는 요청·DB 처리·응답 완료 시점의 표시 상태를 계산합니다. DB 변경은 함께 반영하고 앱이 읽은 값은 응답 도착 뒤 갱신합니다. `src/scene.js`는 취소와 일시정지가 가능한 이동 애니메이션을, `src/lost-update-main.js`는 재생 및 기록 화면을 담당합니다. `src/main.js`는 `?lesson=`에 따라 레슨 01 또는 03·04를 시작하고, 레슨 목록은 `src/lessons.js`에 있습니다. 로컬 Pretendard와 자체 SVG 장치를 사용합니다.
+React 19 + TypeScript + Tailwind CSS v4 + Base UI 페이지입니다(이식 방법: [docs/REACT-PORT.md](../docs/REACT-PORT.md)). `transaction/index.html`이 `src/explorers/transaction/main.tsx`(레슨 01·03·04, `?lesson=deadlock`은 `deadlock.html`로 이동)를, `transaction/deadlock.html`이 `deadlock-main.tsx`(레슨 02)를 불러옵니다. 네 레슨이 같은 콘솔(`app.tsx`)을 쓰고, 레슨마다 `page.ts`의 `TxPage` 하나(실행·장면·해설·기록·비교)를 넘깁니다. 아래 파일은 모두 `src/explorers/transaction/`에 있습니다.
 
-엔진과 학습 검사는 Node의 기본 테스트 러너로 실행합니다. 외부 브라우저 테스트 프레임워크는 포함하지 않습니다.
+| 파일 | 역할 |
+| --- | --- |
+| `engine.ts`, `presentation.ts`, `lesson.ts` | 레슨 01: 사건별 상태, 요청·DB 처리·응답 완료 시점의 표시 상태, 해설·예측·정리 |
+| `deadlock-engine.ts`, `deadlock-lesson.ts` | 레슨 02: 두 행의 잠금·대기·감지·롤백 모델과 시점별 표시 상태, 해설·예측·정리 |
+| `isolation-engine.ts`, `isolation-lesson.ts` | 레슨 03·04: 스냅숏·버전·행 잠금·40001 모델, 해설·예측·비교·정리 |
+| `lessons.ts`, `types.ts` | 레슨 목록(레일·제목·진도 id), 공통 타입 |
+| `stage.ts` | 장면 공통 부품(바닥, DB 서버와 행 표·WAIT 칸, 노트북, 케이블, SQL 토큰, 일시정지·속도·취소가 되는 이동) |
+| `scene.ts`, `deadlock-scene.ts`, `isolation-scene.ts` | 레슨별 장면(한 행·두 행, 대기 관계 선, 40001 토큰) |
+| `player.ts` | 사건 재생기(재생·정지·이동·다시 보기·속도·핵심 장면 정지)를 외부 저장소로 |
+| `app.tsx`, `deck.tsx`, `side.tsx`, `records.tsx`, `results.tsx`, `sheets.tsx`, `parts.tsx` | 셸과 장면 호스트, 조작 팔레트, 학습 패널(해설·장면·범위·정리), 관찰 기록 틀, 결과, 예측·비교 시트, 공통 표 부품 |
+| `lost-update.tsx`, `deadlock.tsx`, `isolation.tsx` | 레슨별 `TxPage`: 실행 순서·사건 기록·결과 표, 비교 열, 범위 |
+| `transaction.css` | 트랜잭션 색과 장면 SVG 클래스 |
+| `test/*.test.ts` | 엔진·해설·표시 상태·교착 상태·격리 수준 검사(36개, `npx tsx --test "src/explorers/transaction/**/*.test.ts"`) |
 
-교착 상태의 계산·시점별 표시 상태는 `src/deadlock-engine.js`, 해설은 `src/deadlock-lesson.js`, 장면과 재생 화면은 `src/deadlock-scene.js`와 `src/deadlock-main.js`에 분리되어 있습니다.
+브라우저 흐름 검사는 `tests/transaction.spec.ts`(Playwright)입니다. 로컬 Pretendard와 자체 SVG 장치를 사용합니다.
 
 - [PostgreSQL: Read Committed Isolation Level](https://www.postgresql.org/docs/current/transaction-iso.html#XACT-READ-COMMITTED)
 - [PostgreSQL: Row-Level Locks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-ROWS)
 - [PostgreSQL: Deadlocks](https://www.postgresql.org/docs/current/explicit-locking.html#LOCKING-DEADLOCKS)
 - [PostgreSQL: Transactions](https://www.postgresql.org/docs/current/tutorial-transactions.html)
-
-격리 수준 레슨(03·04)은 `src/isolation-engine.js`(스냅숏·버전·행 잠금·40001 모델), `src/isolation-lesson.js`(해설·예측·비교·정리), `src/isolation-scene.js`, `src/isolation-main.js`로 구성되며, 검사는 `test/isolation.test.js`입니다.

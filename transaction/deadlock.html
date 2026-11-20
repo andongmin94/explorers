@@ -2,7 +2,6 @@
 <html lang="ko" data-explorer="transaction">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23ff2d55'/%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f4f4f6" />
     <meta
@@ -11,15 +10,27 @@
     />
     <title>교착 상태 · 트랜잭션 탐색기</title>
     <link
-      rel="preload"
-      href="/fonts/PretendardVariable.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='28' height='28' rx='8' fill='%23ff2d55'/%3E%3C/svg%3E"
     />
+    <script>
+      // Theme before first paint: the saved choice, else the system setting.
+      (() => {
+        let theme = "light";
+        try {
+          theme =
+            localStorage.getItem("transaction-explorer:theme") ||
+            (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        } catch {}
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.classList.toggle("dark", theme === "dark");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="./src/deadlock-main.js"></script>
+    <noscript>트랜잭션 탐색기를 실행하려면 JavaScript를 켜 주세요.</noscript>
+    <script type="module" src="/src/explorers/transaction/deadlock-main.tsx"></script>
   </body>
 </html>

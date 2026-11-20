@@ -1,4 +1,4 @@
-// 정리 (shared/DESIGN.md → Learning model): 핵심 정리 points, 확인 문제
+// 정리 (docs/DESIGN.md → Learning model): 핵심 정리 points, 확인 문제
 // answered without the scene (every choice has its why), the progress line and
 // the link onward. recapItems() returns the blocks for a <PagedList>, so a
 // question and its answer split into whole pages instead of overflowing.

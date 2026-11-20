@@ -1,7 +1,7 @@
 // 예측 for the CPU: who gets the CPU at the next decision, then a number
 // (first response or how long this turn lasts). Generated from the run, so it
 // works for every method and quantum (the CPU's "two-step generated
-// prediction", shared/DESIGN.md).
+// prediction", docs/DESIGN.md).
 import { useEffect, useRef, useState } from "react";
 
 import {

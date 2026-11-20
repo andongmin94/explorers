@@ -1,4 +1,4 @@
-// 예측 (shared/DESIGN.md → Learning model): a sheet opened just before a
+// 예측 (docs/DESIGN.md → Learning model): a sheet opened just before a
 // decision. While it is open nothing on screen gives the answer away; each
 // option has its own why; answering never gates progress. The explorer
 // fills the body (context, choices, follow-ups); this file gives the frame

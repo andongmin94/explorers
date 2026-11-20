@@ -3,7 +3,7 @@
 // This module holds the shared wording (LABELS), the experiment order
 // (nextExperiment) and learning progress kept in localStorage
 // (createProgress, lessonStatus). The 정리 panel and the progress line are
-// React components in src/components/learning. See shared/DESIGN.md →
+// React components in src/components/learning. See docs/DESIGN.md →
 // "Learning model". Same data and storage key as shared/lesson-kit.js, so
 // progress carries over between the vanilla and the React pages.
 

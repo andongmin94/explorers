@@ -4,7 +4,7 @@
 
 ## 실행
 
-이 탐색기는 [탐색기 모음](../README.md)의 한 페이지입니다. 저장소 루트에서 `npm run dev`를 실행한 뒤 <http://127.0.0.1:5173/git/>을 엽니다. 검사는 루트의 `npm test`로 모든 탐색기를 함께 실행합니다.
+이 탐색기는 [탐색기 모음](../README.md)의 한 페이지입니다(React 19 + TypeScript + Tailwind CSS v4 + Base UI, `docs/REACT-PORT.md`). 저장소 루트에서 `npm run dev`를 실행한 뒤 <http://127.0.0.1:5173/git/>을 엽니다. 검사는 루트의 `npm test`로 모든 탐색기를 함께 실행합니다.
 
 ## 레슨
 
@@ -58,18 +58,25 @@ C0–C3, C1'은 읽기 쉬운 학습용 이름이며 실제 Git 해시가 아닙
 
 ## 파일
 
-- `src/engine.js`: 사건별 독립 상태. `simulateGit`(03), `simulateFastForward`, `simulateAutoMerge`, `simulateRebase`, 줄 색 분류 `lineKinds`, 2-way/3-way 비교 `compareMergeBases`.
-- `src/lessons.js`: 레슨 목록(레일의 `{ id, name, sub }`)과 레슨별 질문·핵심 장면·예측·해설·정리·비교·장면 배치. `src/lesson-model.js`는 레슨 데이터를 main.js가 쓰는 모양으로 바꾸고, `src/lesson.js`는 03의 해설을 담습니다.
-- `src/scene.js`: 작업 트리·인덱스·저장소 장면과 이동(레슨별 커밋 배치).
-- `src/main.js`: 레슨 선택(`?lesson=`), 레일(`shared/lesson-rail.js`), 재생, 예측, 비교, 정리.
+소스는 `src/explorers/git/`에 있고, 이 폴더에는 진입 페이지 `index.html`만 남습니다.
+
+| 파일 | 내용 |
+| ---- | ---- |
+| `engine.ts`, `types.ts` | 사건별 독립 상태. `simulateGit`(03), `simulateFastForward`, `simulateAutoMerge`, `simulateRebase`, 줄 색 분류 `lineKinds`, 2-way/3-way 비교 `compareMergeBases` |
+| `lessons.ts`, `lesson-model.ts`, `lesson.ts` | 레슨 목록(레일의 `{ id, name, sub }`)과 레슨별 질문·핵심 장면·예측·해설·정리·비교·장면 배치. `lesson-model.ts`는 레슨 데이터를 페이지가 쓰는 모양으로 바꾸고, `lesson.ts`는 03의 해설을 담습니다 |
+| `scene.ts`, `git-scene.tsx` | 작업 트리(노트북 화면의 작은 편집기)·인덱스(stage 0–3 트레이)·저장소(서버 위 커밋 그래프) 장면과 이동. 장면은 명령형 SVG이고 React는 호스트만 가집니다 |
+| `playback.ts` | 재생 흐름: 사건 이동, 핵심 장면 멈춤, 03의 해결안 관문, 답한 예측, 딥 링크 `?step=N&choice=…`(`&animate`로 그 사건을 재생) |
+| `app.tsx`, `deck.tsx`, `side.tsx`, `records.tsx`, `well.tsx`, `prediction.tsx`, `comparison.tsx` | 화면: 툴바·레일·장면 옆 파일 창(작업 트리/인덱스/HEAD 커밋)·재생 조작·해설/장면/변화/범위 탭·사건 기록(전체 사건 기준 고정 열 너비)/커밋 이력/병합 결과·예측·비교 |
+| `git.css` | 브랜치 색과 장면 SVG 클래스 |
+| `test/*.test.ts` | 아래 검증 |
 
 ## 검증
 
-`node --test git/test`: 33개 테스트로 네 레슨의 브랜치 포인터·부모·인덱스·파일 내용, fast-forward와 `--no-ff`, 3-way 자동 병합과 2-way 생각 실험, rebase의 C1' 생성과 C1 이탈, 터미널 출력, 예측 정답과 모델의 일치, 예측 중 답 숨김, 레슨 순서·다음 레슨 링크·진도 id를 검사합니다.
+`npx tsx --test "src/explorers/git/**/*.test.ts"`: 33개 테스트로 네 레슨의 브랜치 포인터·부모·인덱스·파일 내용, fast-forward와 `--no-ff`, 3-way 자동 병합과 2-way 생각 실험, rebase의 C1' 생성과 C1 이탈, 터미널 출력, 예측 정답과 모델의 일치, 예측 중 답 숨김, 레슨 순서·다음 레슨 링크·진도 id를 검사합니다.
 
 모든 명령 출력은 별도 임시 저장소에서 git 2.56으로 같은 시나리오를 실행해 확인했습니다: fast-forward(`Updating …` / `Fast-forward` / ` welcome.txt | 2 +-`), `--no-ff`와 자동 병합(`Merge made by the 'ort' strategy.`, 자동 병합은 앞에 `Auto-merging welcome.txt`), rebase(`Rebasing (1/1)` 진행 표시 뒤 `Successfully rebased and updated refs/heads/feature/title.`), 그리고 각 경우의 `git log --graph` 모양.
 
-`node scripts/check-scroll.mjs "git/" "git/?lesson=auto-merge" "git/?lesson=conflict" "git/?lesson=rebase" --sizes=1100x700,1280x720,1440x900,1920x1080 --steps=12`은 모든 레슨에서 `ok`입니다.
+`node scripts/check-scroll.mjs "git/" "git/?lesson=auto-merge" "git/?lesson=conflict" "git/?lesson=rebase" --sizes=1100x700,1280x720,1440x900,1920x1080 --steps=12`은 모든 레슨에서 `ok`입니다. 브라우저 흐름(키보드, 예측, 03의 해결안 관문, 비교, 정리)은 `tests/git.spec.ts`(`npm run test:browser`)가 확인합니다.
 
 ## 학습 근거
 
