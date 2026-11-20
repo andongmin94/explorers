@@ -30,10 +30,10 @@ const icon = (name) =>
 const escape = (text) =>
   text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-const BASE = import.meta.env?.BASE_URL ?? "/";
+// The site is served at the root (Cloudflare Workers static assets).
+const BASE = "/";
 
 function mountSwitcher() {
-  // The site may live under a base path (e.g. /explorers/ on GitHub Pages).
   const slug = location.pathname.slice(BASE.length).split("/")[0];
   const current = explorers.find((explorer) => explorer.slug === slug);
   const heading = document.querySelector("header h1");

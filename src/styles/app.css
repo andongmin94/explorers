@@ -1,0 +1,379 @@
+/*
+ * Explorer pages: Tailwind CSS v4 on the Liquid Glass tokens (tokens.css).
+ * Read shared/DESIGN.md (the contract) and docs/REACT-PORT.md (how the React
+ * shell implements it). Every explorer imports this file once from its
+ * main.tsx, then its own small stylesheet for scene SVG classes.
+ */
+@import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
+@import "tailwindcss";
+@import "./tokens.css";
+
+@source "..";
+
+/* Dark mode follows <html data-theme="dark"> (also set as .dark). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
+
+/* Layout conditions of the console (shared/DESIGN.md → Full-screen console).
+   Declared from the widest to the most specific: later variants win. */
+@custom-variant stacked (@media (max-width: 1099px));
+@custom-variant phone (@media (max-width: 759px));
+@custom-variant drawer (@media (max-width: 1279px));
+@custom-variant rail-column (@media (min-width: 1280px));
+@custom-variant console (@media (min-width: 1100px) and (min-height: 700px));
+@custom-variant console-short (@media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px));
+@custom-variant console-tight (@media (min-width: 1100px) and (max-height: 760px));
+@custom-variant short (@media (min-width: 760px) and (max-height: 820px));
+@custom-variant lens (:root[data-lens="on"] &);
+@custom-variant opaque {
+  @media (prefers-reduced-transparency: reduce) {
+    @slot;
+  }
+  @media (prefers-contrast: more) {
+    @slot;
+  }
+}
+
+@theme {
+  /* SF Pro via the system stack, Pretendard for Hangul and where SF is missing. */
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard Variable", Pretendard, system-ui,
+    "Segoe UI", "Malgun Gothic", sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "Pretendard Variable", Pretendard,
+    system-ui, "Segoe UI", "Malgun Gothic", sans-serif;
+  /* Monospace only for code, packet bytes and numbers that must line up. */
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Iosevka, Menlo, Consolas, "Pretendard Variable",
+    Pretendard, monospace;
+
+  /* macOS 26 text styles; 12px is the floor, Korean reading text is 14.
+     caption/control set only the size: the line height is the context's. */
+  --text-caption: 12px;
+  --text-control: 13px;
+  --text-body: 14px;
+  --text-body--line-height: 1.6;
+  --text-headline: 15px;
+  --text-headline--line-height: 20px;
+  --text-title: 17px;
+  --text-title--line-height: 22px;
+  --text-large: 22px;
+  --text-large--line-height: 26px;
+
+  --font-weight-medium: 510;
+  --font-weight-semibold: 590;
+  --font-weight-bold: 700;
+
+  --radius-window: 26px;
+  --radius-panel: 18px;
+  --radius-group: 12px;
+  --radius-note: 10px;
+  --radius-small: 8px;
+  --radius-menu: 13px;
+
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --ease-knob: cubic-bezier(0.3, 1.3, 0.5, 1);
+  --ease-drawer: cubic-bezier(0.2, 1.1, 0.3, 1);
+}
+
+/* Colours read the runtime tokens, so light/dark and the explorer accent
+   switch without rebuilding: bg-window, text-label-2, bg-fill-3, bg-accent … */
+@theme inline {
+  --color-window: var(--window);
+  --color-group: var(--group);
+  --color-label: var(--label);
+  --color-label-2: var(--label-2);
+  --color-label-3: var(--label-3);
+  --color-label-4: var(--label-4);
+  --color-label-5: var(--label-5);
+  --color-vlabel: var(--vlabel);
+  --color-vlabel-2: var(--vlabel-2);
+  --color-vlabel-3: var(--vlabel-3);
+  --color-fill-1: var(--fill-1);
+  --color-fill-2: var(--fill-2);
+  --color-fill-3: var(--fill-3);
+  --color-fill-4: var(--fill-4);
+  --color-fill-5: var(--fill-5);
+  --color-separator: var(--separator);
+  --color-separator-soft: var(--separator-soft);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-accent-fill: var(--accent-fill);
+  --color-on-accent: var(--on-accent);
+  --color-control-fill: var(--control-fill);
+  --color-control-press: var(--control-fill-press);
+  --color-track: var(--track);
+  --color-knob: var(--knob);
+  --color-lg-hover: var(--lg-hover);
+  --color-lg-press: var(--lg-press);
+  --color-lg-selected: var(--lg-selected);
+  --color-sys-red: var(--sys-red);
+  --color-sys-orange: var(--sys-orange);
+  --color-sys-yellow: var(--sys-yellow);
+  --color-sys-green: var(--sys-green);
+  --color-sys-blue: var(--sys-blue);
+  --color-sys-purple: var(--sys-purple);
+  --color-sys-pink: var(--sys-pink);
+  --color-sys-gray: var(--sys-gray);
+  --shadow-knob: var(--knob-shadow);
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--window);
+    color: var(--label);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+  }
+  [hidden] {
+    display: none !important;
+  }
+  /* Sheets dim the window a little (Base UI renders the backdrop). */
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+}
+
+/* ---------- Liquid Glass materials ---------- */
+
+/* Medium glass: sidebars, palettes (the deck, the lesson rail). */
+@utility glass-md {
+  background: var(--lg-sheen), var(--lg-medium);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  backdrop-filter: var(--lg-backdrop);
+  box-shadow: var(--lg-rim), var(--lg-shadow);
+  :root[data-lens="on"] & {
+    backdrop-filter: blur(var(--lg-blur)) url(#lg-lens) saturate(var(--lg-sat))
+      brightness(var(--lg-bright));
+  }
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none !important;
+  }
+}
+
+/* Small glass: one floating control (keys, the switcher, readouts over the scene). */
+@utility glass-sm {
+  background: var(--lg-sheen), var(--lg-small);
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  backdrop-filter: var(--lg-backdrop);
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none !important;
+  }
+}
+/* Small glass that bends its backdrop (toolbar keys, the switcher, the clock). */
+@utility glass-lens-sm {
+  :root[data-lens="on"] & {
+    backdrop-filter: blur(6px) url(#lg-lens-sm) saturate(var(--lg-sat)) brightness(var(--lg-bright));
+  }
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    :root[data-lens="on"] & {
+      backdrop-filter: none;
+    }
+  }
+}
+
+/* Large glass: sheets. Near-opaque so text behind never reads through. */
+@utility glass-lg {
+  background: var(--lg-sheen), color-mix(in srgb, var(--window) 92%, transparent);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(var(--lg-bright));
+  box-shadow:
+    var(--lg-rim),
+    0 24px 70px rgb(0 0 0 / 0.28);
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Menu background (kit 488:1821). */
+@utility glass-menu {
+  background: var(--lg-sheen), var(--lg-medium);
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8) brightness(var(--lg-bright));
+  box-shadow:
+    var(--lg-rim),
+    0 0 2px rgb(0 0 0 / 0.1),
+    0 0 25px rgb(0 0 0 / 0.16);
+  :root[data-theme="dark"] & {
+    box-shadow:
+      var(--lg-rim),
+      0 0 2px rgb(0 0 0 / 0.5),
+      0 0 25px rgb(0 0 0 / 0.4);
+  }
+  @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* The focus ring every control uses. */
+@utility ring-focus {
+  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+/* ---------- Console layout (shared/DESIGN.md → Full-screen console) ---------- */
+
+/* The window: stacks and scrolls below 1100 × 700; one fixed screen above. */
+@utility explorer-page {
+  --page-pad-x: 16px;
+  --toolbar-h: 52px;
+  --console-gap: 12px;
+  min-height: 100dvh;
+  padding: 10px var(--page-pad-x) 28px;
+  font-size: 13px;
+  line-height: 1.45;
+  @media (max-width: 759px) {
+    --page-pad-x: 12px;
+    padding: 8px 12px 24px;
+  }
+  @media (min-width: 1100px) and (min-height: 700px) {
+    --page-pad-x: 10px;
+    --console-gap: 10px;
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding: 0 var(--page-pad-x) 8px;
+    overflow: hidden;
+  }
+  @media (min-width: 1100px) and (min-height: 700px) and (max-height: 820px) {
+    --toolbar-h: 48px;
+    --console-gap: 8px;
+  }
+}
+
+/* The console grid: rail | stage | side over records | deck. Explorers tune
+   --side-w and --records-h (style prop on <Console>); never the areas. */
+@utility console-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-areas:
+    "stage side"
+    "deck side"
+    "records records";
+  grid-template-rows: auto 1fr auto;
+  gap: var(--console-gap);
+  max-width: 1680px;
+  margin: 0 auto;
+  align-items: start;
+  @media (max-width: 1099px) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "stage" "deck" "side" "records";
+  }
+  @media (max-width: 759px) {
+    --console-gap: 10px;
+  }
+  @media (min-width: 1280px) {
+    --rail-w: clamp(224px, 15vw, 272px);
+    grid-template-columns: var(--rail-w) minmax(0, 1fr) 360px;
+    grid-template-areas:
+      "rail stage side"
+      "rail deck side"
+      "records records records";
+  }
+  @media (min-width: 1100px) and (min-height: 700px) {
+    --side-w: clamp(340px, 25vw, 440px);
+    --records-h: clamp(200px, 30vh, 340px);
+    --stage-reach-x: var(--page-pad-x);
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: none;
+    grid-template-columns: minmax(0, 1fr) var(--side-w);
+    /* The deck sits under the lesson, beside the records. The records span
+       two rows and the lesson the first two; --records-extra (useConsoleRows)
+       is max(0, records height − deck height − gap). */
+    grid-template-rows: minmax(0, 1fr) var(--records-extra, 0px) auto;
+    grid-template-areas:
+      "stage side"
+      "records side"
+      "records deck";
+    align-items: stretch;
+  }
+  @media (min-width: 1280px) and (min-height: 700px) {
+    --stage-reach-x: calc(var(--page-pad-x) + var(--rail-w) + var(--console-gap));
+    grid-template-columns: var(--rail-w) minmax(0, 1fr) var(--side-w);
+    grid-template-areas:
+      "rail stage side"
+      "rail records side"
+      "rail records deck";
+  }
+}
+
+/* The stage is the window backdrop: on the console its box reaches under the
+   toolbar and the rail to the window edge, and fades out softly toward the
+   side column and the records. The scene box inside keeps the visible size. */
+@utility stage-reach {
+  @media (min-width: 1100px) and (min-height: 700px) {
+    margin-top: calc(-1 * (var(--toolbar-h) + var(--console-gap)));
+    margin-left: calc(-1 * var(--stage-reach-x));
+    padding-top: calc(var(--toolbar-h) + var(--console-gap));
+    padding-left: var(--stage-reach-x);
+    --stage-fade: 44px;
+    --stage-head-band: calc(var(--toolbar-h, 52px) + var(--console-gap, 12px) + 56px);
+    mask-image:
+      linear-gradient(#000, #000), linear-gradient(to left, transparent 0, #000 var(--stage-fade)),
+      linear-gradient(to top, transparent 0, #000 22px);
+    mask-size:
+      100% var(--stage-head-band),
+      100% 100%,
+      100% 100%;
+    mask-position:
+      top left,
+      top left,
+      top left;
+    mask-repeat: no-repeat;
+    mask-composite: add, intersect;
+  }
+}
+
+/* A body that fills its group and never scrolls: a column whose flexible
+   child (the paged list) takes the remaining height. */
+@utility fit-column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  & > * {
+    flex: none;
+  }
+  & > [data-fill] {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* Paged blocks (src/components/learning/pager.tsx): hairlines between the
+   visible blocks, a gap (never a margin) between them. */
+@utility paged-blocks {
+  display: flex;
+  flex-direction: column;
+  row-gap: 14px;
+  & > :not([hidden]) ~ :not([hidden]) {
+    padding-top: 12px;
+    border-top: 1px solid var(--separator-soft);
+  }
+  /* A note brings its own fill; no second hairline over it. */
+  & > :not([hidden]) ~ [data-note-block] {
+    padding-top: 0;
+    border-top: 0;
+  }
+  /* Sentences split from one paragraph read as one paragraph. */
+  & > [data-split="cont"] {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    border-top: 0 !important;
+  }
+}
+
+/* Korean text never breaks inside a word. */
+@utility keep-all {
+  word-break: keep-all;
+}

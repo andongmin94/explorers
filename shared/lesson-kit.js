@@ -39,8 +39,8 @@ export const LABELS = {
 };
 
 /** Learning order across the explorers; the 정리 panel links to the next. */
-// The site may live under a base path (e.g. /explorers/ on GitHub Pages).
-const BASE = import.meta.env?.BASE_URL ?? "/";
+// The site is served at the root (Cloudflare Workers static assets).
+const BASE = "/";
 export const EXPERIMENTS = [
   { id: "protocol", href: `${BASE}protocol/`, title: "인터넷 프로토콜" },
   { id: "cpu", href: `${BASE}cpu/`, title: "CPU 스케줄링" },

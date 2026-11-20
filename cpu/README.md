@@ -8,7 +8,7 @@
 
 ## 레슨
 
-왼쪽 레슨 레일(`shared/lesson-rail.js`)에서 고릅니다. 1280px 미만에서는 상단 `레슨` 키로 여는 서랍입니다. 레슨은 URL로 바뀝니다(`/cpu/`, `/cpu/?lesson=sjf`, `/cpu/?lesson=srtf`). 데이터와 내용은 `src/lessons.js`, CPU만 쓰는 레슨의 장면·예측·해설은 `src/policy-lesson.js`, 엔진의 SJF/SRTF는 `src/engine.js`에 있습니다. 근거: OSTEP 7장(7.3 FIFO, 7.4 SJF, 7.5 STCF).
+왼쪽 레슨 레일(`src/components/shell/lesson-rail.tsx`)에서 고릅니다. 1280px 미만에서는 상단 `레슨` 키로 여는 서랍입니다. 레슨은 URL로 바뀝니다(`/cpu/`, `/cpu/?lesson=sjf`, `/cpu/?lesson=srtf`). 데이터와 내용은 `src/explorers/cpu/lessons.ts`, CPU만 쓰는 레슨의 장면·예측·해설은 `policy-lesson.ts`, 엔진의 SJF/SRTF는 `engine.ts`에 있습니다. 근거: OSTEP 7장(7.3 FIFO, 7.4 SJF, 7.5 STCF).
 
 | 레슨 | 질문 | 작업(도착 · CPU) | 두 방식 | 검산 |
 | --- | --- | --- | --- | --- |
@@ -85,22 +85,24 @@ CPU는 하나, 입출력은 서로 독립적으로 진행되며 문맥 교환 �
 
 ## 소스 구성
 
+React 19 + TypeScript + Tailwind CSS v4 + Base UI 페이지입니다(이식 방법: [docs/REACT-PORT.md](../docs/REACT-PORT.md)). `cpu/index.html`이 `src/explorers/cpu/main.tsx`를 불러옵니다. 아래 파일은 모두 `src/explorers/cpu/`에 있습니다.
+
 | 파일 | 역할 |
 | --- | --- |
-| `src/engine.js` | 순수 함수 기반 RR·FCFS·SJF·SRTF 계산, 프레임·사건·결정·통계, 시작 전 프레임(`preFrame`) |
-| `src/lessons.js` | 레슨 목록(레일 데이터·작업·두 방식)과 레슨별 내용(질문·정리·확인 문제·비교 문장·범위) |
-| `src/policy-lesson.js` | CPU만 쓰는 레슨(02·03)의 핵심 장면·해설·사건 메모·예측 선택지별 이유 |
-| `src/scene.js` | `shared/iso-kit.js`로 그린 아이소메트릭 장면: 도착 트레이·준비 큐 레일(`queueRail`)·CPU 칩(`chip`)·입출력 SSD·완료함(`bin`)을 케이블로 잇고, 쓰는 케이블을 밝히며 작업 토큰을 옮깁니다. `fitScene`으로 무대 비율에 맞춰 프레이밍 |
-| `src/lesson.js` | 레슨 01의 시작 화면, 장면별 해설과 단계별 핵심 메모, 동적 핵심 장면, 예측 선택지별 이유, 정리·확인 문제, 작업별 구간 진행·시간 분해 |
-| `src/main.js` | 재생·탐색·예측·비교 UI, 시간표와 사건 기록 |
-| `src/styles.css` | 공통 하드웨어 키트(`shared/hw.css`) 위의 CPU 탐색기 전용 스타일 |
-| `test/engine.test.js` | 수동 검산, FIFO 순서, CPU 보존, 지표·대기·유휴 검사 |
-| `test/lesson.test.js` | 장면 해설 안정성, 경과 시간 분해, 입출력 경계, 미래 지표 미노출 검사 |
-| `test/review.test.js` | 비교 문장·할당량 줄, 시작 화면, 핵심 메모, 예측 선택지·이유·숫자 선택지, 확인 문제 검사 |
-| `test/josa.test.js` | P1·P2 같은 이름 뒤 조사 검사 |
-| `test/lessons.test.js` | SJF·SRTF 검산(02·03의 수치, 선점·keep, 동률), 레슨 데이터 형태, 레슨별 시작 화면·장면 안정성·예측 선택지마다 이유·정리·확인 문제·비교 문장 |
-
-엔진 검사 11개, 학습 해설·작업 검사 6개, 리뷰 회귀 검사 8개, 조사 검사 1개, 레슨 검사 20개(총 46개)를 갖추었습니다. 학습 검사는 RR 1~5 ms·FCFS의 시간 분해, 입출력 시작·복귀 경계, 장면 내 본문 유지, 완료 전 반환 시간 미노출을 확인합니다. 리뷰 검사는 예측 선택지에 실행 중인 작업이 늘 들어가는지, 모든 선택지에 이유가 있는지, 숫자 선택지의 정답 위치(0~3)와 할당량 상한, 할당량 1 ms의 사용 시간 질문 생략을 확인합니다. 화면은 1100×700·1280×720·1440×900·1920×1080에서 `node scripts/check-scroll.mjs "cpu/" "cpu/?lesson=sjf" "cpu/?lesson=srtf"`로 세 레슨 모두 스크롤이 없음을 확인했고, 1440×900에서 시작 화면이 한 페이지에 들어갑니다.
+| `types.ts` | 시뮬레이션·레슨 내용의 타입(작업, 프레임, 사건, 결정, 통계, 예측) |
+| `engine.ts` | 순수 함수 기반 RR·FCFS·SJF·SRTF 계산, 프레임·사건·결정·통계, 시작 전 프레임(`preFrame`) |
+| `lessons.ts` | 레슨 목록(레일 데이터·작업·두 방식)과 레슨별 내용(질문·정리·확인 문제·비교 문장·범위) |
+| `policy-lesson.ts` | CPU만 쓰는 레슨(02·03)의 핵심 장면·해설·사건 메모·예측 선택지별 이유 |
+| `lesson.ts` | 레슨 01의 시작 화면, 장면별 해설과 단계별 핵심 메모, 동적 핵심 장면, 예측 선택지별 이유, 정리·확인 문제, 작업별 구간 진행·시간 분해 |
+| `josa.ts` | P1·P2 같은 이름 뒤 조사(숫자는 영어로 읽음, `src/lib/josa.ts` 위) |
+| `scene.ts` | `src/lib/iso`로 그린 아이소메트릭 장면(명령형): 도착 트레이·준비 큐 레일·CPU 칩·입출력 SSD·완료함을 케이블로 잇고 작업 토큰을 WAAPI로 옮깁니다 |
+| `scheduler-scene.tsx` | 장면을 React에 붙이는 래퍼(호스트 요소, 토큰 선택) |
+| `playback.ts` | 재생 상태 기계(시각, 핵심 장면 정지, 이동 중 프레임, 속도)와 `usePlayback` |
+| `app.tsx` | 셸(툴바·레일·콘솔·푸터)과 패널·시트 연결, 단축키 |
+| `deck.tsx`, `side.tsx`, `explanation.tsx`, `records.tsx` | 조작 팔레트, 학습 패널(해설·장면·작업·범위), 해설 블록, 관찰 기록(시간표·사건 기록·작업별 지표) |
+| `prediction.tsx`, `comparison.tsx` | 예측 시트(작업 → 숫자 두 단계), 두 방식 비교 시트 |
+| `cpu.css` | 작업 색과 장면 SVG 클래스 |
+| `test/*.test.ts` | 엔진·학습 해설·리뷰 회귀·조사·레슨 검사(`npm test`) |
 
 ## 학습 근거와 자산
 

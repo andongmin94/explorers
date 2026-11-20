@@ -1,0 +1,13 @@
+// Cloudflare Workers static assets: `npm run build && npm run deploy:cloudflare`.
+// Every explorer is a page under /<slug>/; /cpu redirects to /cpu/.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "explorers",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+  },
+  "routes": [{ "pattern": "explorers.andongmin.com", "custom_domain": true }],
+}

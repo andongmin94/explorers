@@ -2,7 +2,7 @@
 
 프로토콜, CPU 스케줄링, 메모리, 트랜잭션, 디스크 스케줄링, Git 탐색기를 하나의 Vite 프로젝트로 묶었습니다. 화면 왼쪽 위의 탐색기 이름을 눌러 주제를 바꿀 수 있습니다.
 
-바로 보기: <https://andongmin94.github.io/explorers/> (main에 푸시하면 GitHub Actions가 GitHub Pages로 배포합니다.)
+바로 보기: <https://explorers.andongmin.com/> (Cloudflare Workers 정적 자산, `wrangler.jsonc`). React 이식 중입니다: CPU 탐색기는 React 19 + TypeScript + Tailwind CSS v4 + Base UI로 옮겼고, 나머지는 기존 바닐라 페이지가 함께 빌드됩니다([docs/REACT-PORT.md](docs/REACT-PORT.md)).
 
 | 탐색기 | 주소 | 폴더 |
 | --- | --- | --- |
@@ -15,7 +15,7 @@
 
 ## 실행
 
-Node.js 22.12 이상이 필요합니다.
+Node.js 24 이상이 필요합니다.
 
 ```sh
 npm install
@@ -25,16 +25,22 @@ npm run dev
 <http://127.0.0.1:5173/>에서 프로토콜 탐색기로 시작합니다. 개발 서버에서는 모든 탐색기의 수정 사항이 바로 반영됩니다.
 
 ```sh
-npm test
+npm run lint        # oxlint + oxfmt --check
+npm run typecheck   # tsc --noEmit
+npm test            # tsx --test: src/**/*.test.ts와 바닐라 탐색기의 test/*.test.js
 npm run build
 npm run preview
+npm run test:browser            # Playwright 스모크(설치된 Chrome)
+npm run check:scroll -- cpu/    # 데스크톱 콘솔에 스크롤이 없는지(개발 서버 필요)
+npm run deploy:cloudflare       # dist/를 Cloudflare Workers에 배포
 ```
 
 `npm test`는 여섯 탐색기의 검사를 모두 실행합니다. `npm run build`는 `dist/`에 통합본을 만들고, `npm run preview`는 그 결과를 <http://127.0.0.1:4173/>에서 엽니다. `dist/`를 웹 서버 루트에 올리면 같은 주소 구조로 배포됩니다.
 
 ## 구조
 
-- `<탐색기>/index.html`, `src/`, `test/`: 각 탐색기의 페이지, 소스, 검사
+- `src/`: React 페이지의 소스. `components/ui`(Base UI + Tailwind 부품), `components/shell`(툴바·레일·콘솔), `components/learning`(정리·예측·비교·페이지 넘김), `lib`(학습 진도, 조사, 레슨, 맞춤 도우미, `iso` 장면 도구), `styles/app.css`(Tailwind v4 + Liquid Glass 토큰), `explorers/<탐색기>/`
+- `<탐색기>/index.html`, `src/`, `test/`: 아직 이식하지 않은 탐색기의 페이지, 소스, 검사
 - `shared/theme.css`: 하드웨어 테마의 토큰([SPEC-01/HARDWARE](https://spec-01.vercel.app/)를 따름). 플라스틱·잉크 색, 패널과 키캡 그림자, 탐색기별 강조색(`<html data-explorer>`), LCD·LED 색, 아이소메트릭 면의 조명, 12·14·16·20·28px 글자 크기 단계를 정합니다.
 - `shared/DESIGN.md`: 모든 탐색기 화면이 따르는 설계 규칙(화면 구조, 한 단계 깊이, 정보는 한 곳에, 네 가지 글자 역할, 장면 속 데이터 표현)
 - `shared/hw.css`, `shared/hw.js`: 하드웨어 부품(패널, 키캡 버튼, 세그먼트, 슬라이더, 스위치, 탭, LCD, LED, 표, 대화상자)과 슬라이더·아이콘 도우미
@@ -42,7 +48,7 @@ npm run preview
 - `shared/kit.html`: 공통 부품만으로 만든 참고 화면. 개발 서버에서 `/shared/kit.html`(`?theme=dark`, `?explorer=memory`)로 엽니다. 빌드에는 들어가지 않습니다.
 - `shared/iso.js`: 아이소메트릭 장치의 윗면·앞면·옆면 그라데이션(`url(#hw-iso-*)`)을 페이지에 한 번 넣습니다.
 - `shared/switcher.js`, `shared/switcher.css`: 탐색기 전환 메뉴. [UI SDK](https://ui-sdk.dev)의 `<ui-menu>`가 포커스, 방향키, 입력 검색, Esc와 바깥 클릭 닫기를 맡습니다.
-- `shared/explorers.js`: 탐색기 이름, 주소, 폴더 목록. 탐색기를 추가하면 여기와 `vite.config.js`의 입력이 함께 바뀝니다.
+- `shared/explorers.js`: 탐색기 이름, 주소, 폴더 목록. 목록은 `src/lib/explorers.ts`에 있고 `vite.config.ts`의 입력도 여기서 만듭니다.
 - `public/fonts/`: 모든 탐색기가 함께 쓰는 Pretendard와 Iosevka 글꼴
 - `public/protocol/`, `public/cpu/`: 그 탐색기만 쓰는 아이콘과 공유 이미지
 - `docs/`: 통합 이전 탐색기 모음(explorer-hub)의 품질 확인 기록

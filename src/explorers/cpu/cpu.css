@@ -1,0 +1,67 @@
+/*
+ * CPU explorer: the job colours and the classes the scene SVG (scene.ts) is
+ * built with. Everything else is Tailwind in the components.
+ */
+
+/* Job colours: semantic, used by tokens, status dots and chart bars. */
+:root {
+  --p1: #3971d9;
+  --p2: #168264;
+  --p3: #8055c6;
+  --cpu-ready-mix: 24%;
+}
+:root[data-theme="dark"] {
+  --cpu-ready-mix: 36%;
+  --p1: #6a96ed;
+  --p2: #4fae94;
+  --p3: #a98ae0;
+}
+
+/* Callout subtitles read as secondary labels, not code. */
+.cpu-scene .iso-callout-sub {
+  font-family: var(--font-sans);
+  letter-spacing: 0;
+}
+/* Only the cable in use carries a pulse. */
+.cpu-scene .iso-cable:not(.is-active) .iso-cable-pulse {
+  display: none;
+}
+/* Device print the kit sets below 12px (bin label, chip sub) reads at 12. */
+.cpu-scene .iso-bin .iso-front-text,
+.cpu-scene .iso-chip text:nth-last-of-type(-n + 2) {
+  font-size: 12px;
+}
+.cpu-token {
+  cursor: pointer;
+  outline: none;
+}
+.cpu-token .iso-token {
+  transition: filter 160ms ease;
+}
+.cpu-token:hover .iso-token {
+  filter: brightness(1.08);
+}
+/* Selection: a crisp accent ring on the token outline, no glow (a filter on
+   the group would also tint the token's soft floor shadow into a halo). */
+.cpu-token:focus-visible .iso-token .iso-silhouette,
+.cpu-token.is-selected .iso-token .iso-silhouette {
+  stroke: var(--accent);
+  stroke-width: 3px;
+}
+.cpu-token.is-moving {
+  pointer-events: none;
+}
+.cpu-scene[data-algorithm="fcfs"] .cpu-qleds {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cpu-token .iso-token {
+    transition: none;
+  }
+}
+/* Phones: scene callouts keep only their titles, at a readable size. */
+@media (max-width: 759px) {
+  .cpu-scene .iso-callout-sub {
+    display: none;
+  }
+}
