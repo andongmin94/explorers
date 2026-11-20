@@ -116,13 +116,16 @@
   gap: 8px;
   padding: 1px 14px 1px 8px;
   color: var(--label);
-  font-family: var(--font-mono);
+  /* Korean prose in a monospaced face spreads into double-width gaps; the
+     lines read as text, only the conflict markers stay code. */
+  font-family: var(--font-sans);
   word-break: keep-all;
   overflow-wrap: anywhere;
 }
 /* Line numbers: the editor gutter, in the tertiary label. */
 .git-ln {
   color: var(--label-3);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -137,6 +140,7 @@
 .git-well li.is-both { --git-row: var(--accent); }
 .git-well li:is(.is-marker, .is-conflict) { --git-row: var(--git-conflict); }
 .git-well li.is-marker {
+  font-family: var(--font-mono);
   color: var(--git-marker-ink);
   font-weight: var(--w-semibold);
 }
@@ -145,8 +149,14 @@
   color: var(--accent-text);
   font-weight: var(--w-bold);
 }
+/* A stage row: its name, then the title; a long title wraps whole onto the
+   next line instead of splitting under the name. */
+.git-well li > span:has(> .git-stage-name) {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+}
 .git-stage-name {
-  margin-inline-end: 8px;
   color: var(--label-2);
   font-family: var(--font-sans);
 }
@@ -471,7 +481,7 @@
   .git-well.is-tight .git-well-col { padding-block: 4px; }
   .git-well.is-tight .git-well-head { margin-bottom: 2px; padding-bottom: 3px; }
   .git-well.is-tight li { padding-block: 0; }
-  .git-well.is-tight .git-stage-name { margin-inline-end: 6px; }
+  .git-well.is-tight li > span:has(> .git-stage-name) { column-gap: 6px; }
   .git-well-col + .git-well-col {
     border-inline-start: 0;
     border-top: 1px solid var(--separator-soft);
@@ -514,7 +524,8 @@
   gap: 2px;
   padding: 7px 0;
 }
-.hw-side .git-glossary > div:last-child { border-bottom: 0; }
+/* The last term shown on a page carries no rule under it. */
+.hw-side .git-glossary > div:not([hidden]):not(:has(~ div:not([hidden]))) { border-bottom: 0; }
 .hw-side .git-glossary > [hidden] { display: none !important; }
 /* 정리 sections are items of the 해설 pages: the page rhythm separates them. */
 .git-pages > .hw-section { margin-top: 0; }
@@ -553,3 +564,16 @@
 /* Method comparison: one column per method. */
 .git-compare-table td { vertical-align: top; overflow-wrap: anywhere; }
 .git-compare-table thead th[aria-current="true"] { color: var(--accent); }
+
+/* ---------- Polish ---------- */
+
+/* Scene list: rows keep their natural height (the fill box must not stretch
+   the grid rows), and the selected fill leaves room around the step number. */
+.git-milestones { align-content: start; }
+.git-milestones > button { padding-inline: 10px; }
+/* Reading text avoids a lone syllable on the last line ("…정해야 / 함"). */
+.git-page :is(.hw-text, .hw-note, .git-detail, .hw-table td) { text-wrap: pretty; }
+.git-compare-table td,
+.git-page .hw-dialog .hw-table td { word-break: keep-all; }
+/* The methods comparison: the way back sits clear of the table. */
+.git-compare .hw-plate-body > [data-action="fork"] { margin-top: 16px; }

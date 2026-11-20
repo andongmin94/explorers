@@ -50,7 +50,7 @@ const SLOT_OF = { T1: 0, T2: 1 };
 const SCREEN_LINES = [2.0, 0.98];
 
 /** A rectangular SQL token with its label printed on top. Drawn at the origin. */
-export function sqlToken({ text, color, w = 2.3, d = 1.1, h = 0.5 }) {
+export function sqlToken({ text, color, w = 2.3, d = 1.1, h = 0.5, size = 13 }) {
   const fill = {
     top: `color-mix(in oklch, ${color} 82%, white)`,
     front: `color-mix(in oklch, ${color} 94%, black)`,
@@ -62,7 +62,7 @@ export function sqlToken({ text, color, w = 2.3, d = 1.1, h = 0.5 }) {
   return `<g class="tx-token">
     ${shadow({ x: -w / 2, y: -d / 2, w, d, spread: 0.18, strength: 0.9 })}
     ${box({ x: -w / 2, y: -d / 2, z: 0, w, d, h, fill, radius: 0.16, stroke: `color-mix(in oklch, ${color} 55%, black)`, strokeWidth: 0.7 })}
-    ${topText({ x: 0, y: 0, z: h, text, size: 13, fill: "#fff", weight: 800, halo: `color-mix(in oklch, ${color} 55%, black)` })}
+    ${topText({ x: 0, y: 0, z: h, text, size, fill: "#fff", weight: 800, halo: `color-mix(in oklch, ${color} 55%, black)` })}
   </g>`;
 }
 
@@ -101,7 +101,7 @@ export function rowTable(rows, { valueHeader = "STOCK", valueSize } = {}) {
     const [, ly] = t.cells[2][c];
     const left = vx - cw / 2 + 0.22;
     const right = vx + cw / 2 - 0.22;
-    at[r.id] = { lcd: [right - 0.6, vy, z], pending: [single ? vx + 0.4 : vx + 0.55, ny, z], lock: [right, ly, z] };
+    at[r.id] = { lcd: [right - 0.6, vy, z], pending: [single ? vx + 0.4 : vx + 0.45, ny, z], lock: [right, ly, z] };
     body += topText({ x: vx, y: TABLE.y + 0.36, z, text: single ? `ID ${r.name}` : `ROW ${r.name}`, size: 12, weight: 800, fill: MAT.plastic.ink, engrave: MAT.plastic.engrave });
     // Field names print once, in the first column; the other columns line up with them.
     if (c === 0) body += [[valueHeader, vy], ["NEW", ny], ["LOCK", ly]]

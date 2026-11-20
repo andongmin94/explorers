@@ -27,6 +27,7 @@ import {
   mountLessonRail,
   nextLessonOf,
   pad,
+  sqlHtml,
   recordsHead,
   sideHead,
   sidePanel,
@@ -67,7 +68,7 @@ export function start(lessonId) {
   const text = L.valueText;
   const committedText = (state) => (single ? text(committedValue(state, rowIds[0])) : rowIds.map((id) => `${id} ${text(committedValue(state, id))}`).join(" · "));
   const lockText = (state) => {
-    const owners = rowIds.filter((id) => state.rows[id].owner).map((id) => (single ? tx(state.rows[id].owner) : `${id} ${tx(state.rows[id].owner)}`));
+    const owners = rowIds.filter((id) => state.rows[id].owner).map((id) => (single ? tx(state.rows[id].owner) : `<span class="tx-lock-pair">${id} ${tx(state.rows[id].owner)}</span>`));
     return owners.length ? owners.join(" ") : '<span class="hw-muted">—</span>';
   };
 
@@ -122,7 +123,7 @@ export function start(lessonId) {
       <section class="hw-plate hw-records" aria-label="관찰 기록">
         ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="tx-num" id="log-count"></span>`], ["results", "결과"]])}
         <div class="hw-plate-body hw-scroll" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline" data-record-panel="timeline">
-          <table class="hw-table tx-table"><thead><tr><th>사건</th><th>${L.names.T1}</th><th>${L.names.T2}</th><th>확정 값</th><th>행 잠금</th></tr></thead><tbody></tbody></table>
+          <table class="hw-table tx-table tx-timeline"><colgroup><col /><col /><col /><col /><col /></colgroup><thead><tr><th>사건</th><th>${L.names.T1}</th><th>${L.names.T2}</th><th>확정 값</th><th>행 잠금</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="hw-plate-body hw-scroll" id="record-log" role="tabpanel" aria-labelledby="tab-log" data-record-panel="log" hidden>
           <p class="hw-text hw-muted" id="log-empty">사건을 진행하면 보낸 SQL, 앱 판단, 대기 SQL의 재개와 DB 오류가 차례로 기록됩니다.</p>
@@ -216,7 +217,7 @@ export function start(lessonId) {
     $("#event-section").classList.toggle("tx-off", lessonStep.index === 0 || conclusion || !sql);
     $("#lesson-details").classList.toggle("tx-off", lessonStep.index === 0);
     $("#current-sql").hidden = !sql;
-    $("#current-sql").textContent = sql || "";
+    $("#current-sql").innerHTML = sql ? sqlHtml(sql) : "";
     $("#lesson-details").innerHTML = s.busy ? "" : lesson.details.map((t) => `<li>${escape(t)}</li>`).join("");
     renderChanges(lessonStep, s.busy ? lessonStep.before : step.state);
     if (conclusion) $("#changes").classList.add("tx-off");
@@ -286,7 +287,7 @@ export function start(lessonId) {
     const done = all.slice(0, s.done);
     const kind = (step) => (step.action === "decide" ? "앱 판단" : step.action === "resume-write" ? "SQL 재개" : step.action === "error" ? "SQL 재개 · 오류" : step.action === "commit-error" ? "새 SQL · 오류" : "새 SQL");
     const counts = { sql: done.filter((x) => x.sql && !["resume-write", "error"].includes(x.action)).length, app: done.filter((x) => x.action === "decide").length, errors: done.filter((x) => x.error).length };
-    $("#log-count").textContent = done.length || "";
+    $("#log-count").textContent = done.length;
     $("#log-empty").hidden = done.length > 0;
     $("#log-sum").hidden = $("#log-table").hidden = !done.length;
     $("#log-sum").textContent = `새 SQL ${counts.sql}건${counts.app ? ` · 앱 판단 ${counts.app}건` : ""} · DB 오류 ${counts.errors}건`;

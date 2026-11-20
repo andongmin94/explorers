@@ -276,7 +276,7 @@ export function callout({ x = 0, y = 0, z = 0, dx = 0, dy = -40, title = "", sub
  * render at ≥ LABEL sizes in CSS px (capped at `max`). Also sets --iso-px (user
  * units per CSS px) for explorer CSS. Returns a function that stops watching.
  */
-export function labelScale(svg, { max = 2.2, min = 1 } = {}) {
+export function labelScale(svg, { max = 2.2, min = 0.75 } = {}) {
   if (!svg || typeof ResizeObserver === "undefined") return () => {};
   const update = () => {
     const vb = svg.viewBox?.baseVal;

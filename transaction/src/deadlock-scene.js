@@ -101,7 +101,7 @@ export function createDeadlockScene(host, { onPhase = () => {} } = {}) {
       if (token?.dataset.key === key) continue;
       token?.remove();
       if (!key) continue;
-      pending.insertAdjacentHTML("beforeend", `<g class="tx-pend" data-pend="${row}" data-key="${key}">${sqlToken({ text: r.pending.value, color: COLORS[r.pending.client], w: 1.3, d: 0.85, h: 0.38 })}</g>`);
+      pending.insertAdjacentHTML("beforeend", `<g class="tx-pend" data-pend="${row}" data-key="${key}">${sqlToken({ text: r.pending.value, color: COLORS[r.pending.client], w: 1.15, d: 0.72, h: 0.3 })}</g>`);
       place(pending.lastElementChild, ...AT[row].pending);
     }
     const parked = $(".tx-parked");

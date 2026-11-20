@@ -176,6 +176,17 @@ const scene = createDiskScene($("#disk-scene"), {
 
 /* ---------- One screen: side tabs and pages, records rows that fit ---------- */
 
+// keep-all still breaks after a hyphen ("C-" / "SCAN") and before "= 31칸":
+// glue rule names such as C-SCAN with a word joiner and keep a short
+// equation's "=" on its line, in the rendered text only (the data stays as is).
+function joinHyphens(root) {
+  if (!root) return;
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walk.nextNode()); )
+    if (/[A-Z]-[A-Z]| [=−+] /.test(n.data)) n.data = n.data.replace(/([A-Z])-(?=[A-Z])/g, "$1-⁠").replace(/ ([=−+]) /g, " $1 ");
+}
+joinHyphens($(".disk-page"));
+
 plateTabs($(".hw-side"));
 const pagers = {
   lesson: paginate($("#lesson-pages"), { label: "쪽" }),
@@ -276,6 +287,7 @@ function renderLesson(step, target) {
       ${note}`;
     renderStages(busy ? target : step);
   }
+  joinHyphens($("#lesson-pages"));
   pagers.lesson.refresh();
   pagers.lesson.show(0);
 }
@@ -331,6 +343,7 @@ function render() {
     (m) =>
       `<button data-seek="${m.n}"${m.n === index ? ' aria-current="true"' : ""}><span class="hw-index">${String(m.n).padStart(2, "0")}</span>${m.n <= committed ? m.label : `${m.n}번째 요청 · ${m.preview}`}</button>`,
   ).join("");
+  joinHyphens($(".hw-side"));
   pagers.lesson.refresh();
   pagers.distance.refresh();
   pagers.scenes.refresh();
@@ -567,6 +580,7 @@ function comparison() {
       )
       .join("")}</div>
     <div class="hw-plate-foot">${lesson.compareNote()}</div>`;
+  joinHyphens($("#comparison-dialog"));
   $("#comparison-dialog").showModal();
 }
 
@@ -588,6 +602,7 @@ function prediction() {
         .join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;
+  joinHyphens($("#prediction-dialog"));
   $("#prediction-dialog").showModal();
 }
 
@@ -605,6 +620,7 @@ function answer(b) {
       <p class="hw-text">${chosen.why}${chosen.correct ? "" : ` ${right.why}`}</p>
       <button class="hw-key hw-key--accent" data-action="verify">${LABELS.reveal}</button>
     </div>`;
+  joinHyphens($("#prediction-feedback"));
   $('[data-action="verify"]').focus();
 }
 

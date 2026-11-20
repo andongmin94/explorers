@@ -114,7 +114,8 @@ body {
 }
 .disk-tick-num {
   fill: var(--iso-plastic-ink);
-  font: 700 16px var(--font-mono);
+  font: 700 16px var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 .disk-mark-halo {
   fill: transparent;
@@ -191,7 +192,8 @@ body {
 }
 .disk-carriage-num {
   fill: #fff;
-  font: 800 15px var(--font-mono);
+  font: 700 15px var(--font-sans);
+  font-variant-numeric: tabular-nums;
 }
 /* Platter and arm (unchanged look). */
 .disk-guide {
@@ -320,6 +322,12 @@ body {
 .hw-seg > button .hw-muted {
   font-weight: 500;
 }
+/* On the accent the rule name keeps the on-accent ink (secondary grey on
+   yellow was unreadable in dark mode). */
+.hw-seg > button[aria-pressed="true"] .hw-muted {
+  color: inherit;
+  opacity: 0.72;
+}
 .disk-play {
   min-width: 140px;
 }
@@ -351,13 +359,20 @@ body {
 }
 .disk-stage-detail {
   margin-inline-start: auto;
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .disk-distances {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px 8px;
   margin-top: 12px;
+}
+/* Five or six candidates: three columns, so no single orphan on row two. */
+.disk-distances:has(> :nth-child(5)):not(:has(> :nth-child(7))) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .disk-distances > span {
   display: grid;
@@ -490,14 +505,14 @@ body {
 .disk-stop > span {
   position: absolute;
   bottom: 12px;
-  left: 14px;
+  left: 17px;
   display: flex;
   align-items: baseline;
   gap: 4px;
   line-height: 1;
 }
 .disk-stop.is-left > span {
-  right: 14px;
+  right: 17px;
   left: auto;
 }
 .disk-stop.is-below > span {
@@ -542,7 +557,14 @@ body {
   color: inherit;
   opacity: 0.72;
 }
-.disk-stop:focus-visible,
+/* Keyboard focus on a stop rings the point itself, so the ring does not run
+   through the label beside it. */
+.disk-stop:focus-visible {
+  outline: none;
+}
+.disk-stop:focus-visible i {
+  box-shadow: 0 0 0 2px var(--window), 0 0 0 4px var(--accent-text);
+}
 .disk-rowlink:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -581,6 +603,12 @@ body {
   font-size: var(--fs-1);
   font-weight: var(--w-medium);
 }
+/* Numbers next to Korean units (칸, 요청) read as text, not code: tabular
+   sans figures instead of the kit's monospace (slashed zeros, wide gaps). */
+.disk-page :is(#log-table, .disk-distances) .hw-mono {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}
 #record-results > .disk-small {
   padding-inline: 12px;
 }
@@ -592,6 +620,28 @@ body {
 .disk-dialog-title {
   display: grid;
   gap: 4px;
+}
+/* One 20px inset for head, sections, body and foot (the plate defaults of
+   14px left the head and foot out of line with the sections), and room
+   above the title inside the r 26 sheet corner. */
+.disk-dialog > .hw-plate-head {
+  align-items: flex-start;
+  padding: 18px 16px 6px 20px;
+}
+/* Phones raise keys to 42px tall; keep the close key round, not an oval. */
+.disk-dialog > .hw-plate-head > .hw-key--icon {
+  flex: none;
+  min-width: var(--disk-close, 28px);
+  aspect-ratio: 1;
+}
+@media (max-width: 759px) {
+  .disk-dialog { --disk-close: 42px; }
+}
+.disk-dialog > .hw-plate-body {
+  padding: 8px 20px 22px;
+}
+.disk-dialog > .hw-plate-foot {
+  padding: 12px 20px 16px;
 }
 .disk-compare {
   display: grid;
@@ -612,8 +662,11 @@ body {
 }
 .disk-order {
   margin: 0;
+  font-family: var(--font-sans);
   font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
   color: var(--label-2);
+  text-wrap: balance;
 }
 /* The same seek graph, small, straight on the sheet. */
 .disk-mini-chart {
@@ -840,6 +893,16 @@ body {
 .disk-goal { margin: 0; }
 
 .disk-choices .hw-key[aria-pressed="true"] { font-weight: 750; }
+/* A right pick: label ink, not accent text on the accent fill. */
+.disk-choices .hw-key.is-correct[aria-pressed="true"] { color: var(--label); }
+/* A wrong pick stays readable (not the faded disabled look) with a red ring,
+   next to the accent-ringed right answer. */
+.disk-choices .hw-key[aria-pressed="true"]:not(.is-correct) {
+  opacity: 1;
+  background: var(--fill-3);
+  box-shadow: inset 0 0 0 2px var(--sys-red);
+  color: var(--label);
+}
 .disk-recap-more > li { border-top: 1px solid var(--separator-soft); }
 /* The progress line wraps in the narrow side column instead of being cut off. */
 .disk-pages .hw-progress { flex-wrap: wrap; row-gap: 6px; }

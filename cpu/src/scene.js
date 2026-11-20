@@ -108,7 +108,7 @@ function narrowLayout() {
       ready: { x: 0.6, y: 6.6, z: 0.62, dx: -20, dy: -36, title: "준비 큐" },
       cpu: { x: 13.5, y: 10, z: 0.25, dx: 40, dy: -10, anchor: "start", title: "CPU" },
       io: { x: 8.4, y: 16, z: 0.42, dx: -10, dy: 44, anchor: "end", title: "입출력 장치", sub: "CPU와 동시에 진행" },
-      done: { x: 17.2, y: 15.6, z: 1, dx: 30, dy: 10, anchor: "start", title: "완료", sub: "DONE" },
+      done: { x: 17.2, y: 15.6, z: 1, dx: 38, dy: 14, anchor: "start", title: "완료", sub: "DONE" },
     },
   };
 }
@@ -279,7 +279,20 @@ export function createSchedulerScene(host, processes, onMove) {
       const [ox, oy] = g.style.transformOrigin.split(" ").map(parseFloat);
       return [ox + (b.x - ox) * k, oy + (b.y - oy) * k, b.width * k, b.height * k];
     });
-    const next = fitScene(D.bounds, { stageAspect: aspect, fill: narrow ? 0.96 : 0.9, pad: 4, labels });
+    // On phones the scene's height follows its viewBox: frame it to the
+    // content's own aspect (never taller than 0.92) so no empty floor band
+    // sits above and below the devices.
+    let stageAspect = aspect;
+    if (narrow) {
+      const s = D.bounds.map(([x, y, z = 0]) => project(x, y, z));
+      for (const [lx, ly, lw, lh] of labels) s.push([lx, ly], [lx + lw, ly + lh]);
+      const xs = s.map((p) => p[0]);
+      const ys = s.map((p) => p[1]);
+      const w = Math.max(...xs) - Math.min(...xs) + 8;
+      const h = Math.max(...ys) - Math.min(...ys) + 8;
+      stageAspect = Math.min(1.6, Math.max(aspect, w / (h || 1)));
+    }
+    const next = fitScene(D.bounds, { stageAspect, fill: narrow ? 0.96 : 0.9, pad: 4, labels });
     if (svg.getAttribute("viewBox") !== next) svg.setAttribute("viewBox", next);
   }
 

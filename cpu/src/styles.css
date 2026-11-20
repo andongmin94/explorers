@@ -76,10 +76,12 @@ body {
 .cpu-token:hover .iso-token {
   filter: brightness(1.08);
 }
-/* Selection: a crisp accent ring around the token, no glow. */
-.cpu-token:focus-visible .iso-token,
-.cpu-token.is-selected .iso-token {
-  filter: drop-shadow(2px 0 0 var(--accent)) drop-shadow(-2px 0 0 var(--accent)) drop-shadow(0 2px 0 var(--accent)) drop-shadow(0 -2px 0 var(--accent));
+/* Selection: a crisp accent ring on the token outline, no glow (a filter on
+   the group would also tint the token's soft floor shadow into a halo). */
+.cpu-token:focus-visible .iso-token .iso-silhouette,
+.cpu-token.is-selected .iso-token .iso-silhouette {
+  stroke: var(--accent);
+  stroke-width: 3px;
 }
 .cpu-token.is-moving {
   pointer-events: none;
@@ -228,8 +230,9 @@ body {
   color: var(--label-2);
 }
 /* Process detail */
+/* Index and status sit on the first line, not the middle of line + meter. */
 .cpu-phases > li {
-  align-items: center;
+  align-items: baseline;
 }
 .cpu-phases .cpu-grow {
   display: grid;
@@ -699,7 +702,7 @@ body {
 @media (min-width: 1100px) and (min-height: 700px) {
   .cpu-quiz-context {
     display: grid;
-    grid-template-columns: 1fr 1.2fr 1.6fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0 18px;
   }
   .cpu-quiz-context > div {
@@ -730,7 +733,7 @@ body {
 }
 
 /* A note brings its own rule above; no second hairline over it. */
-.cpu-pages > :not([hidden]) ~ div:has(> .hw-note) {
+.cpu-pages > :not([hidden]) ~ div:has(> .hw-note:only-child) {
   padding-top: 0;
   border-top: 0;
 }
@@ -757,6 +760,8 @@ body {
   margin: 0;
 }
 .cpu-events-head {
+  /* As tall as the replay key, so the list does not jump when it appears. */
+  min-height: 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -812,5 +817,50 @@ body {
   #prediction-body.is-answered #quiz-feedback {
     display: block;
     margin-top: 0;
+  }
+}
+
+/* ---------- Polish ---------- */
+
+/* Scene list: rows keep their natural height (the fill box must not stretch
+   the grid rows) and the selected fill leaves room around the time. */
+.cpu-milestones {
+  align-content: start;
+}
+.cpu-milestones > button {
+  padding-inline: 10px;
+}
+/* A status dot on the accent fill gets the same white ring the current
+   table row gives it, so a green or blue dot still reads on orange. */
+.cpu-process-pick > [aria-pressed="true"] > .hw-led {
+  box-shadow: 0 0 0 1.5px var(--on-accent);
+}
+/* Event log: time and job are short columns; the dot keeps its distance. */
+#record-log .hw-table th:nth-child(-n + 2) {
+  width: 96px;
+}
+.hw-table .hw-led {
+  margin-inline-end: 3px;
+}
+/* The clock keeps its width from 0 to 99 ms, so the method tag beside it
+   does not shift on every step. */
+#clock {
+  display: inline-block;
+  min-width: 2ch;
+  text-align: right;
+}
+/* Korean sheet text: no one-word last lines. */
+.hw-dialog :is(.hw-text, .hw-note p, dd),
+.hw-side :is(.hw-text, .hw-note) {
+  text-wrap: pretty;
+}
+/* Comparison lanes on a phone: 2 ms runs are narrower than their "P1"
+   label, so narrow lanes show colour only (each bar keeps its title). */
+.cpu-compare-lane {
+  container-type: inline-size;
+}
+@container (max-width: 320px) {
+  .cpu-compare-lane .cpu-bar {
+    color: transparent;
   }
 }

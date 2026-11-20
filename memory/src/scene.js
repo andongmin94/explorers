@@ -93,7 +93,7 @@ const ROUTES = {
 // Callouts: a world anchor plus a label offset; their label boxes join the framing.
 const NOTES = () => [
   { x: CPU.x + 0.3, y: CPU.y + CPU.size - 0.4, z: 0.25, dx: -56, dy: 26, title: "CPU", sub: "요청하는 쪽", anchor: "end" },
-  { x: TABLE.x + 0.15, y: TABLE.y + TABLE.d - 0.9, z: 0.6, dx: -30, dy: -24, title: "페이지 테이블", sub: "상주 여부 · 프레임", anchor: "end" },
+  { x: TABLE.x + 0.2, y: TABLE.y + TABLE.d, z: 0.3, dx: -30, dy: -40, title: "페이지 테이블", sub: "상주 여부 · 프레임", anchor: "end" },
   { x: RAM_X + LEN - 0.3, y: FACE_Y - 0.3, z: TRAY_H, dx: 50, dy: 16, title: "RAM", sub: "·", widest: "#1 다음 교체 · 마지막 접근", anchor: "start", cls: "mem-ram-callout" },
   { x: DISK.x + DISK.w - 0.3, y: DISK.y + 0.4, z: DISK_TOP, dx: 40, dy: -30, title: "SSD", sub: "원본 A–E", anchor: "start" },
 ];
@@ -148,7 +148,7 @@ function staticScene() {
   const gx = TABLE.x + 0.7;
   const cw = (TABLE.w - 1) / 2;
   const heads = ["PAGE", "FRAME"]
-    .map((text, c) => topText({ x: gx + c * cw + cw / 2, y: TABLE.y + 0.33, z: top, text, size: 12, weight: 800, fill: MAT.plastic.ink, engrave: MAT.plastic.engrave }))
+    .map((text, c) => topText({ x: gx + c * cw + cw / 2, y: TABLE.y + 0.2, z: top, text, size: 10, weight: 700, fill: MAT.plastic.ink, engrave: MAT.plastic.engrave }))
     .join("");
   const entries = PAGES.map((page, r) => {
     const [px, py] = table.cells[r][0];

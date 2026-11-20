@@ -16,6 +16,13 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 const esc = (text) =>
   String(text).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 const pad = (n) => String(n).padStart(2, "0");
+// Word joiners where Korean text must not break: inside an option like
+// --no-ff ("--" / "no-ff") and between a closing bracket or quote and the
+// particle after it ("\ubc84\ud2bc(4\ubc88\uc9f8 \uc904)" / "\uc744").
+const keepFlags = (text) =>
+  String(text ?? "")
+    .replace(/--[a-z][\w-]*/g, (flag) => flag.replaceAll("-", "-\u2060"))
+    .replace(/([)\u2019\u201d'"])(?=[\uac00-\ud7a3])/g, "$1\u2060");
 
 /* The lesson this page runs (?lesson=…, the bare page opens the first). */
 const lesson = currentLesson(LESSONS);
@@ -152,7 +159,7 @@ $("#app").outerHTML = `
         </div>
       </div>
       <div class="hw-plate-body hw-fit" data-panel="scope" aria-label="용어와 모델의 범위" hidden>
-        <dl class="hw-fill git-glossary" id="glossary">${lesson.scope.map(([term, text]) => `<div><dt>${esc(term)}</dt><dd class="hw-text">${esc(text)}</dd></div>`).join("")}</dl>
+        <dl class="hw-fill git-glossary" id="glossary">${lesson.scope.map(([term, text]) => `<div><dt>${esc(keepFlags(term))}</dt><dd class="hw-text">${esc(keepFlags(text))}</dd></div>`).join("")}</dl>
       </div>
     </aside>
 
@@ -354,9 +361,9 @@ function render() {
   syncSlider(seek);
   $("#lesson-counter").textContent = index ? `${pad(index)} / ${pad(last)}${busy ? " · 처리 중" : ""}` : "시작 전";
   $("#eyebrow").textContent = ended ? `${LABELS.recap} · ${text.eyebrow}` : text.eyebrow;
-  $("#lesson-title").textContent = text.title;
-  $("#lesson-body").textContent = text.body;
-  now.goal.textContent = text.goal ?? "";
+  $("#lesson-title").textContent = keepFlags(text.title);
+  $("#lesson-body").textContent = keepFlags(text.body);
+  now.goal.textContent = keepFlags(text.goal);
   // At the end the 정리 takes the room: the title stays, the step text goes.
   $("#command-line").hidden = index === 0 || ended;
   $("#lesson-body").hidden = ended;
@@ -364,7 +371,7 @@ function render() {
   $("#command").textContent = step.command || lesson.editNote(step);
   $("#command").classList.toggle("is-git", Boolean(step.command));
   $("#command").classList.toggle("hw-mono", Boolean(step.command));
-  now.takeaway.querySelector("#takeaway-text").textContent = text.takeaway ?? "";
+  now.takeaway.querySelector("#takeaway-text").textContent = keepFlags(text.takeaway);
   // Terminal output: one page item per paragraph (split at blank lines), so a
   // long git status continues on the next page instead of being cut.
   const chunks = (text.terminal ?? []).join("\n").split(/\n\n+/).filter(Boolean);
@@ -402,7 +409,7 @@ function render() {
   );
   $("#change-pages").replaceChildren(
     facts,
-    ...text.details.map((d) => fragment(`<p class="git-detail"><span class="hw-led is-on"></span><span>${esc(d)}</span></p>`)),
+    ...text.details.map((d) => fragment(`<p class="git-detail"><span class="hw-led is-on"></span><span>${esc(keepFlags(d))}</span></p>`)),
   );
   const milestones = lesson.milestones(choice);
   const reached = milestones.filter((m) => m.index <= index).at(-1)?.index;
@@ -639,7 +646,7 @@ function selectRecord(name) {
 /* ---------------------------------------------------------------- dialogs */
 
 const dialogHead = (id, eyebrow, title) =>
-  `<div class="hw-plate-head"><div class="git-dialog-title"><span class="hw-label">${eyebrow}</span><h2 class="hw-title" id="${id}">${esc(title)}</h2></div><button class="hw-key hw-key--sm hw-key--icon" data-action="close" aria-label="닫기">${icon("close")}</button></div>`;
+  `<div class="hw-plate-head"><div class="git-dialog-title"><span class="hw-label">${eyebrow}</span><h2 class="hw-title" id="${id}">${esc(keepFlags(title))}</h2></div><button class="hw-key hw-key--sm hw-key--icon" data-action="close" aria-label="닫기">${icon("close")}</button></div>`;
 
 let prediction = null;
 function predict() {
@@ -648,7 +655,7 @@ function predict() {
   if (!q) return;
   $("#prediction-dialog").innerHTML = `${dialogHead("prediction-title", LABELS.predictTitle, q.question)}
     <div class="hw-plate-body">
-      <p class="hw-text">${esc(q.context)}</p>
+      <p class="hw-text">${esc(keepFlags(q.context))}</p>
       <div class="git-answers">${q.choices.map((c, i) => `<button class="hw-key" data-answer="${c.id}"><span class="hw-index">${pad(i + 1)}</span>${esc(c.text)}</button>`).join("")}</div>
       <div id="prediction-feedback" aria-live="polite"></div>
     </div>`;
@@ -664,7 +671,7 @@ function answer(id) {
     else if (c.id === id) el.insertAdjacentHTML("beforeend", '<span class="hw-led is-on git-push" style="--led:var(--git-conflict)"></span>');
   }
   const { verdict, why } = lesson.feedback(q, id);
-  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${esc(verdict)}</strong> ${esc(why)}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">${esc(q.verify.label)}</button></div>`;
+  $("#prediction-feedback").innerHTML = `<div class="hw-section git-feedback"><p class="hw-text"><strong>${esc(verdict)}</strong> ${esc(keepFlags(why))}</p><button class="hw-key hw-key--accent git-gap" data-action="verify">${esc(q.verify.label)}</button></div>`;
   progress.markPrediction(`${q.index}`, picked.correct);
   // The step behind the dialog may now show what answers the question.
   settled.add(q.index);
@@ -711,7 +718,7 @@ function methodsHtml(c) {
     `<button class="hw-key hw-key--sm${v === choice ? " hw-key--accent" : ""}" data-compare="${v}">${LABELS.replayMode}</button>`;
   return `${dialogHead("compare-title", `${LABELS.compare} · ${LABELS.compareSub}`, c.title)}
     <div class="hw-plate-body">
-      <p class="hw-text">${esc(c.fork)}</p>
+      <p class="hw-text">${esc(keepFlags(c.fork))}</p>
       <table class="hw-table git-gap git-compare-table"><thead><tr><th></th>${c.columns.map((col) => `<th${col.variant === choice ? ' aria-current="true"' : ""}>${esc(col.label)}</th>`).join("")}</tr></thead><tbody>
         ${c.rows.map((row, i) => `<tr><th scope="row">${esc(row)}</th>${c.columns.map((col) => `<td>${esc(col.values[i])}</td>`).join("")}</tr>`).join("")}
         <tr><th scope="row"></th>${c.columns.map((col) => `<td>${replay(col.variant)}</td>`).join("")}</tr>
@@ -726,7 +733,7 @@ function basesHtml(c) {
   const changed = c.lines.filter((l) => l.ours !== l.theirs || l.base !== l.ours);
   return `${dialogHead("compare-title", `${LABELS.compare} · ${LABELS.compareSub}`, c.title)}
     <div class="hw-plate-body">
-      <p class="hw-text">${esc(c.fork)}</p>
+      <p class="hw-text">${esc(keepFlags(c.fork))}</p>
       <table class="hw-table git-gap git-compare-table"><thead><tr><th>줄</th><th>C2 · main</th><th>C1 · feature</th><th>두 끝만 비교</th><th>C0와 함께 비교</th></tr></thead><tbody>
         ${changed
           .map((l) => {

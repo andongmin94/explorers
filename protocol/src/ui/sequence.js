@@ -8,7 +8,6 @@ import {
 import {
   escapeHtml,
   isolateLtrText,
-  localizedUpperCase,
   translate,
 } from "../i18n.js";
 import { NETWORK_NODE_LABELS } from "../simulation/network-drawing.js";
@@ -334,7 +333,7 @@ function drawSequenceDiagram(panel, lesson) {
         {
           n: entry.step + 1,
         },
-      )}</tspan> · ${escapeHtml(localizedUpperCase(translate(lesson.steps[entry.step].title)))}</text>
+      )}</tspan> · ${escapeHtml(translate(lesson.steps[entry.step].title))}</text>
     </g>`,
     )
     .join("");

@@ -14,8 +14,21 @@ export const escape = (s) =>
 /** A transaction id printed in its colour with its LED. */
 export const tx = (id) => `<span class="tx-id" style="--led:var(--${id.toLowerCase()})"><span class="hw-led is-on"></span>${id}</span>`;
 export const pad = (n) => String(n).padStart(2, "0");
+/**
+ * SQL for the 이번 사건 block: each clause (SET, WHERE, FROM, ...) is one
+ * inline block, so a long statement wraps between clauses ("... SET stock =
+ * stock - 1 / WHERE id = 1;") instead of inside an expression.
+ */
+export const sqlHtml = (sql) =>
+  String(sql)
+    .split(/ (?=(?:SET|WHERE|FROM|VALUES|ORDER BY|FOR UPDATE|FOR SHARE|ISOLATION LEVEL)\b)/)
+    .map((part) => `<span class="tx-clause">${escape(part)}</span>`)
+    .join(" ");
 
 const THEME_KEY = "transaction-theme";
+// 처음으로 (jump to event 0) draws a bar and a chevron so it never reads as the
+// circular 이번 사건 다시 보기 (replay) key next to it.
+const TO_START = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M17 5l-7 7 7 7"/></svg>';
 
 /**
  * The top bar. The lesson rail (mountLessonRail) adds its drawer key in
@@ -51,7 +64,7 @@ export function deck({ total, before = "" }) {
     <div class="hw-field">
       <span class="hw-label">재생</span>
       <div class="hw-transport">
-        <button class="hw-key hw-key--icon" data-action="reset" aria-label="처음으로">${icon("reset")}</button>
+        <button class="hw-key hw-key--icon" data-action="reset" aria-label="처음으로">${TO_START}</button>
         <button class="hw-key hw-key--icon" data-action="back" aria-label="이전 사건">${icon("back")}</button>
         <button class="hw-key hw-key--accent tx-play" data-action="play">${icon("play")}<span>학습 시작</span></button>
         <button class="hw-key" data-action="next">다음 사건${icon("next")}</button>

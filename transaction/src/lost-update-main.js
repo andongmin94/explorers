@@ -24,6 +24,7 @@ import {
   escape,
   footer,
   pad,
+  sqlHtml,
   recordsHead,
   sideHead,
   sidePanel,
@@ -113,7 +114,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
     <section class="hw-plate hw-records" aria-label="관찰 기록">
       ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="tx-num" id="log-count"></span>`], ["results", "재고 결과"]])}
       <div class="hw-plate-body hw-scroll" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline" data-record-panel="timeline">
-        <table class="hw-table tx-table"><thead><tr><th>사건</th><th>T1 · 주문 1</th><th>T2 · 주문 2</th><th>확정 재고</th><th>행 잠금</th></tr></thead><tbody></tbody></table>
+        <table class="hw-table tx-table tx-timeline"><colgroup><col /><col /><col /><col /><col /></colgroup><thead><tr><th>사건</th><th>T1 · 주문 1</th><th>T2 · 주문 2</th><th>확정 재고</th><th>행 잠금</th></tr></thead><tbody></tbody></table>
       </div>
       <div class="hw-plate-body hw-scroll" id="record-log" role="tabpanel" aria-labelledby="tab-log" data-record-panel="log" hidden>
         <p class="hw-text hw-muted" id="log-empty">사건을 진행하면 요청과 계산, 대기 중이던 SQL의 재개가 차례로 기록됩니다.</p>
@@ -194,7 +195,7 @@ function render() {
   $("#event-section").classList.toggle("tx-off", lessonStep.index === 0 || conclusion);
   $("#lesson-details").classList.toggle("tx-off", lessonStep.index === 0);
   $("#current-sql").hidden = !sql;
-  $("#current-sql").textContent = sql || "";
+  $("#current-sql").innerHTML = sql ? sqlHtml(sql) : "";
   $("#lesson-details").innerHTML = s.busy ? "" : lesson.details.map((t) => `<li>${t}</li>`).join("");
   renderChanges(lessonStep, s.busy ? lessonStep.before : step.state);
   if (conclusion) $("#changes").classList.add("tx-off");
@@ -250,7 +251,7 @@ function renderRecords() {
   timelineRows.refresh();
 
   const { entries, counts } = describeEventLog(all.slice(0, s.done));
-  $("#log-count").textContent = entries.length || "";
+  $("#log-count").textContent = entries.length;
   $("#log-empty").hidden = entries.length > 0;
   $("#log-sum").hidden = $("#log-table").hidden = !entries.length;
   $("#log-sum").textContent = `새 SQL ${counts.sql}건 · 앱 계산 ${counts.calculate}건 · SQL 재개 ${counts.resume}건`;

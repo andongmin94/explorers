@@ -94,7 +94,7 @@ function stepKey(step, run) {
     return "페이지 부재(page fault)는 오류가 아니라 요청한 페이지가 RAM에 없는 상황입니다. 그때 운영체제가 저장장치에서 페이지를 읽어 옵니다.";
   if (step.index === total) {
     const belady = [3, 4].map((frames) => countFaults(BELADY_STRING, frames, "fifo").faults);
-    return `Belady의 모순(Belady's anomaly): FIFO는 프레임을 늘려도 부재가 늘 수 있습니다. ${eun(BELADY_STRING.join(" "))} 프레임 3개에서 ${belady[0]}회, 4개에서 ${belady[1]}회입니다. LRU와 OPT는 스택 알고리즘이라 이런 일이 없습니다.`;
+    return `Belady의 모순(Belady's anomaly): FIFO는 프레임을 늘려도 부재가 늘 수 있습니다. ${eun(BELADY_STRING.join("\u00a0"))} 프레임 3개에서 ${belady[0]}회, 4개에서 ${belady[1]}회입니다. LRU와 OPT는 스택 알고리즘이라 이런 일이 없습니다.`;
   }
   if (step.index === 1)
     return "그 페이지를 처음 참조할 때의 부재를 강제 부재(compulsory miss)라고 합니다. RAM이 가득 차 있으면 강제 부재에도 교체가 일어날 수 있습니다.";

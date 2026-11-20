@@ -87,7 +87,7 @@ $("#app").outerHTML = `
     <div class="hw-brand"><h1>메모리 탐색기</h1><p>보면서 이해하는 운영체제</p></div>
     <div class="hw-context"><span class="hw-label"><span class="hw-index">${LESSON_NO}</span> 레슨</span><strong>${LESSON.name}</strong></div>
     <div class="hw-actions">
-      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span class="mem-hide-sm">두 방식 </span>비교</button>
+      <button class="hw-key hw-key--sm" data-action="compare">${icon("compare")}<span>두 방식 비교</span></button>
       <button class="hw-key hw-key--sm hw-key--icon" data-action="theme" aria-label="어두운 테마로 전환">${icon("moon")}</button>
     </div>
   </header>
@@ -334,7 +334,7 @@ function render() {
   seek.setAttribute("aria-valuetext", `${index}번의 페이지 접근, 전체 ${TOTAL}번`);
   syncSlider(seek);
 
-  $("#lcd-step").innerHTML = `${String(index).padStart(2, "0")}<small>/ ${TOTAL} 접근</small>`;
+  $("#lcd-step").innerHTML = `${index}<small>/ ${TOTAL} 접근</small>`;
   $("#lcd-counts").innerHTML = `${step.faults}<small>부재</small> ${step.hits}<small>적중</small>`;
 
   document.querySelectorAll("[data-mode]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));

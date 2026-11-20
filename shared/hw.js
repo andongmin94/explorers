@@ -26,7 +26,7 @@ export const icons = {
   pause: '<path d="M8 5v14M16 5v14"/>',
   back: '<path d="m15 5-7 7 7 7"/>',
   next: '<path d="m9 5 7 7-7 7"/>',
-  reset: '<path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/>',
+  reset: '<path d="M6 5v14M19 5l-10 7 10 7z"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2"/>',
   moon: '<path d="M20 15A9 9 0 0 1 9 4a9 9 0 1 0 11 11Z"/>',
   compare: '<path d="M4 4v16h16M8 15v-4m5 4V7m5 8v-6"/>',

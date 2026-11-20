@@ -112,7 +112,15 @@ function commitColor(state, id) {
 // the right), so the two never meet, even on the same commit, and neither
 // covers an edge or another commit. Each tag group is scaled by k (labelScale's
 // factor) about its commit.
-const refWidth = (branch) => branch.length * 7.4 + 26;
+// Measured in the label font (dot 19 + text + 13 end padding), so the pill
+// hugs its name; the estimate covers a missing canvas.
+let measure = null;
+const refWidth = (branch) => {
+  measure ??= document.createElement("canvas").getContext("2d");
+  if (!measure) return branch.length * 7.4 + 26;
+  measure.font = `600 12px ${getComputedStyle(document.documentElement).getPropertyValue("--font-sans") || "sans-serif"}`;
+  return Math.round(measure.measureText(branch).width + 32);
+};
 function refSvg(branch, place) {
   const width = refWidth(branch);
   const pill = (x, y) => `<rect class="git-ref-pill" x="${r2(x)}" y="${r2(y - 11)}" width="${r2(width)}" height="22" rx="11"/>
@@ -279,6 +287,8 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
   fit();
   labelScale(svg);
   new ResizeObserver(() => requestAnimationFrame(fit)).observe(host);
+  // Ref pills are sized from the label font: re-measure once it has loaded.
+  document.fonts?.ready.then(() => lastState && !active && paintRefs(lastState));
 
   /* ---------- painting a state ---------- */
 
@@ -302,8 +312,9 @@ export function createGitScene(host, { onPhase = () => {}, layout: given = {} } 
       el.style.display = point ? "" : "none";
       if (!point) continue;
       const place = placeOf(branch, state);
-      if (el.dataset.place !== place) {
-        el.dataset.place = place;
+      const key = place + refWidth(branch);
+      if (el.dataset.place !== key) {
+        el.dataset.place = key;
         el.firstElementChild.innerHTML = refSvg(branch, place);
       }
       el.style.transform = translate(point);

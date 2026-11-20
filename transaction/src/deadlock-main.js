@@ -33,6 +33,7 @@ import {
   escape,
   footer,
   pad,
+  sqlHtml,
   recordsHead,
   sideHead,
   sidePanel,
@@ -120,7 +121,7 @@ $("#app").outerHTML = `<div class="hw-page tx-page">
     <section class="hw-plate hw-records" aria-label="관찰 기록">
       ${recordsHead([["timeline", "실행 순서"], ["log", `사건 기록 <span class="tx-num" id="log-count"></span>`], ["results", "재고 결과"]])}
       <div class="hw-plate-body hw-scroll" id="record-timeline" role="tabpanel" aria-labelledby="tab-timeline" data-record-panel="timeline">
-        <table class="hw-table tx-table"><thead><tr><th>사건</th><th>T1 · 주문 1</th><th>T2 · 주문 2</th><th>행 A</th><th>행 B</th></tr></thead><tbody></tbody></table>
+        <table class="hw-table tx-table tx-timeline tx-timeline--rows"><colgroup><col /><col /><col /><col /><col /></colgroup><thead><tr><th>사건</th><th>T1 · 주문 1</th><th>T2 · 주문 2</th><th>행 A</th><th>행 B</th></tr></thead><tbody></tbody></table>
       </div>
       <div class="hw-plate-body hw-scroll" id="record-log" role="tabpanel" aria-labelledby="tab-log" data-record-panel="log" hidden>
         <p class="hw-text hw-muted" id="log-empty">재생하면 각 요청과 잠금의 결과가 쌓입니다.</p>
@@ -224,7 +225,7 @@ function render() {
   $("#event-section").classList.toggle("tx-off", step.index === 0 || conclusion);
   $("#lesson-details").classList.toggle("tx-off", step.index === 0);
   $("#current-sql").hidden = !step.sql;
-  $("#current-sql").textContent = step.sql || "";
+  $("#current-sql").innerHTML = step.sql ? sqlHtml(step.sql) : "";
   $("#lesson-details").innerHTML = s.busy ? "" : lesson.details.map((t) => `<li>${t}</li>`).join("");
   renderChanges(step, s.busy ? step.before : step.state);
   if (conclusion) $("#changes").classList.add("tx-off");
@@ -259,7 +260,7 @@ function renderRecords() {
     if (step.action === "detect") return id === step.state.victim ? "중단 대상" : "대기 유지";
     if (step.client === id) return `${actions[step.action]}${step.row && step.action !== "rollback" ? ` ${step.row}` : ""}`;
     const c = step.state.clients[id];
-    if (c.waitingFor) return `${c.waitingFor} ${step.state.rows[c.waitingFor].owner ? "잠금 대기" : "재개 가능"}`;
+    if (c.waitingFor) return `${step.state.rows[c.waitingFor].owner ? "잠금 대기" : "재개 가능"} ${c.waitingFor}`;
     return { idle: "—", active: "진행 중", committed: "커밋 완료", aborted: "중단됨 (ROLLBACK 필요)" }[c.status];
   };
   const blocked = (step, id) => {
@@ -268,7 +269,7 @@ function renderRecords() {
   };
   const rowCell = (step, row) => {
     const r = step.state.rows[row];
-    return `<td class="tx-nowrap">${r.owner ? tx(r.owner) : '<span class="hw-muted">잠금 없음</span>'} <span class="tx-num">확정 ${r.committed}<span class="hw-muted"> · ${r.pending ? `미확정 ${r.pending.value}` : "미확정 없음"}</span></span></td>`;
+    return `<td class="tx-nowrap">${r.owner ? tx(r.owner) : '<span class="hw-muted">잠금 없음 ·</span>'} <span class="tx-num">확정 ${r.committed}<span class="hw-muted"> · ${r.pending ? `미확정 ${r.pending.value}` : "미확정 없음"}</span></span></td>`;
   };
   const groups = GROUPS[order];
   const body = all
@@ -287,7 +288,7 @@ function renderRecords() {
   timelineRows.refresh();
 
   const done = all.slice(0, s.done);
-  $("#log-count").textContent = done.length || "";
+  $("#log-count").textContent = done.length;
   $("#log-empty").hidden = done.length > 0;
   $("#log-table").hidden = !done.length;
   $("#log-table tbody").innerHTML = done

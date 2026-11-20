@@ -78,7 +78,9 @@ body {
   stroke-dasharray: none;
 }
 .tx-edge.is-detected .iso-path { animation: tx-blink 0.9s ease-in-out infinite; }
-.tx-floor-mark { opacity: 0.8; }
+/* The WAIT-FOR caption shows only while the graph has an edge to caption. */
+.tx-floor-mark { opacity: 0; transition: opacity 240ms ease; }
+.tx-edge.is-on ~ .tx-floor-mark { opacity: 0.8; }
 
 @keyframes tx-blink {
   50% { opacity: 0.45; }
@@ -86,7 +88,7 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .tx-park.is-blocked,
   .tx-edge.is-detected .iso-path { animation: none; }
-  .tx-edge { transition: none; }
+  .tx-edge, .tx-floor-mark { transition: none; }
 }
 
 /* ---------- Deck ---------- */
@@ -219,7 +221,10 @@ body {
    on-accent colour (secondary text a little quieter). */
 .hw-table tr[aria-current="true"] :is(.tx-seek, .tx-wait, .tx-link, .tx-code, .hw-muted) { color: inherit; }
 .hw-table tr[aria-current="true"] .tx-seek { font-weight: var(--w-semibold); }
-.hw-table tr[aria-current="true"] :is(.hw-muted, .tx-link) { opacity: 0.78; }
+/* Quieter text on the current row: fade the text, never a whole cell (a
+   faded td would show a pale patch in the accent row). */
+.hw-table tr[aria-current="true"] :is(.hw-muted:not(td), .tx-link) { opacity: 0.78; }
+.hw-table tr[aria-current="true"] td.hw-muted { color: color-mix(in srgb, var(--on-accent) 78%, transparent); }
 .hw-table tr[aria-current="true"] .tx-seek:focus-visible { outline-color: var(--on-accent); }
 .tx-nowrap { white-space: nowrap; }
 .tx-log-sum { margin: 0 0 6px; }
@@ -404,4 +409,76 @@ body {
   overflow: visible;
   white-space: normal;
   word-break: keep-all;
+}
+
+/* ---------- Polish ---------- */
+
+/* The log tab's count holds two digits from the start: the tabs never change
+   width as events are logged. Quiet when the tab is not selected. */
+#log-count {
+  display: inline-block;
+  min-width: 2ch;
+  margin-inline-start: 2px;
+  font-variant-numeric: tabular-nums;
+  text-align: start;
+}
+[data-record]:not([aria-selected="true"]) #log-count { color: var(--label-2); }
+
+/* Timeline columns keep their widths while rows fill in (no column jumps). */
+@media (min-width: 1100px) and (min-height: 700px) {
+  .tx-timeline { table-layout: fixed; width: 100%; }
+  .tx-timeline col:nth-child(1) { width: 10%; }
+  .tx-timeline col:nth-child(2),
+  .tx-timeline col:nth-child(3) { width: 27%; }
+  .tx-timeline col:nth-child(4),
+  .tx-timeline col:nth-child(5) { width: 18%; }
+  .tx-timeline--rows col:nth-child(1) { width: 9%; }
+  .tx-timeline--rows col:nth-child(2),
+  .tx-timeline--rows col:nth-child(3) { width: 15%; }
+  .tx-timeline--rows col:nth-child(4),
+  .tx-timeline--rows col:nth-child(5) { width: 30.5%; }
+  .tx-timeline td { overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* Fact lists (results, prediction sheet): labels in one column, values lined
+   up in the next. */
+:is(.tx-results, #prediction-dialog) .hw-list:has(> li > span:first-child + :last-child) {
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 0;
+}
+:is(.tx-results, #prediction-dialog) .hw-list:has(> li > span:first-child + :last-child) > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+:is(.tx-results, #prediction-dialog) .hw-list > li > span:first-child { padding-inline-end: 20px; color: var(--label-2); }
+
+/* Comparison sheet: the replay key sits at the foot of each column, so the
+   two keys line up whatever the columns hold. */
+.tx-compare-col {
+  display: flex;
+  flex-direction: column;
+}
+.tx-compare-col > .hw-key { align-self: flex-start; margin-top: auto; }
+
+/* Prediction choices: no idle LED; after answering, the right answer gets its
+   dot and the picked key a ring. */
+.tx-choices .hw-led:not(.is-on) { display: none; }
+.tx-choices > .hw-key.is-chosen { box-shadow: inset 0 0 0 1.5px var(--label-3); color: var(--label); }
+
+/* SQL wraps between clauses (sqlHtml), never inside an expression. */
+.tx-sql { text-wrap: pretty; }
+.tx-clause { display: inline-block; }
+.tx-lock-pair { display: inline-flex; align-items: center; gap: 5px; margin-inline-end: 12px; white-space: nowrap; }
+.tx-lock-pair:last-child { margin-inline-end: 0; }
+
+/* The tab strip scrolls sideways (shared/hw.css), which clips a ring drawn
+   outside the tab: draw it inside instead. */
+:root[data-explorer="transaction"] .hw-tabs > button:focus-visible { outline-offset: -3px; }
+
+/* Rows that seek show it on hover. */
+.tx-table tr[data-row-seek] { cursor: pointer; }
+.tx-table tr[data-row-seek]:not([aria-current="true"]):hover > td {
+  background: color-mix(in srgb, var(--label) 5%, transparent);
 }

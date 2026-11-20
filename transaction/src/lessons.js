@@ -7,7 +7,7 @@ export const RAIL_TITLE = "트랜잭션과 잠금";
 export const LESSONS = Object.freeze([
   { id: "lost-update", name: "갱신 유실", sub: "읽기 잠금의 시점", title: "같은 재고, 두 개의 주문" },
   { id: "deadlock", name: "교착 상태", sub: "잠금 순서와 롤백", title: "두 행을 줄이는 두 주문", href: "deadlock.html" },
-  { id: "repeatable-read", name: "직렬화 오류", sub: "REPEATABLE READ와 재시도", title: "더 강한 격리, 같은 두 주문" },
+  { id: "repeatable-read", name: "직렬화 오류", sub: "스냅숏과 재시도", title: "더 강한 격리, 같은 두 주문" },
   { id: "write-skew", name: "쓰기 왜곡", sub: "SERIALIZABLE의 검사", title: "당직 의사 두 명" },
 ]);
 

@@ -109,7 +109,7 @@ function slotNumbers() {
   const z = queue.top - 0.31;
   return queue.slots
     .map(([, y], i) => {
-      const [px, py] = project(QUEUE.x + queue.w + 0.002, y + 0.04, z);
+      const [px, py] = project(QUEUE.x + queue.w + 0.002, y - 0.03, z);
       return `<text class="disk-slot-num" transform="matrix(1 -0.5 0 1 ${r2(px)} ${r2(py)})" dominant-baseline="central">${String(i + 1).padStart(2, "0")}</text>`;
     })
     .join("");
@@ -197,7 +197,7 @@ function carriageSvg(c, lit) {
   const label = String(Math.round(c));
   const w = 40;
   return `<g class="disk-carriage${lit ? " is-lit" : ""}" transform="translate(${r2(x)} 0)">
-    <line class="disk-needle" x1="0" y1="${yt + top / 2}" x2="0" y2="${y + face - 18}"/>
+    <line class="disk-needle" x1="0" y1="${yt + top / 2}" x2="0" y2="${y + 12}"/>
     <rect class="disk-carriage-shadow" x="${-w / 2 + 2}" y="${yt + 4}" width="${w}" height="${top - 2}" rx="5"/>
     <rect class="disk-carriage-side" x="${-w / 2}" y="${yt - 10}" width="${w}" height="${top + 2}" rx="5"/>
     <rect class="disk-carriage-top" x="${-w / 2}" y="${yt - 16}" width="${w}" height="${top - 2}" rx="5"/>

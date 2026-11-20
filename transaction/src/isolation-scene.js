@@ -72,7 +72,7 @@ export function createIsolationScene(host, lesson, { onPhase = () => {} } = {}) 
       if (!key) continue;
       pending.insertAdjacentHTML(
         "beforeend",
-        `<g class="tx-pend" data-pend="${id}" data-key="${key}">${sqlToken({ text: text(r.pending.value), color: COLORS[r.pending.client], w: single ? 1.3 : 1.4, d: 0.85, h: 0.38 })}</g>`,
+        `<g class="tx-pend" data-pend="${id}" data-key="${key}">${sqlToken({ text: text(r.pending.value), color: COLORS[r.pending.client], w: single ? 1.3 : 1.4, d: single ? 0.85 : 0.72, h: single ? 0.38 : 0.3, size: single ? 13 : 11 })}</g>`,
       );
       place(pending.lastElementChild, ...at[id].pending);
     }

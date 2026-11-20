@@ -13,7 +13,7 @@ import {
   PACKET_COLORS,
   SCREEN_WIDTH,
 } from "./network-drawing.js";
-import { fitScene, labelScale as watchLabelScale, token } from "../../../shared/iso-kit.js";
+import { fitScene, labelScale as watchLabelScale, project, token } from "../../../shared/iso-kit.js";
 import { animateWithClock, waitWithClock } from "./clock.js";
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.js";
 const NETWORK_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
@@ -249,9 +249,21 @@ function createNetworkAnimation(networkSvg) {
       w += extraX * 2;
       h += extraY * 2;
     }
+    // A device outside the focus group that the stage edge cuts through also
+    // loses its callout: a label on a half-drawn device reads as a glitch.
+    const focus = NETWORK_FOCUS_GROUPS[cameraFrame] ?? [];
+    const isCut = (nodeId) =>
+      !focus.includes(nodeId) &&
+      NETWORK_NODE_BOUNDS[nodeId].some(([px, py, pz]) => {
+        const [sx, sy] = project(px, py, pz);
+        return sx < x || sx > x + w || sy < y || sy > y + h;
+      });
     for (const [nodeId, nodeElement] of Object.entries(nodeElements)) {
       const [cx, cy] = NETWORK_NODE_CENTERS[nodeId];
-      nodeElement.classList.toggle("is-off-frame", cx < x || cx > x + w || cy < y || cy > y + h);
+      nodeElement.classList.toggle(
+        "is-off-frame",
+        cx < x || cx > x + w || cy < y || cy > y + h || isCut(nodeId),
+      );
     }
   }
   let cameraCancellation = {

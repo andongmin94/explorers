@@ -203,7 +203,7 @@ export function progressHtml(s) {
   const total = s.scenesTotal + (s.compare !== false ? 1 : 0) + s.recallTotal;
   const got = s.scenesSeen + (s.compare !== false && s.compared ? 1 : 0) + Math.min(s.recallRight, s.recallTotal);
   const dots = Array.from({ length: total }, (_, i) => `<i class="${i < got ? "is-on" : ""}"></i>`).join("");
-  return `<div class="hw-progress"><span class="hw-meter" aria-hidden="true">${dots}</span><span class="hw-label">${esc(LABELS.progress)} · ${esc(parts.join(" · "))}</span></div>`;
+  return `<div class="hw-progress"><span class="hw-meter" aria-hidden="true">${dots}</span><span class="hw-label">${[LABELS.progress, ...parts].map((p) => `<span class="hw-nowrap">${esc(p)}</span>`).join(" · ")}</span></div>`;
 }
 
 /**

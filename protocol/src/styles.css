@@ -170,13 +170,13 @@ html.is-locked { overflow: hidden; }
 .osi-name { color: var(--label); }
 .osi-leds {
   display: flex;
-  gap: 2px;
+  gap: 4px;
 }
 .osi-cell {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 4px;
+  gap: 3px;
+  padding: 2px 3px;
   color: var(--label-2);
   font-size: var(--fs-1);
   font-weight: var(--w-medium);
@@ -184,7 +184,7 @@ html.is-locked { overflow: hidden; }
 }
 .osi-cell.is-active { color: var(--label); font-weight: var(--w-semibold); }
 .learning-row { display: flex; align-items: center; gap: 10px; }
-.learning-lcd { min-height: 24px; padding: 3px 10px; font-size: var(--fs-2); line-height: 18px; }
+.learning-lcd { gap: 1px; min-height: 24px; padding: 3px 10px; font-size: var(--fs-2); line-height: 18px; }
 /* One lesson status dot per protocol (the shared rail dots). */
 .learning-leds {
   display: grid;
@@ -465,6 +465,7 @@ html.is-locked { overflow: hidden; }
 .side-body .hw-title { margin-top: 6px; }
 .side-body .hw-text + .hw-text { margin-top: 10px; }
 .side-body .hw-muted.hw-text { margin-top: 4px; }
+.side-body .overview-question + .overview-setup { margin-top: 8px; }
 .overview-stage > [hidden] { display: none; }
 .facts { display: grid; margin: 0; }
 .facts > div {
@@ -479,7 +480,7 @@ html.is-locked { overflow: hidden; }
 .facts dd { margin: 0; font-size: var(--fs-2); word-break: keep-all; }
 .explain-packet-head { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .explain-packet-name { font-size: var(--fs-3); }
-.explain-packet-route { font-size: var(--fs-1); }
+.explain-packet-route { font-family: var(--font-sans); font-size: var(--fs-1); }
 .explain-payload {
   margin: 10px 0 0;
   font: 500 var(--fs-1) / 1.6 var(--font-mono);
@@ -487,7 +488,10 @@ html.is-locked { overflow: hidden; }
   word-break: break-all;
 }
 .explain-payload:empty { display: none; }
-.steps-section .steps > button { min-height: 40px; gap: 10px; font-size: var(--fs-2); }
+/* Scene rows: compact rows from the top, with room inside the selected fill. */
+.steps { align-content: start; }
+.steps > button { min-height: 40px; gap: 10px; padding-inline: 10px; font-size: var(--fs-2); }
+.steps-label { gap: 4px; }
 .steps .step-title { flex: 1; min-width: 0; text-align: start; }
 .steps > button[data-status="active"] .step-led { animation: led-blink 1s steps(1) infinite; }
 .steps > button[data-status="active"] { font-weight: var(--w-semibold); }
@@ -499,6 +503,13 @@ html.is-locked { overflow: hidden; }
 .packet-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--label-2); font-size: var(--fs-1); }
 .legend-item { display: inline-flex; align-items: center; gap: 6px; }
 .legend-note { font-size: var(--fs-1); }
+/* The hint is a separate note, not part of the colour key. */
+.records-hint {
+  flex: none;
+  padding-inline-start: 14px;
+  border-inline-start: 1px solid var(--separator);
+  font-weight: var(--w-medium);
+}
 .records-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -626,6 +637,12 @@ h4.ins-layer em { color: var(--label-2); font: var(--w-medium) var(--fs-1) var(-
 .ins-foot { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 8px 16px 12px; border-top: 1px solid var(--separator-soft); font-size: var(--fs-1); }
 .ins-foot b { font-family: var(--font-mono); }
 
+/* Stacked deck: labels line up on top, transport spans the row. */
+@media (max-width: 1099px) {
+  .pe-deck { align-items: flex-start; }
+  .pe-deck > .hw-field:first-child { flex: 1 1 100%; }
+  .pe-deck .toggle { flex: 1 1 auto; }
+}
 @media (max-width: 1099px) {
   .packets.is-inspecting .records-body { grid-template-columns: minmax(0, 1fr); }
   .inspector { border-inline-start: 0; border-top: 1px solid var(--separator-soft); max-height: none; }
@@ -726,6 +743,11 @@ h4.ins-layer em { color: var(--label-2); font: var(--w-medium) var(--fs-1) var(-
 .packets.is-inspecting .packet-table col.c-time { width: 0; }
 .packets.is-inspecting .packet-table :is(th, td):nth-child(2) { padding: 0; font-size: 0; }
 .packets.is-inspecting .packet-table { min-width: 540px; }
+/* The desktop console drops columns instead (container queries above), so the
+   info column ends in an ellipsis rather than being cut at the inspector. */
+@media (min-width: 1100px) and (min-height: 700px) {
+  .pe-console > .packets.is-inspecting .packet-table { min-width: 0; }
+}
 
 /* ---------- Prediction quiz ---------- */
 
@@ -840,7 +862,7 @@ h4.ins-layer::before {
 .pe-quiz-right { margin-top: 10px; color: var(--label-2); }
 .overview-goal { font-weight: 400; }
 .recap .hw-recall-choices > button { min-height: 36px; text-align: start; }
-.recap .hw-recap-points > li { padding-block: 6px; }
+.recap .hw-recap-points > li { padding-block: 6px; padding-inline: 0; }
 .pe-recap-foot { padding: 10px 14px; }
 .pe-recap-foot[hidden] { display: none; }
 .pe-recap-foot > .hw-key { flex: 1; justify-content: center; }

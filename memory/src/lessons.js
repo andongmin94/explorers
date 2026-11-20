@@ -512,7 +512,7 @@ const BELADY = scripted({
   }),
   rules: [
     ["시작", "두 조건 모두 RAM 프레임이 처음에 비어 있습니다."],
-    ["접근", "A B C D A B E A B C D E, 교과서의 1 2 3 4 1 2 5 1 2 3 4 5를 A~E로 바꾼 12번의 읽기입니다."],
+    ["접근", "A\u00a0B\u00a0C\u00a0D\u00a0A\u00a0B\u00a0E\u00a0A\u00a0B\u00a0C\u00a0D\u00a0E, 교과서의 1\u00a02\u00a03\u00a04\u00a01\u00a02\u00a05\u00a01\u00a02\u00a03\u00a04\u00a05를 A~E로 바꾼 12번의 읽기입니다."],
     ["정책", "두 조건 모두 FIFO이고, 프레임 수만 3개와 4개로 다릅니다."],
   ],
 });
@@ -528,7 +528,7 @@ const CLOCK = scripted({
   references: CLOCK_PAGES,
   modeLabel: "교체 방식",
   modes: [
-    { id: "clock", algorithm: "clock", frameCount: 3, label: "CLOCK" },
+    { id: "clock", algorithm: "clock", frameCount: 3, label: "클럭" },
     { id: "lru", algorithm: "lru", frameCount: 3, label: "LRU" },
   ],
   question: "참조 비트 하나로 LRU를 흉내 낼 수 있을까?",

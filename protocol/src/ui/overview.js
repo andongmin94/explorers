@@ -3,7 +3,7 @@
 // the current step and the packet on the wire (설명); at the end it is 정리.
 // What each view shows is decided in ../lesson-view.js (also: what a pending
 // prediction hides). The 장면 tab jumps to any step and marks the 핵심 장면.
-import { escapeHtml, localizedUpperCase, translate } from "../i18n.js";
+import { escapeHtml, translate } from "../i18n.js";
 import { animateTextChange, slideContent } from "./motion.js";
 import { NETWORK_SHORT_LABELS, PACKET_COLORS } from "../simulation/network-drawing.js";
 import { getKeySteps } from "../quiz.js";
@@ -153,7 +153,7 @@ function updateStepExplanation(panel, content) {
   explanation.querySelector(".explain-label").textContent = content.label;
   explanation.querySelector(".explain-title").textContent = content.hold
     ? content.title
-    : localizedUpperCase(translate(content.title));
+    : translate(content.title);
   const sub = explanation.querySelector(".explain-sub");
   sub.textContent = translate(content.desc);
   sub.hidden = !content.desc;
@@ -202,7 +202,7 @@ function updateRecap(panel, state, summary) {
     view.innerHTML = `
       <div>
         <span class="hw-label">${escapeHtml(recap.label)}</span>
-        <h2 class="hw-title">${escapeHtml(localizedUpperCase(translate(recap.title)))}</h2>
+        <h2 class="hw-title">${escapeHtml(translate(recap.title))}</h2>
         <p class="hw-text hw-muted">${escapeHtml(translate(recap.desc))}</p>
       </div>
       <div class="hw-recap-foot recap-progress"></div>

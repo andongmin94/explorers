@@ -1598,3 +1598,60 @@
     backdrop-filter: none;
   }
 }
+
+/* ---------- Polish: cross-explorer glitch fixes ---------- */
+
+/* Sheets and the rail drawer sit over busy content: near-opaque glass, so
+   text behind them never reads through. */
+.hw-dialog {
+  background: var(--lg-sheen), color-mix(in srgb, var(--window) 92%, transparent);
+}
+@media (max-width: 1279px) {
+  .hw-console.has-rail > .hw-rail {
+    background: var(--lg-sheen), color-mix(in srgb, var(--window) 90%, transparent);
+    -webkit-backdrop-filter: blur(30px) saturate(1.6);
+    backdrop-filter: blur(30px) saturate(1.6);
+  }
+}
+/* Sheet head and foot line up with the body inset inside the r 26 sheet. */
+.hw-dialog > .hw-plate-head { padding: 18px 22px 10px; }
+.hw-dialog > .hw-plate-foot { padding: 12px 22px 18px; }
+
+/* Tabs: the focus ring sits inside (the strip clips outside it), and the
+   selected label is primary text, readable on every accent. */
+.hw-tabs > [role="tab"]:focus-visible { outline-offset: -3px; }
+.hw-tabs > [role="tab"][aria-selected="true"] { color: var(--label); }
+
+/* A tag beside a readout in a plate head: same height, same centre line. */
+.hw-plate-head .hw-tag { height: 28px; padding: 0 11px; align-self: center; }
+.hw-plate-head .hw-lcd { align-self: center; }
+
+/* Recall choices look like buttons before hover. */
+.hw-recall-choices > button {
+  position: relative;
+  padding-inline-end: 28px;
+  background: var(--fill-4);
+  border-radius: var(--r-small, 8px);
+}
+.hw-recall-choices > button::after {
+  content: "›";
+  position: absolute;
+  inset-inline-end: 12px;
+  color: var(--label-3);
+}
+.hw-recall-choices > button + button { margin-top: 4px; }
+
+/* Selected table row: a deeper accent so white text keeps its contrast
+   (disk's yellow accent already carries dark text). */
+:root:not([data-explorer="disk"]) .hw-table tbody tr[aria-current="true"] td {
+  background: color-mix(in oklch, var(--accent) 84%, black);
+}
+
+/* Phones: no keyboard legend, no brand subtitle, round icon keys. */
+@media (max-width: 759px) {
+  .hw-footer > :first-child { display: none; }
+  .hw-brand p,
+  .explorer-brand-caption { display: none; }
+  .hw-key--icon { min-width: 42px; aspect-ratio: 1; padding: 0; }
+}
+.hw-nowrap { white-space: nowrap; }

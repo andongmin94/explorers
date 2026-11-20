@@ -14,6 +14,10 @@ import { LABELS, bindRecap, createProgress, progressHtml, recapHtml } from "../.
 import { currentLesson, mountRail, nextLesson, progressIdFor } from "../../shared/lesson-rail.js";
 
 const number = (value) => Number(value.toFixed(2)).toLocaleString("ko-KR");
+// Korean reading text: a number never wraps away from its unit, and the right
+// side of an equation stays on the line with its "=" (text only, not tags).
+const keepUnits = (html) =>
+  html.replace(/(\d) (ms|회)(?![^<]*>)/g, "$1\u00a0$2").replace(/ = (?=\d)(?![^<]*>)/g, "\u00a0=\u00a0");
 const ledFor = (id) => `<span class="hw-led is-on" style="--led:var(--${id ? id.toLowerCase() : "sys-gray"})"></span>`;
 const recipe = (p) =>
   p.cpu.map((c, i) => `${i ? `입출력 ${p.io[i - 1]} → ` : ""}CPU ${c}`).join(" → ");
@@ -211,6 +215,7 @@ let shownMilestone = null;
 const logWindow = rowWindow($(".cpu-log-box"), $("#event-log"), { current: () => $("#event-log tr[aria-current]") });
 // Content that changes starts again on its first page.
 function refill(pager, el, html, before) {
+  html = keepUnits(html);
   if (el.dataset.html === html) return false;
   el.dataset.html = html;
   el.innerHTML = html;
@@ -627,7 +632,7 @@ function openPrediction() {
   quiz = { ...prediction, answered: false, followAnswered: false };
   seek(prediction.beforeTime);
   const follow = prediction.followUp;
-  $("#prediction-body").innerHTML = `
+  $("#prediction-body").innerHTML = keepUnits(`
     <div class="hw-plate-body">
       <div class="hw-section">
         <span class="hw-label">${time < 0 ? "시작 전" : `${time}ms`}에서 멈춤</span>
@@ -655,7 +660,7 @@ function openPrediction() {
         <div id="quiz-follow-feedback" aria-live="polite"></div>
       </div>` : ""}
     </div>
-    <div class="hw-plate-foot cpu-dialog-actions"><button class="hw-key hw-key--accent" data-action="quiz-continue" hidden>${LABELS.reveal}</button></div>`;
+    <div class="hw-plate-foot cpu-dialog-actions"><button class="hw-key hw-key--accent" data-action="quiz-continue" hidden>${LABELS.reveal}</button></div>`);
   $("#prediction-dialog").showModal();
 }
 function markChoices(selector, attribute, correctValue, picked) {
@@ -681,7 +686,7 @@ function answerPrediction(answer) {
   progress.markPrediction(quiz.id, correct);
   markChoices("[data-answer]", "answer", chosen, answer);
   const right = quiz.choices.find((choice) => choice.correct);
-  $("#quiz-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? LABELS.correct : LABELS.wrong(chosen)}</p><p>${picked.why}</p>${correct ? "" : `<p class="hw-muted">${right.why}</p>`}</div></div>`;
+  $("#quiz-feedback").innerHTML = keepUnits(`<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p class="hw-heading">${correct ? LABELS.correct : LABELS.wrong(chosen)}</p><p>${picked.why}</p>${correct ? "" : `<p class="hw-muted">${right.why}</p>`}</div></div>`);
   // The feedback restates the queue, so the context makes room for the follow-up.
   $("#prediction-body .cpu-quiz-context").closest(".hw-section").hidden = true;
   $("#prediction-body .hw-section > .hw-text.hw-muted").hidden = true;
@@ -696,7 +701,7 @@ function answerNumber(value) {
   const { answer, explanation } = quiz.followUp;
   const correct = Number(value) === answer;
   markChoices("[data-number]", "number", String(answer), String(value));
-  $("#quiz-follow-feedback").innerHTML = `<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p>${correct ? LABELS.correct : LABELS.wrong(`${answer}ms`)} ${explanation}</p></div></div>`;
+  $("#quiz-follow-feedback").innerHTML = keepUnits(`<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p>${correct ? LABELS.correct : LABELS.wrong(`${answer}ms`)} ${explanation}</p></div></div>`);
   showReveal();
 }
 
@@ -733,7 +738,7 @@ function openComparison() {
     const aWins = higherIsBetter ? a > b : a < b;
     return aWins ? [" is-better", ""] : ["", " is-better"];
   };
-  $("#comparison-body").innerHTML = `
+  $("#comparison-body").innerHTML = keepUnits(`
     <div class="hw-plate-body">
       <div class="hw-section">
         <h2 class="hw-title" id="comparison-title">${lesson.question}</h2>
@@ -758,7 +763,7 @@ function openComparison() {
     <div class="hw-plate-foot cpu-dialog-actions">
       <button class="hw-key" data-action="try-other">${josa(METHODS[other].label, "으로")} 다시 보기 ${icon("arrow")}</button>
       <button class="hw-key hw-key--accent" data-action="close-dialog">계속 살펴보기</button>
-    </div>`;
+    </div>`);
   $("#comparison-dialog").showModal();
 }
 

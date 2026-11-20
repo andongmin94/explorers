@@ -4,7 +4,7 @@
 import { protocolCatalog } from "../lessons/index.js";
 import { getLessonCompletion, getLessonStatus } from "../progress.js";
 import { animateTextChange } from "./motion.js";
-import { localizedUpperCase, translate } from "../i18n.js";
+import { translate } from "../i18n.js";
 import { icon } from "../../../shared/hw.js";
 
 const OSI_LAYER_NAMES = [
@@ -84,7 +84,7 @@ function updateTopbar(topbar, playback, lesson) {
   topbar.dataset.layer = lesson.layer;
   animateTextChange(
     topbar.querySelector(".now-name"),
-    `${lesson.name} · ${localizedUpperCase(translate(lesson.title))}`,
+    `${lesson.name} · ${translate(lesson.title)}`,
   );
   const layerName = translate(OSI_LAYER_NAMES[lesson.layer - 1]);
   animateTextChange(
