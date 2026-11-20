@@ -76,7 +76,9 @@
 
   /* Window: the content background */
   --window: #ffffff;
-  --group: var(--fill-4);
+  /* Content groups are opaque (kit Form Group): the wallpaper wash behind
+     the scene never shows through text and tables. */
+  --group: #f7f7f7;
   --field: #ffffff;
   --field-ring: 0 0 0 1px rgb(0 0 0 / 0.08);
   --window-shadow: 0 0 0 1px rgb(0 0 0 / 0.23), 0 16px 48px rgb(0 0 0 / 0.35);
@@ -341,6 +343,7 @@
   --separator-soft: rgb(255 255 255 / 0.06);
 
   --window: #1e1e1e;
+  --group: #262626;
   --field: rgb(255 255 255 / 0.06);
   --field-ring: 0 0 0 1px rgb(255 255 255 / 0.1);
   --window-shadow: 0 0 0 1px rgb(0 0 0 / 0.6), 0 16px 48px rgb(0 0 0 / 0.55);

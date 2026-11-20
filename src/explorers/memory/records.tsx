@@ -84,7 +84,7 @@ function History({ playback, snap }: { playback: Playback; snap: PlaybackSnapsho
       <th
         scope="row"
         className={cn(
-          "h-10 rounded-l-small px-2.5 text-left font-sans text-caption font-medium whitespace-nowrap text-label-2",
+          "h-8 px-2.5 text-left font-sans text-caption font-medium whitespace-nowrap text-label-2",
           "group-even/row:bg-fill-4",
         )}
       >
@@ -101,12 +101,16 @@ function History({ playback, snap }: { playback: Playback; snap: PlaybackSnapsho
             data-current={current || undefined}
             onClick={() => seek(i + 1)}
             className={cn(
-              "h-10 cursor-pointer px-1.5 py-2 text-center align-middle last:rounded-r-small",
+              "h-8 cursor-pointer px-1.5 py-1 text-center align-middle",
               "group-even/row:bg-fill-4 hover:bg-fill-3!",
-              current && "rounded-none! bg-sel-strong! group-last/row:rounded-b-small!",
+              current && "bg-sel-strong!",
             )}
           >
-            {cell(s, page)}
+            {cell(s, page) ?? (
+              <span aria-hidden className="text-label-4">
+                ·
+              </span>
+            )}
           </td>
         );
       })}

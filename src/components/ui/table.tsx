@@ -27,7 +27,6 @@ export function Th({ className, ...props }: React.ComponentProps<"th">) {
       className={cn(
         "sticky top-0 z-[2] h-7 border-b border-separator-soft px-2.5 pt-[5px] pb-1 text-left whitespace-nowrap",
         "[background:linear-gradient(var(--group),var(--group)),var(--window)] font-sans text-caption font-semibold text-label-2",
-        "[&+&]:border-l [&+&]:border-l-separator-soft",
         "console-short:h-[26px] console-short:pt-1 console-short:pb-[3px]",
         className,
       )}
