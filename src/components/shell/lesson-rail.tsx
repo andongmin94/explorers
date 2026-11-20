@@ -1,12 +1,15 @@
-// Lesson rail = the sidebar (kit Sidebar 684:18069): Medium glass, inset from
-// the window edge. A column left of the stage from 1280px; a drawer opened by
-// the toolbar's "레슨" key below that. Each lesson shows a status dot (ring:
-// new, half: in progress, filled: done) and a percentage from lessonStatus().
-import { XIcon } from "lucide-react";
+// Lesson rail = the sidebar (kit Sidebars 656:3559, items 207:14495): Medium
+// glass, inset from the window edge. A column left of the stage from 1280px;
+// a drawer opened by the toolbar's "레슨" key below that. Rows are the kit's
+// sidebar items: status symbol + lesson name + a dim right-aligned detail
+// ("30%" / "완료"), 32 tall, no separators; the selected row is a grey
+// rounded fill whose symbol takes the accent. The section header is the
+// explorer name (secondary, bold, small).
+import { CircleCheckIcon, CircleIcon, ContrastIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button.tsx";
-import { Label } from "@/components/ui/typography.tsx";
+import { Label, VisuallyHidden } from "@/components/ui/typography.tsx";
 import { cn } from "@/lib/cn.ts";
 import { lessonStatus, type LessonStatus, type Progress } from "@/lib/lesson-kit.ts";
 import { lessonHref, progressIdFor, type RailLesson } from "@/lib/lesson-rail.ts";
@@ -17,6 +20,8 @@ const STATUS_TEXT: Record<LessonStatus, string> = {
   progress: "진행 중",
   done: "완료",
 };
+
+const STATUS_ICON = { new: CircleIcon, progress: ContrastIcon, done: CircleCheckIcon } as const;
 
 /** Re-render on every progress change of the open lesson (the others cannot change here). */
 function useProgressVersion(progress: Progress | null) {
@@ -80,8 +85,8 @@ export function LessonRail({
         rail.open ? "drawer:translate-x-0" : "drawer:-translate-x-[calc(100%+24px)]",
       )}
     >
-      <div className="flex min-h-10 items-center gap-2.5 pt-3 pr-3 pb-[2px] pl-4">
-        <Label vibrant className="min-w-0 flex-auto">
+      <div className="flex min-h-9 items-center gap-2.5 pt-3 pr-3 pb-[3px] pl-[18px]">
+        <Label vibrant className="min-w-0 flex-auto font-bold">
           {title}
         </Label>
         <Button
@@ -96,51 +101,48 @@ export function LessonRail({
           <XIcon aria-hidden="true" />
         </Button>
       </div>
-      <nav className="min-h-0 flex-1 overflow-auto px-2 pt-1 pb-2.5 [scrollbar-width:thin] console:rail-column:overflow-hidden">
+      <nav className="min-h-0 flex-1 overflow-auto px-2.5 pt-0.5 pb-2.5 [scrollbar-width:thin] console:rail-column:overflow-hidden">
         <div className="grid">
           {lessons.map((lesson, i) => {
             const { status, ratio } = lessonStatus(progressIdFor(explorer, lessons, lesson.id));
             const here = lesson.id === current;
+            const Icon = STATUS_ICON[status];
+            const detail =
+              status === "done"
+                ? "완료"
+                : status === "progress"
+                  ? `${Math.round(ratio * 100)}%`
+                  : "";
             return (
               <a
                 key={lesson.id}
                 href={lessonHref(lessons, lesson)}
                 data-lesson={lesson.id}
                 aria-current={here ? "page" : undefined}
+                title={lesson.sub ? `${lesson.name} · ${lesson.sub}` : lesson.name}
                 className={cn(
-                  "group/row flex min-h-11 items-center gap-2.5 rounded-small px-2 py-1.5 text-vlabel no-underline",
-                  "hover:bg-lg-hover aria-[current=page]:bg-lg-selected",
+                  "group/row flex min-h-8 items-center gap-1.5 rounded-small px-2 text-control text-vlabel no-underline",
+                  "hover:bg-lg-hover aria-[current=page]:bg-sel-strong",
                   "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+                  "phone:min-h-11",
                 )}
               >
-                <span
+                <Icon
+                  aria-hidden="true"
                   data-status={status}
-                  className={cn(
-                    "inline-block size-2 flex-none rounded-full",
-                    status === "new" && "bg-transparent shadow-[inset_0_0_0_1.5px_var(--label-3)]",
-                    status === "progress" &&
-                      "bg-[conic-gradient(var(--accent)_0_50%,transparent_0)] shadow-[inset_0_0_0_1.5px_var(--accent)]",
-                    status === "done" && "bg-accent",
-                  )}
+                  strokeWidth={1.7}
+                  className="size-4 flex-none text-vlabel-2 group-aria-[current=page]/row:text-accent-text"
                 />
-                <span className="grid min-w-0 flex-1 gap-px leading-4">
-                  <span className="text-control font-medium keep-all">
-                    <span className="me-1 font-semibold text-vlabel-2 tabular-nums group-aria-[current=page]/row:text-accent-text">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>{" "}
-                    {lesson.name}
-                  </span>
-                  {lesson.sub && (
-                    <span className="truncate text-caption leading-[15px] font-normal text-vlabel-2">
-                      {lesson.sub}
-                    </span>
-                  )}
+                <span className="min-w-0 flex-1 truncate ps-0.5 keep-all">
+                  <VisuallyHidden>{String(i + 1).padStart(2, "0")} </VisuallyHidden>
+                  {lesson.name}
+                  {lesson.sub && <VisuallyHidden> · {lesson.sub}</VisuallyHidden>}
                 </span>
                 <span
-                  className="font-sans text-caption font-medium text-vlabel-2 tabular-nums"
+                  className="flex-none font-sans text-caption text-vlabel-3 tabular-nums dark:text-vlabel-2"
                   aria-label={STATUS_TEXT[status]}
                 >
-                  {Math.round(ratio * 100)}%
+                  {detail}
                 </span>
               </a>
             );

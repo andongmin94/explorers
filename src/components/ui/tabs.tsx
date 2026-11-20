@@ -2,7 +2,7 @@ import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 
 import { cn } from "@/lib/cn.ts";
 
-/** Tabs (iOS 26 Tab Bar 507:24689): a glass capsule; the selected tab is a grey pill. */
+/** Tabs: drawn as the macOS segmented control (kit 121:11848): a white capsule; the selected tab is a grey pill. */
 export function Tabs({
   className,
   ...props
@@ -18,8 +18,7 @@ export function TabsList({
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "flex max-w-full items-center gap-px overflow-x-auto rounded-full p-[2px] [scrollbar-width:none]",
-        "[background:var(--lg-sheen),var(--lg-small)] shadow-[var(--lg-rim),0_2px_10px_rgb(0_0_0/0.06)]",
+        "flex max-w-full items-center gap-px overflow-x-auto rounded-full p-[3px] capsule [scrollbar-width:none]",
         className,
       )}
       {...props}
@@ -35,11 +34,11 @@ export function TabsTab({
     <TabsPrimitive.Tab
       data-slot="tabs-tab"
       className={cn(
-        "inline-flex min-h-[26px] cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-[11px]",
-        "font-sans text-control font-medium whitespace-nowrap text-vlabel keep-all",
+        "inline-flex min-h-6 cursor-pointer items-center gap-1.5 rounded-full border-0 bg-transparent px-2.5",
+        "font-sans text-control font-medium whitespace-nowrap text-label keep-all",
         "transition-[background-color,color] duration-150 motion-reduce:transition-none",
         "hover:not-aria-selected:bg-lg-hover",
-        "aria-selected:bg-lg-selected aria-selected:font-semibold aria-selected:text-label",
+        "aria-selected:bg-sel",
         "focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
         "phone:min-h-[34px]",
         className,

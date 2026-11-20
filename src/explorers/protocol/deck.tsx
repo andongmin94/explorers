@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { Deck, Field } from "@/components/shell/console.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -46,54 +46,51 @@ export function ProtocolDeck({
 
   return (
     <Deck aria-label="재생 조작" className="items-start console:gap-y-2.5">
-      <Field className="flex-[1_1_100%] min-w-0">
-        <Label>재생</Label>
-        <div className="flex items-center gap-2 phone:flex-wrap">
-          <Button
-            size="icon"
-            data-action="reset"
-            aria-label={translate("Reset")}
-            title="처음으로 (R)"
-            className="phone:min-h-11"
-            onClick={() => controller.resetLesson()}
-          >
-            <SkipBackIcon aria-hidden="true" />
-          </Button>
-          <Button
-            size="icon"
-            data-action="prev"
-            aria-label={translate("Previous step")}
-            title={translate("Previous step (←)")}
-            disabled={!started}
-            className="phone:min-h-11"
-            onClick={controller.previous}
-          >
-            <ChevronLeftIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="primary"
-            data-action="toggle"
-            data-label={label}
-            title={translate("Play / pause (Space)")}
-            className="min-w-[132px] flex-auto phone:min-h-11 phone:min-w-0 phone:flex-1"
-            onClick={controller.toggle}
-          >
-            <Glyph aria-hidden="true" />
-            <span>{label}</span>
-          </Button>
-          <Button
-            size="icon"
-            data-action="next"
-            aria-label="다음 단계"
-            title="다음 단계 (→)"
-            disabled={nextDisabled}
-            className="phone:min-h-11"
-            onClick={controller.next}
-          >
-            <ChevronRightIcon aria-hidden="true" />
-          </Button>
-        </div>
-      </Field>
+      <ButtonGroup aria-label="재생" className="w-full flex-[1_1_100%]">
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="reset"
+          aria-label={translate("Reset")}
+          title="처음으로 (R)"
+          onClick={() => controller.resetLesson()}
+        >
+          <SkipBackIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="prev"
+          aria-label={translate("Previous step")}
+          title={translate("Previous step (←)")}
+          disabled={!started}
+          onClick={controller.previous}
+        >
+          <ChevronLeftIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          data-action="toggle"
+          data-label={label}
+          title={translate("Play / pause (Space)")}
+          className="min-w-0 flex-1"
+          onClick={controller.toggle}
+        >
+          <Glyph aria-hidden="true" />
+          <span>{label}</span>
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="next"
+          aria-label="다음 단계"
+          title="다음 단계 (→)"
+          disabled={nextDisabled}
+          onClick={controller.next}
+        >
+          <ChevronRightIcon aria-hidden="true" />
+        </Button>
+      </ButtonGroup>
       <Field>
         <Label id="speed-label">{translate("Playback speed")}</Label>
         <SegmentedControl
@@ -115,16 +112,19 @@ export function ProtocolDeck({
       </Field>
       <Field>
         <Label>한 사건씩</Label>
-        <Button
-          data-action="step"
-          title="사건 하나만 진행"
-          disabled={done}
-          onClick={controller.stepEvent}
-        >
-          다음 사건
-        </Button>
+        <ButtonGroup>
+          <Button
+            variant="plain"
+            data-action="step"
+            title="사건 하나만 진행"
+            disabled={done}
+            onClick={controller.stepEvent}
+          >
+            다음 사건
+          </Button>
+        </ButtonGroup>
       </Field>
-      <div className="flex min-h-[34px] items-center self-center">
+      <div className="flex min-h-6 items-center self-end pb-1">
         <Switch
           data-action="guided"
           title="예측이 있는 패킷 앞과 끝에서 멈춥니다"

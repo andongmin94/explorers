@@ -34,13 +34,13 @@
 
   /* Type: macOS 26 text styles (Callout 12, Body 13, Title 3 15, Title 2 17,
      Title 1 22). The project keeps 12px as its smallest size; reading text
-     in Korean is 14px. */
+     is macOS Body 13 (with a Korean line height). */
   --fs-1: 12px;
   --fs-2: 13px;
   --fs-3: 15px;
   --fs-4: 17px;
   --fs-5: 22px;
-  --fs-text: 14px;
+  --fs-text: 13px;
   --w-medium: 510;
   --w-semibold: 590;
   --w-bold: 700;
@@ -121,6 +121,16 @@
   --lg-hover: rgb(0 0 0 / 0.05);
   --lg-press: rgb(0 0 0 / 0.11);
   --lg-selected: rgb(0 0 0 / 0.11);
+  /* Grey selection (kit: selected segment / button / sidebar row / inactive
+     table row). Accent is not a selection colour on macOS. */
+  --sel: rgb(0 0 0 / 0.1);
+  --sel-strong: rgb(0 0 0 / 0.11);
+  /* The white capsule a segmented control, tab list or button group sits in
+     (kit 121:11848 / 647:1886: Liquid Glass Small, 36 or 24 tall). */
+  --capsule: rgb(255 255 255 / 0.72);
+  --capsule-shadow:
+    inset 0 0 0 0.5px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.06), 0 3px 12px rgb(0 0 0 / 0.06);
+  --capsule-divider: rgb(0 0 0 / 0.1);
 
   /* Controls */
   --control-fill: var(--fill-3); /* bordered neutral */
@@ -181,8 +191,8 @@
   --control-ink: var(--label);
   --control-border: var(--separator);
   --control-shadow: transparent;
-  --selected: var(--accent);
-  --on-selected: var(--on-accent);
+  --selected: var(--sel-strong);
+  --on-selected: var(--label);
 
   /* Empty sockets and bays on the devices */
   --iso-socket: #ebebe8;
@@ -368,6 +378,13 @@
   --lg-hover: rgb(255 255 255 / 0.07);
   --lg-press: rgb(255 255 255 / 0.14);
   --lg-selected: rgb(255 255 255 / 0.12);
+  --sel: rgb(255 255 255 / 0.14);
+  --sel-strong: rgb(255 255 255 / 0.14);
+  --capsule: rgb(255 255 255 / 0.08);
+  --capsule-shadow:
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.3),
+    0 3px 12px rgb(0 0 0 / 0.2);
+  --capsule-divider: rgb(255 255 255 / 0.12);
 
   --control-fill: rgb(255 255 255 / 0.1);
   --control-fill-press: rgb(255 255 255 / 0.2);
@@ -468,6 +485,15 @@
   --iso-cable: #46474b;
   --iso-cable-hi: rgb(255 255 255 / 0.28);
   --iso-cable-shadow: rgb(0 0 0 / 0.6);
+}
+
+/* ?backdrop=1 (draft, off by default): the floor grid turns translucent so
+   the soft wallpaper wash (backdrop-wash in app.css) reads through it. */
+:root[data-backdrop="on"] {
+  --iso-grid: rgb(0 0 0 / 0.07);
+}
+:root[data-backdrop="on"][data-theme="dark"] {
+  --iso-grid: rgb(255 255 255 / 0.06);
 }
 
 /* Reduced transparency / increased contrast: glass becomes an opaque

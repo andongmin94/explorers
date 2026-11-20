@@ -238,7 +238,7 @@ export function TxSide({
               )}
               {conclusion && (
                 <Button
-                  variant="primary"
+                  variant="filled"
                   data-action="compare"
                   data-role="conclusion"
                   className="w-full"

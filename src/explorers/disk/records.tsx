@@ -318,7 +318,7 @@ function Metrics({ snap, seen }: { snap: PlaybackSnapshot; seen: Step[] }) {
         {metrics.map(([label, value, unit]) => (
           <div key={label} className="grid gap-1">
             <Label as="dt">{label}</Label>
-            <dd className="m-0 text-large leading-[1.1] font-bold tabular-nums">
+            <dd className="m-0 text-title font-bold tabular-nums">
               {value}
               <small className="ms-1 text-caption font-medium text-label-2">{unit}</small>
             </dd>

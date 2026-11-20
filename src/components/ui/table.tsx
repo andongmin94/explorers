@@ -2,8 +2,8 @@ import { cn } from "@/lib/cn.ts";
 
 /*
  * Table (kit Lists and Tables 121:12606): a 28px column header (12 semibold
- * secondary), alternating rows, the current row (aria-current="true") filled
- * with a deepened accent with rounded ends. Rows with data-time or
+ * secondary), alternating rows, the current row (aria-current="true") in the
+ * kit's grey (unfocused) selection with rounded ends. Rows with data-time or
  * data-clickable get a pointer. Pair with useRowWindow (src/lib/fit.ts) so the
  * body shows only the rows that fit.
  */
@@ -36,13 +36,11 @@ export function Th({ className, ...props }: React.ComponentProps<"th">) {
   );
 }
 
-/** Body rows: alternating fill, hover, the current row in the accent. */
+/** Body rows: alternating fill, hover, the current row in the grey selection. */
 export const rowClass = cn(
   "even:[&>td]:bg-fill-4 hover:[&>td]:bg-fill-3 data-time:cursor-pointer data-clickable:cursor-pointer",
-  "aria-[current=true]:[&>td]:bg-[color-mix(in_oklch,var(--accent)_84%,black)] aria-[current=true]:[&>td]:font-medium aria-[current=true]:[&>td]:text-on-accent",
-  "[:root[data-explorer=disk]_&]:aria-[current=true]:[&>td]:bg-accent",
+  "aria-[current=true]:[&>td]:bg-sel-strong aria-[current=true]:[&>td]:font-semibold",
   "aria-[current=true]:[&>td:first-child]:rounded-l-small aria-[current=true]:[&>td:last-child]:rounded-r-small",
-  "aria-[current=true]:[&_[data-slot=led]]:shadow-[0_0_0_1.5px_var(--on-accent)] aria-[current=true]:[&_.text-label-2]:text-inherit",
 );
 
 export function Td({ className, ...props }: React.ComponentProps<"td">) {

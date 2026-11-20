@@ -31,3 +31,24 @@ export function ButtonLink({
     </a>
   );
 }
+
+/**
+ * Button group (kit Window/Button Group 647:1886): one capsule holding
+ * borderless items (`variant="plain"`), 4px padding, items 28 tall. The deck's
+ * transport and the toolbar's grouped icon keys use it.
+ */
+export function ButtonGroup({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a row of buttons, not a form fieldset
+      role="group"
+      data-slot="button-group"
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full p-[3px] capsule",
+        "[&>[data-slot=button]]:min-h-7 phone:[&>[data-slot=button]]:min-h-[42px]",
+        className,
+      )}
+      {...props}
+    />
+  );
+}

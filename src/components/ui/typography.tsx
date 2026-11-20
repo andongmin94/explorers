@@ -1,10 +1,11 @@
 import { cn } from "@/lib/cn.ts";
 
 /*
- * The four text roles (docs/DESIGN.md → Rules 4): Title (Title 2, 17 bold,
- * one per group), Text (body 14 / 1.6), Label (12 semibold, secondary,
- * sentence case) and readouts (readout.tsx). Plus Index (an accent number in
- * a label), Heading (15 semibold, inside notes) and Muted.
+ * The four text roles (docs/DESIGN.md → Rules 4), macOS 26 text styles:
+ * Title (Title 3, 15 semibold, one per group), Text (Body 13 / 1.55), Label
+ * (12 semibold, secondary, sentence case) and readouts (content.tsx). Plus
+ * Index (a secondary number in a label or row), Heading (Headline 13 bold,
+ * inside notes) and Muted.
  */
 
 /** Secondary label (kit section header). On glass pass `vibrant`. */
@@ -28,17 +29,17 @@ export function Label({
   );
 }
 
-/** The accent number in a label or row ("01", "A", "?"). */
+/** The number in a label or row ("01", "A", "?"): secondary, never the accent. */
 export function Index({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
-      className={cn("font-sans font-semibold text-accent-text tabular-nums", className)}
+      className={cn("font-sans font-semibold text-label-2 tabular-nums", className)}
       {...props}
     />
   );
 }
 
-/** Title 2: one per group at most. */
+/** Title 3 (15 / 20 semibold): one per group at most. */
 export function Title({
   className,
   as: Tag = "h2",
@@ -47,8 +48,7 @@ export function Title({
   return (
     <Tag
       className={cn(
-        "m-0 font-display text-title font-bold tracking-[-0.01em] text-balance keep-all",
-        "console-short:[.side-panel_&]:text-headline console-short:[.side-panel_&]:leading-5",
+        "m-0 font-display text-headline font-semibold text-balance keep-all",
         className,
       )}
       {...props}
@@ -57,10 +57,10 @@ export function Title({
 }
 
 export function Heading({ className, ...props }: React.ComponentProps<"p">) {
-  return <p className={cn("m-0 text-headline font-semibold", className)} {...props} />;
+  return <p className={cn("m-0 text-control leading-4 font-bold", className)} {...props} />;
 }
 
-/** Body text: Korean reading text, 14 / 1.6. */
+/** Body text: macOS Body 13 with a Korean line height (1.55). */
 export function Text({ className, ...props }: React.ComponentProps<"p">) {
   return (
     <p

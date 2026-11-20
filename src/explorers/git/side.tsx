@@ -259,7 +259,7 @@ export function GitSide({
       node: (
         <Note as="p" accent id="takeaway">
           <span>
-            <Label className="me-2 inline text-accent-text">{LABELS.key}</Label>
+            <Label className="me-2 inline font-bold text-label">{LABELS.key}</Label>
             <span id="takeaway-text">{keepFlags(text.takeaway)}</span>
           </span>
         </Note>

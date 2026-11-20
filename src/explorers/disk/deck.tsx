@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { Deck, Field } from "@/components/shell/console.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -58,77 +58,75 @@ export function DiskDeck({ playback, snap }: { playback: Playback; snap: Playbac
               className="group/seg console:px-2.5"
             >
               {fix(lesson.names[alg]!)}{" "}
-              <Muted className="font-medium group-aria-pressed/seg:text-inherit group-aria-pressed/seg:opacity-72">
-                {lesson.ruleShort[alg]}
-              </Muted>
+              <Muted className="font-medium">{lesson.ruleShort[alg]}</Muted>
             </Segment>
           ))}
         </SegmentedControl>
       </Field>
 
-      <Field className="phone:w-full">
-        <Label className="console:sr-only">재생</Label>
-        <div className="flex flex-wrap items-center gap-2 console:grid console:grid-cols-[42px_42px_minmax(0,1fr)] console:gap-2">
+      <ButtonGroup aria-label="재생" className="w-full">
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="reset"
+          aria-label="처음으로"
+          onClick={() => playback.reset()}
+        >
+          <SkipBackIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="back"
+          aria-label="이전 요청"
+          disabled={index === 0}
+          onClick={() => playback.back()}
+        >
+          <ChevronLeftIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          data-action="play"
+          aria-label={moving ? "일시정지" : "재생"}
+          className="min-w-0 flex-1"
+          onClick={() => playback.togglePlay()}
+        >
+          {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
+          <span>{playLabel}</span>
+        </Button>
+        <Button
+          variant="plain"
+          data-action="next"
+          disabled={index === N || busy}
+          onClick={() => playback.next()}
+        >
+          다음 요청 <ChevronRightIcon aria-hidden="true" />
+        </Button>
+      </ButtonGroup>
+
+      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full">
+        <ButtonGroup>
           <Button
-            size="icon"
-            data-action="reset"
-            aria-label="처음으로"
-            className="phone:min-h-11 console:size-auto console:min-h-8"
-            onClick={() => playback.reset()}
-          >
-            <SkipBackIcon aria-hidden="true" />
-          </Button>
-          <Button
-            size="icon"
-            data-action="back"
-            aria-label="이전 요청"
-            disabled={index === 0}
-            className="phone:min-h-11 console:size-auto console:min-h-8"
-            onClick={() => playback.back()}
-          >
-            <ChevronLeftIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="primary"
-            data-action="play"
-            aria-label={moving ? "일시정지" : "재생"}
-            className="min-w-[140px] phone:order-first phone:min-h-11 phone:basis-full console:min-w-0"
-            onClick={() => playback.togglePlay()}
-          >
-            {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
-            <span>{playLabel}</span>
-          </Button>
-          <Button
-            data-action="next"
-            disabled={index === N || busy}
-            className="phone:min-h-11 phone:flex-1 console:[grid-area:2/3]"
-            onClick={() => playback.next()}
-          >
-            다음 요청 <ChevronRightIcon aria-hidden="true" />
-          </Button>
-          <Button
+            variant="plain"
             size="icon"
             data-action="replay"
             aria-label={`${LABELS.now} 요청 다시 보기`}
             disabled={index === 0 || busy}
-            className="phone:min-h-11 console:size-auto console:min-h-8 console:[grid-area:2/1]"
             onClick={() => void playback.replay()}
           >
             <RotateCcwIcon aria-hidden="true" />
           </Button>
           <Button
+            variant="plain"
             size="icon"
             data-action="speed"
             aria-label={`재생 속도 ${snap.speed}배, 바꾸기`}
-            className="tabular-nums phone:min-h-11 console:size-auto console:min-h-8 console:[grid-area:2/2]"
+            className="tabular-nums"
             onClick={() => playback.cycleSpeed()}
           >
             {snap.speed}×
           </Button>
-        </div>
-      </Field>
-
-      <div className="grid min-w-[220px] flex-[1_1_240px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:basis-full console:min-w-0">
+        </ButtonGroup>
         <Label>0</Label>
         <Slider
           id="seek"

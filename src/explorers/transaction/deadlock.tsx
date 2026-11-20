@@ -142,7 +142,7 @@ function Timeline({ mode, snap, steps, onSeek }: RecordProps) {
                   <tr>
                     <th
                       colSpan={5}
-                      className="px-2.5 pt-3.5 pb-1 text-left text-caption font-semibold text-accent-text"
+                      className="px-2.5 pt-3.5 pb-1 text-left text-caption font-bold text-label-2"
                     >
                       {groups[step.index]}
                     </th>

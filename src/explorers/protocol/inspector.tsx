@@ -247,7 +247,7 @@ export function PacketInspector({
           className="inline-block size-2 flex-none rounded-full"
           style={{ background: PACKET_COLORS[packet.color!] }}
         />
-        <span className="font-semibold text-accent-text tabular-nums">#{index + 1}</span>
+        <span className="font-semibold text-label-2 tabular-nums">#{index + 1}</span>
         <div className="grid min-w-0 flex-1 leading-[1.35]" title={where}>
           <b className="truncate text-headline">{translate(packet.label!)}</b>
           <span className="truncate font-mono text-caption text-label-2">

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { Deck, Field } from "@/components/shell/console.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -45,9 +45,9 @@ export function TxDeck({
   return (
     <Deck
       aria-label="재생 조작"
-      className="console:grid console:grid-cols-[42px_42px_minmax(0,1fr)] console:items-center console:gap-x-2 console:gap-y-2.5"
+      className="console:grid console:grid-cols-[minmax(0,1fr)] console:items-center console:gap-y-3 console-short:gap-y-2.5"
     >
-      <Field className="phone:w-full console:[grid-area:1/1/2/4]">
+      <Field className="phone:w-full">
         <Label id="mode-label">{page.modeField}</Label>
         <SegmentedControl
           aria-label={page.modeAria}
@@ -68,73 +68,73 @@ export function TxDeck({
         </SegmentedControl>
       </Field>
 
-      <div className="grid min-w-0 gap-1.5 console:contents">
-        <Label className="console:sr-only">재생</Label>
-        <div className="flex items-center gap-2 phone:flex-wrap console:contents">
+      <ButtonGroup aria-label="재생" className="w-full">
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="reset"
+          aria-label="처음으로"
+          title="처음으로 (R)"
+          onClick={() => void player.jump(0)}
+        >
+          <ChevronFirstIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="back"
+          aria-label="이전 사건"
+          title="이전 사건 (←)"
+          disabled={snap.index === 0}
+          onClick={() => void player.jump(snap.index - 1)}
+        >
+          <ChevronLeftIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          data-action="play"
+          aria-label={moving ? "일시정지" : "재생"}
+          className="min-w-0 flex-1"
+          onClick={() => player.play()}
+        >
+          {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
+          <span>{playLabel}</span>
+        </Button>
+        <Button
+          variant="plain"
+          data-action="next"
+          disabled={snap.index === snap.last || snap.busy}
+          onClick={() => void player.next()}
+        >
+          다음 사건
+          <ChevronRightIcon aria-hidden="true" />
+        </Button>
+      </ButtonGroup>
+
+      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full">
+        <ButtonGroup>
           <Button
-            size="icon"
-            data-action="reset"
-            aria-label="처음으로"
-            title="처음으로 (R)"
-            className="console:[grid-area:2/1]"
-            onClick={() => void player.jump(0)}
-          >
-            <ChevronFirstIcon aria-hidden="true" />
-          </Button>
-          <Button
-            size="icon"
-            data-action="back"
-            aria-label="이전 사건"
-            title="이전 사건 (←)"
-            disabled={snap.index === 0}
-            className="console:[grid-area:2/2]"
-            onClick={() => void player.jump(snap.index - 1)}
-          >
-            <ChevronLeftIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="primary"
-            data-action="play"
-            aria-label={moving ? "일시정지" : "재생"}
-            className="min-w-[132px] console:min-w-0 console:[grid-area:2/3] phone:flex-[1_1_132px]"
-            onClick={() => player.play()}
-          >
-            {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
-            <span>{playLabel}</span>
-          </Button>
-          <Button
-            data-action="next"
-            disabled={snap.index === snap.last || snap.busy}
-            className="console:[grid-area:3/3] phone:flex-1"
-            onClick={() => void player.next()}
-          >
-            다음 사건
-            <ChevronRightIcon aria-hidden="true" />
-          </Button>
-          <Button
+            variant="plain"
             size="icon"
             data-action="replay"
             aria-label="이번 사건 다시 보기"
             title="이번 사건 다시 보기"
             disabled={snap.index === 0 || snap.busy}
-            className="console:[grid-area:3/1]"
             onClick={() => void player.replay()}
           >
             <RotateCcwIcon aria-hidden="true" />
           </Button>
           <Button
+            variant="plain"
             size="icon"
             data-action="speed"
             aria-label={`재생 속도 ${snap.speed}배, 눌러서 변경`}
-            className="tabular-nums console:[grid-area:3/2]"
+            className="tabular-nums"
             onClick={() => player.cycleSpeed()}
           >
             {snap.speed}×
           </Button>
-        </div>
-      </div>
-
-      <div className="grid min-w-[220px] flex-[1_1_280px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:basis-full console:min-w-0 console:[grid-area:4/1/5/4]">
+        </ButtonGroup>
         <Label>0</Label>
         <Slider
           id="seek"
@@ -151,7 +151,7 @@ export function TxDeck({
         <Label>{snap.last}</Label>
       </div>
 
-      <div className="flex min-h-[34px] items-center console:min-h-0 console:[grid-area:5/1/6/4]">
+      <div className="flex min-h-6 items-center">
         <Switch
           data-action="guided"
           checked={snap.guided}

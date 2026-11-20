@@ -11,8 +11,8 @@ import {
   SkipBackIcon,
 } from "lucide-react";
 
-import { Deck, Field } from "@/components/shell/console.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { Deck } from "@/components/shell/console.tsx";
+import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { Label } from "@/components/ui/typography.tsx";
@@ -44,69 +44,71 @@ export function GitDeck({ playback, snap }: { playback: Playback; snap: Playback
         : "다음 사건을 실행하거나 기록에서 바로 이동하세요.";
 
   return (
-    <Deck aria-label="재생 조작">
-      <Field className="console:flex-[1_1_100%]">
-        <Label>재생</Label>
-        <div className="flex items-center gap-2 phone:flex-wrap console:grid console:grid-cols-[42px_42px_minmax(0,1fr)]">
+    <Deck aria-label="재생 조작" className="console:gap-y-3">
+      <ButtonGroup aria-label="재생" className="w-full basis-full">
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="reset"
+          aria-label="처음으로"
+          onClick={() => playback.reset()}
+        >
+          <SkipBackIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="back"
+          aria-label="이전 사건"
+          disabled={index === 0}
+          onClick={() => playback.jump(index - 1)}
+        >
+          <ChevronLeftIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          data-action="play"
+          aria-label={label}
+          className="min-w-0 flex-1"
+          onClick={() => playback.togglePlay()}
+        >
+          {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
+          <span>{label}</span>
+        </Button>
+        <Button
+          variant="plain"
+          data-action="next"
+          disabled={index === last || busy || gated}
+          onClick={() => playback.next()}
+        >
+          다음 사건
+          <ChevronRightIcon aria-hidden="true" />
+        </Button>
+      </ButtonGroup>
+
+      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full basis-full">
+        <ButtonGroup>
           <Button
-            size="icon"
-            data-action="reset"
-            aria-label="처음으로"
-            onClick={() => playback.reset()}
-          >
-            <SkipBackIcon aria-hidden="true" />
-          </Button>
-          <Button
-            size="icon"
-            data-action="back"
-            aria-label="이전 사건"
-            disabled={index === 0}
-            onClick={() => playback.jump(index - 1)}
-          >
-            <ChevronLeftIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="primary"
-            data-action="play"
-            aria-label={label}
-            className="min-w-[150px] phone:order-first phone:flex-[1_1_100%] console:min-w-0"
-            onClick={() => playback.togglePlay()}
-          >
-            {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
-            <span>{label}</span>
-          </Button>
-          <Button
-            data-action="next"
-            disabled={index === last || busy || gated}
-            className="console:[grid-area:2/3]"
-            onClick={() => playback.next()}
-          >
-            다음 사건
-            <ChevronRightIcon aria-hidden="true" />
-          </Button>
-          <Button
+            variant="plain"
             size="icon"
             data-action="replay"
             aria-label="이번 사건 다시 보기"
             disabled={index === 0 || busy}
-            className="console:[grid-area:2/1]"
             onClick={() => void playback.replay()}
           >
             <RotateCcwIcon aria-hidden="true" />
           </Button>
           <Button
+            variant="plain"
             size="icon"
             data-action="speed"
             aria-label={`재생 속도 ${snap.speed}배`}
-            className="font-mono tabular-nums console:[grid-area:2/2]"
+            className="tabular-nums"
             onClick={() => playback.cycleSpeed()}
           >
             {snap.speed}×
           </Button>
-        </div>
-      </Field>
-
-      <div className="grid min-w-[220px] flex-[1_1_280px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:basis-full console:min-w-0 console:basis-full">
+        </ButtonGroup>
         <Label>00</Label>
         <Slider
           id="seek"

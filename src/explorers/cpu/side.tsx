@@ -262,12 +262,7 @@ export function CpuSide({
             className="mb-3.5 grid grid-cols-3"
           >
             {lesson.processes.map((p) => (
-              <Segment
-                key={p.id}
-                value={p.id}
-                data-pick={p.id}
-                className="gap-2 aria-pressed:[&>[data-slot=led]]:shadow-[0_0_0_1.5px_var(--on-accent)]"
-              >
+              <Segment key={p.id} value={p.id} data-pick={p.id} className="gap-2">
                 <Led color={colorOf(p.id)} />
                 {p.id}
               </Segment>

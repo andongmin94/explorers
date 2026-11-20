@@ -46,12 +46,14 @@
     ui-monospace, "SF Mono", SFMono-Regular, Iosevka, Menlo, Consolas, "Pretendard Variable",
     Pretendard, monospace;
 
-  /* macOS 26 text styles; 12px is the floor, Korean reading text is 14.
-     caption/control set only the size: the line height is the context's. */
+  /* macOS 26 text styles (docs/LIQUID-GLASS.md → Type): Body 13 for rows,
+     controls and reading text (Korean line height 1.55), Title 3 15,
+     Title 2 17, Title 1 22; 12px is the floor (Callout). caption/control set
+     only the size: the line height is the context's. */
   --text-caption: 12px;
   --text-control: 13px;
-  --text-body: 14px;
-  --text-body--line-height: 1.6;
+  --text-body: 13px;
+  --text-body--line-height: 1.55;
   --text-headline: 15px;
   --text-headline--line-height: 20px;
   --text-title: 17px;
@@ -106,6 +108,10 @@
   --color-lg-hover: var(--lg-hover);
   --color-lg-press: var(--lg-press);
   --color-lg-selected: var(--lg-selected);
+  --color-sel: var(--sel);
+  --color-sel-strong: var(--sel-strong);
+  --color-capsule: var(--capsule);
+  --color-capsule-divider: var(--capsule-divider);
   --color-sys-red: var(--sys-red);
   --color-sys-orange: var(--sys-orange);
   --color-sys-yellow: var(--sys-yellow);
@@ -209,6 +215,17 @@
   @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+}
+
+/* The capsule a segmented control, tab list or button group sits in (kit
+   121:11848, 647:1886): white over the backdrop, a hairline and a soft drop.
+   Its items select with a grey pill (bg-sel), never the accent. */
+@utility capsule {
+  background: var(--capsule);
+  box-shadow: var(--capsule-shadow);
+  @media (prefers-contrast: more) {
+    box-shadow: 0 0 0 1px var(--label-3);
   }
 }
 
@@ -370,6 +387,62 @@
     margin-top: 0 !important;
     padding-top: 0 !important;
     border-top: 0 !important;
+  }
+}
+
+/* Optional wallpaper (?backdrop=1, a draft for the owner; off by default):
+   in the kit the glass floats over a colourful macOS wallpaper. A very soft
+   multi-stop wash tinted by the explorer accent, behind the scene floor. */
+@utility backdrop-wash {
+  :root[data-backdrop="on"] & {
+    background:
+      radial-gradient(
+        70% 60% at 8% 0%,
+        color-mix(in srgb, var(--accent) 22%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        60% 70% at 100% 10%,
+        color-mix(in srgb, var(--sys-cyan) 16%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        80% 70% at 85% 100%,
+        color-mix(in srgb, var(--sys-indigo) 14%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        60% 60% at 0% 100%,
+        color-mix(in srgb, var(--accent) 12%, transparent),
+        transparent 70%
+      ),
+      var(--window);
+    background-attachment: fixed;
+  }
+  :root[data-backdrop="on"][data-theme="dark"] & {
+    background:
+      radial-gradient(
+        70% 60% at 8% 0%,
+        color-mix(in srgb, var(--accent) 20%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        60% 70% at 100% 10%,
+        color-mix(in srgb, var(--sys-cyan) 12%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        80% 70% at 85% 100%,
+        color-mix(in srgb, var(--sys-indigo) 16%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        60% 60% at 0% 100%,
+        color-mix(in srgb, var(--accent) 10%, transparent),
+        transparent 70%
+      ),
+      var(--window);
+    background-attachment: fixed;
   }
 }
 

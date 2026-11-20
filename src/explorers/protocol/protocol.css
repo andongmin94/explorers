@@ -670,7 +670,7 @@
   text-decoration-color: color-mix(in srgb, var(--pk-lost) 60%, transparent);
 }
 .pe-packet-table tr[data-inspected] > td {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--sel-strong);
 }
 
 /* ---------- Inspector ---------- */

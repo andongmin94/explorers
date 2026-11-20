@@ -138,7 +138,7 @@ export function DiskSide({
         key: "compare",
         node: (
           <Button
-            variant="primary"
+            variant="filled"
             data-action="compare"
             data-conclusion=""
             className="w-full"

@@ -474,7 +474,7 @@ export function ProtocolSide({
           <PlateFoot className="border-t-0 px-3.5 py-2.5">
             {nextProtocol ? (
               <Button
-                variant="primary"
+                variant="filled"
                 size="sm"
                 data-next-lesson={nextProtocol.id}
                 className="flex-1"
@@ -484,7 +484,7 @@ export function ProtocolSide({
               </Button>
             ) : (
               experiment && (
-                <ButtonLink variant="primary" size="sm" href={experiment.href} className="flex-1">
+                <ButtonLink variant="filled" size="sm" href={experiment.href} className="flex-1">
                   다음 실험: {experiment.title} →
                 </ButtonLink>
               )

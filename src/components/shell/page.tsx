@@ -40,6 +40,14 @@ export function useRail(): RailState {
 
 export const DRAWER_QUERY = "(max-width: 1279px)";
 
+// ?backdrop=1: the optional wallpaper wash behind the scene (a draft, off by
+// default; backdrop-wash in app.css). Read once, before the first paint.
+if (
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("backdrop") === "1"
+)
+  document.documentElement.dataset.backdrop = "on";
+
 /** The page: toolbar, console, footer and sheets go inside. */
 export function ExplorerPage({ className, children }: { className?: string; children: ReactNode }) {
   const drawer = useMediaQuery(DRAWER_QUERY);
@@ -77,7 +85,7 @@ export function ExplorerPage({ className, children }: { className?: string; chil
         <div
           data-rail-open={rail.open || undefined}
           className={cn(
-            "explorer-page bg-window font-sans text-label [font-synthesis-weight:none]",
+            "explorer-page backdrop-wash bg-window font-sans text-label [font-synthesis-weight:none]",
             className,
           )}
         >

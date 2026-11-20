@@ -103,7 +103,7 @@ function History({ playback, snap }: { playback: Playback; snap: PlaybackSnapsho
             className={cn(
               "h-10 cursor-pointer px-1.5 py-2 text-center align-middle last:rounded-r-small",
               "group-even/row:bg-fill-4 hover:bg-fill-3!",
-              current && "rounded-none! bg-accent-fill! group-last/row:rounded-b-small!",
+              current && "rounded-none! bg-sel-strong! group-last/row:rounded-b-small!",
             )}
           >
             {cell(s, page)}
@@ -131,8 +131,8 @@ function History({ playback, snap }: { playback: Playback; snap: PlaybackSnapsho
                 className={cn(
                   "min-h-[22px] min-w-7 cursor-pointer rounded-full border-0 bg-transparent px-[7px] py-[2px]",
                   "font-sans text-caption font-medium text-label-2 tabular-nums",
-                  "hover:text-accent-text focus-visible:ring-focus",
-                  "group-aria-[current=true]/col:bg-accent group-aria-[current=true]/col:font-semibold group-aria-[current=true]/col:text-on-accent",
+                  "hover:text-label focus-visible:ring-focus",
+                  "group-aria-[current=true]/col:bg-sel group-aria-[current=true]/col:font-semibold group-aria-[current=true]/col:text-label",
                 )}
               >
                 {i + 1}
@@ -218,11 +218,7 @@ function Events({ playback, snap }: { playback: Playback; snap: PlaybackSnapshot
                 data-clickable=""
                 aria-current={s.index === committed ? "true" : undefined}
                 onClick={() => seek(s.index)}
-                className={cn(
-                  rowClass,
-                  "aria-[current=true]:[&_[data-slot=page-chip]]:shadow-[0_0_0_1.5px_var(--on-accent)]",
-                  "aria-[current=true]:[&_[data-outcome=hit]]:bg-on-accent",
-                )}
+                className={rowClass}
               >
                 <Td className="align-middle">
                   <button

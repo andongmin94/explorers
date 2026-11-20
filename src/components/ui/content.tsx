@@ -35,10 +35,10 @@ export function Readout({
     <span
       data-slot="readout"
       className={cn(
-        "inline-flex min-h-7 items-baseline gap-1 rounded-full bg-fill-3 px-[11px] py-[5px]",
-        "font-sans text-headline leading-[18px] font-semibold whitespace-nowrap text-label tabular-nums",
+        "inline-flex min-h-7 items-baseline gap-1 rounded-full bg-fill-3 px-2.5 py-[6px]",
+        "font-sans text-control leading-4 font-semibold whitespace-nowrap text-label tabular-nums",
         "[&_small]:text-caption [&_small]:font-medium [&_small]:text-label-2",
-        large && "min-h-10 px-4 py-[7px] text-large leading-[26px] font-bold",
+        large && "min-h-9 px-3.5 py-[7px] text-title leading-[22px] font-bold",
         glass && "glass-sm glass-lens-sm shadow-[var(--lg-rim),0_4px_16px_rgb(0_0_0/0.08)]",
         className,
       )}
@@ -95,7 +95,7 @@ export function Meter({
   );
 }
 
-/** Inline tip (TipKit-style): a rounded fill with a status dot; `accent` tints it. */
+/** Inline tip (TipKit-style): a quiet rounded fill with a status dot; `accent` colours only the dot. */
 export function Note({
   className,
   accent,
@@ -109,7 +109,8 @@ export function Note({
       className={cn(
         "m-0 flex gap-2.5 rounded-note border-0 px-3 py-2.5 text-control leading-[1.55] text-label keep-all text-pretty",
         "before:mt-[0.5em] before:size-2 before:flex-none before:rounded-full before:content-['']",
-        accent ? "bg-accent-fill before:bg-accent" : "bg-fill-3 before:bg-label-3",
+        "bg-fill-3",
+        accent ? "before:bg-accent" : "before:bg-label-3",
         className,
       )}
       {...props}
@@ -119,7 +120,10 @@ export function Note({
   );
 }
 
-/** A list of rows separated by soft hairlines (kit Lists and Tables). */
+/**
+ * Form rows (kit Examples/Form 2548:2849): label left, value or control right,
+ * 13px, hairlines between rows, no row boxes. Inside a content group.
+ */
 export function List({
   className,
   as: Tag = "div",
@@ -131,7 +135,7 @@ export function List({
       data-slot="list"
       className={cn(
         "m-0 grid list-none p-0",
-        "[&>*]:flex [&>*]:min-h-9 [&>*]:items-center [&>*]:gap-2.5 [&>*]:border-b [&>*]:border-separator-soft [&>*]:px-0.5 [&>*]:py-[7px] [&>*]:keep-all",
+        "[&>*]:flex [&>*]:min-h-8 [&>*]:items-center [&>*]:gap-2.5 [&>*]:border-b [&>*]:border-separator-soft [&>*]:px-0.5 [&>*]:py-1.5 [&>*]:text-control [&>*]:keep-all",
         "[&>*:last-child]:border-b-0",
         className,
       )}
@@ -144,7 +148,7 @@ export function List({
 export const listButtonRow = cn(
   "w-full cursor-pointer rounded-none border-x-0 border-t-0 bg-transparent text-left text-inherit",
   "hover:rounded-small hover:bg-fill-4",
-  "aria-[current=true]:rounded-small aria-[current=true]:border-b-transparent aria-[current=true]:bg-lg-selected aria-[current=true]:font-semibold",
+  "aria-[current=true]:rounded-small aria-[current=true]:border-b-transparent aria-[current=true]:bg-sel",
   "[&:has(+[aria-current=true])]:border-b-transparent",
   "focus-visible:rounded-small focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
 );

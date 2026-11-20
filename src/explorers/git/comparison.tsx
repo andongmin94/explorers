@@ -263,7 +263,7 @@ function Bases({
         </Note>
         <div className="mt-2.5 flex flex-wrap gap-2">
           <Button
-            variant="primary"
+            variant="filled"
             size="sm"
             data-compare={lesson.defaultVariant!}
             onClick={() => onPlay(lesson.defaultVariant!)}

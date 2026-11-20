@@ -1,16 +1,16 @@
 // The protocol picker: the shared lesson rail's look (Medium glass column
 // from 1280px, a drawer below) with the vanilla picker's category filter
 // (전체 · 기본 · 응용 · 보안). Rows are buttons, not links: a protocol opens
-// in place (and its ?lesson= URL is kept for reloads). Status dots and
-// percentages come from the protocol's own progress store (steps seen), as
-// in the vanilla picker, so they are not the shared lessonStatus().
-import { XIcon } from "lucide-react";
+// in place (and its ?lesson= URL is kept for reloads). Rows follow the kit
+// sidebar item (symbol + name + dim detail "30%" / "완료"); status comes from
+// the protocol's own progress store (steps seen), not lessonStatus().
+import { CircleCheckIcon, CircleIcon, ContrastIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useRail, useRailButton } from "@/components/shell/page.tsx";
 import { Button } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
-import { Label } from "@/components/ui/typography.tsx";
+import { Label, VisuallyHidden } from "@/components/ui/typography.tsx";
 import { cn } from "@/lib/cn.ts";
 import type { LessonStatus } from "@/lib/lesson-kit.ts";
 import { translate } from "./i18n.ts";
@@ -29,6 +29,21 @@ const STATUS_TEXT: Record<LessonStatus, string> = {
   progress: "진행 중",
   done: "완료",
 };
+
+const STATUS_ICON = { new: CircleIcon, progress: ContrastIcon, done: CircleCheckIcon } as const;
+
+/** The sidebar item symbol (kit 207:14495): accent only on the selected row. */
+function StatusIcon({ status }: { status: LessonStatus }) {
+  const Icon = STATUS_ICON[status];
+  return (
+    <Icon
+      aria-hidden="true"
+      data-status={status}
+      strokeWidth={1.7}
+      className="size-4 flex-none text-vlabel-2 group-aria-[current=true]/row:text-accent-text"
+    />
+  );
+}
 
 /** Ring: new, half ring: in progress, filled: complete (the shared rail dots). */
 export function StatusDot({ status, title }: { status: LessonStatus; title?: string }) {
@@ -108,8 +123,8 @@ export function ProtocolRail({
         rail.open ? "drawer:translate-x-0" : "drawer:-translate-x-[calc(100%+24px)]",
       )}
     >
-      <div className="flex min-h-10 items-center gap-2.5 pt-3 pr-3 pb-[2px] pl-4">
-        <Label vibrant className="min-w-0 flex-auto">
+      <div className="flex min-h-9 items-center gap-2.5 pt-3 pr-3 pb-[3px] pl-[18px]">
+        <Label vibrant className="min-w-0 flex-auto font-bold">
           {translate("INTERNET PROTOCOLS")}
         </Label>
         <Button
@@ -125,7 +140,7 @@ export function ProtocolRail({
           <XIcon aria-hidden="true" />
         </Button>
       </div>
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-auto px-2 pt-1 pb-2.5 [scrollbar-width:thin] console:flex console:flex-col console:overflow-hidden">
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-auto px-2.5 pt-1 pb-2.5 [scrollbar-width:thin] console:flex console:flex-col console:overflow-hidden">
         <SegmentedControl
           aria-label="분류"
           value={shownFilter}
@@ -154,9 +169,9 @@ export function ProtocolRail({
           aria-label={translate("INTERNET PROTOCOLS")}
           className={cn(
             "grid console:min-h-0 console:flex-auto console:content-start",
-            // All fourteen at once on the console: rows share the height and
-            // drop their subtitle when the list gets short.
-            "console:[container:protos/size] console:auto-rows-[min(52px,calc(100%/14))]",
+            // All fourteen at once on the console: kit sidebar rows (32 tall),
+            // shrinking evenly when the list gets short.
+            "console:auto-rows-[min(32px,calc(100%/14))]",
           )}
         >
           {protocolCatalog.map((protocol, index) => {
@@ -172,31 +187,31 @@ export function ProtocolRail({
                 data-lesson={protocol.id}
                 data-group={protocol.group}
                 aria-current={here ? "true" : "false"}
+                title={`${protocol.name} · ${translate(protocol.full)}`}
                 onClick={() => select(protocol.id)}
                 className={cn(
-                  "group/row flex min-h-11 w-full cursor-pointer items-center gap-2.5 rounded-small border-0 bg-transparent px-2 py-1.5 text-left font-sans text-vlabel",
-                  "console:min-h-0 console:py-[2px]",
-                  "hover:bg-lg-hover aria-[current=true]:bg-lg-selected",
+                  "group/row flex min-h-8 w-full cursor-pointer items-center gap-1.5 rounded-small border-0 bg-transparent px-2 text-left font-sans text-control text-vlabel",
+                  "console:min-h-0",
+                  "hover:bg-lg-hover aria-[current=true]:bg-sel-strong",
                   "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+                  "phone:min-h-11",
                 )}
               >
-                <StatusDot status={status} />
-                <span className="grid min-w-0 flex-1 gap-px leading-4">
-                  <span className="text-control font-medium keep-all">
-                    <span className="me-1 font-semibold text-vlabel-2 tabular-nums group-aria-[current=true]/row:text-accent-text">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>{" "}
-                    {protocol.name}
-                  </span>
-                  <span className="truncate text-caption leading-[15px] font-normal text-vlabel-2 [@container_protos_(max-height:600px)]:hidden">
-                    {translate(protocol.full)}
-                  </span>
+                <StatusIcon status={status} />
+                <span className="min-w-0 flex-1 truncate ps-0.5 keep-all">
+                  <VisuallyHidden>{String(index + 1).padStart(2, "0")} </VisuallyHidden>
+                  {protocol.name}
+                  <VisuallyHidden> · {translate(protocol.full)}</VisuallyHidden>
                 </span>
                 <span
-                  className="font-sans text-caption font-medium text-vlabel-2 tabular-nums"
+                  className="flex-none font-sans text-caption text-vlabel-3 tabular-nums dark:text-vlabel-2"
                   aria-label={STATUS_TEXT[status]}
                 >
-                  {Math.round(getLessonCompletion(lesson) * 100)}%
+                  {status === "done"
+                    ? "완료"
+                    : status === "progress"
+                      ? `${Math.round(getLessonCompletion(lesson) * 100)}%`
+                      : ""}
                 </span>
               </button>
             );

@@ -72,7 +72,7 @@ Explorers differ where their subject needs it (protocol has `controller.ts`, `si
 | Deck | `<Deck>`, `<Field>`; lay out with Tailwind (`console:grid …` like `cpu/deck.tsx`) |
 | Side panel, records | `<SidePanel>` / `<Records>` + `<Tabs value onValueChange>` + `<PlateHead><TabsList><TabsTab value data-tab>` + `<TabsPanel value className={fit body}>` |
 | Content group | `<Plate>`, `<PlateHead>`, `<PlateBody>`, `<PlateFoot>` |
-| Keys | `<Button variant="glass" \| "filled" \| "primary" size="default" \| "sm" \| "toolbar" \| "icon" \| "icon-sm" \| "icon-toolbar">`. Inside side/records/sheets use `variant="filled"`. `<ButtonLink>` for links |
+| Keys | `<Button variant="glass" \| "filled" \| "plain" \| "primary" size="default" \| "sm" \| "toolbar" \| "icon" \| "icon-sm" \| "icon-toolbar">`. Inside side/records/sheets use `variant="filled"`; deck transport = `<ButtonGroup>` of `variant="plain"` keys; `"primary"` only for a sheet's single default action. `<ButtonLink>` for links |
 | Segmented control | `<SegmentedControl value onValueChange><Segment value>` (Base UI ToggleGroup; segments carry `aria-pressed`) |
 | Switch | `<Switch checked onCheckedChange>label</Switch>` |
 | Slider | `<Slider min max step value onValueChange thumbLabel thumbProps={{ "aria-valuetext" }}/>` + `<SliderTicks>` |
@@ -150,7 +150,7 @@ const pager = usePager();
 
 ## 8. Styling rules and gotchas
 
-- Tokens (`--label`, `--fill-3`, `--accent`, `--lg-*`, `--iso-*` …) are in `src/styles/tokens.css`. Tailwind reads them through `@theme inline`: `bg-window`, `bg-group`, `text-label`, `text-label-2`, `text-vlabel-2`, `bg-fill-1…5`, `border-separator-soft`, `bg-accent`, `text-accent-text`, `bg-accent-fill`, `text-on-accent`, `bg-control-fill`, `bg-lg-hover|press|selected`, `bg-track`, `bg-knob`, `shadow-knob`. Explorer colours (job/page/transaction colours) go on `:root` in `<slug>.css` (light) and `:root[data-theme="dark"]`.
+- Tokens (`--label`, `--fill-3`, `--accent`, `--lg-*`, `--iso-*` …) are in `src/styles/tokens.css`. Tailwind reads them through `@theme inline`: `bg-window`, `bg-group`, `text-label`, `text-label-2`, `text-vlabel-2`, `bg-fill-1…5`, `border-separator-soft`, `bg-accent`, `text-accent-text`, `bg-accent-fill`, `text-on-accent`, `bg-control-fill`, `bg-lg-hover|press|selected`, `bg-sel`, `bg-sel-strong`, `bg-capsule`, `bg-track`, `bg-knob`, `shadow-knob`. Explorer colours (job/page/transaction colours) go on `:root` in `<slug>.css` (light) and `:root[data-theme="dark"]`.
 - Type scale: `text-caption` 12, `text-control` 13, `text-body` 14/1.6, `text-headline` 15/20, `text-title` 17/22, `text-large` 22/26. `text-caption`/`text-control` set only the size (line height comes from the context); `<Label>` adds 15px. Weights: `font-medium` 510, `font-semibold` 590, `font-bold` 700. Fonts: `font-sans`, `font-display`, `font-mono` (code/bytes only — use `tabular-nums` for numbers).
 - Radii: `rounded-window` 26, `rounded-panel` 18, `rounded-group` 12, `rounded-note` 10, `rounded-small` 8, `rounded-menu` 13.
 - Glass: utilities `glass-md` (rail, deck), `glass-sm` (+ `glass-lens-sm` for toolbar keys/readouts over the scene), `glass-lg` (sheets), `glass-menu`. Each handles the Chromium lens (`data-lens="on"`) and reduced transparency / increased contrast.

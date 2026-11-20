@@ -282,7 +282,7 @@ export function MemorySide({
               )}
               {finished && (
                 <Button
-                  variant="primary"
+                  variant="filled"
                   data-action="compare"
                   id="conclusion"
                   className="min-w-0 flex-auto"

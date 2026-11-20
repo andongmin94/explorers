@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import { Deck, Field } from "@/components/shell/console.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
@@ -71,7 +71,7 @@ export function MemoryDeck({ playback, snap }: { playback: Playback; snap: Playb
           // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a row of keys, like a segmented control
           role="group"
           aria-label={`고정된 접근 순서 ${total}회`}
-          className="grid auto-cols-[minmax(34px,1fr)] grid-flow-col rounded-full bg-fill-3 p-[2px] phone:w-full phone:auto-cols-[minmax(0,1fr)]"
+          className="grid auto-cols-[minmax(34px,1fr)] grid-flow-col rounded-full p-[3px] capsule phone:w-full phone:auto-cols-[minmax(0,1fr)]"
         >
           {lesson.references.map((page, i) => (
             <button
@@ -84,8 +84,8 @@ export function MemoryDeck({ playback, snap }: { playback: Playback; snap: Playb
               onClick={() => void playback.seek(i + 1)}
               className={cn(
                 "flex min-h-[42px] cursor-pointer flex-col items-center justify-center rounded-full border-0 bg-transparent px-1.5 py-[2px] leading-[1.15] phone:px-0",
-                "hover:not-aria-pressed:bg-fill-3 aria-pressed:bg-accent aria-pressed:shadow-[0_1px_3px_rgb(0_0_0/0.12),inset_0_0_0_0.5px_rgb(255_255_255/0.2)] focus-visible:ring-focus",
-                "relative not-first:before:absolute not-first:before:top-1/2 not-first:before:left-0 not-first:before:-mt-[7px] not-first:before:h-3.5 not-first:before:w-px not-first:before:bg-separator not-first:before:content-[''] aria-pressed:before:opacity-0 [[aria-pressed=true]+&]:before:opacity-0",
+                "hover:not-aria-pressed:bg-lg-hover aria-pressed:bg-sel focus-visible:ring-focus",
+                "relative not-first:before:absolute not-first:before:top-1/2 not-first:before:left-0 not-first:before:-mt-[7px] not-first:before:h-3.5 not-first:before:w-px not-first:before:bg-capsule-divider not-first:before:content-[''] aria-pressed:before:opacity-0 [[aria-pressed=true]+&]:before:opacity-0",
               )}
             >
               <small className="font-sans text-caption font-medium text-label-2 tabular-nums">
@@ -106,75 +106,71 @@ export function MemoryDeck({ playback, snap }: { playback: Playback; snap: Playb
         </div>
       </Field>
 
-      <Field className="phone:w-full console:w-full">
-        <Label className="console:sr-only">재생</Label>
-        <div
-          className={cn(
-            "flex flex-wrap items-center gap-2",
-            "phone:grid phone:grid-cols-[auto_auto_minmax(0,1fr)_auto_auto]",
-            "console:grid console:grid-cols-[42px_42px_minmax(0,1fr)] console:gap-2",
-          )}
+      <ButtonGroup aria-label="재생" className="w-full">
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="reset"
+          aria-label="처음으로"
+          onClick={() => void playback.reset()}
         >
+          <SkipBackIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          size="icon"
+          data-action="back"
+          aria-label="이전 접근"
+          disabled={index === 0}
+          onClick={() => void playback.back()}
+        >
+          <ChevronLeftIcon aria-hidden="true" />
+        </Button>
+        <Button
+          variant="plain"
+          data-action="play"
+          aria-label={moving ? LABELS.pause : "재생"}
+          className="min-w-0 flex-1"
+          onClick={() => void playback.togglePlay()}
+        >
+          <PlayGlyph aria-hidden="true" />
+          <span>{playLabel}</span>
+        </Button>
+        <Button
+          variant="plain"
+          data-action="next"
+          disabled={busy || index === total}
+          onClick={() => void playback.nextAccess()}
+        >
+          다음 접근
+          <ChevronRightIcon aria-hidden="true" />
+        </Button>
+      </ButtonGroup>
+
+      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full">
+        <ButtonGroup>
           <Button
-            size="icon"
-            data-action="reset"
-            aria-label="처음으로"
-            onClick={() => void playback.reset()}
-          >
-            <SkipBackIcon aria-hidden="true" />
-          </Button>
-          <Button
-            size="icon"
-            data-action="back"
-            aria-label="이전 접근"
-            disabled={index === 0}
-            onClick={() => void playback.back()}
-          >
-            <ChevronLeftIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="primary"
-            data-action="play"
-            aria-label={moving ? LABELS.pause : "재생"}
-            className="min-w-[132px] phone:order-first phone:col-span-full phone:min-w-0 console:min-w-0"
-            onClick={() => void playback.togglePlay()}
-          >
-            <PlayGlyph aria-hidden="true" />
-            <span>{playLabel}</span>
-          </Button>
-          <Button
-            data-action="next"
-            disabled={busy || index === total}
-            className="console:col-start-3 console:row-start-2"
-            onClick={() => void playback.nextAccess()}
-          >
-            다음 접근
-            <ChevronRightIcon aria-hidden="true" />
-          </Button>
-          <Button
+            variant="plain"
             size="icon"
             data-action="replay"
             aria-label="이번 접근 다시 보기"
             title="이번 접근 다시 보기"
             disabled={index === 0 || busy}
-            className="console:col-start-1 console:row-start-2"
             onClick={() => void playback.replay()}
           >
             <RotateCcwIcon aria-hidden="true" />
           </Button>
           <Button
+            variant="plain"
             size="icon"
             data-action="speed"
             aria-label={`재생 속도 ${snap.speed}배`}
-            className="tabular-nums console:col-start-2 console:row-start-2"
+            className="tabular-nums"
             onClick={() => playback.cycleSpeed()}
           >
             {snap.speed}×
           </Button>
-        </div>
-      </Field>
-
-      <div className="grid min-w-[220px] flex-[1_1_280px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:basis-full console:min-w-0">
+        </ButtonGroup>
         <Label>0</Label>
         <Slider
           id="seek"
