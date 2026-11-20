@@ -173,7 +173,7 @@ $("#app").outerHTML = `
         <span class="hw-label git-records-hint">행을 눌러 그 순간으로 이동</span>
       </div>
       <div class="hw-plate-body hw-scroll" role="tabpanel" id="record-log" aria-labelledby="tab-log">
-        <div class="git-rows"><table class="hw-table git-log"><thead><tr><th>#</th><th>명령</th><th>일어난 일</th><th>HEAD</th></tr></thead><tbody id="log-rows"></tbody></table></div>
+        <div class="git-rows"><table class="hw-table git-log"><colgroup><col class="git-col-n"><col class="git-col-cmd"><col><col class="git-col-head"></colgroup><thead><tr><th>#</th><th>명령</th><th>일어난 일</th><th>HEAD</th></tr></thead><tbody id="log-rows"></tbody></table></div>
       </div>
       <div class="hw-plate-body hw-scroll" role="tabpanel" id="record-commits" aria-labelledby="tab-commits" hidden>
         <div class="git-rows"><table class="hw-table"><thead><tr><th>커밋</th><th>부모</th><th>브랜치</th><th>메시지</th><th>${esc(lesson.commitColumn.label)}</th></tr></thead><tbody id="commit-rows"></tbody></table></div>
@@ -463,7 +463,20 @@ function controls() {
         : "다음 사건을 실행하거나 기록에서 바로 이동하세요.";
 }
 
+// The log's columns are sized once from every event of the run (lengths
+// only, never text), so they don't shift as events are revealed one by one.
+function sizeLogColumns() {
+  const table = $(".git-log");
+  if (!table || table.dataset.sized) return;
+  const cmd = Math.max(...run.steps.map((s) => (s.command || "직접 편집").length));
+  const head = Math.max(...run.steps.map((s) => `${s.state.currentBranch} → ${s.state.refs[s.state.currentBranch]}`.length));
+  table.style.setProperty("--git-col-cmd", `${(cmd * 0.6 + 2).toFixed(1)}em`);
+  table.style.setProperty("--git-col-head", `${(head * 0.62 + 2).toFixed(1)}em`);
+  table.dataset.sized = "1";
+}
+
 function renderRecords() {
+  sizeLogColumns();
   const last = lastIndex();
   $("#log-rows").innerHTML = run.steps
     .map((s) => {

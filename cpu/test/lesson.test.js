@@ -16,7 +16,7 @@ const scenarios = [
 const metric = (details, label) =>
   details.metrics.find((entry) => entry.label === label).value;
 
-test("the 2ms arrival and preemption do not prematurely announce P2's first dispatch", () => {
+test("the 2 ms arrival and preemption do not prematurely announce P2's first dispatch", () => {
   const frame = simulate().frames[2];
   const beforeArrival = { new: ["P3"], running: "P1", ready: ["P2"], blocked: [], done: [] };
   const first = frameAtMove(frame, beforeArrival, frame.events[0]);
@@ -31,12 +31,12 @@ test("the 2ms arrival and preemption do not prematurely announce P2's first disp
   assert.equal(frame.states.P2.firstRun, 2);
 });
 
-test("the comparison explains matching traces at 5ms and actual CPU idle times at 2ms", () => {
+test("the comparison explains matching traces at 5 ms and actual CPU idle times at 2 ms", () => {
   const fcfs = simulate({ algorithm: "fcfs" });
   const unsliced = simulate({ quantum: 5 });
   assert.deepEqual(unsliced.segments, fcfs.segments);
   assert.match(describeComparison(unsliced, fcfs), /선점이 일어나지 않습니다.*순서가 같습니다/);
-  assert.match(describeComparison(simulate({ quantum: 2 }), fcfs), /라운드 로빈 4ms, FCFS 0ms/);
+  assert.match(describeComparison(simulate({ quantum: 2 }), fcfs), /라운드 로빈 4 ms, FCFS 0 ms/);
 });
 
 test("process details account for every elapsed millisecond without treating I/O as ready waiting", () => {
@@ -78,7 +78,7 @@ test("process details account for every elapsed millisecond without treating I/O
   }
 });
 
-test("P1 retains its completed CPU work across the 13–17ms I/O boundary", () => {
+test("P1 retains its completed CPU work across the 13–17 ms I/O boundary", () => {
   const result = simulate();
   const at = (time) => processDetails(result.frames[time], result, "P1");
   assert.deepEqual(at(13).phases, [

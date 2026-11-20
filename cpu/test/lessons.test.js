@@ -29,7 +29,7 @@ test("02: FCFS runs the long P1 first (convoy); SJF runs P2 → P3 → P1", () =
   assert.deepEqual(sjf.frames[0].ready, ["P1", "P3"]);
 });
 
-test("03: SJF keeps P1 (non-preemptive); SRTF preempts at 1ms and keeps P2 at 2ms", () => {
+test("03: SJF keeps P1 (non-preemptive); SRTF preempts at 1 ms and keeps P2 at 2 ms", () => {
   const sjf = run("srtf", "sjf");
   const srtf = run("srtf", "srtf");
   assert.deepEqual(trace(sjf), [["P1", 0, 8], ["P2", 8, 10], ["P3", 10, 13]]);
@@ -77,7 +77,7 @@ test("SJF and SRTF with I/O use the next CPU burst and keep the accounting ident
       assert.equal(p.response, p.firstRun - p.arrival);
     }
   }
-  // At 7ms P2 returns from I/O with a 2ms burst; P1 has 3ms of its 5ms burst left.
+  // At 7 ms P2 returns from I/O with a 2 ms burst; P1 has 3 ms of its 5 ms burst left.
   const srtf = simulate({ algorithm: "srtf", processes: DEFAULT_PROCESSES });
   assert.ok(srtf.segments.some((s) => s.reason === "preempt"));
   assert.throws(() => simulate({ algorithm: "mlfq" }), RangeError);
@@ -188,12 +188,12 @@ for (const lesson of LESSONS) {
 
 test("02 and 03 compare their two methods with the engine's numbers", () => {
   const two = byId.sjf.content.compare(lessonRuns(byId.sjf));
-  assert.match(two.head, /SJF의 평균 대기가 3ms 짧습니다\(FCFS 6ms → SJF 3ms\)/);
-  assert.match(two.body, /FCFS 11ms, SJF 8ms/);
+  assert.match(two.head, /SJF의 평균 대기가 3 ms 짧습니다\(FCFS 6 ms → SJF 3 ms\)/);
+  assert.match(two.body, /FCFS 11 ms, SJF 8 ms/);
   const three = byId.srtf.content.compare(lessonRuns(byId.srtf));
-  assert.match(three.head, /SRTF의 평균 대기가 3ms 짧습니다\(SJF 5ms → SRTF 2ms\)/);
-  assert.match(three.body, /SJF 9.33ms, SRTF 6.33ms/);
-  assert.match(three.body, /1ms에 P2가 도착한 순간/);
+  assert.match(three.head, /SRTF의 평균 대기가 3 ms 짧습니다\(SJF 5 ms → SRTF 2 ms\)/);
+  assert.match(three.body, /SJF 9.33 ms, SRTF 6.33 ms/);
+  assert.match(three.body, /1 ms에 P2가 도착한 순간/);
   assert.match(three.caveat, /SJF 2회, SRTF 3회/);
 });
 
@@ -202,13 +202,13 @@ test("03: the predictions ask about the preemption and the keep", () => {
   const preempt = byId.srtf.content.prediction(srtf, 0);
   assert.equal(preempt.decision.time, 1);
   assert.match(preempt.explanation, /더 짧은 P2가 P1을 선점합니다/);
-  assert.match(preempt.choices.find((c) => c.id === "P1").why, /7ms로 새로 온 P2\(2ms\)보다 깁니다/);
-  assert.match(preempt.choices.find((c) => c.id === "P3").why, /2ms에야 도착합니다/);
+  assert.match(preempt.choices.find((c) => c.id === "P1").why, /7 ms로 새로 온 P2\(2 ms\)보다 깁니다/);
+  assert.match(preempt.choices.find((c) => c.id === "P3").why, /2 ms에야 도착합니다/);
   const keep = byId.srtf.content.prediction(srtf, 1);
   assert.equal(keep.decision.cause, "keep");
-  assert.match(keep.choices.find((c) => c.id === "P3").why, /남은 1ms보다 깁니다/);
+  assert.match(keep.choices.find((c) => c.id === "P3").why, /남은 1 ms보다 깁니다/);
   assert.equal(keep.followUp.answer, 1);
   // The queue in the dialog is in arrival order with each job's CPU left.
-  assert.deepEqual(keep.ready, ["P1 7ms"]);
-  assert.deepEqual(keep.joined, ["P3 도착 · 3ms"]);
+  assert.deepEqual(keep.ready, ["P1 7 ms"]);
+  assert.deepEqual(keep.joined, ["P3 도착 · 3 ms"]);
 });

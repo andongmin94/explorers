@@ -30,7 +30,7 @@ const content = lesson.content;
 const PROCESSES = lesson.processes;
 const hasQuantum = lesson.methods.includes("rr");
 const hasIo = PROCESSES.some((p) => p.io.length);
-const methodLabel = (m) => (m === "rr" ? `RR · ${quantum}ms` : METHODS[m].label);
+const methodLabel = (m) => (m === "rr" ? `RR · ${quantum} ms` : METHODS[m].label);
 
 let algorithm = lesson.methods[0],
   quantum = lesson.quantum ?? 2,
@@ -85,7 +85,7 @@ app.outerHTML = `
         <div class="hw-seg" role="group" aria-labelledby="algorithm-label">${lesson.methods.map((m) => `<button data-algorithm="${m}" aria-pressed="${m === algorithm}">${METHODS[m].label}</button>`).join("")}</div>
       </div>
       ${hasQuantum ? `<div class="hw-field cpu-quantum">
-        <label class="hw-label" for="quantum">시간 할당량 <output class="hw-mono" id="quantum-value" for="quantum">${quantum}ms</output></label>
+        <label class="hw-label" for="quantum">시간 할당량 <output class="hw-mono" id="quantum-value" for="quantum">${quantum} ms</output></label>
         <input class="hw-slider" id="quantum" type="range" min="1" max="5" step="1" value="${quantum}" aria-describedby="quantum-help" />
         <div class="hw-ticks" id="quantum-help"><span>1</span><span>5</span></div>
       </div>` : ""}
@@ -93,9 +93,9 @@ app.outerHTML = `
         <span class="hw-label">재생</span>
         <div class="hw-transport">
           <button class="hw-key hw-key--icon" data-action="reset" title="처음으로 (R)" aria-label="처음으로">${icon("reset")}</button>
-          <button class="hw-key hw-key--icon" data-action="back" title="1ms 이전 (←)" aria-label="1ms 이전">${icon("back")}</button>
+          <button class="hw-key hw-key--icon" data-action="back" title="1 ms 이전 (←)" aria-label="1 ms 이전">${icon("back")}</button>
           <button class="hw-key hw-key--accent cpu-play" data-action="play"></button>
-          <button class="hw-key hw-key--icon" data-action="step" title="1ms 다음 (→)" aria-label="1ms 다음">${icon("next")}</button>
+          <button class="hw-key hw-key--icon" data-action="step" title="1 ms 다음 (→)" aria-label="1 ms 다음">${icon("next")}</button>
           <button class="hw-key" data-action="event">다음 사건</button>
           <button class="hw-key hw-key--icon hw-mono" data-action="speed" aria-label="재생 속도 1배, 눌러서 변경">1×</button>
         </div>
@@ -103,7 +103,7 @@ app.outerHTML = `
       <div class="hw-seek">
         <span class="hw-label">0</span>
         <input class="hw-slider" id="seek" type="range" min="0" step="1" value="0" aria-label="시뮬레이션 시각" />
-        <span class="hw-label" id="seek-end">20ms</span>
+        <span class="hw-label" id="seek-end">20 ms</span>
       </div>
       <div class="cpu-guided">
         <button class="hw-switch" data-action="guided" role="switch" aria-checked="true">${LABELS.guided}</button>
@@ -176,7 +176,7 @@ app.outerHTML = `
   </main>
 
   <footer class="hw-footer">
-    <span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 1ms 이동 <kbd>R</kbd> 처음으로</span>
+    <span>조작: <kbd>Space</kbd> 재생·정지 <kbd>←</kbd><kbd>→</kbd> 1 ms 이동 <kbd>R</kbd> 처음으로</span>
     <span>학습 근거 <a href="https://pages.cs.wisc.edu/~remzi/OSTEP/cpu-sched.pdf" target="_blank" rel="noreferrer">OSTEP 7장 ↗</a> · <a href="https://cs341.cs.illinois.edu/coursebook/Scheduling" target="_blank" rel="noreferrer">Illinois CS341 ↗</a></span>
   </footer>
 
@@ -278,15 +278,15 @@ function updateSettings() {
   if (hasQuantum) {
     $("#quantum").disabled = !rr;
     $("#quantum").value = quantum;
-    $("#quantum-value").textContent = rr ? `${quantum}ms` : "사용 안 함";
+    $("#quantum-value").textContent = rr ? `${quantum} ms` : "사용 안 함";
     $(".cpu-quantum").classList.toggle("is-disabled", !rr);
   }
   $("#seek").max = result.stats.makespan;
-  $("#seek-end").textContent = `${result.stats.makespan}ms`;
+  $("#seek-end").textContent = `${result.stats.makespan} ms`;
   $("#milestones").innerHTML = content.milestones(result)
     .map(
       (m, i) =>
-        `<button data-time="${m.time}" data-milestone><span class="hw-index">${String(i + 1).padStart(2, "0")}</span><span class="cpu-grow">${m.title}</span><span class="hw-mono hw-muted">${m.time}ms</span></button>`,
+        `<button data-time="${m.time}" data-milestone><span class="hw-index">${String(i + 1).padStart(2, "0")}</span><span class="cpu-grow">${m.title}</span><span class="hw-mono hw-muted">${m.time} ms</span></button>`,
     )
     .join("");
   scenePager.refresh();
@@ -416,7 +416,7 @@ function renderProcessDetail() {
   const status = { past: "완료", current: "현재 구간", future: "예정" };
   refill(processPager, $("#process-detail"), `
     <div class="cpu-detail-head">
-      <span class="hw-label">${p.id} · ${p.arrival}ms 도착</span>
+      <span class="hw-label">${p.id} · ${p.arrival} ms 도착</span>
       <h2 class="hw-title">${p.name}</h2>
       <p class="hw-text">${detail.body}</p>
     </div>
@@ -424,7 +424,7 @@ function renderProcessDetail() {
       <span class="hw-label">작업이 끝나기까지의 순서</span>
       <ol class="hw-list cpu-phases">${detail.phases
         .map(
-          (ph, i) => `<li class="is-${ph.status}" style="--led:var(--${p.id.toLowerCase()})"><span class="hw-index">${i + 1}</span><span class="cpu-grow"><span>${ph.kind === "cpu" ? "CPU 실행" : "입출력"} <span class="hw-mono hw-muted">${ph.used} / ${ph.total}ms</span></span><span class="cpu-meter" aria-hidden="true"><i style="width:${(ph.used / ph.total) * 100}%"></i></span></span><span class="hw-label">${status[ph.status]}</span></li>`,
+          (ph, i) => `<li class="is-${ph.status}" style="--led:var(--${p.id.toLowerCase()})"><span class="hw-index">${i + 1}</span><span class="cpu-grow"><span>${ph.kind === "cpu" ? "CPU 실행" : "입출력"} <span class="hw-mono hw-muted">${ph.used} / ${ph.total} ms</span></span><span class="cpu-meter" aria-hidden="true"><i style="width:${(ph.used / ph.total) * 100}%"></i></span></span><span class="hw-label">${status[ph.status]}</span></li>`,
         )
         .join("")}</ol>
     </div>
@@ -448,10 +448,10 @@ function updateControls() {
   } else if (frame.running) {
     const left = frame.states[frame.running].burstRemaining;
     const until = {
-      rr: `할당량 ${frame.quantumLeft}ms 남음`,
-      fcfs: hasIo ? "입출력 요청 또는 완료까지" : `완료까지 ${left}ms`,
-      sjf: `완료까지 ${left}ms`,
-      srtf: `남은 ${left}ms · 더 짧은 작업이 오면 선점`,
+      rr: `할당량 ${frame.quantumLeft} ms 남음`,
+      fcfs: hasIo ? "입출력 요청 또는 완료까지" : `완료까지 ${left} ms`,
+      sjf: `완료까지 ${left} ms`,
+      srtf: `남은 ${left} ms · 더 짧은 작업이 오면 선점`,
     }[algorithm];
     text = `${frame.running} 실행 중 · ${until}`;
   } else {
@@ -560,7 +560,7 @@ function reconfigure() {
 function timelineBar(start, end, classes, label, title) {
   const visibleEnd = Math.min(end, time);
   if (visibleEnd <= start) return "";
-  const observed = title.replace(`${start}–${end}ms`, `${start}–${visibleEnd}ms`) + (visibleEnd < end ? " · 진행 중" : "");
+  const observed = title.replace(`${start}–${end} ms`, `${start}–${visibleEnd} ms`) + (visibleEnd < end ? " · 진행 중" : "");
   const total = result.stats.makespan;
   return `<button class="cpu-bar ${classes}" style="left:${(start / total) * 100}%;width:${((visibleEnd - start) / total) * 100}%" data-time="${start}" title="${observed}" aria-label="${observed}">${label}</button>`;
 }
@@ -571,7 +571,7 @@ function renderTimeline() {
     (_, t) => `<button class="cpu-tick" data-time="${t}" style="left:${(t / total) * 100}%"${t === time ? ' aria-current="true"' : ""} aria-label="${t}밀리초로 이동">${t}</button>`,
   ).join("");
   const cpu = result.segments
-    .map((s) => timelineBar(s.start, s.end, s.id ? `is-run is-${s.id.toLowerCase()}` : "is-idle", s.id || "유휴", `${s.start}–${s.end}ms · ${s.id || "CPU 유휴"}`))
+    .map((s) => timelineBar(s.start, s.end, s.id ? `is-run is-${s.id.toLowerCase()}` : "is-idle", s.id || "유휴", `${s.start}–${s.end} ms · ${s.id || "CPU 유휴"}`))
     .join("");
   const rows = PROCESSES.map((p) => {
     const runs = [];
@@ -584,7 +584,7 @@ function renderTimeline() {
     }
     const kind = { running: "is-run", ready: "is-ready", blocked: "is-io" };
     const bars = runs
-      .map((s) => timelineBar(s.start, s.end, `${kind[s.state]} is-${p.id.toLowerCase()}`, s.state === "blocked" ? "입출력" : "", `${p.id} · ${s.start}–${s.end}ms · ${stateNames[s.state]}`))
+      .map((s) => timelineBar(s.start, s.end, `${kind[s.state]} is-${p.id.toLowerCase()}`, s.state === "blocked" ? "입출력" : "", `${p.id} · ${s.start}–${s.end} ms · ${stateNames[s.state]}`))
       .join("");
     return `<span class="hw-label">${ledFor(p.id)}${p.id}</span><div class="cpu-lane">${bars}</div>`;
   }).join("");
@@ -597,8 +597,8 @@ function renderTimeline() {
   const elapsed = Math.max(0, time);
   const busy = result.frames.slice(0, elapsed).filter((f) => f.running).length;
   $("#live-usage").textContent = hasIo
-    ? `경과 ${elapsed}ms · CPU 실행 ${busy}ms · 유휴 ${elapsed - busy}ms`
-    : `경과 ${elapsed}ms · 완료 ${displayedFrame.completed.length}/${PROCESSES.length}`;
+    ? `경과 ${elapsed} ms · CPU 실행 ${busy} ms · 유휴 ${elapsed - busy} ms`
+    : `경과 ${elapsed} ms · 완료 ${displayedFrame.completed.length}/${PROCESSES.length}`;
 }
 function renderLog() {
   const entries = (time < 0 ? [] : result.frames.slice(0, time).concat(displayedFrame))
@@ -607,7 +607,7 @@ function renderLog() {
   $("#event-log").innerHTML = entries
     .map(
       ({ t, e }) =>
-        `<tr data-time="${t}"${t === time ? ' aria-current="true"' : ""}><td><button class="cpu-time-link hw-mono" data-time="${t}" aria-label="${t}ms 사건으로 이동">${t}ms</button></td><td class="cpu-nowrap">${ledFor(e.id)} ${e.id || "CPU"}</td><td>${eventLabel(e, algorithm).replace(`${e.id} `, "")}</td></tr>`,
+        `<tr data-time="${t}"${t === time ? ' aria-current="true"' : ""}><td><button class="cpu-time-link hw-mono" data-time="${t}" aria-label="${t} ms 사건으로 이동">${t} ms</button></td><td class="cpu-nowrap">${ledFor(e.id)} ${e.id || "CPU"}</td><td>${eventLabel(e, algorithm).replace(`${e.id} `, "")}</td></tr>`,
     )
     .join("");
   $("#log-count").textContent = entries.length;
@@ -617,9 +617,9 @@ function renderMetrics() {
   const frame = displayedFrame;
   $("#metrics").innerHTML = PROCESSES.map((p) => {
     const s = frame.states[p.id];
-    const turnaround = s.finishedAt === null ? (s.arriving ? "도착 중" : s.status === "new" ? "도착 전" : "진행 중") : `${s.finishedAt - p.arrival}ms`;
-    const remaining = s.status === "done" ? "완료" : `${s.cpuRemaining}ms${s.status === "blocked" ? ` · 입출력 ${s.ioRemaining}ms` : ""}`;
-    return `<tr class="is-clickable" data-process="${p.id}"${p.id === selectedProcess ? ' aria-current="true"' : ""}><td><button class="cpu-process-link" data-process="${p.id}">${ledFor(p.id)}<span><b class="hw-mono">${p.id}</b> ${p.name}<span class="hw-muted hw-mono cpu-cell-help">${p.arrival}ms 도착 · ${recipe(p)}</span></span></button></td><td class="hw-mono">${remaining}</td><td class="hw-mono">${s.firstRun === null ? "아직 실행 전" : `${number(s.firstRun - p.arrival)}ms`}</td><td class="hw-mono">${s.readyWait}ms</td><td class="hw-mono">${turnaround}</td></tr>`;
+    const turnaround = s.finishedAt === null ? (s.arriving ? "도착 중" : s.status === "new" ? "도착 전" : "진행 중") : `${s.finishedAt - p.arrival} ms`;
+    const remaining = s.status === "done" ? "완료" : `${s.cpuRemaining} ms${s.status === "blocked" ? ` · 입출력 ${s.ioRemaining} ms` : ""}`;
+    return `<tr class="is-clickable" data-process="${p.id}"${p.id === selectedProcess ? ' aria-current="true"' : ""}><td><button class="cpu-process-link" data-process="${p.id}">${ledFor(p.id)}<span><b class="hw-mono">${p.id}</b> ${p.name}<span class="hw-muted hw-mono cpu-cell-help">${p.arrival} ms 도착 · ${recipe(p)}</span></span></button></td><td class="hw-mono">${remaining}</td><td class="hw-mono">${s.firstRun === null ? "아직 실행 전" : `${number(s.firstRun - p.arrival)} ms`}</td><td class="hw-mono">${s.readyWait} ms</td><td class="hw-mono">${turnaround}</td></tr>`;
   }).join("");
 }
 
@@ -635,19 +635,19 @@ function openPrediction() {
   $("#prediction-body").innerHTML = keepUnits(`
     <div class="hw-plate-body">
       <div class="hw-section">
-        <span class="hw-label">${time < 0 ? "시작 전" : `${time}ms`}에서 멈춤</span>
-        <h2 class="hw-title" id="prediction-title">${decision.time}ms, ${decision.cause === "keep" ? "CPU는 누가 쓰게 될까요?" : "다음 CPU는 누구에게 돌아갈까요?"}</h2>
+        <span class="hw-label">${time < 0 ? "시작 전" : `${time} ms`}에서 멈춤</span>
+        <h2 class="hw-title" id="prediction-title">${decision.time} ms, ${decision.cause === "keep" ? "CPU는 누가 쓰게 될까요?" : "다음 CPU는 누구에게 돌아갈까요?"}</h2>
         <p class="hw-text hw-muted">${prediction.hint}</p>
       </div>
       <div class="hw-section">
         <dl class="hw-list cpu-quiz-context">
           <div><dt class="hw-label">지금 CPU</dt><dd><b>${prediction.running || "유휴"}</b> <span class="hw-muted">${prediction.runningNote}</span></dd></div>
           <div><dt class="hw-label">${prediction.readyLabel}</dt><dd><b>${prediction.ready.join(prediction.readyLabel.includes("→") ? " → " : " · ") || "비어 있음"}</b></dd></div>
-          <div><dt class="hw-label">${decision.time}ms에 들어오는 작업</dt><dd>${prediction.joined.join(" · ") || (hasIo ? "도착·입출력 복귀 없음" : "새로 도착하는 작업 없음")}</dd></div>
+          <div><dt class="hw-label">${decision.time} ms에 들어오는 작업</dt><dd>${prediction.joined.join(" · ") || (hasIo ? "도착·입출력 복귀 없음" : "새로 도착하는 작업 없음")}</dd></div>
         </dl>
       </div>
       <div class="hw-section">
-        <span class="hw-label">${decision.time}ms에 CPU를 받을 작업</span>
+        <span class="hw-label">${decision.time} ms에 CPU를 받을 작업</span>
         <div class="cpu-choices">${prediction.choices
           .map(({ id }) => `<button class="hw-key" data-answer="${id}">${ledFor(id)}<span><b>${id}</b> ${PROCESSES.find((p) => p.id === id).name}</span></button>`)
           .join("")}</div>
@@ -656,7 +656,7 @@ function openPrediction() {
       ${follow ? `<div class="hw-section" id="quiz-follow" hidden>
         <span class="hw-label">이어서 · 숫자로 예측</span>
         <p class="hw-text">${follow.question}${follow.context ? ` <span class="hw-muted">(${follow.context})</span>` : ""}</p>
-        <div class="cpu-choices cpu-choices--numbers" style="--n:${follow.choices.length}">${follow.choices.map((n) => `<button class="hw-key" data-number="${n}"><b class="hw-mono">${n}ms</b></button>`).join("")}</div>
+        <div class="cpu-choices cpu-choices--numbers" style="--n:${follow.choices.length}">${follow.choices.map((n) => `<button class="hw-key" data-number="${n}"><b class="hw-mono">${n} ms</b></button>`).join("")}</div>
         <div id="quiz-follow-feedback" aria-live="polite"></div>
       </div>` : ""}
     </div>
@@ -701,7 +701,7 @@ function answerNumber(value) {
   const { answer, explanation } = quiz.followUp;
   const correct = Number(value) === answer;
   markChoices("[data-number]", "number", String(answer), String(value));
-  $("#quiz-follow-feedback").innerHTML = keepUnits(`<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p>${correct ? LABELS.correct : LABELS.wrong(`${answer}ms`)} ${explanation}</p></div></div>`);
+  $("#quiz-follow-feedback").innerHTML = keepUnits(`<div class="hw-note ${correct ? "hw-note--accent" : ""}"><div><p>${correct ? LABELS.correct : LABELS.wrong(`${answer} ms`)} ${explanation}</p></div></div>`);
   showReveal();
 }
 
@@ -709,7 +709,7 @@ function comparisonTimeline(run, scale) {
   return `<div class="cpu-lane cpu-compare-lane">${run.segments
     .map(
       (s) =>
-        `<span class="cpu-bar ${s.id ? `is-run is-${s.id.toLowerCase()}` : "is-idle"}" style="left:${(s.start / scale) * 100}%;width:${((s.end - s.start) / scale) * 100}%" title="${s.start}–${s.end}ms · ${s.id || "유휴"}">${s.end - s.start >= 2 ? s.id || "유휴" : ""}</span>`,
+        `<span class="cpu-bar ${s.id ? `is-run is-${s.id.toLowerCase()}` : "is-idle"}" style="left:${(s.start / scale) * 100}%;width:${((s.end - s.start) / scale) * 100}%" title="${s.start}–${s.end} ms · ${s.id || "유휴"}">${s.end - s.start >= 2 ? s.id || "유휴" : ""}</span>`,
     )
     .join("")}</div>`;
 }
@@ -744,8 +744,8 @@ function openComparison() {
         <h2 class="hw-title" id="comparison-title">${lesson.question}</h2>
       </div>
       <div class="hw-section cpu-compare-runs">
-        <span class="hw-label">${labelA}</span>${comparisonTimeline(a, scale)}<span class="hw-mono">${a.stats.makespan}ms</span>
-        <span class="hw-label">${labelB}</span>${comparisonTimeline(b, scale)}<span class="hw-mono">${b.stats.makespan}ms</span>
+        <span class="hw-label">${labelA}</span>${comparisonTimeline(a, scale)}<span class="hw-mono">${a.stats.makespan} ms</span>
+        <span class="hw-label">${labelB}</span>${comparisonTimeline(b, scale)}<span class="hw-mono">${b.stats.makespan} ms</span>
       </div>
       <div class="hw-section cpu-table-scroll">
         <table class="hw-table cpu-compare-table"><thead><tr><th>지표</th><th>${labelA}</th><th>${labelB}</th></tr></thead><tbody>${rows

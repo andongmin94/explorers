@@ -33,7 +33,7 @@ const SLOTS = 3;
 // A token rides just above the cable while it travels.
 const RIDE = 0.2;
 // On phones callout labels grow at most this much (see frame()).
-const NARROW_LABEL_K = 1.15;
+const NARROW_LABEL_K = 1.8;
 
 /* Callout label boxes in user units, for framing: Hangul is about 1em wide,
    everything else about 0.6em (sans title) / 0.62em (mono sub). */
@@ -251,7 +251,7 @@ export function createSchedulerScene(host, processes, onMove) {
     const [zone, index] = zoneOf(id, v);
     return D.slots[zone](index);
   };
-  const cpuSub = () => notes.cpu ?? (quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum}ms)`);
+  const cpuSub = () => notes.cpu ?? (quantum == null ? "FCFS · 구간이 끝날 때까지" : `LED = 남은 할당량 (${quantum} ms)`);
   const queueSub = () => notes.queue ?? "FIFO · 1번이 다음 차례";
 
   // Frame the devices, cables and callout labels to the stage's aspect.

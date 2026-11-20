@@ -428,7 +428,8 @@
   .git-records-hint { display: none; }
   .hw-records .hw-plate-head { overflow: hidden; }
   .git-log th:nth-child(4),
-  .git-log td:nth-child(4) { display: none; }
+  .git-log td:nth-child(4),
+  .git-log .git-col-head { display: none; }
 }
 
 /* Desktop layout: the full-screen console in shared/hw.css. */
@@ -577,3 +578,19 @@
 .git-page .hw-dialog .hw-table td { word-break: keep-all; }
 /* The methods comparison: the way back sits clear of the table. */
 .git-compare .hw-plate-body > [data-action="fork"] { margin-top: 16px; }
+
+/* Event log: fixed column widths sized from the whole run (main.js
+   sizeLogColumns), so revealing an event never shifts the columns. */
+.git-log {
+  table-layout: fixed;
+  width: 100%;
+}
+.git-log .git-col-n { width: 3.6em; }
+.git-log .git-col-cmd { width: var(--git-col-cmd, 30%); }
+.git-log .git-col-head { width: var(--git-col-head, 22%); }
+@media (max-width: 759px) {
+  .git-log .git-col-cmd { width: 42%; }
+}
+.git-log td:nth-child(3) {
+  overflow-wrap: anywhere;
+}

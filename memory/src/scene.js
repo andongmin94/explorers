@@ -258,7 +258,7 @@ export function createMemoryScene(host, { onPhase = () => {}, frameCount = 3 } =
   const $ = (selector) => svg.querySelector(selector);
   const $$ = (selector) => svg.querySelectorAll(selector);
   // On a phone the callouts grow less, so the devices keep a readable size.
-  const labelMax = () => (narrow.matches ? 1.5 : 2.2);
+  const labelMax = () => (narrow.matches ? 3 : 2.2);
 
   /** Fit the viewBox to the devices and callouts at the stage's aspect. */
   function frame() {

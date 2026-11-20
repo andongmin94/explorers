@@ -19,9 +19,9 @@ export const methodName = (algorithm) => NAMES[algorithm];
 const left = (result, t, id) => result.frames[t].states[id].burstRemaining;
 const arrivalOf = (result, id) => result.processes.find((p) => p.id === id).arrival;
 const before = (result, t) => (t > 0 ? result.frames[t - 1] : preFrame(result));
-const withLeft = (result, t, ids) => ids.map((id) => `${id} ${left(result, t, id)}ms`).join(" · ");
-/** "2ms짜리 P2·3ms짜리 P3": ends with an id, so josa() still applies. */
-const sized = (result, t, ids) => ids.map((id) => `${left(result, t, id)}ms짜리 ${id}`).join("·");
+const withLeft = (result, t, ids) => ids.map((id) => `${id} ${left(result, t, id)} ms`).join(" · ");
+/** "2 ms짜리 P2·3 ms짜리 P3": ends with an id, so josa() still applies. */
+const sized = (result, t, ids) => ids.map((id) => `${left(result, t, id)} ms짜리 ${id}`).join("·");
 
 /* ---------- 핵심 장면 ---------- */
 
@@ -55,7 +55,11 @@ export function milestones(result) {
     if (has("complete") && has("dispatch")) {
       const rr = result.algorithm === "rr";
       if (!rr || !points.some((p) => p.kind === "next")) {
-        add(frame.t, "next", result.algorithm === "fcfs" || rr ? "끝나야 다음 차례" : "남은 작업 중 가장 짧은 것");
+        // Each "next" stop names who finished and who comes next, so two of
+        // them in one run never share a title.
+        const done = frame.events.find((e) => e.type === "complete")?.id;
+        const next = decision?.chosen;
+        add(frame.t, "next", result.algorithm === "fcfs" || rr ? `${josa(done, "가")} 끝나야 다음 차례` : (decision?.candidates?.length ?? 2) > 1 ? `${josa(next, "가")} 남은 것 중 가장 짧음` : `${next}만 남음`);
       }
     }
   }
@@ -87,7 +91,7 @@ function pickReason(result, d) {
   const t = d.time;
   const { chosen, candidates } = d;
   const others = candidates.filter((id) => id !== chosen);
-  if (!others.length) return `${t}ms에 준비된 작업은 ${chosen}뿐이라 바로 CPU를 받습니다.`;
+  if (!others.length) return `${t} ms에 준비된 작업은 ${chosen}뿐이라 바로 CPU를 받습니다.`;
   switch (result.algorithm) {
     case "fcfs":
       return `준비 큐 순서는 ${candidates.join(" → ")}입니다. FCFS는 맨 앞의 ${josa(chosen, "을")} 고릅니다.`;
@@ -130,7 +134,7 @@ export function chapter(frame, result, spec = {}) {
       const arrived = at.events.filter((e) => e.type === "arrive").map((e) => e.id);
       copy = {
         title: "도착해도 바로 실행되지 않음",
-        body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${at.running}에게는 아직 ${left(result, t, at.running)}ms가 남았지만, ${methodName(algorithm)}는 비선점이라 ${josa(at.running, "가")} 끝날 때까지 준비 큐에서 기다립니다.`,
+        body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${at.running}에게는 아직 ${left(result, t, at.running)} ms가 남았지만, ${methodName(algorithm)}는 비선점이라 ${josa(at.running, "가")} 끝날 때까지 준비 큐에서 기다립니다.`,
         key:
           algorithm === "sjf"
             ? "SJF는 CPU가 빌 때만 고릅니다. 짧은 작업이 조금 늦게 오면 긴 작업 뒤에서 기다립니다(OSTEP 7.5)."
@@ -144,8 +148,8 @@ export function chapter(frame, result, spec = {}) {
       const done = at.states[old].cpuDone;
       copy = {
         title: "더 짧은 작업이 CPU를 가져감",
-        body: `${t} ms에 ${josa(newcomer, "가")} 도착했습니다. ${newcomer}에게 필요한 CPU 시간은 ${left(result, t, newcomer)}ms이고, 실행 중이던 ${old}에게는 ${left(result, t, old)}ms가 남았습니다. 더 짧은 ${josa(newcomer, "이")} ${josa(old, "을")} 선점합니다.`,
-        key: `선점은 작업을 버리는 것이 아니라 잠시 멈추는 것입니다. ${josa(old, "은")} 이미 실행한 ${done}ms를 보존하고, 남은 ${left(result, t, old)}ms는 나중에 이어서 실행합니다.`,
+        body: `${t} ms에 ${josa(newcomer, "가")} 도착했습니다. ${newcomer}에게 필요한 CPU 시간은 ${left(result, t, newcomer)} ms이고, 실행 중이던 ${old}에게는 ${left(result, t, old)} ms가 남았습니다. 더 짧은 ${josa(newcomer, "이")} ${josa(old, "을")} 선점합니다.`,
+        key: `선점은 작업을 버리는 것이 아니라 잠시 멈추는 것입니다. ${josa(old, "은")} 이미 실행한 ${done} ms를 보존하고, 남은 ${left(result, t, old)} ms는 나중에 이어서 실행합니다.`,
       };
       break;
     }
@@ -155,7 +159,7 @@ export function chapter(frame, result, spec = {}) {
       const same = arrived.some((id) => left(result, t, id) === left(result, t, runner));
       copy = {
         title: "새 작업이 더 길면 그대로",
-        body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${josa(runner, "은")} ${left(result, t, runner)}ms만 남아 ${same ? "같거나 " : ""}더 짧으므로 계속 실행합니다. 새 작업은 준비 큐에서 기다립니다.`,
+        body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${josa(runner, "은")} ${left(result, t, runner)} ms만 남아 ${same ? "같거나 " : ""}더 짧으므로 계속 실행합니다. 새 작업은 준비 큐에서 기다립니다.`,
         key: "SRTF는 작업이 들어올 때마다 비교하지만, 새 작업이 남은 시간보다 짧을 때만 선점합니다.",
       };
       break;
@@ -164,7 +168,7 @@ export function chapter(frame, result, spec = {}) {
       const old = event("preempt").id;
       copy = {
         title: "끝난 것은 작업이 아니라 이번 차례",
-        body: `${t} ms에 ${old}의 할당량 ${result.quantum}ms가 끝났습니다. 진행한 계산은 보존하고 준비 큐 뒤로 보냅니다. ${pickReason(result, decision)}`,
+        body: `${t} ms에 ${old}의 할당량 ${result.quantum} ms가 끝났습니다. 진행한 계산은 보존하고 준비 큐 뒤로 보냅니다. ${pickReason(result, decision)}`,
         key: "할당량마다 차례가 바뀌어 모든 작업이 빨리 한 번씩 실행됩니다. 대신 각 작업의 완료는 뒤로 밀립니다.",
       };
       break;
@@ -174,8 +178,8 @@ export function chapter(frame, result, spec = {}) {
       const chosen = decision.chosen;
       const waited = at.states[chosen].readyWait;
       copy = {
-        title: algorithm === "fcfs" || algorithm === "rr" ? `${josa(done, "가")} 끝나야 다음 차례` : "남은 작업 중 가장 짧은 것",
-        body: `${t} ms에 ${josa(done, "가")} 끝났습니다. ${decision.candidates.length > 1 ? pickReason(result, decision) : `남은 작업은 ${chosen}뿐이라 바로 CPU를 받습니다.`} ${josa(chosen, "은")} 지금까지 준비 큐에서 ${waited}ms를 기다렸습니다.`,
+        title: algorithm === "fcfs" || algorithm === "rr" ? `${josa(done, "가")} 끝나야 다음 차례` : decision.candidates.length > 1 ? `${josa(chosen, "가")} 남은 것 중 가장 짧음` : `${chosen}만 남음`,
+        body: `${t} ms에 ${josa(done, "가")} 끝났습니다. ${decision.candidates.length > 1 ? pickReason(result, decision) : `남은 작업은 ${chosen}뿐이라 바로 CPU를 받습니다.`} ${josa(chosen, "은")} 지금까지 준비 큐에서 ${waited} ms를 기다렸습니다.`,
         key: NEXT_KEY[algorithm],
       };
       break;
@@ -201,10 +205,10 @@ export function momentNotes(frame, result) {
       const arrival = arrivalOf(result, event.id);
       const cpu = result.processes.find((p) => p.id === event.id).cpu.reduce((a, b) => a + b, 0);
       const turnaround = frame.t - arrival;
-      notes.push(`${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${turnaround}ms. 대기 시간 = 반환 ${turnaround} − CPU ${cpu} = ${turnaround - cpu}ms.`);
+      notes.push(`${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${turnaround} ms. 대기 시간 = 반환 ${turnaround} − CPU ${cpu} = ${turnaround - cpu} ms.`);
     } else if (event.type === "dispatch" && frame.states[event.id]?.firstRun === frame.t) {
       const arrival = arrivalOf(result, event.id);
-      notes.push(`${event.id} 최초 응답 = 첫 실행 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival}ms.`);
+      notes.push(`${event.id} 최초 응답 = 첫 실행 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival} ms.`);
     }
   }
   const dispatched = frame.events.some((e) => e.type === "dispatch");
@@ -212,7 +216,7 @@ export function momentNotes(frame, result) {
   if (frame.running && !dispatched && joined.length) {
     notes.push(
       result.algorithm === "srtf"
-        ? `${josa(frame.running, "은")} 남은 시간이 ${left(result, frame.t, frame.running)}ms로 더 짧거나 같아 선점되지 않습니다.`
+        ? `${josa(frame.running, "은")} 남은 시간이 ${left(result, frame.t, frame.running)} ms로 더 짧거나 같아 선점되지 않습니다.`
         : `도착은 실행 중인 ${frame.running} 작업을 선점하지 않습니다(비선점).`,
     );
   }
@@ -250,9 +254,9 @@ export function prediction(result, time) {
 
   let explanation;
   if (decision.cause === "keep") {
-    explanation = `실행 중인 ${josa(chosen, "은")} ${len(chosen)}ms 남았고, 새로 온 작업은 ${withLeft(result, t, joined)}입니다. 새 작업이 더 짧지 않으므로 ${josa(chosen, "가")} 계속 실행합니다.`;
+    explanation = `실행 중인 ${josa(chosen, "은")} ${len(chosen)} ms 남았고, 새로 온 작업은 ${withLeft(result, t, joined)}입니다. 새 작업이 더 짧지 않으므로 ${josa(chosen, "가")} 계속 실행합니다.`;
   } else if (algorithm === "srtf" && released?.type === "preempt") {
-    explanation = `새로 온 ${josa(chosen, "은")} ${len(chosen)}ms, 실행 중이던 ${josa(released.id, "은")} ${len(released.id)}ms 남았습니다. 더 짧은 ${josa(chosen, "가")} ${josa(released.id, "을")} 선점합니다.`;
+    explanation = `새로 온 ${josa(chosen, "은")} ${len(chosen)} ms, 실행 중이던 ${josa(released.id, "은")} ${len(released.id)} ms 남았습니다. 더 짧은 ${josa(chosen, "가")} ${josa(released.id, "을")} 선점합니다.`;
   } else if (algorithm === "rr" && released?.type === "preempt") {
     explanation = `${josa(released.id, "은")} 할당량을 다 써서 준비 큐 맨 뒤로 갑니다. ${pickReason(result, decision)}`;
   } else {
@@ -262,25 +266,25 @@ export function prediction(result, time) {
 
   const whyNot = (id) => {
     if (released?.type === "complete" && released.id === id)
-      return `${josa(id, "는")} ${t}ms에 CPU 시간을 다 써서 끝납니다. 끝난 작업은 다시 CPU를 받지 않습니다.`;
+      return `${josa(id, "는")} ${t} ms에 CPU 시간을 다 써서 끝납니다. 끝난 작업은 다시 CPU를 받지 않습니다.`;
     if (arrivalOf(result, id) > t)
-      return `${josa(id, "는")} ${arrivalOf(result, id)}ms에야 도착합니다. 준비 큐에 없는 작업은 고를 수 없습니다.`;
+      return `${josa(id, "는")} ${arrivalOf(result, id)} ms에야 도착합니다. 준비 큐에 없는 작업은 고를 수 없습니다.`;
     const ahead = decision.candidates.slice(0, decision.candidates.indexOf(id)).join("·");
     switch (algorithm) {
       case "fcfs":
         return `${josa(id, "는")} 준비 큐에서 ${ahead} 뒤에 섰습니다. FCFS는 길이와 상관없이 먼저 줄을 선 작업부터 실행합니다.${len(id) < len(chosen) ? ` ${josa(id, "가")} 더 짧아도 마찬가지입니다.` : ""}`;
       case "rr":
         if (released?.type === "preempt" && released.id === id)
-          return `${josa(id, "는")} 할당량 ${result.quantum}ms를 다 써서 준비 큐 맨 뒤로 갑니다.`;
+          return `${josa(id, "는")} 할당량 ${result.quantum} ms를 다 써서 준비 큐 맨 뒤로 갑니다.`;
         return `${josa(id, "는")} 준비 큐에서 ${ahead} 뒤에 있습니다. 라운드 로빈은 맨 앞 작업부터 CPU를 줍니다.`;
       default: {
         if (decision.cause === "keep" && joined.includes(id))
-          return `${josa(id, "는")} ${len(id)}ms로, 실행 중인 ${chosen}의 남은 ${len(chosen)}ms보다 ${len(id) === len(chosen) ? "짧지 않습니다(같음)" : "깁니다"}. SRTF는 새 작업이 더 짧을 때만 선점합니다.`;
+          return `${josa(id, "는")} ${len(id)} ms로, 실행 중인 ${chosen}의 남은 ${len(chosen)} ms보다 ${len(id) === len(chosen) ? "짧지 않습니다(같음)" : "깁니다"}. SRTF는 새 작업이 더 짧을 때만 선점합니다.`;
         if (algorithm === "srtf" && released?.type === "preempt" && released.id === id)
-          return `${josa(id, "는")} 남은 시간이 ${len(id)}ms로 새로 온 ${chosen}(${len(chosen)}ms)보다 깁니다. 실행 중이어도 더 짧은 작업이 오면 CPU를 내줍니다.`;
+          return `${josa(id, "는")} 남은 시간이 ${len(id)} ms로 새로 온 ${chosen}(${len(chosen)} ms)보다 깁니다. 실행 중이어도 더 짧은 작업이 오면 CPU를 내줍니다.`;
         if (len(id) === len(chosen))
-          return `${id}도 ${word}이 ${len(id)}ms로 같지만, 먼저 줄을 선 ${josa(chosen, "가")} 우선입니다.`;
-        return `${josa(id, "는")} ${word}이 ${len(id)}ms로 ${chosen}(${len(chosen)}ms)보다 깁니다. ${methodName(algorithm)}는 가장 짧은 작업부터 실행합니다.${ahead && algorithm === "sjf" && !ahead.includes(chosen) ? " 먼저 줄을 섰어도 마찬가지입니다." : ""}`;
+          return `${id}도 ${word}이 ${len(id)} ms로 같지만, 먼저 줄을 선 ${josa(chosen, "가")} 우선입니다.`;
+        return `${josa(id, "는")} ${word}이 ${len(id)} ms로 ${chosen}(${len(chosen)} ms)보다 깁니다. ${methodName(algorithm)}는 가장 짧은 작업부터 실행합니다.${ahead && algorithm === "sjf" && !ahead.includes(chosen) ? " 먼저 줄을 섰어도 마찬가지입니다." : ""}`;
       }
     }
   };
@@ -296,25 +300,25 @@ export function prediction(result, time) {
   if (at.states[chosen].firstRun === t) {
     const answer = t - arrival;
     followUp = {
-      question: `${josa(chosen, "는")} ${arrival}ms에 도착했습니다. 최초 응답 시간은 몇 ms일까요?`,
+      question: `${josa(chosen, "는")} ${arrival} ms에 도착했습니다. 최초 응답 시간은 몇 ms일까요?`,
       context: null,
       answer,
       choices: numberChoices(answer, { min: 0, seed }),
-      explanation: `최초 응답 = 첫 실행 ${t} − 도착 ${arrival} = ${answer}ms. ${answer ? "그동안 준비 큐에서 기다렸습니다." : "도착하자마자 CPU를 받았습니다."}`,
+      explanation: `최초 응답 = 첫 실행 ${t} − 도착 ${arrival} = ${answer} ms. ${answer ? "그동안 준비 큐에서 기다렸습니다." : "도착하자마자 CPU를 받았습니다."}`,
     };
   } else if (segment && !(algorithm === "rr" && result.quantum === 1)) {
     const answer = segment.end - t;
     const cut = segment.reason === "preempt";
     followUp = {
-      question: `${josa(chosen, "는")} ${t}ms부터 CPU를 몇 ms 연속으로 쓸까요?`,
-      context: `${chosen} 남은 CPU ${len(chosen)}ms${algorithm === "srtf" ? " · 더 짧은 작업이 오면 선점" : algorithm === "rr" ? ` · 할당량 ${result.quantum}ms` : " · 비선점"}`,
+      question: `${josa(chosen, "는")} ${t} ms부터 CPU를 몇 ms 연속으로 쓸까요?`,
+      context: `${chosen} 남은 CPU ${len(chosen)} ms${algorithm === "srtf" ? " · 더 짧은 작업이 오면 선점" : algorithm === "rr" ? ` · 할당량 ${result.quantum} ms` : " · 비선점"}`,
       answer,
       choices: numberChoices(answer, { min: 1, seed }),
       explanation: cut
-        ? `${segment.end}ms에 더 짧은 작업이 도착해 선점됩니다. ${t}–${segment.end}ms, ${answer}ms입니다.`
+        ? `${segment.end} ms에 더 짧은 작업이 도착해 선점됩니다. ${t}–${segment.end} ms, ${answer} ms입니다.`
         : segment.reason === "quantum"
-          ? `할당량 ${result.quantum}ms를 다 쓰고 차례를 넘깁니다.`
-          : `남은 ${len(chosen)}ms를 끝까지 실행하고 완료됩니다.`,
+          ? `할당량 ${result.quantum} ms를 다 쓰고 차례를 넘깁니다.`
+          : `남은 ${len(chosen)} ms를 끝까지 실행하고 완료됩니다.`,
     };
   }
 
@@ -324,10 +328,10 @@ export function prediction(result, time) {
     decision,
     beforeTime: t - 1,
     running: prevRunning,
-    runningNote: prevRunning ? `남은 CPU ${prev.states[prevRunning].burstRemaining}ms` : "실행 중인 작업 없음",
+    runningNote: prevRunning ? `남은 CPU ${prev.states[prevRunning].burstRemaining} ms` : "실행 중인 작업 없음",
     readyLabel: "준비 큐 · 남은 CPU",
-    ready: prev.ready.map((id) => `${id} ${prev.states[id].burstRemaining}ms`),
-    joined: joined.map((id) => `${id} 도착 · ${len(id)}ms`),
+    ready: prev.ready.map((id) => `${id} ${prev.states[id].burstRemaining} ms`),
+    joined: joined.map((id) => `${id} 도착 · ${len(id)} ms`),
     choices,
     explanation,
     followUp,
@@ -340,14 +344,14 @@ export function prediction(result, time) {
 /** Head line: average waiting of the two runs (the question of 02 and 03). */
 export function waitingLine(a, b) {
   const [x, y] = [a.stats.averageWaiting, b.stats.averageWaiting];
-  if (x === y) return `두 방식의 평균 대기 시간이 ${fmt(x)}ms로 같습니다.`;
+  if (x === y) return `두 방식의 평균 대기 시간이 ${fmt(x)} ms로 같습니다.`;
   const [win, lose] = x < y ? [a, b] : [b, a];
-  return `${methodName(win.algorithm)}의 평균 대기가 ${fmt(Math.abs(x - y))}ms 짧습니다(${methodName(lose.algorithm)} ${fmt(lose.stats.averageWaiting)}ms → ${methodName(win.algorithm)} ${fmt(win.stats.averageWaiting)}ms).`;
+  return `${methodName(win.algorithm)}의 평균 대기가 ${fmt(Math.abs(x - y))} ms 짧습니다(${methodName(lose.algorithm)} ${fmt(lose.stats.averageWaiting)} ms → ${methodName(win.algorithm)} ${fmt(win.stats.averageWaiting)} ms).`;
 }
 
 /** One line per job: how long it waited under each method. */
 export function waitsLine(a, b) {
   return a.stats.perProcess
-    .map((p, i) => `${p.id} ${p.waiting}→${b.stats.perProcess[i].waiting}ms`)
+    .map((p, i) => `${p.id} ${p.waiting}→${b.stats.perProcess[i].waiting} ms`)
     .join(" · ");
 }

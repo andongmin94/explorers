@@ -32,9 +32,9 @@ const byProcessOrder = (result) => {
 /** Explain why the CPU idles longer under RR, from the two runs themselves. */
 export function describeComparison(rr, fcfs) {
   if (!rr.segments.some((segment) => segment.reason === "quantum")) {
-    return `모든 CPU 구간이 ${rr.quantum}ms 안에 끝나 라운드 로빈에서도 선점이 일어나지 않습니다. 두 방식의 실행 순서와 완료 순서가 같습니다.`;
+    return `모든 CPU 구간이 ${rr.quantum} ms 안에 끝나 라운드 로빈에서도 선점이 일어나지 않습니다. 두 방식의 실행 순서와 완료 순서가 같습니다.`;
   }
-  const idle = `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle}ms, FCFS ${fcfs.stats.idle}ms입니다.`;
+  const idle = `준비 큐가 비어 CPU가 쉰 시간은 라운드 로빈 ${rr.stats.idle} ms, FCFS ${fcfs.stats.idle} ms입니다.`;
   const gap = rr.segments.find((segment) => segment.id === null);
   if (!gap || rr.stats.idle <= fcfs.stats.idle) return idle;
   // The I/O that the CPU is left waiting for when it falls idle.
@@ -44,7 +44,7 @@ export function describeComparison(rr, fcfs) {
   const same = fcfs.ioSegments.filter((entry) => entry.id === io.id)[nth];
   if (!same || same.start >= io.start) return idle;
   const othersDone = rr.frames[gap.start].completed.length === rr.processes.length - 1;
-  return `${idle} 원인은 입출력이 시작되는 시각입니다. 라운드 로빈에서는 ${io.id}의 ${ordinal(nth)} 입출력 요청이 ${same.start}ms에서 ${io.start}ms로 늦어집니다. 늦게 시작한 입출력은 다른 작업의 CPU 실행과 겹치는 시간이 줄어, ${othersDone ? "다른 작업이 모두 끝난 뒤" : "준비된 작업이 없는"} ${gap.start}–${gap.end}ms에 CPU가 쉽니다.`;
+  return `${idle} 원인은 입출력이 시작되는 시각입니다. 라운드 로빈에서는 ${io.id}의 ${ordinal(nth)} 입출력 요청이 ${same.start} ms에서 ${io.start} ms로 늦어집니다. 늦게 시작한 입출력은 다른 작업의 CPU 실행과 겹치는 시간이 줄어, ${othersDone ? "다른 작업이 모두 끝난 뒤" : "준비된 작업이 없는"} ${gap.start}–${gap.end} ms에 CPU가 쉽니다.`;
 }
 
 /** Sentences for the comparison dialog; every number comes from the two runs. */
@@ -52,20 +52,20 @@ export function comparisonSummary(rr, fcfs) {
   const diff = rr.stats.averageResponse - fcfs.stats.averageResponse;
   const response =
     diff < 0
-      ? `라운드 로빈의 평균 최초 응답이 ${formatTime(-diff)}ms 더 빠릅니다.`
+      ? `라운드 로빈의 평균 최초 응답이 ${formatTime(-diff)} ms 더 빠릅니다.`
       : diff > 0
-        ? `FCFS의 평균 최초 응답이 ${formatTime(diff)}ms 더 빠릅니다.`
+        ? `FCFS의 평균 최초 응답이 ${formatTime(diff)} ms 더 빠릅니다.`
         : "두 방식의 평균 최초 응답 시간이 같습니다.";
   const endDiff = rr.stats.makespan - fcfs.stats.makespan;
   const finish = `전체 완료 시각은 ${
-    endDiff > 0 ? `FCFS가 ${endDiff}ms 빠릅니다` : endDiff < 0 ? `라운드 로빈이 ${-endDiff}ms 빠릅니다` : "같습니다"
-  }. 평균 반환 시간은 라운드 로빈 ${formatTime(rr.stats.averageTurnaround)}ms, FCFS ${formatTime(fcfs.stats.averageTurnaround)}ms입니다.`;
+    endDiff > 0 ? `FCFS가 ${endDiff} ms 빠릅니다` : endDiff < 0 ? `라운드 로빈이 ${-endDiff} ms 빠릅니다` : "같습니다"
+  }. 평균 반환 시간은 라운드 로빈 ${formatTime(rr.stats.averageTurnaround)} ms, FCFS ${formatTime(fcfs.stats.averageTurnaround)} ms입니다.`;
   const parts = [];
-  if (endDiff) parts.push("이 모델은 문맥 교환 비용을 0ms로 두므로 전환 비용 때문은 아닙니다.");
+  if (endDiff) parts.push("이 모델은 문맥 교환 비용을 0 ms로 두므로 전환 비용 때문은 아닙니다.");
   const effect = convoy(fcfs);
   // Only worth saying when the two runs actually differ.
   if (effect && rr.segments.some((segment) => segment.reason === "quantum")) {
-    parts.push(`FCFS가 늘 유리하지도 않습니다. 여기서도 ${josa(effect.ids.join("·"), "는")} ${effect.lead}의 ${effect.burst}ms CPU 구간 뒤에서 ${effect.ids.length > 1 ? "각각 " : ""}${effect.waits.map((w) => `${w}ms`).join(", ")}를 기다립니다(호위 효과, convoy effect).`);
+    parts.push(`FCFS가 늘 유리하지도 않습니다. 여기서도 ${josa(effect.ids.join("·"), "는")} ${effect.lead}의 ${effect.burst} ms CPU 구간 뒤에서 ${effect.ids.length > 1 ? "각각 " : ""}${effect.waits.map((w) => `${w} ms`).join(", ")}를 기다립니다(호위 효과, convoy effect).`);
   }
   return { response, finish, cause: describeComparison(rr, fcfs), caveat: parts.join(" ") };
 }
@@ -88,7 +88,7 @@ export function sweepSummary(sweep, longest, mark = (quantum, value) => value) {
   const switches = monotone("switches")
     ? "할당량을 키우면 전환은 줄거나 그대로이고"
     : "문맥 교환 횟수도 할당량에 따라 달라지고";
-  return `할당량 ${list("quantum")}ms → 문맥 교환 ${list("switches")}회, 전체 완료 ${list("makespan")}ms. ${switches}, 가장 긴 구간(${longest}ms) 이상이면 FCFS와 같습니다.${
+  return `할당량 ${list("quantum")} ms → 문맥 교환 ${list("switches")}회, 전체 완료 ${list("makespan")} ms. ${switches}, 가장 긴 구간(${longest} ms) 이상이면 FCFS와 같습니다.${
     monotone("makespan") ? "" : " 전체 완료는 입출력 겹침에 따라 달라져 할당량과 단조 관계가 아닙니다."
   }`;
 }
@@ -113,10 +113,10 @@ export function momentNotes(frame, result) {
   for (const event of frame.events) {
     if (event.type === "complete") {
       const arrival = arrivalOf(event.id);
-      notes.push(`${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival}ms. CPU 실행·준비 큐 대기·입출력 대기를 모두 포함합니다.`);
+      notes.push(`${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival} ms. CPU 실행·준비 큐 대기·입출력 대기를 모두 포함합니다.`);
     } else if (event.type === "dispatch" && frame.states[event.id]?.firstRun === frame.t) {
       const arrival = arrivalOf(event.id);
-      notes.push(`${event.id} 최초 응답 = 첫 실행 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival}ms. 응답은 화면 출력이나 작업 완료를 뜻하지 않습니다.`);
+      notes.push(`${event.id} 최초 응답 = 첫 실행 ${frame.t} − 도착 ${arrival} = ${frame.t - arrival} ms. 응답은 화면 출력이나 작업 완료를 뜻하지 않습니다.`);
     } else if (event.type === "preempt" && event.id === frame.running) {
       notes.push(`준비 큐에 ${event.id}만 있어 ${josa(event.id, "이")} 새 할당량으로 바로 다시 배정됐습니다. 문맥 교환 횟수는 늘지 않습니다.`);
     }
@@ -465,23 +465,23 @@ export function buildPrediction(result, time) {
     const state = before.states[id];
     if (released?.id === id) {
       if (released.type === "block")
-        return `${josa(id, "는")} ${t}ms에 이번 CPU 구간을 마치고 입출력을 요청합니다.${rr ? " 할당량이 남아 있어도 구간이 끝나면 CPU를 놓습니다." : ""} 입출력 중에는 CPU를 받을 수 없습니다.`;
+        return `${josa(id, "는")} ${t} ms에 이번 CPU 구간을 마치고 입출력을 요청합니다.${rr ? " 할당량이 남아 있어도 구간이 끝나면 CPU를 놓습니다." : ""} 입출력 중에는 CPU를 받을 수 없습니다.`;
       if (released.type === "complete")
-        return `${josa(id, "는")} ${t}ms에 마지막 CPU 구간을 마치고 완료됩니다. 완료된 작업은 다시 CPU를 받지 않습니다.`;
-      return `${josa(id, "는")} 할당량 ${result.quantum}ms를 다 써서 준비 큐 맨 뒤로 갑니다. 할당량이 끝나면 계속 실행하지 못하고, 앞에 선 ${ahead(id)} 작업이 먼저입니다.`;
+        return `${josa(id, "는")} ${t} ms에 마지막 CPU 구간을 마치고 완료됩니다. 완료된 작업은 다시 CPU를 받지 않습니다.`;
+      return `${josa(id, "는")} 할당량 ${result.quantum} ms를 다 써서 준비 큐 맨 뒤로 갑니다. 할당량이 끝나면 계속 실행하지 못하고, 앞에 선 ${ahead(id)} 작업이 먼저입니다.`;
     }
     const event = joined.find((entry) => entry.id === id);
     if (event?.type === "arrive")
-      return `${josa(id, "는")} ${t}ms에 막 도착해 준비 큐 뒤(${ahead(id)} 다음)에 줄을 섭니다. 도착했다고 바로 실행되지 않습니다.`;
+      return `${josa(id, "는")} ${t} ms에 막 도착해 준비 큐 뒤(${ahead(id)} 다음)에 줄을 섭니다. 도착했다고 바로 실행되지 않습니다.`;
     if (event?.type === "unblock")
-      return `${josa(id, "는")} ${t}ms에 입출력을 마치고 준비 큐 뒤(${ahead(id)} 다음)에 줄을 섭니다. 입출력 복귀는 먼저 기다리던 작업을 추월하거나 선점하지 않습니다.`;
+      return `${josa(id, "는")} ${t} ms에 입출력을 마치고 준비 큐 뒤(${ahead(id)} 다음)에 줄을 섭니다. 입출력 복귀는 먼저 기다리던 작업을 추월하거나 선점하지 않습니다.`;
     if (state.status === "new") {
       const arrival = result.processes.find((process) => process.id === id).arrival;
-      return `${josa(id, "는")} ${arrival}ms에야 도착합니다. 준비 큐에 없는 작업은 CPU를 받을 수 없습니다.`;
+      return `${josa(id, "는")} ${arrival} ms에야 도착합니다. 준비 큐에 없는 작업은 CPU를 받을 수 없습니다.`;
     }
     if (state.status === "blocked") {
       const until = before.blocked.find((entry) => entry.id === id).until;
-      return `${josa(id, "는")} ${until}ms까지 입출력 중입니다. 입출력이 끝나야 준비 큐에 들어갑니다.`;
+      return `${josa(id, "는")} ${until} ms까지 입출력 중입니다. 입출력이 끝나야 준비 큐에 들어갑니다.`;
     }
     return `${josa(id, "는")} 준비 큐에서 ${ahead(id)} 뒤에 있습니다. 준비 큐는 먼저 줄을 선 작업부터 CPU를 받습니다.`;
   };
@@ -497,27 +497,27 @@ export function buildPrediction(result, time) {
   if (at.states[chosen].firstRun === t) {
     const answer = t - arrival;
     followUp = {
-      question: `${josa(chosen, "는")} ${arrival}ms에 도착했습니다. 최초 응답 시간은 몇 ms일까요?`,
+      question: `${josa(chosen, "는")} ${arrival} ms에 도착했습니다. 최초 응답 시간은 몇 ms일까요?`,
       context: null,
       answer,
       choices: numberChoices(answer, { min: 0, seed }),
-      explanation: `최초 응답 = 첫 실행 ${t} − 도착 ${arrival} = ${answer}ms. ${answer ? "그동안 준비 큐에서 기다렸습니다." : "도착하자마자 CPU를 받았습니다."}`,
+      explanation: `최초 응답 = 첫 실행 ${t} − 도착 ${arrival} = ${answer} ms. ${answer ? "그동안 준비 큐에서 기다렸습니다." : "도착하자마자 CPU를 받았습니다."}`,
     };
   } else if (!rr || result.quantum > 1) {
-    // At a 1ms quantum every turn lasts 1ms: nothing to predict.
+    // At a 1 ms quantum every turn lasts 1 ms: nothing to predict.
     const segment = result.segments.find((entry) => entry.start === t && entry.id === chosen);
     const burst = at.states[chosen].burstRemaining;
     const answer = segment.end - segment.start;
-    const limit = !rr ? "" : burst < result.quantum ? ` 할당량 ${result.quantum}ms보다 먼저 끝납니다.` : " 할당량도 같은 시각에 끝나지만 구간 종료가 우선입니다.";
+    const limit = !rr ? "" : burst < result.quantum ? ` 할당량 ${result.quantum} ms보다 먼저 끝납니다.` : " 할당량도 같은 시각에 끝나지만 구간 종료가 우선입니다.";
     const detail =
       segment.reason === "quantum"
-        ? `이번 CPU 구간이 ${burst}ms 남아 있어, 할당량 ${result.quantum}ms를 다 쓰고 선점됩니다.`
+        ? `이번 CPU 구간이 ${burst} ms 남아 있어, 할당량 ${result.quantum} ms를 다 쓰고 선점됩니다.`
         : segment.reason === "complete"
-          ? `마지막 CPU 구간 ${burst}ms를 마치고 완료됩니다.${limit}`
-          : `이번 CPU 구간 ${burst}ms를 마치고 입출력을 요청합니다.${limit}`;
+          ? `마지막 CPU 구간 ${burst} ms를 마치고 완료됩니다.${limit}`
+          : `이번 CPU 구간 ${burst} ms를 마치고 입출력을 요청합니다.${limit}`;
     followUp = {
       question: `이번 차례에 ${josa(chosen, "는")} CPU를 몇 ms 연속으로 쓸까요?`,
-      context: `${chosen}의 이번 CPU 구간 ${burst}ms 남음${rr ? ` · 할당량 ${result.quantum}ms` : " · FCFS는 선점하지 않음"}`,
+      context: `${chosen}의 이번 CPU 구간 ${burst} ms 남음${rr ? ` · 할당량 ${result.quantum} ms` : " · FCFS는 선점하지 않음"}`,
       answer,
       choices: numberChoices(answer, { min: 1, max: rr ? result.quantum : Infinity, seed }),
       explanation: detail,
@@ -531,8 +531,8 @@ export function buildPrediction(result, time) {
     running,
     runningNote: running
       ? rr
-        ? `할당량 ${before.quantumLeft}ms · 현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
-        : `현재 CPU 구간 ${before.states[running].burstRemaining}ms 남음`
+        ? `할당량 ${before.quantumLeft} ms · 현재 CPU 구간 ${before.states[running].burstRemaining} ms 남음`
+        : `현재 CPU 구간 ${before.states[running].burstRemaining} ms 남음`
       : "실행 중인 작업 없음",
     ready: before.ready,
     joined: joined.map((event) => event.id).toSorted(order).map((id) => {

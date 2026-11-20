@@ -24,14 +24,14 @@ const chapter = (result, title) => {
 test("the comparison names the delayed I/O, both completion metrics and the zero switch cost", () => {
   const fcfs = simulate({ algorithm: "fcfs" });
   const summary = comparisonSummary(simulate({ quantum: 2 }), fcfs);
-  assert.match(summary.cause, /P1의 첫 입출력 요청이 5ms에서 13ms로 늦어집니다/);
-  assert.match(summary.cause, /13–17ms에 CPU가 쉽니다/);
-  assert.match(summary.finish, /전체 완료 시각.*FCFS가 4ms 빠릅니다/);
-  assert.match(summary.finish, /평균 반환 시간은 라운드 로빈 13ms, FCFS 12.67ms/);
-  assert.match(summary.caveat, /문맥 교환 비용을 0ms로/);
+  assert.match(summary.cause, /P1의 첫 입출력 요청이 5 ms에서 13 ms로 늦어집니다/);
+  assert.match(summary.cause, /13–17 ms에 CPU가 쉽니다/);
+  assert.match(summary.finish, /전체 완료 시각.*FCFS가 4 ms 빠릅니다/);
+  assert.match(summary.finish, /평균 반환 시간은 라운드 로빈 13 ms, FCFS 12.67 ms/);
+  assert.match(summary.caveat, /문맥 교환 비용을 0 ms로/);
   assert.match(summary.caveat, /호위 효과/);
   assert.doesNotMatch(summary.finish, /도 라운드 로빈/);
-  assert.match(summary.caveat, /P2·P3는 P1의 5ms CPU 구간 뒤에서 각각 4ms, 5ms를 기다립니다/);
+  assert.match(summary.caveat, /P2·P3는 P1의 5 ms CPU 구간 뒤에서 각각 4 ms, 5 ms를 기다립니다/);
   const same = comparisonSummary(simulate({ quantum: 5 }), fcfs);
   assert.match(same.finish, /같습니다/);
   // Identical runs: neither the cost note nor the convoy caveat applies.
@@ -43,7 +43,7 @@ test("the quantum trade-off is computed from the engine at every slider position
   assert.deepEqual(sweep.map((row) => row.makespan), [18, 20, 17, 18, 16]);
   assert.deepEqual(sweep.map((row) => row.switches), [13, 6, 6, 5, 4]);
   const line = sweepSummary(sweep, 5);
-  assert.match(line, /문맥 교환 13·6·6·5·4회, 전체 완료 18·20·17·18·16ms/);
+  assert.match(line, /문맥 교환 13·6·6·5·4회, 전체 완료 18·20·17·18·16 ms/);
   assert.match(line, /단조 관계가 아닙니다/);
   assert.doesNotMatch(line, /작을수록 전환이 늘고/);
   assert.match(recapPoints(simulate({ quantum: 2 }), simulate({ algorithm: "fcfs" }))[1], /평균 최초 응답 1 ms\(FCFS 3 ms\), 전체 완료 20 ms\(FCFS 16 ms\)/);
@@ -82,9 +82,9 @@ test("the 핵심 note follows each step and recall questions explain every optio
 
 test("moment notes explain completions, first responses, arrivals and self re-dispatch", () => {
   const rr = simulate({ quantum: 2 });
-  assert.ok(momentNotes(rr.frames[10], rr).some((note) => note.startsWith("P3 반환 시간 = 완료 10 − 도착 2 = 8ms")));
+  assert.ok(momentNotes(rr.frames[10], rr).some((note) => note.startsWith("P3 반환 시간 = 완료 10 − 도착 2 = 8 ms")));
   assert.ok(momentNotes(rr.frames[12], rr).some((note) => note.startsWith("P2 반환 시간")));
-  assert.ok(momentNotes(rr.frames[2], rr).some((note) => /P2 최초 응답 = 첫 실행 2 − 도착 1 = 1ms.*화면 출력/.test(note)));
+  assert.ok(momentNotes(rr.frames[2], rr).some((note) => /P2 최초 응답 = 첫 실행 2 − 도착 1 = 1 ms.*화면 출력/.test(note)));
   assert.ok(momentNotes(rr.frames[1], rr).some((note) => /도착은 실행 중인 P1 작업을 선점하지 않습니다/.test(note)));
   assert.ok(momentNotes(rr.frames[19], rr).some((note) => /P1이 새 할당량으로/.test(note)));
   assert.deepEqual(momentNotes(rr.frames[15], rr), []);
@@ -121,7 +121,7 @@ test("predictions offer every unfinished job with its own why and a numeric ques
   assert.match(first.explanation, /할당량을 다 써서/);
   assert.match(first.choices[2].why, /도착했다고 바로 실행되지 않습니다/);
 
-  // At 4ms P2 is about to block: it must still be offered, so the choices don't leak it.
+  // At 4 ms P2 is about to block: it must still be offered, so the choices don't leak it.
   const blocking = buildPrediction(rr, 3);
   assert.equal(blocking.decision.time, 4);
   assert.deepEqual(ids(blocking), ["P1", "P2", "P3"]);
@@ -133,7 +133,7 @@ test("predictions offer every unfinished job with its own why and a numeric ques
   assert.match(afterDone.choices[2].why, /완료됩니다/);
   assert.match(afterDone.explanation, /완료됩니다/);
   assert.equal(afterDone.followUp.answer, 2);
-  assert.match(afterDone.followUp.context, /P2의 이번 CPU 구간 2ms 남음 · 할당량 2ms/);
+  assert.match(afterDone.followUp.context, /P2의 이번 CPU 구간 2 ms 남음 · 할당량 2 ms/);
 
   const fcfs = buildPrediction(simulate({ algorithm: "fcfs" }), -1);
   assert.deepEqual(ids(fcfs), ["P1", "P2", "P3"]);
@@ -157,7 +157,7 @@ test("predictions offer every unfinished job with its own why and a numeric ques
       const follow = prediction.followUp;
       const firstRun = result.frames[decision.time].states[decision.chosen].firstRun === decision.time;
       if (options.quantum === 1 && !firstRun) {
-        assert.equal(follow, null, "a 1ms quantum makes every turn 1ms");
+        assert.equal(follow, null, "a 1 ms quantum makes every turn 1 ms");
         continue;
       }
       assert.ok(follow.choices.includes(follow.answer));

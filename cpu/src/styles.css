@@ -864,3 +864,8 @@ body {
     color: transparent;
   }
 }
+
+/* Phones: scene callouts keep only their titles, at a readable size. */
+@media (max-width: 759px) {
+  .cpu-scene .iso-callout-sub { display: none; }
+}

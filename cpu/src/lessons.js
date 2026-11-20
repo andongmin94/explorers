@@ -22,7 +22,7 @@ import { josa } from "./josa.js";
 
 /** Method key labels and the stage tag. */
 export const METHODS = {
-  rr: { label: "라운드 로빈", tag: (q) => `RR · ${q}ms`, cpu: (q) => `LED = 남은 할당량 (${q}ms)`, queue: "FIFO · 1번이 다음 차례" },
+  rr: { label: "라운드 로빈", tag: (q) => `RR · ${q} ms`, cpu: (q) => `LED = 남은 할당량 (${q} ms)`, queue: "FIFO · 1번이 다음 차례" },
   fcfs: { label: "FCFS", tag: () => "FCFS · 비선점", cpu: () => "FCFS · 구간이 끝날 때까지", queue: "FIFO · 1번이 다음 차례" },
   sjf: { label: "SJF", tag: () => "SJF · 비선점", cpu: () => "SJF · 끝날 때까지 실행", queue: "가장 짧은 작업부터" },
   srtf: { label: "SRTF", tag: () => "SRTF · 선점", cpu: () => "SRTF · 더 짧은 작업이 오면 선점", queue: "남은 시간 짧은 작업부터" },
@@ -36,7 +36,7 @@ const RR_RULES = [
   "CPU 구간이 끝나는 시각에 할당량도 끝나면 구간 종료가 우선합니다. 작업은 입출력이나 완료로 갑니다.",
   "같은 시각에는 도착·입출력 복귀를 먼저 큐에 넣고, 할당량이 끝난 작업을 맨 뒤에 넣습니다.",
   "입출력은 CPU와 따로 진행됩니다. 여러 작업의 입출력이 겹칠 수 있습니다.",
-  "문맥 교환(작업 전환) 비용은 0ms로 단순화했습니다.",
+  "문맥 교환(작업 전환) 비용은 0 ms로 단순화했습니다.",
   "대기 시간(준비 큐)에 입출력 대기는 포함하지 않습니다. 반환 시간은 완료 시각 − 도착 시각입니다.",
   "FCFS는 긴 CPU 구간이 앞에 서면 짧은 작업들이 줄줄이 기다립니다(호위 효과, convoy effect). 다음 레슨에서 SJF와 비교합니다.",
 ];
@@ -69,7 +69,7 @@ const rrLesson = {
 };
 
 const job = (id, name, arrival, cpu) => ({ id, name, arrival, cpu: [cpu], io: [] });
-const list = (processes) => processes.map((p) => `${josa(p.id, "는")} ${p.cpu[0]}ms`).join(", ");
+const list = (processes) => processes.map((p) => `${josa(p.id, "는")} ${p.cpu[0]} ms`).join(", ");
 
 /* ---------- 02 · SJF vs FCFS ---------- */
 
@@ -99,8 +99,8 @@ const sjfLesson = {
   recapPoints(result, { fcfs, sjf }) {
     const waits = fcfs.stats.perProcess.filter((p) => p.waiting > 0);
     return [
-      `FCFS: 8ms짜리 P1이 맨 앞에 서면 ${waits.map((p) => p.id).join("·")}가 ${waits.map((p) => `${p.waiting}ms`).join(", ")}를 기다립니다(호위 효과). 평균 대기 ${fmt(fcfs.stats.averageWaiting)}ms.`,
-      `SJF: 짧은 순서(${sjf.segments.map((s) => s.id).join(" → ")})로 실행하면 평균 대기 ${fmt(sjf.stats.averageWaiting)}ms, 평균 반환 ${fmt(sjf.stats.averageTurnaround)}ms(FCFS ${fmt(fcfs.stats.averageTurnaround)}ms)입니다.`,
+      `FCFS: 8 ms짜리 P1이 맨 앞에 서면 ${waits.map((p) => p.id).join("·")}가 ${waits.map((p) => `${p.waiting} ms`).join(", ")}를 기다립니다(호위 효과). 평균 대기 ${fmt(fcfs.stats.averageWaiting)} ms.`,
+      `SJF: 짧은 순서(${sjf.segments.map((s) => s.id).join(" → ")})로 실행하면 평균 대기 ${fmt(sjf.stats.averageWaiting)} ms, 평균 반환 ${fmt(sjf.stats.averageTurnaround)} ms(FCFS ${fmt(fcfs.stats.averageTurnaround)} ms)입니다.`,
       "SJF는 각 작업의 CPU 시간을 미리 알아야 합니다. 실제 운영체제는 이를 알 수 없어 과거 실행으로 추정합니다(OSTEP 7.4).",
     ];
   },
@@ -111,7 +111,7 @@ const sjfLesson = {
       choices: [
         { label: "뒤의 짧은 작업들이 그 시간만큼 줄줄이 기다린다", correct: true, why: "호위 효과(convoy effect)입니다. 긴 작업의 시간이 뒤 작업 모두의 대기 시간에 더해집니다." },
         { label: "짧은 작업이 긴 작업을 선점한다", why: "FCFS는 비선점입니다. 짧은 작업도 앞 작업이 끝날 때까지 기다립니다." },
-        { label: "평균 대기 시간은 실행 순서와 관계없다", why: "CPU 시간의 합은 같아도 누가 먼저 하느냐에 따라 각 작업의 대기 시간이 달라집니다. 이 실험에서도 6ms와 3ms로 다릅니다." },
+        { label: "평균 대기 시간은 실행 순서와 관계없다", why: "CPU 시간의 합은 같아도 누가 먼저 하느냐에 따라 각 작업의 대기 시간이 달라집니다. 이 실험에서도 6 ms와 3 ms로 다릅니다." },
       ],
     },
     {
@@ -121,25 +121,25 @@ const sjfLesson = {
       choices: [
         { label: "문맥 교환이 너무 많아서", why: "SJF는 비선점이라 작업이 끝날 때만 바꿉니다. 이 실험에서도 전환은 FCFS와 같은 2회입니다." },
         { label: "작업의 CPU 시간을 미리 알 수 없어서", correct: true, why: "SJF는 길이를 안다고 가정합니다. 실제로는 과거 CPU 구간으로 다음 길이를 추정할 뿐입니다(OSTEP 7.4)." },
-        { label: "평균 대기 시간이 FCFS보다 늘어서", why: "함께 도착한 작업이라면 SJF 순서가 평균 대기를 가장 짧게 만듭니다. 이 실험에서도 6ms → 3ms로 줄었습니다." },
+        { label: "평균 대기 시간이 FCFS보다 늘어서", why: "함께 도착한 작업이라면 SJF 순서가 평균 대기를 가장 짧게 만듭니다. 이 실험에서도 6 ms → 3 ms로 줄었습니다." },
       ],
     },
   ],
   compare({ fcfs, sjf }) {
     return {
       head: waitingLine(fcfs, sjf),
-      body: `평균 반환 시간은 FCFS ${fmt(fcfs.stats.averageTurnaround)}ms, SJF ${fmt(sjf.stats.averageTurnaround)}ms입니다. 작업별 대기(FCFS→SJF): ${waitsLine(fcfs, sjf)}. 갈림길은 0ms의 첫 선택입니다. FCFS는 맨 앞의 긴 P1을, SJF는 가장 짧은 P2를 고릅니다.`,
-      caveat: `전체 완료 시각은 두 방식 모두 ${fcfs.stats.makespan}ms입니다. 순서만 바뀌었을 뿐 CPU가 한 일의 양은 같습니다. SJF는 CPU 시간을 미리 안다고 가정합니다.`,
+      body: `평균 반환 시간은 FCFS ${fmt(fcfs.stats.averageTurnaround)} ms, SJF ${fmt(sjf.stats.averageTurnaround)} ms입니다. 작업별 대기(FCFS→SJF): ${waitsLine(fcfs, sjf)}. 갈림길은 0 ms의 첫 선택입니다. FCFS는 맨 앞의 긴 P1을, SJF는 가장 짧은 P2를 고릅니다.`,
+      caveat: `전체 완료 시각은 두 방식 모두 ${fcfs.stats.makespan} ms입니다. 순서만 바뀌었을 뿐 CPU가 한 일의 양은 같습니다. SJF는 CPU 시간을 미리 안다고 가정합니다.`,
     };
   },
   rules: [
     "CPU는 하나이며 한 번에 한 작업만 실행합니다. 이 레슨의 작업은 입출력 없이 CPU만 씁니다.",
-    "세 작업 모두 0ms에 도착하며, 같은 시각에는 P1 → P2 → P3 순서로 줄을 섭니다.",
+    "세 작업 모두 0 ms에 도착하며, 같은 시각에는 P1 → P2 → P3 순서로 줄을 섭니다.",
     "SJF는 준비 큐 전체에서 CPU 시간이 가장 짧은 작업을 고릅니다. 줄의 위치는 상관없습니다. 길이가 같으면 먼저 줄을 선 작업이 우선입니다.",
     "SJF는 각 작업의 CPU 시간을 미리 안다고 가정합니다. 실제 운영체제는 과거 CPU 구간으로 추정합니다(OSTEP 7.4).",
     "대기 시간 = 반환 시간 − CPU 시간 (입출력이 없을 때). 반환 시간 = 완료 시각 − 도착 시각.",
     '오해: "짧은 작업을 먼저 하면 전체가 빨리 끝난다". 전체 완료 시각은 같고, 줄어드는 것은 평균 대기와 평균 반환입니다.',
-    "문맥 교환 비용은 0ms로 단순화했습니다. 출처: OSTEP 7.3 FIFO, 7.4 SJF.",
+    "문맥 교환 비용은 0 ms로 단순화했습니다. 출처: OSTEP 7.3 FIFO, 7.4 SJF.",
   ],
 };
 
@@ -152,7 +152,7 @@ const srtfLesson = {
   intro: (result) => ({
     eyebrow: METHODS[result.algorithm].tag(),
     title: "긴 작업을 멈추고 짧은 작업에 CPU를 주면 무엇이 좋아질까요?",
-    body: `P1(백업, 8ms)이 0 ms에 먼저 도착해 실행을 시작합니다. 1 ms에 P2(2ms), 2 ms에 P3(3ms)가 뒤따라 도착합니다. ${
+    body: `P1(백업, 8 ms)이 0 ms에 먼저 도착해 실행을 시작합니다. 1 ms에 P2(2 ms), 2 ms에 P3(3 ms)가 뒤따라 도착합니다. ${
       result.algorithm === "sjf"
         ? "SJF는 CPU가 빌 때만 가장 짧은 작업을 고릅니다."
         : "SRTF는 작업이 도착할 때마다 남은 시간을 비교해 다시 고릅니다."
@@ -173,9 +173,9 @@ const srtfLesson = {
   recapPoints(result, { sjf, srtf }) {
     const first = srtf.segments.find((s) => s.reason === "preempt");
     return [
-      `SJF는 비선점이라 1ms에 온 P2(2ms)도 P1이 끝나는 ${sjf.segments[0].end}ms까지 기다립니다. 평균 대기 ${fmt(sjf.stats.averageWaiting)}ms, 평균 반환 ${fmt(sjf.stats.averageTurnaround)}ms.`,
-      `SRTF는 ${first.end}ms에 ${josa(first.id, "을")} 선점해 짧은 작업을 먼저 끝냅니다. 평균 대기 ${fmt(srtf.stats.averageWaiting)}ms, 평균 반환 ${fmt(srtf.stats.averageTurnaround)}ms.`,
-      "선점은 새 작업이 남은 시간보다 짧을 때만 일어납니다. 2ms에 온 P3(3ms)는 남은 1ms의 P2를 선점하지 못합니다.",
+      `SJF는 비선점이라 1 ms에 온 P2(2 ms)도 P1이 끝나는 ${sjf.segments[0].end} ms까지 기다립니다. 평균 대기 ${fmt(sjf.stats.averageWaiting)} ms, 평균 반환 ${fmt(sjf.stats.averageTurnaround)} ms.`,
+      `SRTF는 ${first.end} ms에 ${josa(first.id, "을")} 선점해 짧은 작업을 먼저 끝냅니다. 평균 대기 ${fmt(srtf.stats.averageWaiting)} ms, 평균 반환 ${fmt(srtf.stats.averageTurnaround)} ms.`,
+      "선점은 새 작업이 남은 시간보다 짧을 때만 일어납니다. 2 ms에 온 P3(3 ms)는 남은 1 ms의 P2를 선점하지 못합니다.",
     ];
   },
   recall: () => [
@@ -195,8 +195,8 @@ const srtfLesson = {
       answer: "새 작업이 실행 중 작업의 남은 시간보다 짧을 때",
       choices: [
         { label: "새 작업의 CPU 시간이 실행 중 작업의 남은 시간보다 짧을 때", correct: true, why: "SRTF는 남은 시간을 비교합니다. 같거나 길면 실행 중인 작업이 계속합니다." },
-        { label: "새 작업이 실행 중 작업의 전체 길이보다 짧을 때", why: "이미 실행한 부분은 비교하지 않습니다. 2ms에 온 P3(3ms)는 P2의 전체 2ms가 아니라 남은 1ms와 비교됩니다." },
-        { label: "새 작업이 도착하면 언제나", why: "더 짧을 때만 선점합니다. 이 실험의 2ms에서 P3는 P2를 선점하지 못했습니다." },
+        { label: "새 작업이 실행 중 작업의 전체 길이보다 짧을 때", why: "이미 실행한 부분은 비교하지 않습니다. 2 ms에 온 P3(3 ms)는 P2의 전체 2 ms가 아니라 남은 1 ms와 비교됩니다." },
+        { label: "새 작업이 도착하면 언제나", why: "더 짧을 때만 선점합니다. 이 실험의 2 ms에서 P3는 P2를 선점하지 못했습니다." },
       ],
     },
   ],
@@ -205,18 +205,18 @@ const srtfLesson = {
     const newcomer = srtf.segments.find((s) => s.start === first.end).id;
     return {
       head: waitingLine(sjf, srtf),
-      body: `평균 반환 시간은 SJF ${fmt(sjf.stats.averageTurnaround)}ms, SRTF ${fmt(srtf.stats.averageTurnaround)}ms입니다. 작업별 대기(SJF→SRTF): ${waitsLine(sjf, srtf)}. 갈림길은 ${first.end}ms에 ${josa(newcomer, "가")} 도착한 순간입니다. SJF는 ${josa(first.id, "을")} 계속 실행하고, SRTF는 ${josa(first.id, "을")} 선점합니다.`,
-      caveat: `선점하면 문맥 교환이 늘어납니다(SJF ${sjf.stats.contextSwitches}회, SRTF ${srtf.stats.contextSwitches}회). 이 모델은 전환 비용을 0ms로 둡니다. 긴 ${josa(first.id, "은")} 짧은 작업이 계속 오면 오래 밀릴 수 있습니다(기아).`,
+      body: `평균 반환 시간은 SJF ${fmt(sjf.stats.averageTurnaround)} ms, SRTF ${fmt(srtf.stats.averageTurnaround)} ms입니다. 작업별 대기(SJF→SRTF): ${waitsLine(sjf, srtf)}. 갈림길은 ${first.end} ms에 ${josa(newcomer, "가")} 도착한 순간입니다. SJF는 ${josa(first.id, "을")} 계속 실행하고, SRTF는 ${josa(first.id, "을")} 선점합니다.`,
+      caveat: `선점하면 문맥 교환이 늘어납니다(SJF ${sjf.stats.contextSwitches}회, SRTF ${srtf.stats.contextSwitches}회). 이 모델은 전환 비용을 0 ms로 둡니다. 긴 ${josa(first.id, "은")} 짧은 작업이 계속 오면 오래 밀릴 수 있습니다(기아).`,
     };
   },
   rules: [
     "CPU는 하나이며 한 번에 한 작업만 실행합니다. 이 레슨의 작업은 입출력 없이 CPU만 씁니다.",
-    "도착: P1 0ms, P2 1ms, P3 2ms. 준비 큐는 도착 순서로 줄을 서고, 방식이 그중 하나를 고릅니다.",
+    "도착: P1 0 ms, P2 1 ms, P3 2 ms. 준비 큐는 도착 순서로 줄을 서고, 방식이 그중 하나를 고릅니다.",
     "SJF는 CPU가 빌 때만 고릅니다(비선점). SRTF는 작업이 준비 큐에 들어올 때마다 다시 고릅니다(선점).",
     "SRTF는 새 작업의 CPU 시간과 실행 중 작업의 남은 시간을 비교합니다. 새 작업이 더 짧을 때만 선점하고, 같으면 실행 중인 작업이 계속합니다.",
     '오해: "선점되면 처음부터 다시 실행한다". 진행한 만큼은 보존되고 남은 시간만 이어서 실행합니다.',
     "SRTF는 OSTEP의 STCF(Shortest Time-to-Completion First, 7.5)와 같습니다. 두 방식 모두 CPU 시간을 미리 안다고 가정합니다.",
-    "문맥 교환 비용은 0ms로 단순화했습니다.",
+    "문맥 교환 비용은 0 ms로 단순화했습니다.",
   ],
 };
 

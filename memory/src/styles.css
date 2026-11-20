@@ -899,3 +899,9 @@ body {
 .hw-table td > .mem-pg {
   vertical-align: middle;
 }
+
+/* Phones: scene callouts keep only their titles, at a readable size. */
+@media (max-width: 759px) {
+  .mem-scene .iso-callout-sub,
+  .hw-scene .iso-callout-sub { display: none; }
+}
