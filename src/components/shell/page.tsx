@@ -40,11 +40,12 @@ export function useRail(): RailState {
 
 export const DRAWER_QUERY = "(max-width: 1279px)";
 
-// ?backdrop=1: the optional wallpaper wash behind the scene (a draft, off by
-// default; backdrop-wash in app.css). Read once, before the first paint.
+// The wallpaper wash behind the scene (backdrop-wash in app.css) is on by
+// default so the glass has colour to pick up; ?backdrop=0 turns it off.
+// Read once, before the first paint.
 if (
   typeof window !== "undefined" &&
-  new URLSearchParams(window.location.search).get("backdrop") === "1"
+  new URLSearchParams(window.location.search).get("backdrop") !== "0"
 )
   document.documentElement.dataset.backdrop = "on";
 

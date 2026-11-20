@@ -123,6 +123,6 @@ Controls use 13px Medium (510). Letter-spacing 0 at these sizes. **web**: SF Pro
 | `--capsule`, `--capsule-shadow`, `capsule` utility | white 72% + 0.5px hairline + soft drop | white 8% + hairline | segmented control, tab list, button group |
 | `--capsule-divider` | `rgb(0 0 0 / .1)` | `rgb(255 255 255 / .12)` | 1×14 dividers between segments |
 
-## Backdrop draft (`?backdrop=1`, off by default)
+## Backdrop (on by default, `?backdrop=0` turns it off)
 
-In the kit every window floats over the macOS wallpaper, so the glass picks up colour. `?backdrop=1` sets `<html data-backdrop="on">` (`page.tsx`) and the page gets `backdrop-wash` (`app.css`): four very soft radial washes (accent 22% top-left, cyan 16% top-right, indigo 14% bottom-right, accent 12% bottom-left; a little stronger indigo in dark) over the window colour, fixed to the viewport; the floor grid turns translucent (`--iso-grid` in `tokens.css`). Off by default until the owner decides.
+In the kit every window floats over the macOS wallpaper, so the glass picks up colour. Unless the URL has `?backdrop=0`, the page sets `<html data-backdrop="on">` (`page.tsx`) and the page gets `backdrop-wash` (`app.css`): four very soft radial washes (accent 22% top-left, cyan 16% top-right, indigo 14% bottom-right, accent 12% bottom-left; a little stronger indigo in dark) over the window colour, fixed to the viewport; the floor grid turns translucent (`--iso-grid` in `tokens.css`). On by default since the owner chose it.
