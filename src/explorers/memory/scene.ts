@@ -69,6 +69,12 @@ function setFrameCount(n: number) {
   LEN = 1 + n * PITCH;
 }
 const SLOTS = () => Array.from({ length: N }, (_, slot) => slot);
+// Frame face marks ("F0", then LED and rank): a tighter set when four or more
+// frames narrow the pitch, so each frame's marks stay under its own pocket.
+const FACE = () =>
+  N > 3
+    ? { size: 11, label: -0.5, led: 0.08, text: 0.32 }
+    : { size: 13, label: -0.6, led: 0.12, text: 0.42 };
 const slotX = (slot: number) => RAM_X + 0.5 + slot * PITCH + PITCH / 2;
 const SLOT_Y = TRAY_Y + 0.3 + (TRAY_D - 0.66) / 2;
 const SLOT_Z = TRAY_H - 0.33;
@@ -332,7 +338,7 @@ function staticScene() {
   const faces = SLOTS()
     .map(
       (slot) => `<g class="mem-slot" data-slot="${slot}">
-        ${frontText({ x: slotX(slot) - 0.6, y: FACE_Y + 0.002, z: TRAY_H / 2, text: `F${slot}`, size: 13, weight: 800, fill: "var(--mem-face-ink)", engrave: "var(--mem-face-engrave)" })}
+        ${frontText({ x: slotX(slot) + FACE().label, y: FACE_Y + 0.002, z: TRAY_H / 2, text: `F${slot}`, size: FACE().size, weight: 800, fill: "var(--mem-face-ink)", engrave: "var(--mem-face-engrave)" })}
         <g class="mem-rank"></g>
       </g>`,
     )
@@ -602,7 +608,7 @@ export function createMemoryScene(
       const x = slotX(frame.slot);
       const z = TRAY_H / 2;
       const mark = (on: boolean, text: string) =>
-        `${faceLed({ x: x + 0.12, y: FACE_Y + 0.002, z, on })}${frontText({ x: x + 0.42, y: FACE_Y + 0.002, z, text, size: 13, weight: 800, anchor: "start", fill: on ? "var(--accent)" : "var(--mem-face-ink)", cls: "mem-rank-text" })}`;
+        `${faceLed({ x: x + FACE().led, y: FACE_Y + 0.002, z, on })}${frontText({ x: x + FACE().text, y: FACE_Y + 0.002, z, text, size: FACE().size, weight: 800, anchor: "start", fill: on ? "var(--accent)" : "var(--mem-face-ink)", cls: "mem-rank-text" })}`;
       // Clock: the reference bit is evidence, not the answer, so it always shows.
       slotEls[frame.slot].querySelector(".mem-rank")!.innerHTML = clock
         ? frame.page

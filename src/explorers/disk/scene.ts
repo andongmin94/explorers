@@ -233,10 +233,13 @@ function setLayout(mode: Mode) {
 // head (the kit's side text reads the other way, mirrored).
 function slotNumbers() {
   const z = queue.top - 0.31;
+  // A long queue packs its pockets closer: shrink the numbers with the pitch so
+  // each stays between its own LED and the next one.
+  const size = Math.round(14.5 * Math.min(1, QUEUE.pitch / 1.5) * 10) / 10;
   return queue.slots
     .map(([, y], i) => {
       const [px, py] = project(QUEUE.x + queue.w + 0.002, y - 0.03, z);
-      return `<text class="disk-slot-num" transform="matrix(1 -0.5 0 1 ${r2(px)} ${r2(py)})" dominant-baseline="central">${String(i + 1).padStart(2, "0")}</text>`;
+      return `<text class="disk-slot-num" transform="matrix(1 -0.5 0 1 ${r2(px)} ${r2(py)})" dominant-baseline="central" style="font-size: ${size}px">${String(i + 1).padStart(2, "0")}</text>`;
     })
     .join("");
 }

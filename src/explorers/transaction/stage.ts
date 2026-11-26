@@ -181,10 +181,11 @@ export function rowTable(
     };
     body += topText({
       x: vx,
-      y: TABLE.y + 0.36,
+      // The header strip above the glass is 0.62 deep: a 10 px head fits inside it.
+      y: TABLE.y + 0.32,
       z,
       text: single ? `ID ${r.name}` : `ROW ${r.name}`,
-      size: 12,
+      size: 10,
       weight: 800,
       fill: MAT.plastic.ink,
       engrave: MAT.plastic.engrave,
