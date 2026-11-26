@@ -78,7 +78,7 @@ test.describe("transaction lessons", () => {
     await page.locator('header [data-action="compare"]').click();
     await expect(page.getByRole("dialog")).toContainText("커밋 2 · 롤백 0");
     await page.getByRole("dialog").locator('[data-action="try-other"]').click();
-    await expect(page.locator('[data-order="same"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-order="same"]')).toHaveAttribute("aria-checked", "true");
     await expect(page.locator("#step-count")).toHaveText("00");
   });
 

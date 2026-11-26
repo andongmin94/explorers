@@ -96,7 +96,7 @@ test("comparison: same numbers, replays a condition, returns to the fork", async
   await expect(sheet).toContainText("9부재");
   await expect(sheet).toContainText("10부재");
   await sheet.locator('[data-replay-mode="f4"]').click();
-  await expect(page.locator('[data-mode="f4"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-mode="f4"]')).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("#memory-scene .mem-slot[data-slot]")).toHaveCount(4);
   await page.locator('[data-action="compare"]').first().click();
   await page.getByRole("dialog").locator('[data-action="turning-point"]').click();

@@ -4,6 +4,10 @@
  * shell implements it). Every explorer imports this file once from its
  * main.tsx, then its own small stylesheet for scene SVG classes.
  */
+/* UI SDK adds the little CSS its behaviours need in this layer; declared first so
+   every Tailwind layer wins over it. */
+@layer ui-sdk;
+
 @import "pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css";
 @import "tailwindcss";
 @import "./tokens.css";
@@ -137,7 +141,7 @@
   [hidden] {
     display: none !important;
   }
-  /* Sheets dim the window a little (Base UI renders the backdrop). */
+  /* Sheets dim the window a little (UI SDK renders the backdrop). */
   ::selection {
     background: color-mix(in srgb, var(--accent) 30%, transparent);
   }

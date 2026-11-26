@@ -100,7 +100,7 @@ export function CpuDeck({ playback, snap }: { playback: Playback; snap: Playback
         </Field>
       )}
 
-      <ButtonGroup aria-label="재생" className="w-full console:col-span-2">
+      <ButtonGroup toolbar aria-label="재생" className="w-full console:col-span-2">
         <Button
           variant="plain"
           size="icon"

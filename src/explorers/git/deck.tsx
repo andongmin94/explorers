@@ -45,7 +45,7 @@ export function GitDeck({ playback, snap }: { playback: Playback; snap: Playback
 
   return (
     <Deck aria-label="재생 조작" className="console:gap-y-3">
-      <ButtonGroup aria-label="재생" className="w-full basis-full">
+      <ButtonGroup toolbar aria-label="재생" className="w-full basis-full">
         <Button
           variant="plain"
           size="icon"

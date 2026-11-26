@@ -11,6 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useShortcut } from "@ui-sdk/react/shortcuts";
 
 import { cn } from "@/lib/cn.ts";
 import { useMediaQuery } from "@/lib/use-media-query.ts";
@@ -67,17 +68,16 @@ export function ExplorerPage({ className, children }: { className?: string; chil
     return () => list.removeEventListener("change", close);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
+  // Escape closes the open drawer first: registered on opening, it is the
+  // newest Escape shortcut, so it wins over an explorer's own (protocol's).
+  useShortcut(
+    open ? "escape" : null,
+    () => {
       setOpenState(false);
       button.current?.focus({ preventScroll: true });
-    };
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, [open]);
+    },
+    { allowInInput: true, description: "레슨 목록 닫기" },
+  );
 
   const rail = useMemo(() => ({ open: open && drawer, drawer, setOpen }), [open, drawer, setOpen]);
   return (

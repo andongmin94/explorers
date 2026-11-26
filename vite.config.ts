@@ -38,14 +38,11 @@ export default defineConfig({
         "transaction-deadlock": page("./transaction/deadlock.html"),
       },
       output: {
-        // React and Base UI in shared chunks, cached across the explorer pages.
+        // React and UI SDK in shared chunks, cached across the explorer pages.
         codeSplitting: {
           groups: [
             { name: "react", test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
-            {
-              name: "base-ui",
-              test: /[\\/]node_modules[\\/](@base-ui|@floating-ui|tabbable|reselect|use-sync-external-store)[\\/]/,
-            },
+            { name: "ui-sdk", test: /[\\/]node_modules[\\/]@ui-sdk[\\/]/ },
           ],
         },
       },

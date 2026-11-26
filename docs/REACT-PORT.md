@@ -1,6 +1,6 @@
 # Adding or changing an explorer
 
-All six explorers (protocol, cpu, memory, transaction + `deadlock.html`, disk, git) are React 19 + TypeScript + Tailwind CSS v4 + Base UI pages; the port from the vanilla pages is complete. This file is the recipe for changing one or adding a new one. `docs/DESIGN.md` and `docs/LIQUID-GLASS.md` are the design contract; this file says how the React shell implements it. `src/explorers/cpu/` is the reference implementation — read it next to this file.
+All six explorers (protocol, cpu, memory, transaction + `deadlock.html`, disk, git) are React 19 + TypeScript + Tailwind CSS v4 + UI SDK pages; the port from the vanilla pages is complete. This file is the recipe for changing one or adding a new one. `docs/DESIGN.md` and `docs/LIQUID-GLASS.md` are the design contract; this file says how the React shell implements it. `src/explorers/cpu/` is the reference implementation — read it next to this file.
 
 ## 1. Stack and commands
 
@@ -10,7 +10,7 @@ All six explorers (protocol, cpu, memory, transaction + `deadlock.html`, disk, g
 | typescript | ^7.0.2 (`tsc` 7, the native compiler) | `npm run typecheck` = `tsc --noEmit` |
 | vite / @vitejs/plugin-react | ^8.3.8 / ^6.3.0 | multi-page build (rolldown) |
 | tailwindcss / @tailwindcss/vite | ^4.3.5 | styles (CSS-first config in `src/styles/app.css`) |
-| @base-ui/react | ^1.9.0 | headless parts (Button, Toggle/ToggleGroup, Switch, Slider, Tabs, Dialog, Menu) — API docs are in `node_modules/@base-ui/react/docs/react/components/*.md` |
+| @ui-sdk/react / @ui-sdk/core | 0.1.0-beta.17 (exact: beta) | headless behaviours and parts from Vercel's UI SDK (Button, Toolbar, SegmentedControl, Switch, Slider, Tabs, Dialog, Menu, shortcuts) — docs are in `node_modules/@ui-sdk/react/docs/` (start at `llms.txt`, then `components/<name>.md`, `hooks/shortcuts.md`) |
 | class-variance-authority, clsx, tailwind-merge | ^0.7.1, ^2.1.1, ^3.7.0 | `cva` variants, `cn()` |
 | lucide-react | ^1.76.0 | icons |
 | pretendard | ^1.3.9 | Korean font (dynamic subset, imported by app.css) |
@@ -19,7 +19,7 @@ All six explorers (protocol, cpu, memory, transaction + `deadlock.html`, disk, g
 | @playwright/test | 1.65.0 | `npm run test:browser` (`tests/*.spec.ts`; uses the installed Chrome locally, `CI=1` uses Playwright's Chromium) |
 | wrangler | 4.161.0 | `npm run deploy:cloudflare` (`wrangler.jsonc`: assets `./dist`, `auto-trailing-slash`, `404-page`, custom domain explorers.andongmin.com) |
 
-Node ≥ 24. `vite.config.ts` uses `base: "/"`, builds every page listed in `src/lib/explorers.ts` (`<slug>/index.html`) plus `index.html`, `404.html` and `transaction/deadlock.html`, and splits React and Base UI into shared chunks. Its dev and preview servers redirect `/<slug>` to `/<slug>/`, as Cloudflare does.
+Node ≥ 24. `vite.config.ts` uses `base: "/"`, builds every page listed in `src/lib/explorers.ts` (`<slug>/index.html`) plus `index.html`, `404.html` and `transaction/deadlock.html`, and splits React and UI SDK into shared chunks. Its dev and preview servers redirect `/<slug>` to `/<slug>/`, as Cloudflare does.
 
 Before you hand back: `npm run format && npm run lint && npm run typecheck && npm test && npm run build`, `npm run check:scroll -- <slug>/ "<slug>/?lesson=…"` (all sizes `ok`, needs a dev server; `--base=http://127.0.0.1:<port>` for your own), and `npm run test:browser`. CI (`.github/workflows/ci.yml`) runs the same checks except `check:scroll`; deployment is Cloudflare Workers Builds on push to `main`.
 
@@ -30,7 +30,7 @@ src/
   styles/app.css, tokens.css      Tailwind v4 + Liquid Glass tokens (do not redefine tokens in an explorer)
   lib/                            cn, theme, explorers, josa, lesson-kit (progress, LABELS, EXPERIMENTS), lesson-rail (currentLesson, nextLesson, progressIdFor),
                                   fit (PagerStore, useRowWindow), use-media-query, glass (mountGlass), iso/ (kit.ts drawing kit, defs.ts mountIsoDefs)
-  components/ui/                  Base UI + Tailwind parts (shadcn style, one per file)
+  components/ui/                  UI SDK + Tailwind parts (shadcn style, one per file)
   components/shell/               page.tsx (ExplorerPage, rail drawer state), toolbar.tsx (Toolbar, ExplorerSwitcher, ThemeToggle, ToolbarKey),
                                   lesson-rail.tsx, console.tsx (Console, Stage, sceneBoxClass, Deck, Field, SidePanel, Records, Footer, Kbd), plate.tsx
   components/learning/            pager.tsx (PagedList, Pager, usePager), recap.tsx (recapItems, ProgressLine, Recall*), prediction.tsx (PredictionSheet,
@@ -65,15 +65,15 @@ Explorers differ where their subject needs it (protocol has `controller.ts`, `si
 | Need | Use |
 | --- | --- |
 | The window | `<ExplorerPage>` (utility `explorer-page`) |
-| Toolbar, switcher, theme key | `<Toolbar explorer caption lessonNumber lessonTitle actions={<ToolbarKey …/>} />` — the switcher is a Base UI Menu, the theme toggle is built in (`useTheme`, localStorage key `<slug>-explorer:theme`) |
+| Toolbar, switcher, theme key | `<Toolbar explorer caption lessonNumber lessonTitle actions={<ToolbarKey …/>} />` — the switcher is a UI SDK Menu (rendered into `<body>`, outside the page `<h1>`), the theme toggle is built in (`useTheme`, localStorage key `<slug>-explorer:theme`) |
 | Lesson rail | `<LessonRail explorer title lessons current progress />` (drawer state lives in `ExplorerPage`; Escape/scrim/breakpoint close) |
 | Console grid | `<Console sideWidth="clamp(…)" recordsHeight="…">` — grid areas, `--records-extra` and the stage reach are built in |
 | Stage | `<Stage label head={<Tag/><Readout glass/>} foot={…}>{scene host with sceneBoxClass}</Stage>` |
 | Deck | `<Deck>`, `<Field>`; lay out with Tailwind (`console:grid …` like `cpu/deck.tsx`) |
 | Side panel, records | `<SidePanel>` / `<Records>` + `<Tabs value onValueChange>` + `<PlateHead><TabsList><TabsTab value data-tab>` + `<TabsPanel value className={fit body}>` |
 | Content group | `<Plate>`, `<PlateHead>`, `<PlateBody>`, `<PlateFoot>` |
-| Keys | `<Button variant="glass" \| "filled" \| "plain" \| "primary" size="default" \| "sm" \| "toolbar" \| "icon" \| "icon-sm" \| "icon-toolbar">`. Inside side/records/sheets use `variant="filled"`; deck transport = `<ButtonGroup>` of `variant="plain"` keys; `"primary"` only for a sheet's single default action. `<ButtonLink>` for links |
-| Segmented control | `<SegmentedControl value onValueChange><Segment value>` (Base UI ToggleGroup; segments carry `aria-pressed`) |
+| Keys | `<Button variant="glass" \| "filled" \| "plain" \| "primary" size="default" \| "sm" \| "toolbar" \| "icon" \| "icon-sm" \| "icon-toolbar">`. Inside side/records/sheets use `variant="filled"`; deck transport = `<ButtonGroup toolbar aria-label="재생">` of `variant="plain"` keys (a UI SDK toolbar: one tab stop, ←/→ between keys; disabled keys stay natively disabled); a lone key in a capsule = `<ButtonGroup>` (role group); `"primary"` only for a sheet's single default action. `<ButtonLink>` for links |
+| Segmented control | `<SegmentedControl value onValueChange><Segment value>` (UI SDK SegmentedControl: a `radiogroup`, segments are `radio`s with `aria-checked`/`data-checked`, one tab stop, arrow keys move and check; each segment is followed by its hidden native radio) |
 | Switch | `<Switch checked onCheckedChange>label</Switch>` |
 | Slider | `<Slider min max step value onValueChange thumbLabel thumbProps={{ "aria-valuetext" }}/>` + `<SliderTicks>` |
 | Tabs | `<TabsList>`/`<TabsTab>` |
@@ -111,7 +111,7 @@ Copy `src/explorers/cpu/app.tsx` and keep its shape:
 ```
 
 - Lesson + progress: `const lesson = useMemo(() => currentLesson(LESSONS), [])`; `const [progress] = useState(() => createProgress(progressIdFor("<id>", LESSONS, lesson.id), { scenes, recall }))` with totals that match the lesson's 핵심 장면 and 확인 문제. Never change an existing progress id (protocol, deadlock etc. have their own) or stored progress is lost. Re-render on progress with a `useSyncExternalStore` over `progress.onChange` (see `useProgressSummary` in `cpu/app.tsx`); `<LessonRail progress>` subscribes itself.
-- Keyboard: one `keydown` listener on `document` in an effect; ignore while a sheet is open or when the target is `input,select,textarea,button,a,summary,[role='button']`. Pause on `visibilitychange`.
+- Keyboard: `useExplorerShortcuts([{ keys: "space", run }, { keys: "arrowright", run }, …], { enabled: !sheetOpen })` from `src/lib/shortcuts.ts`, built on UI SDK's `shortcuts` (one listener for the page). Keys are UI SDK names (`"space"`, `"arrowleft"`, `"r"`, `"escape"`); Shift with the same key runs too, Ctrl/Alt/⌘ never do. Bindings repeat while held unless `repeat: false`. They never run while typing in a field, while a modal sheet is open, after a focused part handled the key (tab/slider/menu arrows, a menu's Escape), or while focus is on `CONTROLS` (`input,select,textarea,button,a,summary,[role='button']`; pass `ignore` to extend it). The drawer's Escape (in `ExplorerPage`) registers when it opens, so it wins over an explorer's Escape. Pause on `visibilitychange` in an effect.
 - Tests and scripts find elements by attribute: keep `data-action`, `data-tab`, `data-record`, `data-time`, `data-answer`, `data-number`, `data-pick`, `data-milestone`, `id="clock"`, `id="explanation"` on the equivalent elements. `scripts/check-scroll.mjs` clicks `[data-action="next"|"step"|"event"]`; the Playwright specs use the others.
 - Copy is Korean. Strings with units go through the explorer's `keepUnits()` (`cpu/format.ts`; it inserts no-break spaces before units and around `=`).
 
@@ -158,12 +158,14 @@ const pager = usePager();
 - **Multi-layer backgrounds must be `[background:…]`**, never `bg-[a,b]`: Tailwind types `bg-[linear-gradient(…),var(--accent)]` as an image and drops the colour layer. Same for stripes that must replace a base colour: `[background:repeating-linear-gradient(…)_padding-box]`.
 - **`cn()` knows the theme names** (`src/lib/cn.ts` extends tailwind-merge with text sizes, radii, eases, `font-display`, `shadow-knob`). If you add a theme token that shares a prefix with colours (`text-*`, `bg-*`, `shadow-*`), add it there too, or `cn("text-caption text-label-2")` silently drops one class. There is a test (`src/lib/test/cn.test.ts`).
 - Never name a colour like a font size: `--color-control` would make `text-control` also set the colour (hence `--color-control-fill`).
-- `aria-current` has no built-in variant: write `aria-[current=true]:` (or `aria-[current=page]:`). `aria-pressed:`, `aria-selected:`, `aria-checked:`, `data-*:` work as is (Base UI sets `aria-pressed` on toggles, `aria-selected`/`data-active` on tabs, `data-checked` on switches, `data-dragging` on slider thumbs, `data-popup-open` on menu triggers, `data-highlighted` on menu items).
+- `aria-current` has no built-in variant: write `aria-[current=true]:` (or `aria-[current=page]:`). `aria-pressed:`, `aria-selected:`, `aria-checked:`, `data-*:` work as is (UI SDK sets `aria-pressed`/`data-pressed` on toggles, `aria-selected`/`data-selected` on tabs, `aria-checked`/`data-checked` on segments and switches, `data-dragging` on sliders and thumbs, `data-open` on menu triggers and open popups, `data-highlighted` on menu items, `data-starting-style`/`data-ending-style` on entering/leaving popups, `--anchor-width`/`--available-height`/`--transform-origin` on menus). Every part has its own `data-slot` (`dialog-content`, `menu-content`, `segmented-control-item`, `toolbar-button`…) that a prop cannot replace.
 - Variant order matters inside one class: `phone:[&>span]:sr-only`, not `[&>span]:phone:sr-only`.
 - Context-dependent looks are explicit: pick `variant="filled"` for keys in content, `<Label vibrant>` on glass (the deck already recolours labels); `Title`/`Text` shrink inside `.side-panel` on `console-short` automatically.
-- Base UI Tabs unmount inactive panels (no `keepMounted`), which is what paging needs. `Tabs` renders `display: contents`, so the panels are flex children of the plate.
-- Sheets are Base UI Dialogs in a portal: track open state in React and use it to mute the keyboard shortcuts. `SheetHead` already has the close key (`data-action="close-dialog"`).
-- Base UI Slider: `thumbAlignment="edge"` (set in `<Slider>`) mimics the native range input; `onValueChange` gives `number | number[]` (cast). Give the thumb a name with `thumbLabel` or a visible label.
+- UI SDK Tabs unmount inactive panels (no `keepMounted`), which is what paging needs. `Tabs` renders `display: contents`, so the panels are flex children of the plate. `<Tabs>` defaults to `activation="manual"` (arrows move focus, Enter/Space select), as before.
+- UI SDK puts the CSS its behaviours need in a cascade layer `ui-sdk`; `app.css` declares `@layer ui-sdk;` first so every Tailwind layer wins over it. Popups (menus, sheets) open in the browser top layer, so `z-index` does not order them.
+- `<Button>` drops its `onClick` return value: UI SDK keeps a button pending (aria-busy, presses ignored) while a returned Promise runs, which the playback keys must never do.
+- Sheets are UI SDK Dialogs (modal: focus trapped, Escape closes, focus returns to the opener) in the top layer; a modal pauses page shortcuts by itself, and the explorers also pass their open state as `enabled`. `SheetHead` already has the close key (`data-action="close-dialog"`).
+- UI SDK Slider: `<Slider>` keeps the knob inside the rail at both ends (the track the thumb runs on is inset by half a knob, the control draws the rail); `onValueChange` gives `number` (cast kept). Give the thumb a name with `thumbLabel`; `thumbProps={{ "aria-valuetext" }}` becomes the slider's `format`.
 - The Pretendard npm package registers **"Pretendard Variable"**; the font stack lists it before `Pretendard`. Iosevka comes from `public/fonts` (`@font-face` in `tokens.css`).
 - `index.html` sets `data-theme` *and* `class="dark"` before paint; `useTheme(explorer)` toggles both.
 - Lint (`oxlint --deny-warnings`, plugins react, react-hooks via react, jsx-a11y, typescript, unicorn, oxc) is strict: no refs read during render (pass refs through their own context, see `useRailButton`), no `setState` synchronously inside an effect (subscribe to the event instead), no mutation of values from `useState`. Disable a rule only on the line with a reason (`// oxlint-disable-next-line rule -- why`).

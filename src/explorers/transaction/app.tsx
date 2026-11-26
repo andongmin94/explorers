@@ -14,6 +14,7 @@ import { Led, Readout, Tag } from "@/components/ui/content.tsx";
 import { cn } from "@/lib/cn.ts";
 import { createProgress, LABELS, type Progress } from "@/lib/lesson-kit.ts";
 import { progressIdFor } from "@/lib/lesson-rail.ts";
+import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { TxDeck } from "./deck.tsx";
 import { EXPLORER, LESSONS, RAIL_TITLE, lessonById, lessonNumber } from "./lessons.ts";
 import type { TxPage } from "./page.ts";
@@ -95,37 +96,28 @@ export function App({ page }: { page: TxPage }) {
   // Keyboard: Space play/pause, ←/→ one event, R back to the start (not while
   // a sheet is open or a control has focus). Leaving the tab pauses.
   const sheetOpen = quiz !== null || compareOpen;
+  useExplorerShortcuts(
+    [
+      { keys: "space", run: () => player.play(), description: "재생·정지" },
+      {
+        keys: "arrowleft",
+        run: () => void player.jump(player.snapshot().index - 1),
+        description: "이전 사건",
+      },
+      {
+        keys: "arrowright",
+        run: () => void player.jump(player.snapshot().index + 1),
+        description: "다음 사건",
+      },
+      { keys: "r", run: () => void player.jump(0), description: "처음으로" },
+    ],
+    { enabled: !sheetOpen },
+  );
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        sheetOpen ||
-        (e.target as Element | null)?.closest?.(
-          "input,select,textarea,button,a,summary,[role='button']",
-        )
-      )
-        return;
-      const { index } = player.snapshot();
-      if (e.code === "Space") {
-        e.preventDefault();
-        player.play();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        void player.jump(index - 1);
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        void player.jump(index + 1);
-      } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        void player.jump(0);
-      }
-    };
     const onVisibility = () => document.hidden && player.pause();
-    document.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [player, sheetOpen]);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [player]);
 
   const steps = page.runs[snap.mode].steps;
   return (

@@ -46,7 +46,7 @@ export function ProtocolDeck({
 
   return (
     <Deck aria-label="재생 조작" className="items-start console:gap-y-2.5">
-      <ButtonGroup aria-label="재생" className="w-full flex-[1_1_100%]">
+      <ButtonGroup toolbar aria-label="재생" className="w-full flex-[1_1_100%]">
         <Button
           variant="plain"
           size="icon"

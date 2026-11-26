@@ -14,6 +14,7 @@ import { Led, Readout, Tag } from "@/components/ui/content.tsx";
 import { Muted } from "@/components/ui/typography.tsx";
 import { createProgress, type Progress } from "@/lib/lesson-kit.ts";
 import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
+import { CONTROLS, useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { GitComparison } from "./comparison.tsx";
 import { GitDeck } from "./deck.tsx";
 import { FILE_NAME } from "./engine.ts";
@@ -92,37 +93,31 @@ export function App() {
   // Keyboard: Space play/pause, ←/→ one event, R back to the start (not while a
   // sheet or the lesson drawer is open, or a control has focus).
   const sheetOpen = shownQuiz !== null || compareOpen;
+  useExplorerShortcuts(
+    [
+      { keys: "space", run: () => playback.togglePlay(), description: "재생·정지" },
+      {
+        keys: "arrowleft",
+        run: () => playback.jump(playback.index - 1),
+        description: "이전 사건",
+      },
+      {
+        keys: "arrowright",
+        run: () => playback.jump(playback.index + 1),
+        description: "다음 사건",
+      },
+      { keys: "r", run: () => playback.reset(), description: "처음으로" },
+    ],
+    {
+      enabled: () => !sheetOpen && !document.querySelector("[data-rail-open]"),
+      ignore: `${CONTROLS},tr[data-time]`,
+    },
+  );
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        sheetOpen ||
-        document.querySelector("[data-rail-open]") ||
-        (e.target as Element | null)?.closest?.(
-          "input,select,textarea,button,a,summary,[role='button'],tr[data-time]",
-        )
-      )
-        return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        playback.togglePlay();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        playback.jump(playback.index - 1);
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        playback.jump(playback.index + 1);
-      } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        playback.reset();
-      }
-    };
     const onVisibility = () => document.hidden && playback.pause();
-    document.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [playback, sheetOpen]);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [playback]);
   useEffect(() => () => playback.dispose(), [playback]);
 
   const last = snap.run.steps.length - 1;

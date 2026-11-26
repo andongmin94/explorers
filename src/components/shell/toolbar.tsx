@@ -148,7 +148,7 @@ export function ExplorerSwitcher({ current, caption }: { current: ExplorerSlug; 
             "transition-[transform,background-color] duration-150 ease-spring motion-reduce:transition-none",
             "hover:[background:linear-gradient(var(--lg-hover),var(--lg-hover)),var(--lg-sheen),var(--lg-small)]",
             "active:scale-[0.98] active:[background:linear-gradient(var(--lg-press),var(--lg-press)),var(--lg-sheen),var(--lg-small)]",
-            "data-popup-open:[background:linear-gradient(var(--lg-press),var(--lg-press)),var(--lg-sheen),var(--lg-small)]",
+            "data-open:[background:linear-gradient(var(--lg-press),var(--lg-press)),var(--lg-sheen),var(--lg-small)]",
             "focus-visible:ring-focus",
             "console-short:min-h-[38px] console-short:py-[3px]",
             "phone:min-h-11 phone:gap-2 phone:py-1 phone:pr-2.5 phone:pl-[5px]",
@@ -178,7 +178,7 @@ export function ExplorerSwitcher({ current, caption }: { current: ExplorerSlug; 
           <ChevronDownIcon
             aria-hidden="true"
             strokeWidth={2.2}
-            className="size-3.5 text-vlabel-2 transition-transform duration-150 group-data-popup-open/switcher:rotate-180 motion-reduce:transition-none"
+            className="size-3.5 text-vlabel-2 transition-transform duration-150 group-data-open/switcher:rotate-180 motion-reduce:transition-none"
           />
         </MenuTrigger>
         <MenuContent aria-label="탐색기 목록">

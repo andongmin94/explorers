@@ -13,6 +13,7 @@ import { VisuallyHidden } from "@/components/ui/typography.tsx";
 import { cn } from "@/lib/cn.ts";
 import { createProgress, LABELS, type Progress } from "@/lib/lesson-kit.ts";
 import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
+import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { MemoryComparison } from "./comparison.tsx";
 import { MemoryDeck } from "./deck.tsx";
 import { victimHintsVisible } from "./lesson.ts";
@@ -104,36 +105,25 @@ export function App() {
 
   // Keyboard: Space play/pause, ←/→ one access, R back to the start (not while a sheet is open or a control has focus).
   const sheetOpen = quiz !== null || compareOpen;
+  useExplorerShortcuts(
+    [
+      { keys: "space", run: () => void playback.togglePlay(), description: "재생·정지" },
+      {
+        keys: "arrowright",
+        run: () => void playback.nextAccess(),
+        repeat: false,
+        description: "다음 접근",
+      },
+      { keys: "arrowleft", run: () => void playback.back(), description: "이전 접근" },
+      { keys: "r", run: () => void playback.reset(), description: "처음으로" },
+    ],
+    { enabled: !sheetOpen },
+  );
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        sheetOpen ||
-        (e.target as Element | null)?.closest?.(
-          "input,select,textarea,button,a,summary,[role='button']",
-        )
-      )
-        return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        void playback.togglePlay();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        if (!e.repeat) void playback.nextAccess();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        void playback.back();
-      } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        void playback.reset();
-      }
-    };
     const onVisibility = () => document.hidden && playback.pause();
-    document.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [playback, sheetOpen]);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [playback]);
 
   const step = run.steps[snap.committed];
   return (

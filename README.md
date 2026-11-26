@@ -2,7 +2,7 @@
 
 프로토콜, CPU 스케줄링, 메모리, 트랜잭션, 디스크 스케줄링, Git 탐색기를 하나의 Vite 프로젝트로 묶었습니다. 화면 왼쪽 위의 탐색기 이름을 눌러 주제를 바꿀 수 있습니다.
 
-바로 보기: <https://explorers.andongmin.com/>. 여섯 탐색기 모두 React 19 + TypeScript + Tailwind CSS v4 + Base UI 페이지입니다. 탐색기를 추가하거나 고치는 방법은 [docs/REACT-PORT.md](docs/REACT-PORT.md)에 있습니다.
+바로 보기: <https://explorers.andongmin.com/>. 여섯 탐색기 모두 React 19 + TypeScript + Tailwind CSS v4 + UI SDK(`@ui-sdk/react`) 페이지입니다. 탐색기를 추가하거나 고치는 방법은 [docs/REACT-PORT.md](docs/REACT-PORT.md)에 있습니다.
 
 | 탐색기 | 주소 | 폴더 |
 | --- | --- | --- |
@@ -40,7 +40,7 @@ npm run deploy:cloudflare       # dist/를 Cloudflare Workers에 직접 배포(w
 
 ## 구조
 
-- `src/components/ui/`: Base UI + Tailwind 부품(버튼, 세그먼트, 스위치, 슬라이더, 탭, 표, 시트, 메뉴, 글자 역할, 태그·읽음값·노트 같은 내용 부품)
+- `src/components/ui/`: UI SDK + Tailwind 부품(버튼, 세그먼트, 스위치, 슬라이더, 탭, 표, 시트, 메뉴, 글자 역할, 태그·읽음값·노트 같은 내용 부품)
 - `src/components/shell/`: 탐색기 화면의 틀. 페이지(`page.tsx`), 툴바와 탐색기 전환 메뉴·테마 키(`toolbar.tsx`), 레슨 레일(`lesson-rail.tsx`), 콘솔 격자·무대·조작 팔레트·학습 패널·기록·바닥글(`console.tsx`), 그룹 틀(`plate.tsx`)
 - `src/components/learning/`: 공통 학습 부품. 쪽 나눔(`pager.tsx`), 정리·확인 문제·학습 진도(`recap.tsx`), 예측 시트(`prediction.tsx`), 두 방식 비교 시트(`comparison.tsx`)
 - `src/lib/`: 탐색기 목록(`explorers.ts`), 학습 문구와 진도(`lesson-kit.ts`), 레슨 주소와 진도 id(`lesson-rail.ts`), 쪽 나눔·행 창(`fit.ts`), 조사(`josa.ts`), 테마(`theme.ts`), Liquid Glass 굴절 필터(`glass.ts`), `cn()`, 미디어 쿼리

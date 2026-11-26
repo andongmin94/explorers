@@ -56,7 +56,7 @@ test.describe("disk lesson", () => {
     const errors = watchErrors(page);
     await page.goto("/disk/?lesson=scan-look");
     await page.locator('[data-action="predict"]').click();
-    const sheet = page.locator('[data-slot="sheet"]');
+    const sheet = page.locator('[data-slot="dialog-content"]');
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('[data-action="quiz-continue"]')).toHaveCount(0);
     await sheet.locator('[data-answer="3"]').click();
@@ -72,12 +72,12 @@ test.describe("disk lesson", () => {
   test("the comparison shows both totals and switches method", async ({ page }) => {
     await page.goto("/disk/?lesson=cscan");
     await page.locator('[data-action="compare"]').first().click();
-    const sheet = page.locator('[data-slot="sheet"]');
+    const sheet = page.locator('[data-slot="dialog-content"]');
     await expect(sheet).toContainText("236");
     await expect(sheet).toContainText("386");
     await expect(sheet).toContainText("53 → 37 → 14 → (0) → (199) → 183");
     await sheet.locator('[data-action="try-other"]').click();
-    await expect(page.locator('[data-algorithm="cscan"]')).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator('[data-algorithm="cscan"]')).toHaveAttribute("aria-checked", "true");
   });
 
   test("the end of a run shows 정리 with recall questions", async ({ page }) => {

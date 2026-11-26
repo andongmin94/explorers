@@ -8,6 +8,7 @@ import { Console, Footer, Kbd, Stage } from "@/components/shell/console.tsx";
 import { ExplorerPage } from "@/components/shell/page.tsx";
 import { Led, Readout } from "@/components/ui/content.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
+import { CONTROLS, useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { ProtocolController, useController, type Snapshot } from "./controller.ts";
 import { ProtocolDeck } from "./deck.tsx";
 import { translate } from "./i18n.ts";
@@ -67,39 +68,27 @@ export function App() {
   }, [inspecting]);
 
   // Keyboard: Space play/pause, ←/→ steps (packets while inspecting), R start, V view, Esc closes the inspector.
+  useExplorerShortcuts(
+    [
+      { keys: "space", run: () => controller.toggle(), repeat: false, description: "재생·정지" },
+      { keys: "arrowright", run: () => controller.forward(), repeat: false, description: "다음" },
+      { keys: "arrowleft", run: () => controller.backward(), repeat: false, description: "이전" },
+      {
+        keys: "escape",
+        run: () => controller.closeInspector(),
+        repeat: false,
+        description: "검사 닫기",
+      },
+      { keys: "r", run: () => controller.resetLesson(), repeat: false, description: "처음으로" },
+      { keys: "v", run: () => controller.toggleView(), repeat: false, description: "보기 전환" },
+    ],
+    { enabled: !sheetOpen, ignore: `${CONTROLS},[contenteditable='true']` },
+  );
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (sheetOpen || event.ctrlKey || event.metaKey || event.altKey) return;
-      const target = event.target as Element | null;
-      if (
-        target?.closest?.(
-          "input,select,textarea,button,a,summary,[role='button'],[contenteditable='true']",
-        )
-      )
-        return;
-      const actions: Record<string, () => void> = {
-        " ": controller.toggle,
-        ArrowRight: controller.forward,
-        ArrowLeft: controller.backward,
-        Escape: controller.closeInspector,
-        r: () => controller.resetLesson(),
-        R: () => controller.resetLesson(),
-        v: controller.toggleView,
-        V: controller.toggleView,
-      };
-      const action = actions[event.key];
-      if (!action) return;
-      event.preventDefault();
-      if (!event.repeat) action();
-    };
     const onVisibility = () => document.hidden && controller.pause();
-    document.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [controller, sheetOpen]);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [controller]);
 
   const steps = lesson.steps.length;
   const lcd = playback?.started

@@ -68,7 +68,7 @@ export function TxDeck({
         </SegmentedControl>
       </Field>
 
-      <ButtonGroup aria-label="재생" className="w-full">
+      <ButtonGroup toolbar aria-label="재생" className="w-full">
         <Button
           variant="plain"
           size="icon"

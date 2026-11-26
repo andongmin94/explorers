@@ -11,6 +11,7 @@ import { Toolbar, ToolbarKey } from "@/components/shell/toolbar.tsx";
 import { Led, Readout, Tag } from "@/components/ui/content.tsx";
 import { createProgress, LABELS, type Progress } from "@/lib/lesson-kit.ts";
 import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
+import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { CpuComparison } from "./comparison.tsx";
 import { CpuDeck } from "./deck.tsx";
 import { simulate } from "./engine.ts";
@@ -117,36 +118,20 @@ export function App() {
 
   // Keyboard: Space play/pause, ←/→ 1 ms, R back to the start (not while a sheet is open or a control has focus).
   const sheetOpen = quiz !== null || compareOpen;
+  useExplorerShortcuts(
+    [
+      { keys: "space", run: () => playback.togglePlay(), description: "재생·정지" },
+      { keys: "arrowright", run: () => playback.step(), description: "1 ms 다음" },
+      { keys: "arrowleft", run: () => playback.back(), description: "1 ms 이전" },
+      { keys: "r", run: () => playback.reset(), description: "처음으로" },
+    ],
+    { enabled: !sheetOpen },
+  );
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        sheetOpen ||
-        (e.target as Element | null)?.closest?.(
-          "input,select,textarea,button,a,summary,[role='button']",
-        )
-      )
-        return;
-      if (e.code === "Space") {
-        e.preventDefault();
-        playback.togglePlay();
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        playback.step();
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        playback.back();
-      } else if (e.key.toLowerCase() === "r" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        playback.reset();
-      }
-    };
     const onVisibility = () => document.hidden && playback.pause();
-    document.addEventListener("keydown", onKey);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [playback, sheetOpen]);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [playback]);
 
   return (
     <ExplorerPage>

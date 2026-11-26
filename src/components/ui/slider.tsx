@@ -1,35 +1,49 @@
-import { Slider as SliderPrimitive } from "@base-ui/react/slider";
+import {
+  Slider as SliderPrimitive,
+  SliderControl,
+  SliderIndicator,
+  SliderThumb,
+  SliderTrack,
+} from "@ui-sdk/react/slider";
 
 import { cn } from "@/lib/cn.ts";
 
 /**
  * Slider (kit 512:3367): a 4px track filled with the accent and a 26×20 white
- * knob that turns to clear glass and grows while dragged.
+ * knob that turns to clear glass and grows while dragged. The knob stays
+ * inside the rail at both ends: the UI SDK track the thumb runs along is the
+ * rail inset by half a knob (13px), the rail itself is drawn by the control,
+ * and the fill reaches back over that inset.
  */
 export function Slider({
   className,
   thumbLabel,
   thumbProps,
   ...props
-}: Omit<SliderPrimitive.Root.Props<number>, "className"> & {
+}: Omit<React.ComponentProps<typeof SliderPrimitive<number>>, "className" | "format"> & {
   className?: string;
   /** Accessible name of the thumb (when no Slider label element names it). */
   thumbLabel?: string;
-  thumbProps?: Omit<SliderPrimitive.Thumb.Props, "className">;
+  /** What screen readers hear for the value, in place of the number. */
+  thumbProps?: { "aria-valuetext"?: string };
 }) {
+  const valueText = thumbProps?.["aria-valuetext"];
   return (
-    <SliderPrimitive.Root
-      data-slot="slider"
-      thumbAlignment="edge"
+    <SliderPrimitive<number>
+      format={valueText === undefined ? undefined : () => valueText}
       className={cn("group/slider w-full data-disabled:opacity-40", className)}
       {...props}
     >
-      <SliderPrimitive.Control className="relative flex h-6 w-full cursor-pointer touch-none items-center select-none group-data-disabled/slider:cursor-default">
-        <SliderPrimitive.Track className="relative h-1 w-full rounded-full bg-track">
-          <SliderPrimitive.Indicator className="rounded-full bg-accent group-data-dragging/slider:bg-[color-mix(in_srgb,var(--accent)_85%,black)]" />
-          <SliderPrimitive.Thumb
-            getAriaLabel={thumbLabel ? () => thumbLabel : undefined}
-            {...thumbProps}
+      <SliderControl
+        className={cn(
+          "relative flex h-6 w-full cursor-pointer touch-none items-center select-none group-data-disabled/slider:cursor-default",
+          "before:absolute before:inset-x-0 before:top-1/2 before:-mt-0.5 before:h-1 before:rounded-full before:bg-track before:content-['']",
+        )}
+      >
+        <SliderTrack className="relative mx-[13px] h-1 flex-1">
+          <SliderIndicator className="top-0 h-full -ml-[13px] box-content rounded-full bg-accent pl-[13px] group-data-dragging/slider:bg-[color-mix(in_srgb,var(--accent)_85%,black)]" />
+          <SliderThumb
+            aria-label={thumbLabel}
             className={cn(
               "h-5 w-[26px] rounded-full [background:linear-gradient(rgb(255_255_255/0.35),rgb(255_255_255/0)),var(--knob)] shadow-knob outline-none",
               "transition-[scale,background-color] duration-150 ease-spring motion-reduce:transition-none",
@@ -38,9 +52,9 @@ export function Slider({
               "has-focus-visible:ring-focus",
             )}
           />
-        </SliderPrimitive.Track>
-      </SliderPrimitive.Control>
-    </SliderPrimitive.Root>
+        </SliderTrack>
+      </SliderControl>
+    </SliderPrimitive>
   );
 }
 
