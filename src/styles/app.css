@@ -102,6 +102,8 @@
   --color-separator: var(--separator);
   --color-separator-soft: var(--separator-soft);
   --color-accent: var(--accent);
+  --color-control-accent: var(--control-accent);
+  --color-on-control-accent: var(--on-control-accent);
   --color-accent-text: var(--accent-text);
   --color-accent-fill: var(--accent-fill);
   --color-on-accent: var(--on-accent);
@@ -235,7 +237,7 @@
 
 /* The focus ring every control uses. */
 @utility ring-focus {
-  outline: 3px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline: 3px solid color-mix(in srgb, var(--control-accent) 55%, transparent);
   outline-offset: 1px;
 }
 

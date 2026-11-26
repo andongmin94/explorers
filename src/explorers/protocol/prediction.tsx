@@ -55,7 +55,7 @@ export function ProtocolPrediction({
                   className={cn(
                     "w-full cursor-pointer gap-3! rounded-none border-x-0 border-t-0 bg-transparent px-2! py-2.5! text-left text-control text-label",
                     "not-disabled:hover:rounded-small not-disabled:hover:bg-fill-4 disabled:cursor-default",
-                    "focus-visible:rounded-small focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+                    "focus-visible:rounded-small focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
                     answered && option.correct && "font-semibold",
                   )}
                 >

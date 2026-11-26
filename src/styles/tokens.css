@@ -291,6 +291,11 @@
   --on-accent: #fff;
   --accent-text: var(--accent);
   --accent-fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  /* System controls (switches, slider fill, default buttons, menu highlight,
+     focus rings) take the system accent, as in macOS; the explorer's own
+     colour (--accent) tints its icon, scene and notes only. */
+  --control-accent: var(--sys-blue);
+  --on-control-accent: #fff;
 
   background: var(--window);
   color: var(--label);

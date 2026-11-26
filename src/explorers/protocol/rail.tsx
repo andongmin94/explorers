@@ -193,7 +193,7 @@ export function ProtocolRail({
                   "group/row flex min-h-8 w-full cursor-pointer items-center gap-1.5 rounded-small border-0 bg-transparent px-2 text-left font-sans text-control text-vlabel",
                   "console:min-h-0",
                   "hover:bg-lg-hover aria-[current=true]:bg-sel-strong",
-                  "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+                  "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
                   "phone:min-h-11",
                 )}
               >

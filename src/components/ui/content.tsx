@@ -150,7 +150,7 @@ export const listButtonRow = cn(
   "hover:rounded-small hover:bg-fill-4",
   "aria-[current=true]:rounded-small aria-[current=true]:border-b-transparent aria-[current=true]:bg-sel",
   "[&:has(+[aria-current=true])]:border-b-transparent",
-  "focus-visible:rounded-small focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+  "focus-visible:rounded-small focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
 );
 
 /** A keyboard key in the footer legend. */

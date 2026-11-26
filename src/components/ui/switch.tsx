@@ -16,7 +16,7 @@ export function Switch({
       className={cn(
         "group/switch relative inline-flex min-h-6 cursor-pointer items-center gap-2.5 border-0 bg-transparent p-0 text-left",
         "font-sans text-control font-medium text-label",
-        "focus-visible:rounded-xl focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+        "focus-visible:rounded-xl focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
         "data-disabled:cursor-default data-disabled:opacity-40",
         className,
       )}
@@ -24,7 +24,7 @@ export function Switch({
     >
       <span
         aria-hidden="true"
-        className="relative h-5 w-11 flex-none rounded-full bg-track shadow-[inset_0_0_0_0.5px_var(--fill-3)] transition-colors duration-200 group-data-checked/switch:bg-accent motion-reduce:transition-none"
+        className="relative h-5 w-11 flex-none rounded-full bg-track shadow-[inset_0_0_0_0.5px_var(--fill-3)] transition-colors duration-200 group-data-checked/switch:bg-control-accent motion-reduce:transition-none"
       >
         <SwitchThumb
           className={cn(

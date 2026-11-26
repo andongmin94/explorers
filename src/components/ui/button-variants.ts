@@ -44,8 +44,8 @@ export const buttonVariants = cva(
           "aria-pressed:bg-sel",
         ],
         primary: [
-          "bg-accent text-on-accent hover:not-disabled:brightness-[1.05]",
-          "active:not-disabled:[background:linear-gradient(rgb(0_0_0/0.15),rgb(0_0_0/0.15)),var(--accent)]",
+          "bg-control-accent text-on-control-accent hover:not-disabled:brightness-[1.05]",
+          "active:not-disabled:[background:linear-gradient(rgb(0_0_0/0.15),rgb(0_0_0/0.15)),var(--control-accent)]",
         ],
       },
       size: {

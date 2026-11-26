@@ -41,7 +41,7 @@ export function Slider({
         )}
       >
         <SliderTrack className="relative mx-[13px] h-1 flex-1">
-          <SliderIndicator className="top-0 h-full -ml-[13px] box-content rounded-full bg-accent pl-[13px] group-data-dragging/slider:bg-[color-mix(in_srgb,var(--accent)_85%,black)]" />
+          <SliderIndicator className="top-0 h-full -ml-[13px] box-content rounded-full bg-control-accent pl-[13px] group-data-dragging/slider:bg-[color-mix(in_srgb,var(--control-accent)_85%,black)]" />
           <SliderThumb
             aria-label={thumbLabel}
             className={cn(

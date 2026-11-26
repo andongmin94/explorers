@@ -74,7 +74,7 @@ export function MenuLinkItem({
       className={cn(
         "relative -mx-[7px] flex min-h-[30px] items-center gap-2 rounded-small py-0 pr-[7px] pl-1",
         "text-control font-medium text-vlabel no-underline outline-none",
-        "data-highlighted:bg-accent data-highlighted:text-on-accent",
+        "data-highlighted:bg-control-accent data-highlighted:text-on-control-accent",
         "phone:min-h-11",
         className,
       )}

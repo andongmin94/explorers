@@ -38,6 +38,11 @@ export const LABELS = {
   recall: "확인 문제",
   next: "다음 실험 →",
   progress: "학습 진도",
+  misconception: "오개념 바로잡기",
+  misconceptionWrong: "흔한 오해",
+  misconceptionRight: "실제로는",
+  misconceptionCheck: "이 실험에서 확인",
+  custom: "직접 실험",
 } as const;
 
 export interface Experiment {
@@ -292,4 +297,17 @@ export interface RecallQuestion {
 export function recallVerdict(q: RecallQuestion, choice: RecallChoice): string {
   const right = q.choices.find((c) => c.correct);
   return `${choice.correct ? LABELS.correct : LABELS.wrong(q.answer ?? right?.label ?? "")} ${choice.why}`;
+}
+
+/**
+ * A misconception the lesson sets right: what learners commonly believe, what
+ * is actually true, and where this experiment shows it. `scene` is the
+ * 1-based 핵심 장면 at which the 해설 shows it; every one is listed again in 정리.
+ */
+export interface Misconception {
+  id: string;
+  wrong: string;
+  right: string;
+  check: string;
+  scene?: number;
 }

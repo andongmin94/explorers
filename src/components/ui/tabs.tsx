@@ -47,7 +47,7 @@ export function TabsTab({
         "transition-[background-color,color] duration-150 motion-reduce:transition-none",
         "hover:not-data-selected:bg-lg-hover",
         "data-selected:bg-sel",
-        "focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+        "focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
         "phone:min-h-[34px]",
         className,
       )}

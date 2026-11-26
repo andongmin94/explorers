@@ -123,7 +123,7 @@ export function LessonRail({
                 className={cn(
                   "group/row flex min-h-8 items-center gap-1.5 rounded-small px-2 text-control text-vlabel no-underline",
                   "hover:bg-lg-hover aria-[current=page]:bg-sel-strong",
-                  "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+                  "focus-visible:outline-3 focus-visible:-outline-offset-1 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
                   "phone:min-h-11",
                 )}
               >

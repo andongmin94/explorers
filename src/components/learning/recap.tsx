@@ -15,8 +15,10 @@ import {
   recallVerdict,
   type ProgressSummary,
   type RecallChoice,
+  type Misconception,
   type RecallQuestion,
 } from "@/lib/lesson-kit.ts";
+import { MisconceptionNote } from "./misconception.tsx";
 import type { PagedItem } from "./pager.tsx";
 
 /** Dots + "학습 진도 · 핵심 장면 4/6 · 예측 3/4 · 비교 완료 · 확인 문제 1/2". */
@@ -79,7 +81,7 @@ export function RecallQuestionBlock({
               "relative flex min-h-9 w-full cursor-pointer items-center gap-2.5 rounded-small border-0 border-b border-separator-soft last:border-b-0 bg-fill-4 py-[7px] pr-7 pl-0.5 text-left text-inherit keep-all",
               "not-first:mt-1 after:absolute after:end-3 after:text-label-3 after:content-['›']",
               "hover:bg-fill-4 aria-pressed:bg-lg-selected aria-pressed:font-semibold",
-              "focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--accent)_55%,transparent)]",
+              "focus-visible:outline-3 focus-visible:-outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--control-accent)_55%,transparent)]",
               "console-tight:min-h-0 console-tight:py-1.5",
             )}
           >
@@ -133,12 +135,13 @@ export function RecapFoot({
 
 /**
  * The 정리 blocks for a paged column: each point its own block (the first
- * under "정리 · 핵심 정리"), each recall question, its answer note once
+ * under "정리 · 핵심 정리"), every misconception the lesson set right, each recall question, its answer note once
  * answered, then the foot.
  */
 export function recapItems({
   explorer,
   points,
+  misconceptions = [],
   recall,
   answers,
   onAnswer,
@@ -148,6 +151,7 @@ export function recapItems({
 }: {
   explorer: string;
   points: ReactNode[];
+  misconceptions?: readonly Misconception[];
   recall: RecallQuestion[];
   answers: Record<string, number>;
   onAnswer: (question: RecallQuestion, choice: RecallChoice, index: number) => void;
@@ -169,6 +173,13 @@ export function recapItems({
         <Text className={pointClass}>{point}</Text>
       ),
   }));
+  for (const item of misconceptions) {
+    items.push({
+      key: `recap-misconception-${item.id}`,
+      note: true,
+      node: <MisconceptionNote item={item} />,
+    });
+  }
   for (const question of recall) {
     const picked = answers[question.id];
     items.push({
