@@ -1847,6 +1847,11 @@ export function tray({
  * slot point (Tray.slots), so one clip path serves every pocket of a tray;
  * set it on the token inside the translated group.
  */
+/** A <clipPath> holding wellClip(), for an svg's defs. */
+export function wellDef(id: string, size: { w: number; d: number; depth: number }) {
+  return `<clipPath id="${id}"><polygon points="${wellClip(size)}"/></clipPath>`;
+}
+
 export function wellClip({ w, d, depth }: { w: number; d: number; depth: number }) {
   const z = depth - 0.01;
   const up = z + 40;

@@ -102,7 +102,7 @@ export function createIsolationScene(
     parked.innerHTML = waiting
       .map((id) => {
         const row = state.clients[id].waitingFor!;
-        return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: lesson.token({ action: "update" as IsoStep["action"], row }), color: COLORS[id], w: 2.5 })}</g>`;
+        return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}" clip-path="url(#tx-well)">${sqlToken({ text: lesson.token({ action: "update" as IsoStep["action"], row }), color: COLORS[id], w: 2.5, d: 0.96 })}</g>`;
       })
       .join("");
     for (const g of parked.children as HTMLCollectionOf<SVGGElement>)

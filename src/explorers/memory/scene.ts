@@ -29,6 +29,7 @@ import {
   tray,
   travel as kitTravel,
   type Point,
+  wellDef,
 } from "@/lib/iso/kit.ts";
 import type { Algorithm, Frame, SelectReason, Step } from "./types.ts";
 
@@ -391,8 +392,11 @@ function staticScene() {
       .map((n) => callout(n))
       .join("")}
     <g class="mem-originals">${originals}</g>
+    <defs>${wellDef("mem-well", frames.pocket)}</defs>
     <g class="mem-tokens">${SLOTS()
-      .map((slot) => `<g class="mem-token" data-token-slot="${slot}"></g>`)
+      .map(
+        (slot) => `<g class="mem-token" data-token-slot="${slot}" clip-path="url(#mem-well)"></g>`,
+      )
       .join("")}</g>
     <g class="mem-request"></g>
     <g class="mem-movers"></g>

@@ -119,7 +119,7 @@ export function createTransactionScene(
       .filter((id) => id !== hideParked)
       .map(
         (id) =>
-          `<g class="tx-park ${owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: requestLabel("wait", mode, state.clients[id]), color: COLORS[id], w: 2.7 })}</g>`,
+          `<g class="tx-park ${owner ? "is-blocked" : "is-ready"}" data-park="${id}" clip-path="url(#tx-well)">${sqlToken({ text: requestLabel("wait", mode, state.clients[id]), color: COLORS[id], w: 2.6, d: 0.96 })}</g>`,
       )
       .join("");
     for (const g of parked.children as HTMLCollectionOf<SVGGElement>)

@@ -27,6 +27,7 @@ import {
   token,
   tray,
   type Point,
+  wellDef,
 } from "@/lib/iso/kit.ts";
 import { contentKindOf, lineKinds, VERSIONS } from "./engine.ts";
 import type { SceneLayout } from "./lesson-model.ts";
@@ -364,9 +365,10 @@ export function createGitScene(
     ${graphGlass}
     <g class="git-edges"></g>
     <g class="git-commits"></g>
+    <defs>${wellDef("git-well", indexDevice.pocket)}</defs>
     <g class="git-index-tokens">
-      <g class="git-slot" data-index="single" style="transform:${translate(screen(INDEX_SLOT))}"></g>
-      ${STAGES.map((stage) => `<g class="git-slot" data-stage="${stage.key}" style="transform:${translate(screen(stage.slot))}"></g>`).join("")}
+      <g class="git-slot" data-index="single" clip-path="url(#git-well)" style="transform:${translate(screen(INDEX_SLOT))}"></g>
+      ${STAGES.map((stage) => `<g class="git-slot" data-stage="${stage.key}" clip-path="url(#git-well)" style="transform:${translate(screen(stage.slot))}"></g>`).join("")}
     </g>
     <g class="git-callouts">${callouts(1)}</g>
     <g class="git-refs">

@@ -26,6 +26,7 @@ import {
   token,
   type Point,
   type Tray,
+  wellDef,
 } from "@/lib/iso/kit.ts";
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -400,9 +401,10 @@ function sceneSvg(mode: Mode) {
     <g id="disk-arcs"></g>
     <g id="disk-carriage"></g>
     ${notes.map((n) => callout(n)).join("")}
+    <defs>${wellDef("disk-well", queue.pocket)}</defs>
     <g id="disk-tokens">${REQ.map(
       (c, i) =>
-        `<g class="disk-token" data-id="${i + 1}">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: Math.min(1.28, QUEUE.pitch - 0.1), h: 0.5, textSize: QUEUE.pitch < 1.5 ? 13 : 15 })}</g>`,
+        `<g class="disk-token" data-id="${i + 1}" clip-path="url(#disk-well)">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: Math.min(1.28, QUEUE.pitch - 0.3), h: 0.5, textSize: QUEUE.pitch < 1.5 ? 13 : 15 })}</g>`,
     ).join("")}</g>
   </svg>`;
 }
@@ -712,6 +714,7 @@ export function createDiskScene(
       g.classList.toggle("is-selected", selected === id);
       const [x, y, z] = queue.slots[id - 1];
       place(g, x, y, z);
+      g.setAttribute("clip-path", "url(#disk-well)");
       host.querySelector(`.iso-tray-led[data-slot="${id - 1}"]`)?.classList.toggle("is-on", !done);
       $(`[data-mark="${id}"]`).setAttribute(
         "class",
@@ -762,6 +765,8 @@ export function createDiskScene(
 
   // Carry a token along a world-space polyline with place(), on the same clock.
   function carry(run: Motion, el: SVGGElement, route: Point[], duration: number) {
+    // Out of its pocket: no longer cut to the opening (setTokens seats it again).
+    el.removeAttribute("clip-path");
     const seg = route
       .slice(1)
       .map((p, i) => Math.hypot(p[0] - route[i][0], p[1] - route[i][1], p[2] - route[i][2]));

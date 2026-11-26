@@ -164,7 +164,7 @@ export function createDeadlockScene(
     parked.innerHTML = waiting
       .map((id) => {
         const row = state.clients[id].waitingFor!;
-        return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}">${sqlToken({ text: `UPD ${row}`, color: COLORS[id], w: 2.4 })}</g>`;
+        return `<g class="tx-park ${state.rows[row].owner ? "is-blocked" : "is-ready"}" data-park="${id}" clip-path="url(#tx-well)">${sqlToken({ text: `UPD ${row}`, color: COLORS[id], w: 2.4, d: 0.96 })}</g>`;
       })
       .join("");
     for (const g of parked.children as HTMLCollectionOf<SVGGElement>)

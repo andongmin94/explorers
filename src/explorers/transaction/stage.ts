@@ -25,6 +25,7 @@ import {
   travel,
   tray,
   type Point,
+  wellDef,
 } from "@/lib/iso/kit.ts";
 import type { ClientId } from "./types.ts";
 
@@ -354,6 +355,7 @@ export function sceneSvg({
     ${floorMarks}
     <g class="tx-lanes">${lanes}</g>
     <g class="tx-db">${server({ ...DB, label: "" }).svg}${table.svg}${WAIT.svg}<g class="tx-pending"></g></g>
+    <defs>${wellDef("tx-well", WAIT.pocket)}</defs>
     <g class="tx-parked"></g>
     ${client("T2", screens)}
     ${client("T1", screens)}
