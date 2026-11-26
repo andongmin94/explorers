@@ -45,6 +45,10 @@ const MOVES = new Set<string>(["arrive", "unblock", "preempt", "dispatch", "bloc
 const MAX_QUANTUM = 5;
 // Pockets per queue: three in the lessons, one per job for up to five.
 let SLOTS = 3;
+// The I/O drive: its "I/O" print sits at the sticker's left end and waiting
+// jobs line up to its right, so the drive is as long as every job needs.
+const IO_FIRST = 3.3;
+const ioWidth = () => IO_FIRST + (SLOTS - 1) * 1.3 + 1.15;
 // A token rides just above the cable while it travels.
 const RIDE = 0.2;
 // On phones callout labels grow at most this much (see frame()).
@@ -104,7 +108,7 @@ function wideLayout(): Layout {
   const ready = { x: -0.35 - extra, y: 5.45, slots: SLOTS, pitch: 1.6 };
   const arrivals = { x: -4.4 - extra * 1.3, y: 9.9, slots: SLOTS, pitch: 1.6, d: 2.1 };
   const cpu = { x: 9.0, y: 0.1, size: 4.6 };
-  const io = { x: 0.6 - extra / 2, y: -2.2, w: 4.6, d: 3 };
+  const io = { x: 0.6 - extra / 2, y: -2.2, w: ioWidth(), d: 3 };
   const done = { x: 16.2, y: -1.0, w: SLOTS > 4 ? 5.2 : 4.2, d: 3 };
   const headX = ready.x + 2.3 + 0.8 + SLOTS * 1.6 - 0.2; // end of the rail (its head)
   const arriveX = arrivals.x + 0.35 + (SLOTS * 1.6) / 2;
@@ -208,8 +212,9 @@ function narrowLayout(): Layout {
   const ready = { x: 0, y: 6, slots: SLOTS, pitch: 1.6 };
   const arrivals = { x: 1.5, y: 2.2, slots: SLOTS, pitch: 1.6, d: 2.1 };
   const cpu = { x: 9.1, y: 8.1, size: 4.8 };
-  const io = { x: 8, y: 14.5, w: 4.6, d: 3 };
-  const done = { x: 13.4, y: 14.2, w: 4.2, d: 3 };
+  const io = { x: 8, y: 14.5, w: ioWidth(), d: 3 };
+  // The done drawer stands right of the drive, which grows with the job count.
+  const done = { x: io.x + io.w + 0.6, y: 14.2, w: 4.2, d: 3 };
   return {
     kind: "narrow",
     ready,
@@ -243,9 +248,11 @@ function narrowLayout(): Layout {
         [0.6, 11],
         [0.6, 8.5],
       ],
+      // out of the CPU's right face, then down into the drawer
       complete: [
-        [13.6, 12.9],
-        [13.6, 14.2],
+        [cpu.x + cpu.size, 11.0],
+        [done.x + 1.2, 11.0],
+        [done.x + 1.2, done.y],
       ],
     },
     callouts: {
@@ -271,7 +278,17 @@ function narrowLayout(): Layout {
         title: "입출력 장치",
         sub: "CPU와 동시에 진행",
       },
-      done: { x: 17.2, y: 15.6, z: 1, dx: 38, dy: 14, anchor: "start", title: "완료", sub: "DONE" },
+      // the drawer moves right with the drive: its label follows its right corner
+      done: {
+        x: done.x + done.w,
+        y: done.y + 1.2,
+        z: 1,
+        dx: 38,
+        dy: 14,
+        anchor: "start",
+        title: "완료",
+        sub: "DONE",
+      },
     },
   };
 }
@@ -310,7 +327,7 @@ function devices(L: Layout, chipSub: string): Devices {
     sub: chipSub,
     cls: "cpu-chip-device",
   });
-  const io = ssd({ ...L.io, label: "I/O" });
+  const io = ssd({ ...L.io, label: "I/O", labelAt: "start" });
   const done = bin({ ...L.done, capacity: Math.max(4, SLOTS), label: "DONE" });
   const n = L.ready.slots;
   // The rail's head is its last pocket; number the pockets from the head
@@ -360,7 +377,8 @@ function devices(L: Layout, chipSub: string): Devices {
       // The running process sits on the heat spreader, a little behind the
       // engraved label so "CPU" stays readable in front of it.
       running: () => [cx - 0.15, cy - 0.65, top],
-      blocked: (i) => [L.io.x + 1.25 + i * 1.3, L.io.y + L.io.d / 2, io.top],
+      // in a row right of the "I/O" print, so no waiting job covers it
+      blocked: (i) => [L.io.x + IO_FIRST + i * 1.3, L.io.y + L.io.d / 2, io.top],
       done: (i) => done.slots[i] ?? done.slots.at(-1)!,
     },
     wells: { new: wellClip(arrivals.pocket), ready: wellClip(ready.pocket) },

@@ -1329,7 +1329,29 @@ export function ramStick({
  * SSD: a graphite 2.5" casing with a printed sticker, corner screws and a gold
  * SATA connector on the front edge. slots[0] is the sticker centre.
  */
-export function ssd({ x = 0, y = 0, z = 0, w = 5, d = 3, label = "SSD", cls = "" } = {}) {
+/**
+ * A drive. labelAt "start" prints the label at the sticker's left end, beside
+ * its colour stripe, leaving the rest of the sticker free for tokens.
+ */
+export function ssd({
+  x = 0,
+  y = 0,
+  z = 0,
+  w = 5,
+  d = 3,
+  label = "SSD",
+  labelAt = "center",
+  cls = "",
+}: {
+  x?: number;
+  y?: number;
+  z?: number;
+  w?: number;
+  d?: number;
+  label?: string;
+  labelAt?: "center" | "start";
+  cls?: string;
+} = {}) {
   const h = 0.42;
   const top = z + h;
   let teeth = "";
@@ -1362,7 +1384,7 @@ export function ssd({ x = 0, y = 0, z = 0, w = 5, d = 3, label = "SSD", cls = ""
     ${screws}
     ${quad({ x: x + 0.55, y: y + 0.5, z: top + 0.001, w: w - 1.1, d: d - 1.0, fill: "var(--iso-sticker)", stroke: "rgb(0 0 0 / .25)", strokeWidth: 0.5 })}
     ${quad({ x: x + 0.55, y: y + 0.5, z: top + 0.002, w: 0.16, d: d - 1.0, fill: "var(--accent)" })}
-    ${label ? topText({ x: x + w / 2 + 0.15, y: y + d / 2, z: top + 0.003, text: label, size: 14, weight: 800, fill: "var(--iso-sticker-ink)" }) : ""}
+    ${label ? topText({ x: labelAt === "start" ? x + 0.85 : x + w / 2 + 0.15, y: y + d / 2, z: top + 0.003, text: label, size: 14, weight: 800, fill: "var(--iso-sticker-ink)", anchor: labelAt === "start" ? "start" : "middle" }) : ""}
   </g>`;
   return { svg, top, slots: [[x + w / 2, y + d / 2, top]] };
 }

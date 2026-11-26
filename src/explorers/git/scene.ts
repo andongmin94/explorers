@@ -145,9 +145,11 @@ function commitColor(state: GitState, id: string) {
 }
 
 // Branch labels are printed pill tags (dot + name) so they stay legible over
-// the server. main stands above its commit, feature/title below it (offset to
-// the right), so the two never meet, even on the same commit, and neither
-// covers an edge or another commit. Each tag group is scaled by k (labelScale's
+// the server. main stands above its commit; feature/title stands to the right
+// of its commit, level with it: feature commits sit in the front lane, and a
+// tag below them would hang over the server's front face. Columns run across
+// the screen and the front lane is empty to the right, so neither tag covers
+// an edge or another commit. Each tag group is scaled by k (labelScale's
 // factor) about its commit.
 // Measured in the label font (dot 19 + text + 13 end padding), so the pill
 // hugs its name; the estimate covers a missing canvas.
@@ -158,7 +160,7 @@ const refWidth = (branch: string) => {
   measure.font = `600 12px ${getComputedStyle(document.documentElement).getPropertyValue("--font-sans") || "sans-serif"}`;
   return Math.round(measure.measureText(branch).width + 32);
 };
-function refSvg(branch: string, place: "above" | "below") {
+function refSvg(branch: string, place: "above" | "right") {
   const width = refWidth(branch);
   const pill = (
     x: number,
@@ -168,7 +170,7 @@ function refSvg(branch: string, place: "above" | "below") {
     <text class="git-ref-text" x="${r2(x + 19)}" y="${r2(y)}">${branch}</text>`;
   if (place === "above")
     return `<line class="git-ref-line" x1="0" y1="-16" x2="0" y2="-33"/>${pill(-width / 2, -44)}`;
-  return `<line class="git-ref-line" x1="0" y1="14" x2="0" y2="29"/>${pill(-24, 40)}`;
+  return `<line class="git-ref-line" x1="20" y1="0" x2="32" y2="0"/>${pill(32, 0)}`;
 }
 
 /** Which colour a whole snapshot takes: base, main, feature, both or conflict. */
@@ -480,7 +482,7 @@ export function createGitScene(
 
   /* ---------- painting a state ---------- */
 
-  const placeOf = (branch: string) => (branch === "main" ? "above" : "below");
+  const placeOf = (branch: string) => (branch === "main" ? "above" : "right");
   const refPoint = (branch: string, state: GitState) => {
     const id = state.refs[branch];
     return id ? screen(node(id)) : null;
@@ -490,7 +492,8 @@ export function createGitScene(
     const place = placeOf(state.currentBranch);
     const w = refWidth(state.currentBranch);
     if (place === "above") return [x, r2(y - 68 * k)];
-    return [r2(x + (w / 2 - 24) * k), r2(y + 66 * k)];
+    // above the right end of the feature tag (to its right it would leave the stage)
+    return [r2(x + (32 + w - 24) * k), r2(y - 26 * k)];
   };
 
   function paintRefs(state: GitState) {
