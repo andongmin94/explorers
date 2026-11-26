@@ -26,6 +26,7 @@ import {
   ssd,
   token,
   tray,
+  wellClip,
   type Point,
 } from "@/lib/iso/kit.ts";
 import type {
@@ -101,12 +102,12 @@ function wideLayout(): Layout {
   // drive behind it, so no two cables share a line and no label sits on one.
   const extra = (SLOTS - 3) * 1.6;
   const ready = { x: -0.35 - extra, y: 5.45, slots: SLOTS, pitch: 1.6 };
-  const arrivals = { x: -4.4 - extra * 1.3, y: 9.9, slots: SLOTS, pitch: 1.5, d: 2 };
+  const arrivals = { x: -4.4 - extra * 1.3, y: 9.9, slots: SLOTS, pitch: 1.6, d: 2.1 };
   const cpu = { x: 9.0, y: 0.1, size: 4.6 };
   const io = { x: 0.6 - extra / 2, y: -2.2, w: 4.6, d: 3 };
   const done = { x: 16.2, y: -1.0, w: SLOTS > 4 ? 5.2 : 4.2, d: 3 };
   const headX = ready.x + 2.3 + 0.8 + SLOTS * 1.6 - 0.2; // end of the rail (its head)
-  const arriveX = arrivals.x + 0.35 + (SLOTS * 1.5) / 2;
+  const arriveX = arrivals.x + 0.35 + (SLOTS * 1.6) / 2;
   return {
     kind: "wide",
     ready,
@@ -205,7 +206,7 @@ function wideLayout(): Layout {
 
 function narrowLayout(): Layout {
   const ready = { x: 0, y: 6, slots: SLOTS, pitch: 1.6 };
-  const arrivals = { x: 1.5, y: 2.2, slots: SLOTS, pitch: 1.5, d: 2 };
+  const arrivals = { x: 1.5, y: 2.2, slots: SLOTS, pitch: 1.6, d: 2.1 };
   const cpu = { x: 9.1, y: 8.1, size: 4.8 };
   const io = { x: 8, y: 14.5, w: 4.6, d: 3 };
   const done = { x: 13.4, y: 14.2, w: 4.2, d: 3 };
@@ -281,6 +282,8 @@ interface Devices {
   svg: Record<Zone, string>;
   bounds: Point[];
   slots: Record<ViewZone, (i: number) => Point>;
+  /** Clip polygons (slot-local) that seat a token inside a pocket. */
+  wells: Partial<Record<ViewZone, string>>;
   led: (i: number, count: number) => Point;
 }
 
@@ -360,6 +363,7 @@ function devices(L: Layout, chipSub: string): Devices {
       blocked: (i) => [L.io.x + 1.25 + i * 1.3, L.io.y + L.io.d / 2, io.top],
       done: (i) => done.slots[i] ?? done.slots.at(-1)!,
     },
+    wells: { new: wellClip(arrivals.pocket), ready: wellClip(ready.pocket) },
     // Quantum LEDs in a row on the board's front margin.
     led: (i, count) => [
       L.cpu.x + size / 2 + (i - (count - 1) / 2) * 0.62,
@@ -436,6 +440,12 @@ function staticSvg(
   const c = L.callouts;
   return `<svg class="cpu-scene-svg" xmlns="http://www.w3.org/2000/svg">
     ${defs()}
+    <defs>${Object.entries(D.wells)
+      .map(
+        ([zone, points]) =>
+          `<clipPath id="cpu-well-${zone}"><polygon points="${points}"/></clipPath>`,
+      )
+      .join("")}</defs>
     ${floor(L.floorRect)}
     <g class="cpu-routes">${cables}</g>
     <g class="cpu-dev cpu-dev-arrivals">${D.svg.arrivals}</g>
@@ -614,10 +624,21 @@ export function createSchedulerScene(
       .forEach((id) => tokenLayer.append(tokens.get(id)!));
   }
 
+  // A token at rest in a tray pocket is clipped to the opening, so the rim
+  // and the tray front cover its lower part; a moving token is never clipped.
+  function seat(id: string, v: SceneView | null) {
+    const body = tokens.get(id)?.querySelector(".iso-token");
+    if (!body) return;
+    const zone = v ? zoneOf(id, v)[0] : null;
+    if (zone && D.wells[zone]) body.setAttribute("clip-path", `url(#cpu-well-${zone})`);
+    else body.removeAttribute("clip-path");
+  }
+
   function snap() {
     for (const [id, g] of tokens) {
       g.style.transform = translate(slotFor(id, view!));
       g.classList.remove("is-moving");
+      seat(id, view);
     }
     sortTokens();
   }
@@ -700,6 +721,7 @@ export function createSchedulerScene(
     const waits: Promise<unknown>[] = [];
     const mover = tokens.get(event.id)!;
     mover.classList.add("is-moving");
+    seat(event.id, null);
     tokenLayer.append(mover);
     mover.style.transform = translate(to);
     track(
@@ -713,6 +735,7 @@ export function createSchedulerScene(
       const a = slotFor(id, before);
       const b = slotFor(id, view!);
       if (a.every((v, i) => v === b[i])) continue;
+      seat(id, null);
       g.style.transform = translate(b);
       track(
         run,
@@ -726,7 +749,9 @@ export function createSchedulerScene(
       );
     }
     await Promise.all(waits);
-    if (!run.cancelled) mover.classList.remove("is-moving");
+    if (run.cancelled) return;
+    mover.classList.remove("is-moving");
+    for (const id of tokens.keys()) seat(id, view);
   }
 
   function cancelRun() {

@@ -83,6 +83,8 @@ export interface Tray extends Device {
   head: number | undefined;
   w: number;
   d: number;
+  /** One pocket opening (world w along x, d along y) and its depth. */
+  pocket: { w: number; d: number; depth: number };
 }
 
 /** World point → screen point. */
@@ -1835,7 +1837,28 @@ export function tray({
     ${exitMark}
     ${plate}
   </g>`;
-  return { svg, top, slots: slotPts, leds: ledPts, head, w: W, d: D };
+  const pocketSize = X ? { w: pw, d: pd, depth } : { w: pd, d: pw, depth };
+  return { svg, top, slots: slotPts, leds: ledPts, head, w: W, d: D, pocket: pocketSize };
+}
+
+/**
+ * The screen area a token resting in a pocket can show: the opening and all
+ * above it (the rim and the tray front hide the rest). Points are local to the
+ * slot point (Tray.slots), so one clip path serves every pocket of a tray;
+ * set it on the token inside the translated group.
+ */
+export function wellClip({ w, d, depth }: { w: number; d: number; depth: number }) {
+  const z = depth - 0.01;
+  const up = z + 40;
+  const corners: Point[] = [
+    [-w / 2, d / 2, z],
+    [w / 2, d / 2, z],
+    [w / 2, -d / 2, z],
+    [w / 2, -d / 2, up],
+    [-w / 2, -d / 2, up],
+    [-w / 2, d / 2, up],
+  ];
+  return pts(corners);
 }
 
 /**
