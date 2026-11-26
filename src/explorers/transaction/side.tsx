@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 
 import { PagedList, Pager, usePager, type PagedItem } from "@/components/learning/pager.tsx";
+import { MisconceptionNote, misconceptionsAt } from "@/components/learning/misconception.tsx";
 import { recapItems } from "@/components/learning/recap.tsx";
 import { SidePanel } from "@/components/shell/console.tsx";
 import { PlateHead } from "@/components/shell/plate.tsx";
@@ -87,6 +88,7 @@ export function TxSide({
       ...recapItems({
         explorer: "transaction",
         points: page.recap.points,
+        misconceptions: page.misconceptions(snap.mode),
         recall: page.recap.recall,
         answers: picked,
         onAnswer: (question: RecallQuestion, choice: RecallChoice, index: number) => {
@@ -378,6 +380,14 @@ function explanationItems({
         </Note>
       ),
     });
+  // 오개념 바로잡기 at the 핵심 장면 where this run shows it.
+  if (!snap.busy && !conclusion && sceneAt >= 0)
+    for (const item of misconceptionsAt(page.misconceptions(snap.mode), sceneAt + 1))
+      items.push({
+        key: `misconception-${item.id}`,
+        note: true,
+        node: <MisconceptionNote item={item} />,
+      });
   return items;
 }
 

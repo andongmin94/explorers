@@ -86,4 +86,45 @@ test.describe("disk lesson", () => {
     await expect(page.locator("#lesson-title")).toHaveText("모든 요청 완료 · 236칸");
     await expect(page.locator('[data-action="compare"][data-conclusion]')).toBeVisible();
   });
+
+  test("a 핵심 장면 shows its 오개념 note in the 해설", async ({ page }) => {
+    await page.goto("/disk/?lesson=cscan&algo=cscan&step=3");
+    const note = page.locator('[data-misconception="cscan-return"]');
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("229칸");
+  });
+});
+
+test.describe("disk 직접 실험", () => {
+  test("validates the input, applies it to the URL and runs it", async ({ page }) => {
+    const errors = watchErrors(page);
+    await page.goto("/disk/?lesson=custom");
+    await expect(page.locator("#lesson-title")).toHaveText("SSTF와 LOOK, 어느 쪽이 덜 움직일까?");
+    await page.locator('[data-action="edit-input"]').first().click();
+    const sheet = page.locator('[data-slot="dialog-content"]');
+    await expect(sheet).toBeVisible();
+    const queue = sheet.getByLabel("요청 큐 (도착 순서)");
+    await queue.fill("10, 300");
+    await sheet.locator('[data-action="apply-input"]').click();
+    await expect(sheet).toContainText("‘300’은 0부터 199까지의 정수가 아닙니다");
+    await queue.fill("120, 90, 150, 70");
+    await sheet.getByLabel("시작 헤드").fill("100");
+    await sheet.locator('[data-pick="a-scan"]').click();
+    await sheet.locator('[data-action="apply-input"]').click();
+    await expect(page).toHaveURL(
+      /lesson=custom&head=100&max=199&dir=down&q=120,90,150,70&algs=scan,look/,
+    );
+    await expect(page.locator("#lesson-title")).toHaveText("SCAN과 LOOK, 어느 쪽이 덜 움직일까?");
+    await expect(page.locator("#lcd-head")).toHaveText(/^100/);
+    await page.locator("body").click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press("ArrowRight");
+    await expect(page.locator("#status")).toHaveText("100 → 90 · 10칸 이동 완료");
+    expect(errors).toEqual([]);
+  });
+
+  test("a broken query falls back to the default input and says why", async ({ page }) => {
+    await page.goto("/disk/?lesson=custom&head=999&q=5");
+    await expect(page.locator("#custom-input-problem")).toContainText("기본 입력으로 엽니다");
+    await expect(page.locator("#lcd-head")).toHaveText(/^53/);
+  });
 });

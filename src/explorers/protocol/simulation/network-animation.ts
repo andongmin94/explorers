@@ -23,6 +23,8 @@ import {
 import type { CancelToken, Devices, Labels, PacketStatus, ViewMode, WireData } from "../types.ts";
 import { animateWithClock, waitWithClock } from "./clock.ts";
 import { SEQUENCE_ANIMATION_TIMINGS } from "./timeline.ts";
+const REDUCED_MOTION_QUERY =
+  typeof matchMedia === "function" ? matchMedia("(prefers-reduced-motion: reduce)") : null;
 const NETWORK_SVG_NAMESPACE = "http://www.w3.org/2000/svg";
 const PACKET_PIXELS_PER_MILLISECOND = 0.21;
 const PACKET_HOP_PAUSE_MS = 140;
@@ -349,6 +351,18 @@ function createNetworkAnimation(networkSvg: WireData) {
         pulseNode(nodeId, "navy", cancellation);
       }
     }
+  }
+  /** Show a device now; a short rise (not on the playback clock) unless motion is reduced. */
+  function riseIn(nodeId: string, delay = 0) {
+    setNodeVisible(nodeId, true);
+    if (REDUCED_MOTION_QUERY?.matches) return;
+    nodeElements[nodeId].animate(
+      [
+        { opacity: 0, transform: "translateY(-18px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 420, delay, easing: "cubic-bezier(0.2, 0.9, 0.3, 1.1)", fill: "backwards" },
+    );
   }
   async function hideNode(nodeId: string, cancellation: CancelToken, delay = 0) {
     const nodeElement = nodeElements[nodeId];
@@ -1042,8 +1056,13 @@ function createNetworkAnimation(networkSvg: WireData) {
     setLabels(labels: Labels) {
       if (labels !== labelOverrides) updateNodeLabels(labels);
     },
+    // The start screen (목표): the lesson's devices and cables stand at rest,
+    // labelled, before anything plays. Drawn at once, never through the
+    // playback clock (a paused or backgrounded clock must not leave it empty).
     overview(nodeIds: string[], labels = {}) {
       lessonNodes = nodeIds;
+      networkSvg.classList.remove("is-booting");
+      networkSvg.dataset.view = "overview";
       updateNodeLabels(labels);
       Object.keys(nodeElements).forEach((nodeId) =>
         setNodeVisible(nodeId, lessonNodes.includes(nodeId)),
@@ -1056,6 +1075,7 @@ function createNetworkAnimation(networkSvg: WireData) {
     },
     // Apply final event state without animation when stepping or changing views.
     apply(event: WireData) {
+      delete networkSvg.dataset.view;
       if (event.type === "focus") {
         Object.keys(nodeElements).forEach((nodeId) =>
           setNodeVisible(nodeId, event.nodes.includes(nodeId)),
@@ -1108,6 +1128,16 @@ function createNetworkAnimation(networkSvg: WireData) {
         animateViewBox(targetViewBox, CAMERA_MOVE_DURATION_MS * 0.8, cancellation);
       }
       removedNodes.forEach((nodeId, index) => hideNode(nodeId, cancellation, index * 60));
+      // Back to the overview: the devices settle in with a WAAPI rise that
+      // does not wait on the playback clock, and they are visible at once
+      // under reduced motion (or if the animation never runs).
+      if (networkSvg.dataset.view === "overview") {
+        addedNodes.forEach((nodeId, index) => riseIn(nodeId, index * 70));
+        for (const linkId of Object.keys(linkElements))
+          setLinkProgress(linkId, visibleLanes.has(linkId) ? 1 : 0);
+        setPageVisible(pageVisible);
+        return;
+      }
       addedNodes.forEach((nodeId, index) =>
         showNode(nodeId, cancellation, {
           delay: (previousSnapshot.fresh ? 150 : 250) + index * 110,

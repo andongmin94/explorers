@@ -2,6 +2,7 @@
 // is a fit column whose blocks page (PagedList + Pager).
 import { useEffect, useState } from "react";
 
+import { MisconceptionNote, misconceptionsAt } from "@/components/learning/misconception.tsx";
 import { PagedList, Pager, usePager, type PagedItem } from "@/components/learning/pager.tsx";
 import { recapItems } from "@/components/learning/recap.tsx";
 import { SidePanel } from "@/components/shell/console.tsx";
@@ -23,8 +24,8 @@ import { nextLesson } from "@/lib/lesson-rail.ts";
 import { useMediaQuery } from "@/lib/use-media-query.ts";
 import { fix } from "./format.ts";
 import { STAGES } from "./lesson.ts";
-import { LESSONS } from "./lessons.ts";
-import { N, type Playback, type PlaybackSnapshot } from "./playback.ts";
+import { LESSONS, type Lesson } from "./lessons.ts";
+import type { Playback, PlaybackSnapshot } from "./playback.ts";
 import type { Candidate, DiskRequest, Step } from "./types.ts";
 
 export type SideTab = "lesson" | "distance" | "scenes" | "scope";
@@ -52,6 +53,7 @@ export function DiskSide({
   summary,
   onPredict,
   onCompare,
+  onEditInput,
 }: {
   playback: Playback;
   snap: PlaybackSnapshot;
@@ -61,6 +63,8 @@ export function DiskSide({
   summary: ProgressSummary;
   onPredict: () => void;
   onCompare: () => void;
+  /** 직접 실험: open the input sheet. */
+  onEditInput?: () => void;
 }) {
   const lesson = playback.lesson;
   const lessonPager = usePager();
@@ -68,7 +72,7 @@ export function DiskSide({
   const scenePager = usePager();
   const scopePager = usePager();
   const shortConsole = useMediaQuery(SHORT_CONSOLE);
-  const { algorithm, index, committed, busy, run } = snap;
+  const { algorithm, index, committed, busy, run, n: N } = snap;
   const step = run.steps[committed];
   const target = run.steps[index];
   const end = committed === N && !busy;
@@ -120,6 +124,12 @@ export function DiskSide({
       explorer: "disk",
       points: recap.points.map(fix),
       recall: recap.recall,
+      misconceptions: lesson.misconceptions.map((m) => ({
+        ...m,
+        wrong: fix(m.wrong),
+        right: fix(m.right),
+        check: fix(m.check),
+      })),
       answers: picked,
       onAnswer: (question: RecallQuestion, choice: RecallChoice, i: number) => {
         progress.markRecall(question.id, Boolean(choice.correct));
@@ -156,11 +166,10 @@ export function DiskSide({
       items.push({ key: "body", text: fix(text.body), className: cn(textClass, flowClass) });
     if (text.goal)
       items.push({ key: "goal", text: fix(text.goal), className: cn(textClass, flowClass) });
-    if (!shortConsole)
+    if (index === 0 && lesson.custom && onEditInput)
       items.push({
-        key: "stages",
-        className: flowClass,
-        node: <Stages snap={snap} step={busy ? target : step} />,
+        key: "input",
+        node: <InputSummary lesson={lesson} onEdit={onEditInput} />,
       });
     items.push({
       key: "takeaway",
@@ -173,6 +182,36 @@ export function DiskSide({
         </div>
       ),
     });
+    // 오개념 바로잡기 at the 핵심 장면 where this run shows it.
+    if (!busy && k >= 0)
+      for (const m of misconceptionsAt(
+        lesson.misconceptions.filter((x) => !x.algorithm || x.algorithm === algorithm),
+        k + 1,
+      ))
+        items.push({
+          key: `misconception-${m.id}`,
+          node: (
+            <MisconceptionNote
+              item={{ ...m, wrong: fix(m.wrong), right: fix(m.right), check: fix(m.check) }}
+            />
+          ),
+        });
+    // While a request travels the four stages come right under the stage text;
+    // at rest they follow the 핵심 note (and any 오개념) as a record of the last request.
+    const stagesItem: PagedItem = {
+      key: "stages",
+      className: busy ? flowClass : undefined,
+      node: <Stages snap={snap} step={busy ? target : step} />,
+    };
+    if (!shortConsole) {
+      if (busy)
+        items.splice(
+          items.findIndex((x) => x.key === "takeaway"),
+          0,
+          stagesItem,
+        );
+      else items.push(stagesItem);
+    }
   }
   // An answer's note is its own block: show the page it landed on.
   const lastAnswer = answers.key === resetKey ? answers.last : null;
@@ -309,6 +348,39 @@ export function DiskSide({
         </TabsPanel>
       </Tabs>
     </SidePanel>
+  );
+}
+
+/** 직접 실험: what this run uses, and the key that changes it. */
+function InputSummary({ lesson, onEdit }: { lesson: Lesson; onEdit: () => void }) {
+  const { head, max, requests, direction } = lesson.input;
+  return (
+    <div className="grid gap-2" id="custom-input-summary">
+      <Label>{LABELS.custom} · 입력</Label>
+      {lesson.problem && (
+        <Note as="p" id="custom-input-problem">
+          {lesson.problem}
+        </Note>
+      )}
+      <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-control tabular-nums">
+        <dt className="text-label-2">시작 헤드</dt>
+        <dd className="m-0">
+          {head} · {direction === "down" ? "바깥쪽(0 쪽)" : `안쪽(${max} 쪽)`}으로 이동 중
+        </dd>
+        <dt className="text-label-2">실린더</dt>
+        <dd className="m-0">0–{max}</dd>
+        <dt className="text-label-2">요청 큐</dt>
+        <dd className="m-0 [overflow-wrap:anywhere]">{requests.join(" · ")}</dd>
+      </dl>
+      <Button
+        variant="filled"
+        data-action="edit-input"
+        className="justify-self-start"
+        onClick={onEdit}
+      >
+        입력 바꾸기
+      </Button>
+    </div>
   );
 }
 

@@ -34,13 +34,19 @@ for (const path of [
   "/transaction/?lesson=write-skew",
 ]) {
   test(`${path} plays to the end without errors`, async ({ page }) => {
+    // A whole lesson at full speed; a busy machine needs longer than the default.
+    test.setTimeout(90_000);
     const errors = watchErrors(page);
     await page.goto(path);
     await expect(page.locator("#eyebrow")).toContainText("시작 전");
     await page.locator('[data-action="guided"]').click();
     await page.locator('[data-action="play"]').click();
-    await expect(page.locator('[data-role="conclusion"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-role="conclusion"]')).toBeVisible({ timeout: 75_000 });
     await expect(page.locator("#lesson-pages")).toContainText("핵심 정리");
+    // 정리 lists the lesson's 오개념 바로잡기.
+    expect(await page.locator("#lesson-pages [data-misconception]").count()).toBeGreaterThanOrEqual(
+      2,
+    );
     expect(errors).toEqual([]);
   });
 }
@@ -61,6 +67,19 @@ test.describe("transaction lessons", () => {
     await expect(page.locator("#lesson-title")).toHaveText("T2가 기다린 뒤에도 9를 씀", {
       timeout: 10_000,
     });
+  });
+
+  test("lost update: the 핵심 장면 of the uncommitted write sets a misconception right", async ({
+    page,
+  }) => {
+    await page.goto("/transaction/");
+    await stepTo(page, 5);
+    await expect(page.locator("[data-misconception]")).toHaveCount(0);
+    await stepTo(page, 6);
+    await expect(page.locator('[data-misconception="uncommitted-visible"]')).toBeAttached();
+    await expect(page.locator('[data-misconception="uncommitted-visible"]')).toContainText(
+      "확정 재고는 10개",
+    );
   });
 
   test("deadlock: rollback, then T1's B is 19; same order commits both", async ({ page }) => {

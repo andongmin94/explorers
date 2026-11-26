@@ -38,10 +38,12 @@ import type {
   SimEvent,
 } from "./types.ts";
 
-const COLORS: Record<string, string> = { P1: "var(--p1)", P2: "var(--p2)", P3: "var(--p3)" };
+// Job colours P1–P5 (cpu.css); 직접 실험 may have up to five jobs.
+const colorOf = (id: string) => `var(--${id.toLowerCase()})`;
 const MOVES = new Set<string>(["arrive", "unblock", "preempt", "dispatch", "block", "complete"]);
 const MAX_QUANTUM = 5;
-const SLOTS = 3;
+// Pockets per queue: three in the lessons, one per job for up to five.
+let SLOTS = 3;
 // A token rides just above the cable while it travels.
 const RIDE = 0.2;
 // On phones callout labels grow at most this much (see frame()).
@@ -92,11 +94,19 @@ function labelBox(c: CalloutSpec, sub = c.sub ?? ""): number[] {
    phones. Slot 0 of the ready queue (the head) is always the pocket nearest
    the CPU. */
 function wideLayout(): Layout {
-  const ready = { x: 0, y: 6, slots: SLOTS, pitch: 1.6 };
-  const arrivals = { x: 1.4, y: 10.4, slots: SLOTS, pitch: 1.5, d: 2 };
-  const cpu = { x: 9.3, y: 3.8, size: 4.8 };
-  const io = { x: 10.5, y: -3.5, w: 4.6, d: 3 };
-  const done = { x: 16.6, y: 5.2, w: 4.2, d: 3 };
+  // One row across the screen (world +x / −y runs to the right, so devices
+  // step along (1, −1)): arrivals → ready queue → CPU → done, with the I/O
+  // drive behind the queue. Each return path has its own side: preemption
+  // runs in front of the queue, I/O completion comes straight down from the
+  // drive behind it, so no two cables share a line and no label sits on one.
+  const extra = (SLOTS - 3) * 1.6;
+  const ready = { x: -0.35 - extra, y: 5.45, slots: SLOTS, pitch: 1.6 };
+  const arrivals = { x: -4.4 - extra * 1.3, y: 9.9, slots: SLOTS, pitch: 1.5, d: 2 };
+  const cpu = { x: 9.0, y: 0.1, size: 4.6 };
+  const io = { x: 0.6 - extra / 2, y: -2.2, w: 4.6, d: 3 };
+  const done = { x: 16.2, y: -1.0, w: SLOTS > 4 ? 5.2 : 4.2, d: 3 };
+  const headX = ready.x + 2.3 + 0.8 + SLOTS * 1.6 - 0.2; // end of the rail (its head)
+  const arriveX = arrivals.x + 0.35 + (SLOTS * 1.5) / 2;
   return {
     kind: "wide",
     ready,
@@ -104,51 +114,91 @@ function wideLayout(): Layout {
     cpu,
     io,
     done,
-    floorRect: { x: -20, y: -20, w: 62, d: 52 },
-    // Cables, world points on the floor. Each runs from device edge to device
-    // edge along world axes; return paths end in an arrow head.
+    floorRect: { x: -26, y: -22, w: 72, d: 54 },
     routes: {
+      // up from the arrivals tray into the front of the queue's tail
       arrive: [
-        [1.9, 10.4],
-        [1.9, 8.1],
+        [arriveX, 9.5],
+        [arriveX, 7.95],
       ],
+      // the head of the queue into the CPU's front-left edge
       dispatch: [
-        [7.7, 7.05],
-        [9.3, 7.05],
+        [headX - 0.1, 6.5],
+        [cpu.x + 1.2, 6.5],
+        [cpu.x + 1.2, cpu.y + cpu.size],
       ],
+      // in front of the queue, back to its tail (an arrow into the queue)
       preempt: [
-        [9.3, 4.3],
-        [1.4, 4.3],
-        [1.4, 5.55],
+        [cpu.x + 3.4, cpu.y + cpu.size],
+        [cpu.x + 3.4, 9.0],
+        [ready.x + 3.0, 9.0],
+        [ready.x + 3.0, 7.95],
       ],
+      // from the CPU's hidden left side straight to the drive's right face
       block: [
-        [12.8, 3.8],
-        [12.8, -0.5],
+        [cpu.x + 0.4, 0.4],
+        [io.x + io.w, 0.4],
       ],
+      // straight down from the drive into the back of the queue's tail
       unblock: [
-        [10.5, -2],
-        [0.6, -2],
-        [0.6, 5.55],
+        [ready.x + 1.4, io.y + io.d],
+        [ready.x + 1.4, 5.05],
       ],
+      // the CPU's right side into the done drawer
       complete: [
-        [14.1, 6.7],
-        [16.6, 6.7],
+        [cpu.x + cpu.size, cpu.y + 2.0],
+        [done.x - 0.4, cpu.y + 2.0],
       ],
     },
     callouts: {
-      arrivals: { x: 2.2, y: 12.4, z: 0.3, dx: -14, dy: 44, title: "도착 예정", sub: "NEW" },
-      ready: { x: 0.8, y: 6.6, z: 0.62, dx: -40, dy: -40, anchor: "end", title: "준비 큐" },
-      cpu: { x: 9.9, y: 8.0, z: 0.24, dx: 40, dy: 52, anchor: "end", title: "CPU" },
+      arrivals: {
+        x: arrivals.x + 0.2,
+        y: arrivals.y + 1.6,
+        z: 0.3,
+        dx: -26,
+        dy: 26,
+        anchor: "end",
+        title: "도착 예정",
+        sub: "NEW",
+      },
+      ready: {
+        x: ready.x + 0.4,
+        y: ready.y + 0.4,
+        z: 0.62,
+        dx: -44,
+        dy: -26,
+        anchor: "end",
+        title: "준비 큐",
+      },
+      cpu: {
+        x: cpu.x + cpu.size - 0.3,
+        y: cpu.y + cpu.size,
+        z: 0.24,
+        dx: 34,
+        dy: 40,
+        anchor: "start",
+        title: "CPU",
+      },
       io: {
-        x: 11.0,
-        y: -3.0,
+        x: io.x + 0.3,
+        y: io.y + 0.3,
         z: 0.42,
-        dx: 36,
-        dy: -60,
+        dx: -34,
+        dy: -34,
+        anchor: "end",
         title: "입출력 장치",
         sub: "CPU와 동시에 진행",
       },
-      done: { x: 20.4, y: 5.8, z: 1, dx: 24, dy: -36, anchor: "start", title: "완료", sub: "DONE" },
+      done: {
+        x: done.x + done.w - 0.3,
+        y: done.y + 0.3,
+        z: 1,
+        dx: 26,
+        dy: -30,
+        anchor: "start",
+        title: "완료",
+        sub: "DONE",
+      },
     },
   };
 }
@@ -258,7 +308,7 @@ function devices(L: Layout, chipSub: string): Devices {
     cls: "cpu-chip-device",
   });
   const io = ssd({ ...L.io, label: "I/O" });
-  const done = bin({ ...L.done, capacity: 4, label: "DONE" });
+  const done = bin({ ...L.done, capacity: Math.max(4, SLOTS), label: "DONE" });
   const n = L.ready.slots;
   // The rail's head is its last pocket; number the pockets from the head
   // (1 = next to run) on the face below each pocket, beside its LED.
@@ -380,7 +430,7 @@ function staticSvg(
   const tokens = processes
     .map(
       (p) =>
-        `<g class="cpu-token" data-process="${p.id}" role="button" tabindex="0" aria-label="${p.id} ${p.name} 작업 상세 보기">${token({ id: p.id, color: COLORS[p.id] })}</g>`,
+        `<g class="cpu-token" data-process="${p.id}" role="button" tabindex="0" aria-label="${p.id} ${p.name} 작업 상세 보기">${token({ id: p.id, color: colorOf(p.id) })}</g>`,
     )
     .join("");
   const c = L.callouts;
@@ -446,6 +496,7 @@ export function createSchedulerScene(
   processes: ProcessDef[],
   onMove: (frame: Frame, view: SceneView, move: SimEvent) => void,
 ): SchedulerScene {
+  SLOTS = Math.max(3, processes.length);
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
   let L!: Layout;
   let D!: Devices;

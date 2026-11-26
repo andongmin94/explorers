@@ -234,7 +234,12 @@ export class Playback {
     this.emit();
   }
   cycleSpeed() {
-    this.speed = SPEEDS[this.speed] ?? 1;
+    this.setSpeed(SPEEDS[this.speed] ?? 1);
+  }
+  /** Playback speed: 0.5, 1 or 2 (the deck's speed segments). */
+  setSpeed(speed: number) {
+    if (speed === this.speed) return;
+    this.speed = speed;
     this.scene?.setSpeed(this.speed);
     this.schedule();
     this.emit();

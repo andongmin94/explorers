@@ -103,4 +103,11 @@ test.describe("Git lessons", () => {
     await recall.click();
     await expect(page.getByText(/^맞았습니다\./)).toBeVisible();
   });
+
+  test("a 핵심 장면 shows its 오개념 note in the 해설", async ({ page }) => {
+    await page.goto("/git/?lesson=auto-merge&step=4");
+    const note = page.locator('[data-misconception="commit-is-diff"]');
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("4줄 전체");
+  });
 });

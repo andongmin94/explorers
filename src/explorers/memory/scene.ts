@@ -32,20 +32,29 @@ import {
 } from "@/lib/iso/kit.ts";
 import type { Algorithm, Frame, SelectReason, Step } from "./types.ts";
 
-const PAGES = ["A", "B", "C", "D", "E"];
+// The pages on the SSD and in the page table: A–E in the lessons, the
+// custom input's own pages (A–H) in 직접 실험 (setPages()).
+let PAGES = ["A", "B", "C", "D", "E"];
 export const pageColor = (page: string) => `var(--page-${page.toLowerCase()})`;
 
 /* ---------- World layout (iso units) ----------
    Two rows on screen: page table and SSD at the back, CPU and RAM in front,
    so the cluster is about as wide as the stage. The cables close the loop. */
 const CPU = { x: 3.55, y: 11.05, size: 4.4 };
-const TABLE = { x: -3.95, y: 2.35, w: 5.4, d: 5.8 };
+let TABLE = { x: -3.95, y: 2.35, w: 5.4, d: 5.8 };
 const RAM_X = 8.4;
 const RAM_Y = 4.3;
 const TRAY_Y = RAM_Y + 1.75;
 const TRAY_D = 2.6;
 const TRAY_H = 0.9;
-const DISK = { x: 1.45, y: -3.4, w: 8.6, d: 3.3 };
+let DISK = { x: 1.45, y: -3.4, w: 8.6, d: 3.3 };
+/** Size the page table (one row per page) and the SSD (one original per page). */
+function setPages(pages: readonly string[]) {
+  PAGES = [...pages];
+  const n = PAGES.length;
+  TABLE = { ...TABLE, d: Math.max(3.8, 0.9 + n * 0.98) };
+  DISK = { ...DISK, w: Math.max(8.6, 2.2 + (n - 1) * 1.6) };
+}
 const TOKEN = 1.3;
 
 // The RAM grows to the right with the frame count; the stick's chips line up
@@ -80,10 +89,10 @@ const entryPoint = (page: string, lift = 0): Point => {
 };
 
 // Cable routes along world axes, from device edge to device edge.
-const LOOKUP_X = TABLE.x + 3.95;
+const LOOKUP_X = -3.95 + 3.95;
 const LOOKUP_Y = CPU.y + 1.0;
-const FAULT_X = DISK.x + 2.1;
-const FAULT_Y = TABLE.y + 0.9;
+const FAULT_X = 1.45 + 2.1;
+const FAULT_Y = 2.35 + 0.9;
 const READ_X = CPU.x + 2.9;
 const READ_Y = TRAY_Y + 1.3;
 const LOAD_X = () => DISK.x + DISK.w - 1.0;
@@ -162,7 +171,7 @@ const NOTES = (): Note[] => [
     dx: 40,
     dy: -30,
     title: "SSD",
-    sub: "원본 A–E",
+    sub: `원본 ${PAGES[0]}–${PAGES.at(-1)}`,
     anchor: "start",
   },
 ];
@@ -232,7 +241,13 @@ const polygon = (corners: number[][], z: number, cls: string, extra = "") =>
 
 function staticScene() {
   const cpu = chip({ ...CPU, label: "" });
-  table = tableModule({ ...TABLE, rows: 5, cols: 2, headers: ["", ""], cls: "mem-table" });
+  table = tableModule({
+    ...TABLE,
+    rows: PAGES.length,
+    cols: 2,
+    headers: ["", ""],
+    cls: "mem-table",
+  });
   const stick = ramStick({
     x: RAM_X,
     y: RAM_Y,
@@ -475,9 +490,11 @@ export function createMemoryScene(
   {
     onPhase = () => {},
     frameCount = 3,
-  }: { onPhase?: (phase: Phase) => void; frameCount?: number } = {},
+    pages = ["A", "B", "C", "D", "E"],
+  }: { onPhase?: (phase: Phase) => void; frameCount?: number; pages?: readonly string[] } = {},
 ): MemoryScene {
   setFrameCount(frameCount);
+  setPages(pages);
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   const narrow = matchMedia("(max-width: 759px)");
   let svg!: SVGSVGElement;

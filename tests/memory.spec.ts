@@ -126,3 +126,40 @@ test.describe("with motion", () => {
     expect(errors).toEqual([]);
   });
 });
+
+test("오개념 바로잡기: the note shows at its 핵심 장면 and again in 정리", async ({ page }) => {
+  await page.goto("/memory/");
+  await page.locator('#record-history button[data-seek="6"]').click();
+  const note = page.locator('#now-pages [data-misconception="fifo-recent"]');
+  await expect(note).toBeAttached();
+  await expect(note).toContainText("LRU의 성질");
+  // Not at an access that is no 핵심 장면.
+  await page.locator('#record-history button[data-seek="7"]').click();
+  await expect(page.locator("#now-pages [data-misconception]")).toHaveCount(0);
+});
+
+test("직접 실험: runs the learner's input and keeps it in the URL", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/memory/?lesson=custom");
+  await page.locator('header [data-action="custom"]').click();
+  const sheet = page.getByRole("dialog");
+  const refs = sheet.locator('[data-custom="refs"]');
+  await refs.fill("A B Z");
+  await expect(sheet.getByRole("alert")).toContainText("A부터 H까지만");
+  await expect(sheet.locator('[data-action="custom-run"]')).toBeDisabled();
+  await refs.fill("ABCDHGAB");
+  await sheet.locator('[data-custom="policy-1"] [data-policy="opt"]').click();
+  await sheet.locator('[data-action="custom-run"]').click();
+  await expect(page).toHaveURL(/refs=ABCDHGAB/);
+  await expect(page).toHaveURL(/policies=fifo%2Copt|policies=fifo,opt/);
+  await expect(page.locator("#lcd-step")).toContainText("8");
+  await expect(page.locator('[data-mode="opt"]')).toBeAttached();
+  await expect(page.locator("#memory-scene [data-original]")).toHaveCount(6);
+  const next = page.locator('[data-action="next"]');
+  while (await next.isEnabled()) await next.click();
+  await expect(page.locator("#now-pages")).toContainText("확인 문제");
+  // A broken shared link runs the defaults and says why.
+  await page.goto("/memory/?lesson=custom&refs=XYZ&frames=3&policies=fifo,lru");
+  await expect(page.getByRole("dialog")).toContainText("기본 조건으로 실행했습니다");
+  expect(errors).toEqual([]);
+});

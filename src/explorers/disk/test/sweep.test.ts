@@ -107,10 +107,10 @@ test("worst wait under a steady stream: SCAN depends on the position, C-SCAN doe
   assert.equal(worstWait("cscan", 50, { countReturn: false }), 199);
 });
 
-test("lessons: three, the first is FCFS vs SSTF with its old progress totals", () => {
+test("lessons: three scenarios then 직접 실험; the first is FCFS vs SSTF with its old progress totals", () => {
   assert.deepEqual(
     LESSONS.map((l) => l.id),
-    ["fcfs-sstf", "scan-look", "cscan"],
+    ["fcfs-sstf", "scan-look", "cscan", "custom"],
   );
   const one = buildLesson("fcfs-sstf");
   assert.deepEqual(one.totals, { scenes: 9, recall: 3 });

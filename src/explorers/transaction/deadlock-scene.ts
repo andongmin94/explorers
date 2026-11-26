@@ -17,6 +17,7 @@ import {
 import {
   COLORS,
   PARK,
+  LAPTOPS,
   ROUTES,
   createMoves,
   createRunner,
@@ -44,16 +45,19 @@ const STATUS = {
 const other = (id: ClientId): ClientId => (id === "T1" ? "T2" : "T1");
 // Wait-for edges run on the floor in front of the database, laptop to
 // laptop: T1's edge points at T2, T2's (a little further forward) at T1.
+const { T1: L1, T2: L2 } = LAPTOPS;
 const EDGES: Record<ClientId, Point[]> = {
   T1: [
-    [2.4, 16.0],
-    [16.4, 1.6],
+    [L1.x + 3.6, L1.y + 5.0],
+    [L2.x + 5.4, L2.y + 2.8],
   ],
   T2: [
-    [17.0, 2.2],
-    [3.0, 16.6],
+    [L2.x + 6.0, L2.y + 3.4],
+    [L1.x + 4.2, L1.y + 5.6],
   ],
 };
+// The WAIT-FOR caption sits on the floor between the two edges.
+const MARK = [(L1.x + L2.x) / 2 + 7.3, (L1.y + L2.y) / 2 + 5.1];
 
 const floorMarks = `
   ${(Object.entries(EDGES) as [ClientId, Point[]][])
@@ -62,7 +66,7 @@ const floorMarks = `
         `<g class="tx-edge" data-edge="${id}" style="--edge:${COLORS[id]}">${floorPath(route, { gap: 0.6 })}</g>`,
     )
     .join("")}
-  ${topText({ x: 12.2, y: 10.0, z: 0.01, text: "WAIT-FOR", size: 13, weight: 700, fill: "var(--label-2)", cls: "tx-floor-mark" })}
+  ${topText({ x: MARK[0], y: MARK[1], z: 0.01, text: "WAIT-FOR", size: 13, weight: 700, fill: "var(--label-2)", cls: "tx-floor-mark" })}
 `;
 
 function completedTitle(step: DeadlockStep) {
@@ -105,7 +109,12 @@ export function createDeadlockScene(
     ],
     valueHeader: "STOCK",
     floorMarks,
-    framePoints: [...EDGES.T1, ...EDGES.T2, [14.4, 10.6], [10.4, 10.6]],
+    framePoints: [
+      ...EDGES.T1,
+      ...EDGES.T2,
+      [MARK[0] + 2.2, MARK[1] + 0.6],
+      [MARK[0] - 1.8, MARK[1] + 0.6],
+    ],
     screens: ["HOLD", "WAIT"],
     dbSub: "ROWS A · B",
   });

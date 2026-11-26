@@ -5,10 +5,9 @@ import { ComparisonSheet, SheetSection } from "@/components/learning/comparison.
 import { Note, Readout } from "@/components/ui/content.tsx";
 import { SheetTitle } from "@/components/ui/sheet.tsx";
 import { Index, Label, Text, Title } from "@/components/ui/typography.tsx";
-import { INITIAL_HEAD, routePoints } from "./engine.ts";
+import { routePoints, ticksFor } from "./engine.ts";
 import { fix, ro } from "./format.ts";
 import type { Lesson } from "./lessons.ts";
-import { N } from "./playback.ts";
 import type { Algorithm, Run } from "./types.ts";
 
 export function DiskComparison({
@@ -37,7 +36,7 @@ export function DiskComparison({
         <>
           <SheetSection>
             <Label>
-              요청 {N}개 · 시작 {INITIAL_HEAD}
+              요청 {lesson.input.requests.length}개 · 시작 {lesson.input.head}
             </Label>
             <SheetTitle render={<Title id="comparison-title" className="mt-1.5" />}>
               {fix(lesson.lessonAt(lesson.algorithms[0], 0).title)}
@@ -89,9 +88,9 @@ function Method({
         {run.total}
         <small>CYL</small>
       </Readout>
-      <MiniPath run={run} />
+      <MiniPath run={run} max={lesson.input.max} />
       <p className="m-0 text-caption text-balance text-label-2 tabular-nums">
-        {INITIAL_HEAD} → {order.join(" → ")}
+        {lesson.input.head} → {order.join(" → ")}
       </p>
       <Text className="min-h-[3.4em]">
         {fix(`${lesson.compareStory[name]} ${lesson.compareExtra(name)}`)}
@@ -101,11 +100,12 @@ function Method({
 }
 
 /** The same seek graph as the records screen: order across, cylinder down. */
-function MiniPath({ run }: { run: Run }) {
+function MiniPath({ run, max }: { run: Run; max: number }) {
   const w = 300;
   const h = 132;
-  const x = (k: number) => 10 + k * ((w - 20) / N);
-  const y = (c: number) => 8 + (c / 199) * (h - 16);
+  const n = run.steps.length - 1;
+  const x = (k: number) => 10 + k * ((w - 20) / n);
+  const y = (c: number) => 8 + (c / max) * (h - 16);
   const pts = routePoints(run.steps)
     .map(([c, k]) => `${x(k).toFixed(1)},${y(c).toFixed(1)}`)
     .join(" ");
@@ -113,7 +113,7 @@ function MiniPath({ run }: { run: Run }) {
     <div className="w-full tabular-nums">
       <div className="mb-1.5 flex min-h-[22px] items-center gap-3">
         <Label>헤드 이동 경로</Label>
-        <Label className="ms-auto font-medium">실린더 0 → 199 ↓</Label>
+        <Label className="ms-auto font-medium">실린더 0 → {max} ↓</Label>
       </div>
       <svg
         className="block h-auto w-full overflow-visible"
@@ -122,7 +122,7 @@ function MiniPath({ run }: { run: Run }) {
         role="img"
         aria-label={`${run.order.join(", ")} 순서의 헤드 이동 경로`}
       >
-        {[0, 50, 100, 150, 199].map((c) => (
+        {ticksFor(max).map((c) => (
           <line
             key={c}
             x1="4"

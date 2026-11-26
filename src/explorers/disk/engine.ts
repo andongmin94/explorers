@@ -240,3 +240,41 @@ export function scan(
   const run = simulate("scan", requests, initialHead, { direction, max });
   return { order: run.order, total: run.total };
 }
+
+/**
+ * The shortest total head movement that serves a batch on a line: go first to
+ * the nearer of the two extreme requests, then sweep to the other one (no
+ * disk edge needed). Any order is at least this long (every request between
+ * the extremes is passed on the way).
+ */
+export function shortestTotal(requests: readonly number[], head: number) {
+  if (!requests.length) return 0;
+  const lo = Math.min(head, ...requests);
+  const hi = Math.max(head, ...requests);
+  return hi - lo + Math.min(head - lo, hi - head);
+}
+
+/** Requests still pending that the head passes over (strictly between) during a step. */
+export function passedOver(step: Step) {
+  if (!step.request) return [];
+  const legs = step.path.slice(1).map((c, i) => [step.path[i], c] as const);
+  return step.before.pending.filter(
+    (r) =>
+      r.id !== step.request!.id &&
+      legs.some(
+        ([a, b], i) =>
+          i !== step.jump && r.cylinder > Math.min(a, b) && r.cylinder < Math.max(a, b),
+      ),
+  );
+}
+
+/** Scale ticks for cylinders 0–max: about five, at round steps, ending at max. */
+export function ticksFor(max: number): number[] {
+  const raw = max / 4;
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map((k) => k * p).find((s) => s >= raw * 0.85) ?? 10 * p;
+  const out: number[] = [];
+  for (let c = 0; c < max - step * 0.45; c += step) out.push(Math.round(c));
+  out.push(max);
+  return out;
+}

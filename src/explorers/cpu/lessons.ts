@@ -1,8 +1,10 @@
 // The CPU explorer's lessons, listed in the lesson rail (shared/lesson-rail.js).
 // Each lesson is one scenario: its jobs, the two methods it compares, and its
 // content (question, 핵심 장면, predictions, comparison, 정리). Lesson 01 uses
-// the RR / FCFS content in lesson.js; the others use policy-lesson.js.
+// the RR / FCFS content in lesson.js; the others use policy-lesson.js. The
+// last one, 직접 실험, runs the learner's own jobs (custom.ts) with generic text.
 // Source: OSTEP ch. 7 (7.3 FIFO, 7.4 SJF, 7.5 STCF, 7.6 RR).
+import { DEFAULT_CUSTOM, MAX_JOBS, processesOf, type CustomConfig } from "./custom.ts";
 import { DEFAULT_PROCESSES, simulate } from "./engine.ts";
 import {
   buildMilestones,
@@ -16,11 +18,13 @@ import {
   stepNotes,
   sweepSummary,
 } from "./lesson.ts";
+import { customMisconceptions, rrFcfs, sjfFcfs, srtfSjf } from "./misconceptions.ts";
 import * as policy from "./policy-lesson.ts";
 import { fmt, methodName, waitingLine, waitsLine } from "./policy-lesson.ts";
+import { recipe } from "./format.ts";
 import { josa } from "./josa.ts";
 import type { RailLesson } from "@/lib/lesson-rail.ts";
-import type { RecallQuestion } from "@/lib/lesson-kit.ts";
+import { LABELS, type Misconception, type RecallQuestion } from "@/lib/lesson-kit.ts";
 import type {
   Algorithm,
   Chapter,
@@ -55,6 +59,8 @@ export interface LessonContent {
   recapPoints(result: SimResult, runs: Runs): string[];
   recall(runs: Runs): RecallQuestion[];
   compare(runs: Runs, context?: { quantum: number; processes: ProcessDef[] }): ComparisonCopy;
+  /** 오개념 바로잡기 for the run on screen (its scenes depend on the method and quantum). */
+  misconceptions(result: SimResult, runs: Runs): Misconception[];
   rules: string[];
   finishKey?: (result: SimResult) => string;
 }
@@ -138,6 +144,7 @@ const rrLesson: LessonContent = {
       extra: sweepSummary(sweep, Math.max(...processes.flatMap((p) => p.cpu)), mark),
     };
   },
+  misconceptions: (result, runs) => rrFcfs(result, buildMilestones(result), runs),
   rules: RR_RULES,
 };
 
@@ -231,6 +238,7 @@ const sjfLesson: LessonContent = {
       ],
     },
   ],
+  misconceptions: (result, runs) => sjfFcfs(result, policy.milestones(result), runs),
   compare({ fcfs, sjf }) {
     return {
       head: waitingLine(fcfs, sjf),
@@ -330,6 +338,7 @@ const srtfLesson: LessonContent = {
       ],
     },
   ],
+  misconceptions: (result, runs) => srtfSjf(result, policy.milestones(result), runs),
   compare({ sjf, srtf }) {
     const first = srtf.segments.find((s) => s.reason === "preempt") as {
       id: string;
@@ -353,6 +362,165 @@ const srtfLesson: LessonContent = {
     "문맥 교환 비용은 0 ms로 단순화했습니다.",
   ],
 };
+
+/* ---------- 04 · 직접 실험 ---------- */
+
+const CUSTOM_RULE: Record<Algorithm, string> = {
+  rr: "라운드 로빈은 준비 큐 맨 앞 작업에 할당량만큼씩 돌아가며 CPU를 줍니다.",
+  fcfs: "FCFS는 먼저 줄을 선 작업이 CPU를 놓을 때까지 실행합니다.",
+  sjf: "SJF는 CPU가 빌 때 남은 CPU 구간이 가장 짧은 작업을 고릅니다.",
+  srtf: "SRTF는 작업이 준비 큐에 들어올 때마다 남은 시간이 가장 짧은 작업을 실행합니다.",
+};
+
+/**
+ * Content for the learner's own jobs. It reuses the policy lessons' generic
+ * scenes, explanations and predictions (policy-lesson.ts handles I/O, idle
+ * CPU and every method); the 정리, recall, comparison and rules are built
+ * from the two runs, so every sentence holds for any input.
+ */
+function customContent(config: CustomConfig): LessonContent {
+  const [a, b] = config.methods;
+  const processes = processesOf(config);
+  const hasIo = processes.some((p) => p.io.length);
+  const name = methodName;
+  const avg = (run: SimResult) =>
+    `평균 대기 ${fmt(run.stats.averageWaiting)} ms · 평균 최초 응답 ${fmt(run.stats.averageResponse)} ms · 평균 반환 ${fmt(run.stats.averageTurnaround)} ms`;
+  const scenes = (result: SimResult) => policy.compactMilestones(policy.milestones(result));
+  const spec = {
+    scenes,
+    finishKey: (result: SimResult) =>
+      `같은 작업을 ${josa(name(result.algorithm === a ? b : a), "로")}도 실행해 비교해 보세요. 조건 바꾸기에서 작업을 바꿔 다시 실험할 수 있습니다.`,
+  };
+  const content: LessonContent = {
+    ...policy,
+    intro: (result) => ({
+      eyebrow: METHODS[result.algorithm].tag(result.quantum),
+      title: "내가 만든 작업에서는 어느 방식이 더 나을까요?",
+      body: `작업 ${processes.length}개가 CPU 하나를 나눠 씁니다. ${processes.map((p) => `${p.id} ${p.arrival} ms 도착 · ${recipe(p)}`).join(", ")}. ${CUSTOM_RULE[result.algorithm]}`,
+      goal: "학습 목표: 직접 만든 작업으로 두 CPU 배정 방식을 돌려 보고, 대기·응답·반환 시간이 방식과 작업에 따라 어떻게 달라지는지 설명합니다.",
+      terms: [
+        ["최초 응답", "도착 → 처음 CPU를 받은 시각"],
+        ["반환 시간", "도착 → 작업 완료 시각"],
+        ["대기 시간", "준비 큐에서 CPU를 기다린 시간"],
+      ],
+    }),
+    milestones: scenes,
+    chapter: (frame, result) => policy.chapter(frame, result, spec),
+    stepNotes: (frame, result) => policy.stepNotes(frame, result, spec),
+    finishKey: spec.finishKey,
+    recapPoints: (_result, runs) => [
+      `${name(a)}: ${avg(runs[a])}.`,
+      `${name(b)}: ${avg(runs[b])}.`,
+      `전체 완료는 ${name(a)} ${runs[a].stats.makespan} ms, ${name(b)} ${runs[b].stats.makespan} ms이고, 문맥 교환은 ${name(a)} ${runs[a].stats.contextSwitches}회, ${name(b)} ${runs[b].stats.contextSwitches}회입니다. 이 모델은 문맥 교환 비용을 0 ms로 둡니다.`,
+    ],
+    recall: (runs) => {
+      const [ra, rb] = [runs[a], runs[b]];
+      const [wa, wb] = [ra.stats.averageWaiting, rb.stats.averageWaiting];
+      const better = wa === wb ? null : wa < wb ? ra : rb;
+      const other = (run: SimResult) => (run === ra ? rb : ra);
+      return [
+        {
+          id: "custom-wait",
+          question: "이 작업들에서 평균 대기 시간이 더 짧았던 방식은 무엇일까요?",
+          answer: better ? name(better.algorithm) : "두 방식이 같다",
+          choices: [
+            ...[ra, rb].map((run) => ({
+              label: name(run.algorithm),
+              correct: better === run,
+              why:
+                better === run
+                  ? `${name(run.algorithm)} ${fmt(run.stats.averageWaiting)} ms, ${name(other(run).algorithm)} ${fmt(other(run).stats.averageWaiting)} ms였습니다.`
+                  : `${name(run.algorithm)}의 평균 대기는 ${fmt(run.stats.averageWaiting)} ms로 ${better ? `${name(better.algorithm)}(${fmt(better.stats.averageWaiting)} ms)보다 깁니다.` : "다른 방식과 같습니다."}`,
+            })),
+            {
+              label: "두 방식이 같다",
+              correct: better === null,
+              why:
+                better === null
+                  ? `두 방식 모두 평균 대기 ${fmt(wa)} ms였습니다.`
+                  : `평균 대기는 ${name(a)} ${fmt(wa)} ms, ${name(b)} ${fmt(wb)} ms로 다릅니다.`,
+            },
+          ],
+        },
+        {
+          id: "turnaround",
+          question: "반환 시간은 무엇을 잰 값일까요?",
+          answer: "도착부터 완료까지",
+          choices: [
+            {
+              label: "도착부터 작업이 완료될 때까지의 시간",
+              correct: true,
+              why: `CPU 실행·준비 큐 대기${hasIo ? "·입출력 대기" : ""}를 모두 포함합니다. 이 실험의 평균 반환 시간은 ${name(a)} ${fmt(ra.stats.averageTurnaround)} ms, ${name(b)} ${fmt(rb.stats.averageTurnaround)} ms입니다.`,
+            },
+            {
+              label: "도착부터 처음 CPU를 받을 때까지의 시간",
+              why: "그것은 최초 응답 시간입니다. 처음 CPU를 받아도 작업이 끝난 것은 아닙니다.",
+            },
+            {
+              label: "준비 큐에서 CPU를 기다린 시간",
+              why: "그것은 대기 시간입니다. 반환 시간은 여기에 CPU 실행 시간과 입출력 시간을 더한 값입니다.",
+            },
+          ],
+        },
+      ];
+    },
+    compare(runs, context) {
+      const [ra, rb] = [runs[a], runs[b]];
+      const copy: ComparisonCopy = {
+        head: waitingLine(ra, rb),
+        body: `평균 반환 시간은 ${name(a)} ${fmt(ra.stats.averageTurnaround)} ms, ${name(b)} ${fmt(rb.stats.averageTurnaround)} ms이고, 평균 최초 응답은 ${name(a)} ${fmt(ra.stats.averageResponse)} ms, ${name(b)} ${fmt(rb.stats.averageResponse)} ms입니다. 작업별 대기(${name(a)}→${name(b)}): ${waitsLine(ra, rb)}.`,
+        caveat: `전체 완료 시각은 ${name(a)} ${ra.stats.makespan} ms, ${name(b)} ${rb.stats.makespan} ms이고, 문맥 교환은 ${name(a)} ${ra.stats.contextSwitches}회, ${name(b)} ${rb.stats.contextSwitches}회입니다. 이 모델은 전환 비용을 0 ms로 둡니다.`,
+      };
+      if (config.methods.includes("rr") && context) {
+        const sweep = quantumSweep(simulate, processes);
+        const mark = (q: number, value: number) =>
+          q === context.quantum ? `<b>${value}</b>` : value;
+        copy.extra = sweepSummary(sweep, Math.max(...processes.flatMap((p) => p.cpu)), mark);
+      }
+      return copy;
+    },
+    misconceptions: (result, runs) =>
+      customMisconceptions(result, scenes(result), runs, config.methods),
+    rules: [
+      "CPU는 하나이며 한 번에 한 작업만 실행합니다.",
+      ...(hasIo
+        ? [
+            "작업은 CPU 구간과 입출력을 번갈아 거칩니다. 입출력은 CPU와 따로 진행되고, 여러 작업의 입출력이 겹칠 수 있습니다.",
+          ]
+        : []),
+      "같은 시각에는 도착·입출력 복귀를 P1부터 입력 순서로 먼저 큐에 넣고, 선점된 작업을 맨 뒤에 넣습니다.",
+      ...(config.methods.includes("rr")
+        ? [
+            `라운드 로빈의 할당량은 ${config.quantum} ms입니다. 도착과 입출력 복귀는 실행 중인 작업을 선점하지 않습니다.`,
+          ]
+        : []),
+      ...(config.methods.some((m) => m === "sjf" || m === "srtf")
+        ? [
+            "SJF·SRTF는 CPU 구간 길이를 미리 안다고 가정합니다. 길이가 같으면 먼저 줄을 선 작업이 우선입니다.",
+          ]
+        : []),
+      `대기 시간은 준비 큐에서 기다린 시간입니다(반환 − CPU${hasIo ? " − 입출력" : ""}). 문맥 교환 비용은 0 ms로 단순화했습니다.`,
+      `조건 바꾸기에서 작업(${MAX_JOBS}개까지)·구간 길이·할당량·비교할 방식을 바꿀 수 있습니다.`,
+    ],
+  };
+  return content;
+}
+
+/** 직접 실험: the learner's jobs from the URL (the rail entry uses the defaults). */
+export function customLesson(config: CustomConfig = DEFAULT_CUSTOM): Lesson {
+  const processes = processesOf(config);
+  return {
+    id: "custom",
+    name: LABELS.custom,
+    sub: "내 작업으로 비교",
+    title: `직접 만든 작업 ${processes.length}개`,
+    question: "내가 만든 작업에서는 어느 방식이 더 나을까요?",
+    methods: config.methods,
+    quantum: config.methods.includes("rr") ? config.quantum : null,
+    processes,
+    content: customContent(config),
+  };
+}
 
 /**
  * id, name, sub: the rail. title: the header context. methods: the two
@@ -393,6 +561,7 @@ export const LESSONS: Lesson[] = [
     processes: SRTF_JOBS,
     content: srtfLesson,
   },
+  customLesson(),
 ];
 
 /** Both methods of a lesson on the same jobs: { [algorithm]: result }. */

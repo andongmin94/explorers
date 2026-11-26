@@ -15,6 +15,8 @@ export function DiskScene({ playback, busy }: { playback: Playback; busy: boolea
     const scene = createDiskScene(host.current!, {
       onPhase: playback.onPhase,
       onHead: playback.onHead,
+      onTravel: playback.onTravel,
+      input: playback.lesson.input,
     });
     playback.attachScene(scene);
     return () => {

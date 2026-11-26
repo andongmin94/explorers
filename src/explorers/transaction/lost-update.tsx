@@ -5,6 +5,8 @@ import { useRef } from "react";
 import { Table, Td, Th } from "@/components/ui/table.tsx";
 import { Label, Text } from "@/components/ui/typography.tsx";
 import { cn } from "@/lib/cn.ts";
+import type { Misconception } from "@/lib/lesson-kit.ts";
+import { lostUpdateMisconceptions } from "./misconceptions.ts";
 import { simulate, type Mode, type Run, type State, type Step } from "./engine.ts";
 import {
   MODEL_NOTES,
@@ -35,6 +37,10 @@ import type { PhaseReport } from "./stage.ts";
 const runs: Record<Mode, Run> = {
   naive: simulate({ mode: "naive" }),
   locked: simulate({ mode: "locked" }),
+};
+const MISCONCEPTIONS: Record<Mode, Misconception[]> = {
+  naive: lostUpdateMisconceptions(runs.naive),
+  locked: lostUpdateMisconceptions(runs.locked),
 };
 const ACTIONS: Record<Step["action"], string> = {
   initial: "시작 전",
@@ -300,6 +306,7 @@ export const lostUpdatePage: TxPage = {
     legend: [...SCENE_LEGEND],
   },
   recap: { points: [...RECAP.points], recall: [...RECAP.recall] },
+  misconceptions: (mode) => MISCONCEPTIONS[mode as Mode],
   sources: [...SOURCES],
   resultsTab: "재고 결과",
   Timeline,

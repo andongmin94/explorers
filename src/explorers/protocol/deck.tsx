@@ -1,6 +1,7 @@
-// The deck: every playback control. Transport keys, the speed selector, one
-// event at a time, the guided switch (핵심 장면에서 멈추기) and a seek slider
-// over the lesson's steps (0 = overview).
+// The deck: every playback control. Primary: the transport (reset · previous
+// step · play · next step). Secondary, under a hairline and quieter: the seek
+// slider over the lesson's steps (0 = overview) with where it is, the guided
+// switch (핵심 장면에서 멈추기), one event at a time and the speed.
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -10,7 +11,7 @@ import {
   SkipBackIcon,
 } from "lucide-react";
 
-import { Deck, Field } from "@/components/shell/console.tsx";
+import { Deck } from "@/components/shell/console.tsx";
 import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Segment, SegmentedControl } from "@/components/ui/segmented-control.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
@@ -91,74 +92,78 @@ export function ProtocolDeck({
           <ChevronRightIcon aria-hidden="true" />
         </Button>
       </ButtonGroup>
-      <Field>
-        <Label id="speed-label">{translate("Playback speed")}</Label>
-        <SegmentedControl
-          aria-labelledby="speed-label"
-          value={String(snap.speed)}
-          onValueChange={(speed) => controller.setSpeed(Number(speed))}
-        >
-          {SPEEDS.map((speed) => (
-            <Segment
-              key={speed}
-              value={String(speed)}
-              data-speed={speed}
-              className="px-2.5 tabular-nums phone:min-h-[42px]"
-            >
-              {speed}×
-            </Segment>
-          ))}
-        </SegmentedControl>
-      </Field>
-      <Field>
-        <Label>한 사건씩</Label>
-        <ButtonGroup>
-          <Button
-            variant="plain"
-            data-action="step"
-            title="사건 하나만 진행"
-            disabled={done}
-            onClick={controller.stepEvent}
-          >
-            다음 사건
-          </Button>
-        </ButtonGroup>
-      </Field>
-      <div className="flex min-h-6 items-center self-end pb-1">
-        <Switch
-          data-action="guided"
-          title="예측이 있는 패킷 앞과 끝에서 멈춥니다"
-          checked={snap.guided}
-          onCheckedChange={(on) => controller.setGuided(on)}
-        >
-          {LABELS.guided}
-        </Switch>
-      </div>
-      {/* The slider handles its own arrows; they must not also move the lesson. */}
-      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- only stops key propagation from the slider */}
+      {/* Secondary: where in the lesson, how it plays. Quieter than the transport. */}
       <div
-        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a labelled group of the seek slider and its ends
-        role="group"
-        aria-label="단계 이동"
-        className="grid min-w-0 flex-[1_1_100%] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2.5"
-        onKeyDown={(event) => event.stopPropagation()}
-        onKeyUp={(event) => event.stopPropagation()}
+        data-deck="secondary"
+        className="grid w-full min-w-0 flex-[1_1_100%] gap-2 border-t border-separator-soft pt-2.5 console-short:gap-1.5 console-short:pt-2 min-[760px]:max-[1099px]:flex min-[760px]:max-[1099px]:flex-wrap min-[760px]:max-[1099px]:items-center min-[760px]:max-[1099px]:gap-x-8"
       >
-        <Label>{translate("OVERVIEW")}</Label>
-        <Slider
-          className="seek"
-          min={0}
-          max={max}
-          step={1}
-          value={value}
-          thumbLabel="단계 이동"
-          thumbProps={{
-            "aria-valuetext":
-              value === 0 ? translate("OVERVIEW") : `${Math.min(value, max)}단계 / ${max}`,
-          }}
-          onValueChange={(next) => controller.seek(next as number)}
-        />
-        <Label>{max}단계</Label>
+        {/* The slider handles its own arrows; they must not also move the lesson. */}
+        {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- only stops key propagation from the slider */}
+        <div
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- a labelled group of the seek slider and its value
+          role="group"
+          aria-labelledby="seek-label"
+          className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 min-[760px]:max-[1099px]:basis-full"
+          onKeyDown={(event) => event.stopPropagation()}
+          onKeyUp={(event) => event.stopPropagation()}
+        >
+          <Label id="seek-label">단계 이동</Label>
+          <Slider
+            className="seek"
+            min={0}
+            max={max}
+            step={1}
+            value={value}
+            thumbLabel="단계 이동"
+            thumbProps={{
+              "aria-valuetext":
+                value === 0 ? translate("OVERVIEW") : `${Math.min(value, max)}단계 / ${max}`,
+            }}
+            onValueChange={(next) => controller.seek(next as number)}
+          />
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 min-[760px]:max-[1099px]:gap-x-4">
+          <Switch
+            data-action="guided"
+            title="예측이 있는 패킷 앞과 끝에서 멈춥니다"
+            checked={snap.guided}
+            onCheckedChange={(on) => controller.setGuided(on)}
+          >
+            {LABELS.guided}
+          </Switch>
+          <ButtonGroup aria-label="한 사건씩" className="flex-none">
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="step"
+              title="사건 하나만 진행"
+              disabled={done}
+              onClick={controller.stepEvent}
+            >
+              사건 하나씩
+              <ChevronRightIcon aria-hidden="true" />
+            </Button>
+          </ButtonGroup>
+        </div>
+        <div className="flex min-w-0 items-center justify-between gap-3 min-[760px]:max-[1099px]:justify-start">
+          <Label id="speed-label">{translate("Playback speed")}</Label>
+          <SegmentedControl
+            aria-labelledby="speed-label"
+            value={String(snap.speed)}
+            onValueChange={(speed) => controller.setSpeed(Number(speed))}
+          >
+            {SPEEDS.map((speed) => (
+              <Segment
+                key={speed}
+                value={String(speed)}
+                data-speed={speed}
+                className="min-h-[22px] px-2 text-caption tabular-nums phone:min-h-[42px]"
+              >
+                {speed}×
+              </Segment>
+            ))}
+          </SegmentedControl>
+        </div>
       </div>
     </Deck>
   );

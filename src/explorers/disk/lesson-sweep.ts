@@ -54,7 +54,7 @@ export const CSCAN_NOTE =
 export function sweepLesson(
   kind: "scan-look" | "cscan",
   runs: Record<string, Run>,
-): Omit<LessonApi, "waits"> {
+): Omit<LessonApi, "waits" | "misconceptions"> {
   const [a, b]: Algorithm[] = kind === "scan-look" ? ["scan", "look"] : ["scan", "cscan"];
   const dir = runs.scan.steps[0].state.direction;
   const side = SIDE[dir];

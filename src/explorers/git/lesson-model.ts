@@ -4,6 +4,7 @@
 // so every lesson is driven the same way. Lesson 03 (lesson.ts) predates this
 // helper and is adapted in lessons.ts.
 import { LABELS, type RecallQuestion } from "@/lib/lesson-kit.ts";
+import type { GitMisconception } from "./misconceptions.ts";
 import type { CompareLine, GitState, Run, Step, Versions, ContentKind } from "./types.ts";
 
 /** Stage-foot status lines shared by the lessons. */
@@ -152,7 +153,12 @@ export interface Lesson {
   commitColumn: { label: string; value: (content: string) => string };
   comparison?: MethodsComparison | BasesComparison;
   result?: Record<string, { headline: string; text: string }>;
+  /** 오개념 바로잡기: shown at their 핵심 장면 and listed in 정리 (misconceptions.ts). */
+  misconceptions: GitMisconception[];
 }
+
+/** A lesson before its misconceptions are attached (they are read from its runs). */
+export type LessonBase = Omit<Lesson, "misconceptions">;
 
 /** Verdict ("맞았습니다." or "정답은 ‘…’입니다.") and the picked option's why. */
 export function feedbackFor(q: { choices: PredictionChoice[] }, id: string): Feedback {
@@ -200,7 +206,7 @@ export interface LessonSpec {
  *   recap, scope, sources, layout, commitColumn, comparison, result
  * }
  */
-export function makeLesson(spec: LessonSpec): Lesson {
+export function makeLesson(spec: LessonSpec): LessonBase {
   const defaultVariant = spec.variants[0].id;
   const v = (variant?: string | null) => variant ?? defaultVariant;
   for (const q of Object.values(spec.predictions)) {

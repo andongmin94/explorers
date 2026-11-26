@@ -1,7 +1,7 @@
 // Shapes of the disk scheduling engine (engine.ts) and the lesson content
 // built from it (lesson.ts, lesson-sweep.ts, lessons.ts). Distances are in
 // cylinders (칸).
-import type { RecallQuestion } from "@/lib/lesson-kit.ts";
+import type { Misconception, RecallQuestion } from "@/lib/lesson-kit.ts";
 
 export type Algorithm = "fcfs" | "sstf" | "scan" | "look" | "cscan";
 /** "down" moves toward cylinder 0 (outer), "up" toward the last cylinder. */
@@ -99,6 +99,23 @@ export interface Prediction {
   choices: PredictionChoice[];
 }
 
+/** The input a lesson runs: the same batch for both methods. */
+export interface DiskInput {
+  /** Cylinders in arrival order. */
+  requests: number[];
+  head: number;
+  /** The last cylinder (the first is 0). */
+  max: number;
+  /** Where the head was moving before the start (SCAN/LOOK/C-SCAN). */
+  direction: Direction;
+}
+
+/** A misconception set right at one of the method's 핵심 장면 (scene is 1-based). */
+export interface DiskMisconception extends Misconception {
+  /** The method whose 핵심 장면 shows it (both, when absent). */
+  algorithm?: Algorithm;
+}
+
 export interface Recap {
   points: string[];
   recall: RecallQuestion[];
@@ -123,4 +140,6 @@ export interface LessonApi {
   distanceHint: (alg: Algorithm) => string;
   worstWait: ((alg: Algorithm, cylinder: number) => number) | null;
   waits: boolean;
+  /** 오개념 바로잡기: shown at their 핵심 장면 and listed in 정리. */
+  misconceptions: DiskMisconception[];
 }

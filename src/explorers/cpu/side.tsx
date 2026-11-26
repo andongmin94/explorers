@@ -48,6 +48,7 @@ export function CpuSide({
   summary,
   onPredict,
   onCompare,
+  onCustom,
 }: {
   playback: Playback;
   snap: PlaybackSnapshot;
@@ -59,9 +60,11 @@ export function CpuSide({
   summary: ProgressSummary;
   onPredict: () => void;
   onCompare: () => void;
+  /** 직접 실험 only: open the input form. */
+  onCustom?: () => void;
 }) {
   const lesson = playback.lesson;
-  const lessonNumber = String(LESSONS.indexOf(lesson) + 1).padStart(2, "0");
+  const lessonNumber = String(LESSONS.findIndex((l) => l.id === lesson.id) + 1).padStart(2, "0");
   const nowPager = usePager();
   const scenePager = usePager();
   const processPager = usePager();
@@ -82,19 +85,22 @@ export function CpuSide({
     last: null,
   });
   const picked = answers.key === resetKey ? answers.picked : {};
+  const runs = lessonRuns(lesson, snap.quantum);
+  const misconceptions = lesson.content.misconceptions(result, runs);
   let items = explanationItems({
     lesson,
     lessonNumber,
     snap,
     onReplay: () => playback.replayEvent(),
+    misconceptions,
   });
   if (finished && !intro) {
-    const runs = lessonRuns(lesson, snap.quantum);
     const recall = lesson.content.recall(runs);
     items = items.concat(
       recapItems({
         explorer: "cpu",
         points: lesson.content.recapPoints(result, runs).map(keepUnits),
+        misconceptions: misconceptions.map((m) => ({ ...m, check: keepUnits(m.check) })),
         recall,
         answers: picked,
         onAnswer: (question: RecallQuestion, choice: RecallChoice, index: number) => {
@@ -202,6 +208,16 @@ export function CpuSide({
             className={pagesClass}
           />
           <div className="flex items-center gap-2.5 pt-3">
+            {onCustom && intro && (
+              <Button
+                variant="filled"
+                data-action="custom-open"
+                className="min-w-0 flex-auto"
+                onClick={onCustom}
+              >
+                작업 바꾸기
+              </Button>
+            )}
             {!snap.finished && (
               <Button
                 variant="filled"
@@ -259,7 +275,8 @@ export function CpuSide({
             aria-label="자세히 볼 작업"
             value={selected}
             onValueChange={(id) => onPick(id)}
-            className="mb-3.5 grid grid-cols-3"
+            className="mb-3.5 grid"
+            style={{ gridTemplateColumns: `repeat(${lesson.processes.length}, minmax(0, 1fr))` }}
           >
             {lesson.processes.map((p) => (
               <Segment key={p.id} value={p.id} data-pick={p.id} className="gap-2">

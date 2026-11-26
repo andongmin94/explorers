@@ -190,8 +190,9 @@ function Timeline({
           <div
             className={cn(
               "relative grid grid-cols-[52px_minmax(560px,1fr)] items-center gap-x-2.5 gap-y-2 pe-3",
-              "console:h-full console:grid-cols-[52px_minmax(0,1fr)] console:grid-rows-[22px_repeat(4,minmax(0,1fr))] console:gap-x-2.5 console:gap-y-[3px]",
+              "console:h-full console:grid-cols-[52px_minmax(0,1fr)] console:grid-rows-[22px_repeat(var(--lanes),minmax(0,1fr))] console:gap-x-2.5 console:gap-y-[3px]",
             )}
+            style={{ "--lanes": lesson.processes.length + 1 } as React.CSSProperties}
           >
             <Label>ms</Label>
             <div className="relative h-6 console:h-[22px]">

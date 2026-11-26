@@ -25,6 +25,8 @@ import type {
 /** What a policy lesson adds to the shared content: its closing 핵심 note. */
 export interface PolicySpec {
   finishKey?: (result: SimResult) => string;
+  /** The lesson's own 핵심 장면 (직접 실험 keeps at most six); default milestones(). */
+  scenes?: (result: SimResult) => Milestone[];
 }
 
 export const fmt = (value: number) => Number(value.toFixed(2)).toString();
@@ -66,9 +68,21 @@ export function milestones(result: SimResult): Milestone[] {
   const last = result.frames.at(-1)!;
   let waited = false;
   let sliced = false;
+  // Runs with I/O (직접 실험) also stop at the first I/O and the first idle CPU.
+  const io = result.processes.some((p) => p.io.length);
+  let blocked = false;
+  let idled = false;
   for (const frame of result.frames.slice(1, -1)) {
     const has = (type: string) => frame.events.some((e) => e.type === type);
     const decision = result.decisions.find((d) => d.time === frame.t);
+    if (io && !blocked && has("block")) {
+      blocked = true;
+      add(frame.t, "block", "입출력 중에는 다른 작업 실행");
+    }
+    if (!idled && has("idle")) {
+      idled = true;
+      add(frame.t, "idle", "작업이 남아도 CPU가 쉼");
+    }
     if (has("preempt")) {
       if (result.algorithm === "srtf") add(frame.t, "preempt", "더 짧은 작업이 오면 선점");
       else if (!sliced) add(frame.t, "slice", "할당량이 끝나면 차례 넘기기");
@@ -77,7 +91,19 @@ export function milestones(result: SimResult): Milestone[] {
       add(frame.t, "keep", "새 작업이 더 길면 그대로");
     } else if (!waited && frame.running && !has("dispatch") && has("arrive")) {
       waited = true;
-      add(frame.t, "wait", "짧은 작업이 도착해도 기다림");
+      const runner = frame.running;
+      const shorter = frame.events.some(
+        (e) =>
+          e.type === "arrive" &&
+          frame.states[e.id!].burstRemaining < frame.states[runner].burstRemaining,
+      );
+      add(
+        frame.t,
+        "wait",
+        shorter && result.algorithm !== "rr"
+          ? "짧은 작업이 도착해도 기다림"
+          : "도착해도 바로 실행되지 않음",
+      );
     }
     if (has("complete") && has("dispatch")) {
       const rr = result.algorithm === "rr";
@@ -100,6 +126,26 @@ export function milestones(result: SimResult): Milestone[] {
   }
   points.push({ time: last.t, kind: "finish", title: "평균 대기와 반환 시간" });
   return points.map((p, i) => ({ ...p, id: `s${i + 1}` }));
+}
+
+/**
+ * At most `max` scenes for runs that would stop too often (직접 실험): the
+ * first scene of each kind, then kinds dropped from the least telling until
+ * it fits. The start and the finish always stay.
+ */
+export function compactMilestones(points: Milestone[], max = 6): Milestone[] {
+  const seen = new Set<string>();
+  let kept = points.filter((p) => {
+    if (p.kind === "start" || p.kind === "finish") return true;
+    if (seen.has(p.kind)) return false;
+    seen.add(p.kind);
+    return true;
+  });
+  for (const kind of ["idle", "keep", "next", "block", "wait", "slice", "preempt"]) {
+    if (kept.length <= max) break;
+    kept = kept.filter((p) => p.kind !== kind);
+  }
+  return kept.map((p, i) => ({ ...p, id: `s${i + 1}` }));
 }
 
 const RULE: Record<Algorithm, string> = {
@@ -142,7 +188,7 @@ function pickReason(result: SimResult, d: Decision): string {
 
 /** The explanation shown at a 핵심 장면, stable until the next one. */
 export function chapter(frame: Frame, result: SimResult, spec: PolicySpec = {}): Chapter {
-  const points = milestones(result);
+  const points = (spec.scenes ?? milestones)(result);
   const index = Math.max(
     0,
     points.findLastIndex((p) => p.time <= frame.t),
@@ -157,6 +203,15 @@ export function chapter(frame: Frame, result: SimResult, spec: PolicySpec = {}):
   let copy: Omit<Chapter, "eyebrow">;
   switch (point.kind) {
     case "start": {
+      if (!decision) {
+        const firstArrival = Math.min(...result.processes.map((p) => p.arrival));
+        copy = {
+          title: "누가 먼저 CPU를 받을까",
+          body: `CPU는 한 번에 한 작업만 실행합니다. ${RULE[algorithm]} 0 ms에는 아직 도착한 작업이 없어 CPU가 쉬고, 첫 작업은 ${firstArrival} ms에 도착합니다.`,
+          key: START_KEY[algorithm],
+        };
+        break;
+      }
       const pick =
         decision.candidates.length > 1
           ? `0 ms에 ${decision.candidates.join("·")}가 준비 큐에 있습니다. ${pickReason(result, decision)}`
@@ -170,6 +225,14 @@ export function chapter(frame: Frame, result: SimResult, spec: PolicySpec = {}):
     }
     case "wait": {
       const arrived = at.events.filter((e) => e.type === "arrive").map((e) => e.id!);
+      if (algorithm === "rr") {
+        copy = {
+          title: "도착해도 바로 실행되지 않음",
+          body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${at.running}에게는 할당량이 ${at.quantumLeft} ms 남아 계속 실행하고, 도착한 작업은 준비 큐 뒤에서 차례를 기다립니다.`,
+          key: "라운드 로빈도 도착만으로 선점하지 않습니다. 할당량이 끝나거나 CPU 구간이 끝날 때 준비 큐 맨 앞 작업이 CPU를 받습니다.",
+        };
+        break;
+      }
       copy = {
         title: "도착해도 바로 실행되지 않음",
         body: `${t} ms에 ${josa(sized(result, t, arrived), "가")} 도착했습니다. 실행 중인 ${at.running}에게는 아직 ${left(result, t, at.running!)} ms가 남았지만, ${methodName(algorithm)}는 비선점이라 ${josa(at.running!, "가")} 끝날 때까지 준비 큐에서 기다립니다.`,
@@ -213,6 +276,37 @@ export function chapter(frame: Frame, result: SimResult, spec: PolicySpec = {}):
       };
       break;
     }
+    case "block": {
+      const blockEvent = event("block");
+      copy = {
+        title: "입출력 중에는 다른 작업이 CPU를 씁니다",
+        body: `${t} ms에 ${josa(blockEvent.id!, "가")} CPU 구간을 마치고 ${blockEvent.duration} ms 동안 입출력을 기다립니다. ${at.running ? `그동안 CPU는 ${josa(at.running, "가")} 이어받습니다.` : "준비된 작업이 없어 CPU가 쉽니다."}`,
+        key: "입출력을 기다리는 작업은 준비 큐에 있지 않습니다. 입출력 대기는 대기 시간(준비 큐)에 넣지 않고 반환 시간에만 들어갑니다.",
+      };
+      break;
+    }
+    case "idle": {
+      const waiting = at.blocked.map((b) => b.id);
+      const later = result.processes
+        .filter((p) => at.states[p.id].status === "new")
+        .map((p) => p.id);
+      const why = [
+        waiting.length ? `${waiting.join("·")} 작업은 입출력 중이` : "",
+        later.length ? `${later.join("·")} 작업은 아직 도착하지 않았습니다` : "",
+      ].filter(Boolean);
+      const reason =
+        why.length === 2
+          ? `${why[0]}고, ${why[1]}. `
+          : why.length
+            ? `${why[0].endsWith("중이") ? `${why[0]}라 준비 큐가 빕니다` : why[0]}. `
+            : "";
+      copy = {
+        title: "작업이 남아도 CPU가 쉽니다",
+        body: `${t} ms에 준비 큐가 비었습니다. ${reason}실행할 수 있는 작업이 생길 때까지 CPU가 쉽니다.`,
+        key: "미완료 작업이 있어도 준비된 작업이 없으면 CPU는 쉽니다. CPU 활용률은 실제로 실행한 시간을 전체 경과 시간으로 나눈 값입니다.",
+      };
+      break;
+    }
     case "next": {
       const done = event("complete").id!;
       const chosen = decision.chosen;
@@ -248,10 +342,12 @@ export function momentNotes(frame: Frame, result: SimResult): string[] {
   for (const event of frame.events) {
     if (event.type === "complete") {
       const arrival = arrivalOf(result, event.id!);
-      const cpu = result.processes.find((p) => p.id === event.id)!.cpu.reduce((a, b) => a + b, 0);
+      const job = result.processes.find((p) => p.id === event.id)!;
+      const cpu = job.cpu.reduce((a, b) => a + b, 0);
+      const io = job.io.reduce((a, b) => a + b, 0);
       const turnaround = frame.t - arrival;
       notes.push(
-        `${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${turnaround} ms. 대기 시간 = 반환 ${turnaround} − CPU ${cpu} = ${turnaround - cpu} ms.`,
+        `${event.id} 반환 시간 = 완료 ${frame.t} − 도착 ${arrival} = ${turnaround} ms. 대기 시간 = 반환 ${turnaround} − CPU ${cpu}${io ? ` − 입출력 ${io}` : ""} = ${turnaround - cpu - io} ms.`,
       );
     } else if (event.type === "dispatch" && frame.states[event.id!]?.firstRun === frame.t) {
       const arrival = arrivalOf(result, event.id!);
@@ -266,7 +362,9 @@ export function momentNotes(frame: Frame, result: SimResult): string[] {
     notes.push(
       result.algorithm === "srtf"
         ? `${josa(frame.running, "은")} 남은 시간이 ${left(result, frame.t, frame.running)} ms로 더 짧거나 같아 선점되지 않습니다.`
-        : `도착은 실행 중인 ${frame.running} 작업을 선점하지 않습니다(비선점).`,
+        : result.algorithm === "rr"
+          ? `도착은 실행 중인 ${frame.running} 작업을 선점하지 않습니다. 할당량이 끝날 때 차례가 바뀝니다.`
+          : `도착은 실행 중인 ${frame.running} 작업을 선점하지 않습니다(비선점).`,
     );
   }
   return notes;
@@ -274,7 +372,7 @@ export function momentNotes(frame: Frame, result: SimResult): string[] {
 
 export function stepNotes(frame: Frame, result: SimResult, spec?: PolicySpec): StepNotes {
   const notes = momentNotes(frame, result);
-  const atScene = milestones(result).some((p) => p.time === frame.t);
+  const atScene = (spec?.scenes ?? milestones)(result).some((p) => p.time === frame.t);
   const { key } = chapter(frame, result, spec);
   if (atScene || !notes.length) return { key, notes };
   return { key: notes[0], notes: notes.slice(1) };
@@ -312,15 +410,25 @@ export function prediction(result: SimResult, time: number): Prediction | null {
     explanation = `${josa(released.id!, "은")} 할당량을 다 써서 준비 큐 맨 뒤로 갑니다. ${pickReason(result, decision)}`;
   } else {
     const lead =
-      released?.type === "complete" ? `${josa(released.id!, "가")} 끝나 CPU가 빕니다. ` : "";
+      released?.type === "complete"
+        ? `${josa(released.id!, "가")} 끝나 CPU가 빕니다. `
+        : released?.type === "block"
+          ? `${josa(released.id!, "가")} 입출력을 시작해 CPU가 빕니다. `
+          : "";
     explanation = lead + pickReason(result, decision);
   }
 
   const whyNot = (id: string): string => {
     if (released?.type === "complete" && released.id! === id)
       return `${josa(id, "는")} ${t} ms에 CPU 시간을 다 써서 끝납니다. 끝난 작업은 다시 CPU를 받지 않습니다.`;
+    if (released?.type === "block" && released.id! === id)
+      return `${josa(id, "는")} ${t} ms에 CPU 구간을 마치고 입출력을 시작합니다. 입출력 중에는 CPU를 받을 수 없습니다.`;
     if (arrivalOf(result, id) > t)
       return `${josa(id, "는")} ${arrivalOf(result, id)} ms에야 도착합니다. 준비 큐에 없는 작업은 고를 수 없습니다.`;
+    if (!decision.candidates.includes(id) && at.states[id].status === "blocked") {
+      const until = at.blocked.find((b) => b.id === id)?.until;
+      return `${josa(id, "는")} ${until !== undefined ? `${until} ms까지 ` : ""}입출력 중이라 준비 큐에 없습니다. 입출력이 끝나야 고를 수 있습니다.`;
+    }
     const ahead = decision.candidates.slice(0, decision.candidates.indexOf(id)).join("·");
     switch (algorithm) {
       case "fcfs":
@@ -374,7 +482,9 @@ export function prediction(result: SimResult, time: number): Prediction | null {
         ? `${segment.end} ms에 더 짧은 작업이 도착해 선점됩니다. ${t}–${segment.end} ms, ${answer} ms입니다.`
         : segment.reason === "quantum"
           ? `할당량 ${result.quantum} ms를 다 쓰고 차례를 넘깁니다.`
-          : `남은 ${len(chosen)} ms를 끝까지 실행하고 완료됩니다.`,
+          : segment.reason === "block"
+            ? `이번 CPU 구간 ${len(chosen)} ms를 마치고 입출력을 시작합니다.`
+            : `남은 ${len(chosen)} ms를 끝까지 실행하고 완료됩니다.`,
     };
   }
 

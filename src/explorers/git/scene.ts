@@ -32,7 +32,8 @@ import { contentKindOf, lineKinds, VERSIONS } from "./engine.ts";
 import type { SceneLayout } from "./lesson-model.ts";
 import type { ContentKind, GitState, IndexStatus, LineInfo, StageKey, Step } from "./types.ts";
 
-const LAPTOP = { x: 1.5, y: 3, w: 5, d: 3.4 };
+// The laptop is sized to the index tray and the server (one scale for every device).
+const LAPTOP = { x: 1.2, y: 2.6, w: 5.8, d: 3.9 };
 const TRAY = { x: 2.5, y: 9.3, slots: 4, pitch: 1.45, d: 2.2, start: 0 };
 const REPO = { x: 11, y: 0, w: 7.5, d: 7.5, units: 2 };
 const REPO_TOP = REPO.units * 0.75 - 0.05;
@@ -47,8 +48,8 @@ const DEFAULT_LAYOUT: SceneLayout = {
 };
 const indexDevice = tray({ ...TRAY, label: "INDEX", mat: MAT.metal });
 const TRAY_W = indexDevice.w;
-const WORK_SLOT: Point = [LAPTOP.x + 2.5, LAPTOP.y + 2.75, 0.3];
-const ADD_X = LAPTOP.x + 3.8;
+const WORK_SLOT: Point = [LAPTOP.x + LAPTOP.w / 2, LAPTOP.y + LAPTOP.d * 0.8, 0.3];
+const ADD_X = LAPTOP.x + LAPTOP.w * 0.76;
 /** Stage 0 = the staged snapshot; stages 1–3 = base, ours, theirs. */
 const INDEX_SLOT = indexDevice.slots[0];
 const STAGES: { key: StageKey; slot: Point; n: number }[] = [

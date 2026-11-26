@@ -1,7 +1,7 @@
-// The control palette: transport, seek and the guided switch. On the desktop
-// console the transport is two tidy rows in the side column:
-//   reset  back   play ──────────
-//   replay speed  next event ────
+// The control palette, in two tiers:
+//   primary   — the transport [처음] [이전] [▶ 학습 시작 ────] [다음 사건 ›]
+//   secondary — quieter, below a hairline: the seek bar with its own
+//               "진행 03 / 06" line, [다시 보기 · 속도 1×], the guided switch, the hint.
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -16,7 +16,6 @@ import { Button, ButtonGroup } from "@/components/ui/button.tsx";
 import { Slider } from "@/components/ui/slider.tsx";
 import { Switch } from "@/components/ui/switch.tsx";
 import { Label } from "@/components/ui/typography.tsx";
-import { cn } from "@/lib/cn.ts";
 import { LABELS } from "@/lib/lesson-kit.ts";
 import { pad } from "./format.ts";
 import type { Playback, PlaybackSnapshot } from "./playback.ts";
@@ -69,7 +68,7 @@ export function GitDeck({ playback, snap }: { playback: Playback; snap: Playback
           variant="plain"
           data-action="play"
           aria-label={label}
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-1 font-semibold"
           onClick={() => playback.togglePlay()}
         >
           {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
@@ -86,30 +85,20 @@ export function GitDeck({ playback, snap }: { playback: Playback; snap: Playback
         </Button>
       </ButtonGroup>
 
-      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full basis-full">
-        <ButtonGroup>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="replay"
-            aria-label="이번 사건 다시 보기"
-            disabled={index === 0 || busy}
-            onClick={() => void playback.replay()}
+      <div
+        data-deck="secondary"
+        className="grid w-full min-w-0 basis-full gap-2 border-t border-separator-soft pt-2.5 console-short:gap-1.5 console-short:pt-2"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <Label id="seek-label">진행</Label>
+          <span
+            id="seek-value"
+            aria-hidden="true"
+            className="ms-auto text-caption font-medium text-vlabel-2 tabular-nums"
           >
-            <RotateCcwIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="speed"
-            aria-label={`재생 속도 ${snap.speed}배`}
-            className="tabular-nums"
-            onClick={() => playback.cycleSpeed()}
-          >
-            {snap.speed}×
-          </Button>
-        </ButtonGroup>
-        <Label>00</Label>
+            {pad(index)} / <span id="seek-end">{pad(last)}</span> 사건
+          </span>
+        </div>
         <Slider
           id="seek"
           min={0}
@@ -120,25 +109,45 @@ export function GitDeck({ playback, snap }: { playback: Playback; snap: Playback
           thumbProps={{ "aria-valuetext": `${index} / ${last} 사건${busy ? " 처리 중" : ""}` }}
           onValueChange={(value) => playback.jump(value as number)}
         />
-        <Label id="seek-end">{pad(last)}</Label>
-      </div>
-
-      <div
-        className={cn(
-          "flex basis-full flex-wrap items-center gap-x-5 gap-y-2.5 text-caption",
-          "console:gap-x-3.5 console:gap-y-1.5",
-        )}
-      >
-        <Switch
-          data-action="guided"
-          checked={snap.guided}
-          onCheckedChange={(on) => playback.setGuided(on)}
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <ButtonGroup aria-label="보기 설정">
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="replay"
+              aria-label="이번 사건 다시 보기"
+              disabled={index === 0 || busy}
+              onClick={() => void playback.replay()}
+            >
+              <RotateCcwIcon aria-hidden="true" />
+              <span className="phone:sr-only">다시 보기</span>
+            </Button>
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="speed"
+              aria-label={`재생 속도 ${snap.speed}배`}
+              className="tabular-nums"
+              onClick={() => playback.cycleSpeed()}
+            >
+              <span className="text-vlabel-2">속도</span> {snap.speed}×
+            </Button>
+          </ButtonGroup>
+          <Switch
+            data-action="guided"
+            className="ms-auto text-caption"
+            checked={snap.guided}
+            onCheckedChange={(on) => playback.setGuided(on)}
+          >
+            {LABELS.guided}
+          </Switch>
+        </div>
+        <p
+          id="playback-hint"
+          className="m-0 text-caption leading-[1.45] text-vlabel-2 keep-all text-pretty"
         >
-          {LABELS.guided}
-        </Switch>
-        <span id="playback-hint" className="text-label-2">
           {hint}
-        </span>
+        </p>
       </div>
     </Deck>
   );

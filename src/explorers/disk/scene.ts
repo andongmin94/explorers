@@ -8,8 +8,8 @@
 // an edge turn or a C-SCAN return included).
 // (Port of disk/src/scene.js; imperative on purpose — React mounts it into a
 // host element, see disk-scene.tsx.)
-import { INITIAL_HEAD, MAX_CYLINDER, REQUESTS, type RoutePoint } from "./engine.ts";
-import type { DiskState, Phase, Step } from "./types.ts";
+import { INITIAL_HEAD, MAX_CYLINDER, REQUESTS, ticksFor, type RoutePoint } from "./engine.ts";
+import type { DiskInput, DiskState, Phase, Step } from "./types.ts";
 import {
   UNIT,
   project,
@@ -30,13 +30,18 @@ import {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const P = (x: number, y: number, z = 0) => project(x, y, z).map(r2).join(",");
-const MAXC = MAX_CYLINDER;
+// The input this scene draws (one scene at a time; set by createDiskScene).
+let MAXC = MAX_CYLINDER;
+let REQ: number[] = [...REQUESTS];
+let HEAD0 = INITIAL_HEAD;
 
 /* ---------- Layout (world units) ---------- */
 // Wide: queue rail (running to the lower left, head at its upper-right end)
 // → controller → drive, left to right. Narrow (phone): the drive sits in front
 // of the controller so the scene stays tall enough to read.
 const QUEUE = { x: 0, y: 0, slots: 8, pitch: 1.5 };
+/** Up to eight requests at the full pitch; a longer queue packs its pockets closer. */
+const pitchFor = (n: number) => (n <= 8 ? 1.5 : Math.max(1.15, 12 / n));
 // "short" is the wide layout for a low stage (e.g. 1280×720): the callouts
 // move beside the devices so the scene is framed by its width, not its height.
 type Mode = "wide" | "short" | "narrow";
@@ -87,6 +92,8 @@ let notes!: Note[];
 function setLayout(mode: Mode) {
   const lay = LAYOUTS[mode];
   const wide = mode !== "narrow";
+  QUEUE.slots = REQ.length;
+  QUEUE.pitch = pitchFor(REQ.length);
   queue = queueRail({ ...QUEUE, axis: "y", label: "REQ", numbers: false });
   const yHead = queue.slots[0][1];
   CTRL = { x: lay.chipX, y: r2(yHead - 1.9), size: 3.8 };
@@ -142,7 +149,7 @@ function setLayout(mode: Mode) {
             dx: 10,
             dy: -60,
             title: "하드 디스크",
-            sub: "0 바깥 · 199 안쪽",
+            sub: `0 바깥 · ${MAXC} 안쪽`,
           },
           { x: rtx, y: rty, z: 0, dx: 0, dy: -46, title: "실린더 눈금", sub: "", anchor: "start" },
         ]
@@ -173,7 +180,7 @@ function setLayout(mode: Mode) {
               dx: 30,
               dy: -62,
               title: "하드 디스크",
-              sub: "실린더 0 바깥쪽 · 199 안쪽",
+              sub: `실린더 0 바깥쪽 · ${MAXC} 안쪽`,
             },
             { x: rbx, y: rby, z: 0, dx: 0, dy: 32, ...ruler, anchor: "start" },
           ]
@@ -205,7 +212,7 @@ function setLayout(mode: Mode) {
               dx: 26,
               dy: -40,
               title: "하드 디스크",
-              sub: "0 바깥 · 199 안쪽",
+              sub: `0 바깥 · ${MAXC} 안쪽`,
               anchor: "start",
             },
             {
@@ -272,7 +279,7 @@ function ring(R: number, z: number, cls: string) {
    horizontal): its top is a strip the head carriage rides on, its front face
    carries the engraved ticks and numbers upright. Screen units throughout. */
 const sx = (c: number) => RULER.x0 + RULER.pad + (c / MAXC) * (RULER.x1 - RULER.x0 - 2 * RULER.pad);
-const MAJOR = [0, 50, 100, 150, 199];
+let MAJOR = ticksFor(MAX_CYLINDER);
 
 function rulerSvg() {
   const { x0, x1, y, top, face } = RULER;
@@ -280,15 +287,16 @@ function rulerSvg() {
   const yt = y - top;
   const yb = y + face;
   let ticks = "";
-  for (let c = 10; c < MAXC; c += 10) {
-    if (c % 50 === 0) continue;
+  const minor = (MAJOR[1] - MAJOR[0]) / 5;
+  for (let c = minor; c < MAXC - minor / 2; c += minor) {
+    if (MAJOR.some((m) => Math.abs(m - c) < minor / 2)) continue;
     ticks += `<line class="disk-tick" x1="${r2(sx(c))}" y1="${y + 1}" x2="${r2(sx(c))}" y2="${y + 6}"/>`;
   }
   for (const c of MAJOR) {
     ticks += `<line class="disk-tick is-major" x1="${r2(sx(c))}" y1="${y + 1}" x2="${r2(sx(c))}" y2="${y + 11}"/>`;
     ticks += `<text class="disk-tick-num" x="${r2(sx(c))}" y="${y + 26}" text-anchor="middle">${c}</text>`;
   }
-  const marks = REQUESTS.map(
+  const marks = REQ.map(
     (
       c,
       i,
@@ -317,13 +325,27 @@ function arcPath(a: number, b: number, lift = 0) {
   return `M${r2(x1)},${r2(yt)} C${r2(x1)},${r2(yt - h * 1.33)} ${r2(x2)},${r2(yt - h * 1.33)} ${r2(x2)},${r2(yt)}`;
 }
 
-function carriageSvg(c: number, lit: boolean) {
+// The distance walked so far in this move: a tag above the carriage that
+// counts up while the head travels (the scene's own line between the
+// carriage and the seek arc it is drawing).
+function travelSvg(travelled: number) {
+  const yt = RULER.y - RULER.top;
+  const text = `+${travelled}칸`;
+  const w = 16 + text.length * 8.6;
+  return `<g class="disk-travel" transform="translate(0 ${r2(yt - 30)})">
+    <rect class="disk-travel-pill" x="${r2(-w / 2)}" y="-12" width="${r2(w)}" height="22" rx="11"/>
+    <text class="disk-travel-text" x="0" y="0" text-anchor="middle" dominant-baseline="central">${text}</text>
+  </g>`;
+}
+
+function carriageSvg(c: number, lit: boolean, travelled: number | null = null) {
   const x = sx(c);
   const { y, top } = RULER;
   const yt = y - top;
   const label = String(Math.round(c));
   const w = 40;
   return `<g class="disk-carriage${lit ? " is-lit" : ""}" transform="translate(${r2(x)} 0)">
+    ${travelled === null ? "" : travelSvg(travelled)}
     <line class="disk-needle" x1="0" y1="${yt + top / 2}" x2="0" y2="${y + 12}"/>
     <rect class="disk-carriage-shadow" x="${-w / 2 + 2}" y="${yt + 4}" width="${w}" height="${top - 2}" rx="5"/>
     <rect class="disk-carriage-side" x="${-w / 2}" y="${yt - 10}" width="${w}" height="${top + 2}" rx="5"/>
@@ -369,7 +391,7 @@ function sceneSvg(mode: Mode) {
     ${ctrl.svg}
     ${drive.svg}
     <g class="disk-platter">
-      ${[0, 50, 100, 150, 199].map((c) => ring(trackR(c), PZ + 0.005, "disk-guide")).join("")}
+      ${MAJOR.map((c) => ring(trackR(c), PZ + 0.005, "disk-guide")).join("")}
       <g id="disk-target"></g>
       <g id="disk-head-ring"></g>
     </g>
@@ -378,9 +400,9 @@ function sceneSvg(mode: Mode) {
     <g id="disk-arcs"></g>
     <g id="disk-carriage"></g>
     ${notes.map((n) => callout(n)).join("")}
-    <g id="disk-tokens">${REQUESTS.map(
+    <g id="disk-tokens">${REQ.map(
       (c, i) =>
-        `<g class="disk-token" data-id="${i + 1}">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: 1.28, h: 0.5, textSize: 15 })}</g>`,
+        `<g class="disk-token" data-id="${i + 1}">${token({ id: String(i + 1), text: String(c), color: "var(--tok)", size: Math.min(1.28, QUEUE.pitch - 0.1), h: 0.5, textSize: QUEUE.pitch < 1.5 ? 13 : 15 })}</g>`,
     ).join("")}</g>
   </svg>`;
 }
@@ -566,8 +588,20 @@ export function createDiskScene(
   {
     onPhase,
     onHead,
-  }: { onPhase?: (kind: Phase, step: Step) => void; onHead?: (cylinder: number) => void } = {},
+    onTravel,
+    input,
+  }: {
+    onPhase?: (kind: Phase, step: Step) => void;
+    onHead?: (cylinder: number) => void;
+    /** 누적 이동 while the head travels (null once it has landed). */
+    onTravel?: (total: number | null) => void;
+    input?: DiskInput;
+  } = {},
 ): DiskScene {
+  MAXC = input?.max ?? MAX_CYLINDER;
+  REQ = [...(input?.requests ?? REQUESTS)];
+  HEAD0 = input?.head ?? INITIAL_HEAD;
+  MAJOR = ticksFor(MAXC);
   const narrow = matchMedia("(max-width: 759px)");
   const $ = (s: string) => host.querySelector(s)!;
   let tokens = new Map<number, SVGGElement>();
@@ -631,10 +665,10 @@ export function createDiskScene(
   const reduced = matchMedia("(prefers-reduced-motion: reduce)");
   let active: Motion | null = null;
 
-  function drawHead(c: number, lit = true) {
+  function drawHead(c: number, lit = true, travelled: number | null = null) {
     $("#disk-arm").innerHTML = armSvg(c, lit);
     $("#disk-head-ring").innerHTML = ring(trackR(c), PZ + 0.01, "disk-head-track");
-    $("#disk-carriage").innerHTML = carriageSvg(c, lit);
+    $("#disk-carriage").innerHTML = carriageSvg(c, lit, travelled);
     onHead?.(Math.round(c));
   }
   function drawTarget(c: number | null) {
@@ -691,6 +725,7 @@ export function createDiskScene(
   }
   function snap(step: Step, route: RoutePoint[]) {
     shown = [step, route];
+    onTravel?.(null);
     setTokens(step.state);
     drawHead(step.state.head, step.index > 0);
     drawTarget(null);
@@ -743,7 +778,7 @@ export function createDiskScene(
 
   async function update(
     step: Step,
-    { motion = false, speed = 1, route = [[INITIAL_HEAD, 0]] }: SceneUpdate = {},
+    { motion = false, speed = 1, route = [[HEAD0, 0]] }: SceneUpdate = {},
   ) {
     cancel();
     shown = [step, route];
@@ -809,7 +844,9 @@ export function createDiskScene(
       const at = (cyl: number, run2: number): DrawPoint => [cyl, k0 + run2 / length];
       let acc = 0;
       const pts = passed.map((cyl, j) => at(cyl, (acc += legs[j])));
-      drawHead(c, true);
+      const travelled = Math.round(acc + f * legs[i]);
+      drawHead(c, true, travelled);
+      onTravel?.(step.before.total + travelled);
       const tip = at(c, acc + f * legs[i]);
       if (path[i] !== path[i + 1] && isEdge(path[i]) && isEdge(path[i + 1])) tip.push("return");
       drawRoute([...before, ...pts, tip], k0);
@@ -818,7 +855,9 @@ export function createDiskScene(
 
     drawTarget(null);
     setWires(null);
+    drawHead(request.cylinder, true, step.distance);
     drawRoute(route, k - 1);
+    onTravel?.(null);
     onPhase?.("arrive", step);
     await carry(
       run,
@@ -833,6 +872,7 @@ export function createDiskScene(
     );
     if (run.cancelled) return;
     setTokens(step.state);
+    drawHead(request.cylinder, true);
     host.dataset.moving = "false";
     active = null;
   }

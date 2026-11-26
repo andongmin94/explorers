@@ -2,6 +2,7 @@
 // tab is a fit column whose blocks page (PagedList + Pager).
 import { useEffect, useState } from "react";
 
+import { MisconceptionNote, misconceptionsAt } from "@/components/learning/misconception.tsx";
 import { PagedList, Pager, usePager, type PagedItem } from "@/components/learning/pager.tsx";
 import { ProgressLine, recapItems } from "@/components/learning/recap.tsx";
 import { SidePanel } from "@/components/shell/console.tsx";
@@ -50,6 +51,7 @@ export function MemorySide({
   masked,
   onPredict,
   onCompare,
+  onCustom,
 }: {
   playback: Playback;
   snap: PlaybackSnapshot;
@@ -64,6 +66,8 @@ export function MemorySide({
   masked: boolean;
   onPredict: () => void;
   onCompare: () => void;
+  /** 직접 실험 only: open the input form. */
+  onCustom?: () => void;
 }) {
   const lesson = playback.lesson;
   const total = playback.total;
@@ -141,12 +145,24 @@ export function MemorySide({
       ),
     });
   }
+  // 오개념 바로잡기 beside the 핵심 note at its 핵심 장면 (정리 lists them all at the end).
+  const misconceptions = lesson.misconceptions(playback.runs, playback.extras);
+  const sceneNo = playback.milestones.findIndex((m) => m.index === shown.index) + 1;
+  if (!busy && !finished && sceneNo > 0) {
+    for (const item of misconceptionsAt(misconceptions, sceneNo))
+      items.push({
+        key: `misconception-${item.id}`,
+        note: true,
+        node: <MisconceptionNote item={item} />,
+      });
+  }
   if (finished) {
     const recap = lesson.recap(playback.runs, playback.extras);
     items = items.concat(
       recapItems({
         explorer: "memory",
         points: recap.points,
+        misconceptions,
         recall: recap.recall,
         answers: answers.picked,
         onAnswer: (question: RecallQuestion, choice: RecallChoice, i: number) => {
@@ -264,8 +280,18 @@ export function MemorySide({
             items={items}
             className="paged-blocks"
           />
-          {(nextQuiz || finished) && (
+          {(nextQuiz || finished || (onCustom && index === 0)) && (
             <div className="flex items-center gap-2.5 pt-3">
+              {onCustom && index === 0 && !busy && (
+                <Button
+                  variant="filled"
+                  data-action="custom-open"
+                  className="min-w-0 flex-auto"
+                  onClick={onCustom}
+                >
+                  실험 조건 바꾸기
+                </Button>
+              )}
               {nextQuiz && (
                 <Button
                   variant="filled"
@@ -294,7 +320,9 @@ export function MemorySide({
               <Pager pager={nowPager} label="해설" className="ms-auto flex-none pt-0" />
             </div>
           )}
-          {!nextQuiz && !finished && <Pager pager={nowPager} label="해설" />}
+          {!nextQuiz && !finished && !(onCustom && index === 0) && (
+            <Pager pager={nowPager} label="해설" />
+          )}
         </TabsPanel>
 
         <TabsPanel value="scenes" className={panel}>

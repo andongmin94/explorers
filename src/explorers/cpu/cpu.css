@@ -8,6 +8,9 @@
   --p1: #3971d9;
   --p2: #168264;
   --p3: #8055c6;
+  /* P4–P5 only appear in 직접 실험. */
+  --p4: #b07213;
+  --p5: #c24f4f;
   --cpu-ready-mix: 24%;
 }
 :root[data-theme="dark"] {
@@ -15,6 +18,8 @@
   --p1: #6a96ed;
   --p2: #4fae94;
   --p3: #a98ae0;
+  --p4: #d09a3e;
+  --p5: #e07a7a;
 }
 
 /* Callout subtitles read as secondary labels, not code. */

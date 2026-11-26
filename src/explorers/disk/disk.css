@@ -277,3 +277,17 @@
 .disk-token.is-served {
   --tok: var(--done);
 }
+/* The distance walked in the current move, counting up above the carriage. */
+.disk-travel-pill {
+  fill: var(--window);
+  stroke: color-mix(in oklch, var(--accent) 70%, black);
+  stroke-width: 1.2;
+}
+:root[data-theme="dark"] .disk-travel-pill {
+  stroke: var(--accent);
+}
+.disk-travel-text {
+  fill: var(--label);
+  font: 700 13px var(--font-sans);
+  font-variant-numeric: tabular-nums;
+}

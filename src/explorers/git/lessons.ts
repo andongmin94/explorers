@@ -26,10 +26,12 @@ import {
   feedbackFor,
   makeLesson,
   type Lesson,
+  type LessonBase,
   type StatusContext,
   type StepText,
 } from "./lesson-model.ts";
 import { LABELS } from "@/lib/lesson-kit.ts";
+import { misconceptionsFor } from "./misconceptions.ts";
 import type { GitState, Step } from "./types.ts";
 
 export const SOURCE = {
@@ -813,7 +815,7 @@ const indexHidden = (_index: number, pending: boolean | undefined, state: GitSta
   pending && state.status === "resolved";
 
 /** Lesson 03 (lesson.js, unchanged content) in the shape main.js drives. */
-const conflictLesson: Lesson = {
+const conflictLesson: LessonBase = {
   id: "conflict",
   name: "병합 충돌",
   sub: "같은 줄을 고친 두 브랜치",
@@ -869,6 +871,9 @@ const conflictLesson: Lesson = {
   },
 };
 
-export const LESSONS: Lesson[] = [fastForward, autoMerge, conflictLesson, rebase];
+export const LESSONS: Lesson[] = [fastForward, autoMerge, conflictLesson, rebase].map((lesson) => ({
+  ...lesson,
+  misconceptions: misconceptionsFor(lesson),
+}));
 
 export { BASE_STATES, feedbackFor, CONTENTS, LESSON_CONTENTS };

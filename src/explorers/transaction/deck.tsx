@@ -1,10 +1,7 @@
-// The control palette: the lesson's two methods, transport, seek and the
-// guided switch. On the desktop console it is one tidy grid:
-//   method ─────────────────
-//   reset   back   play
-//   replay  speed  next
-//   0 ── seek ──────── N
-//   guided switch
+// The control palette. Primary: the lesson's two methods and the transport
+// (reset · back · play · next). Secondary, under a hairline and quieter:
+// the seek slider with where the run is, the guided switch and the small
+// replay · speed keys.
 import {
   ChevronFirstIcon,
   ChevronLeftIcon,
@@ -111,54 +108,59 @@ export function TxDeck({
         </Button>
       </ButtonGroup>
 
-      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full">
-        <ButtonGroup>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="replay"
-            aria-label="이번 사건 다시 보기"
-            title="이번 사건 다시 보기"
-            disabled={snap.index === 0 || snap.busy}
-            onClick={() => void player.replay()}
+      {/* Secondary: where in the run, how it plays. Quieter than the row above. */}
+      <div
+        data-deck="secondary"
+        className="grid w-full min-w-0 gap-2 border-t border-separator-soft pt-2.5 console-short:gap-1.5 console-short:pt-2 min-[760px]:max-[1099px]:flex min-[760px]:max-[1099px]:flex-wrap min-[760px]:max-[1099px]:items-center min-[760px]:max-[1099px]:gap-x-8"
+      >
+        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 min-[760px]:max-[1099px]:basis-full">
+          <Label id="seek-label">사건 이동</Label>
+          <Slider
+            id="seek"
+            min={0}
+            max={snap.last}
+            step={1}
+            value={snap.index}
+            thumbLabel="처리한 사건 수"
+            thumbProps={{
+              "aria-valuetext": `${snap.index} / ${snap.last}번째 사건${snap.busy ? " 처리 중" : " 처리 완료"}`,
+            }}
+            onValueChange={(value) => void player.jump(value as number)}
+          />
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 min-[760px]:max-[1099px]:gap-x-4">
+          <Switch
+            data-action="guided"
+            checked={snap.guided}
+            onCheckedChange={(on) => player.setGuided(on)}
           >
-            <RotateCcwIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="speed"
-            aria-label={`재생 속도 ${snap.speed}배, 눌러서 변경`}
-            className="tabular-nums"
-            onClick={() => player.cycleSpeed()}
-          >
-            {snap.speed}×
-          </Button>
-        </ButtonGroup>
-        <Label>0</Label>
-        <Slider
-          id="seek"
-          min={0}
-          max={snap.last}
-          step={1}
-          value={snap.index}
-          thumbLabel="처리한 사건 수"
-          thumbProps={{
-            "aria-valuetext": `${snap.index} / ${snap.last}번째 사건${snap.busy ? " 처리 중" : " 처리 완료"}`,
-          }}
-          onValueChange={(value) => void player.jump(value as number)}
-        />
-        <Label>{snap.last}</Label>
-      </div>
-
-      <div className="flex min-h-6 items-center">
-        <Switch
-          data-action="guided"
-          checked={snap.guided}
-          onCheckedChange={(on) => player.setGuided(on)}
-        >
-          {LABELS.guided}
-        </Switch>
+            {LABELS.guided}
+          </Switch>
+          <ButtonGroup aria-label="재생 설정" className="flex-none">
+            <Button
+              variant="plain"
+              size="icon-sm"
+              data-action="replay"
+              aria-label="이번 사건 다시 보기"
+              title="이번 사건 다시 보기"
+              disabled={snap.index === 0 || snap.busy}
+              onClick={() => void player.replay()}
+            >
+              <RotateCcwIcon aria-hidden="true" />
+            </Button>
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="speed"
+              aria-label={`재생 속도 ${snap.speed}배, 눌러서 변경`}
+              title="재생 속도"
+              className="min-w-11 tabular-nums"
+              onClick={() => player.cycleSpeed()}
+            >
+              {snap.speed}×
+            </Button>
+          </ButtonGroup>
+        </div>
       </div>
     </Deck>
   );

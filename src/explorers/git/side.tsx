@@ -4,6 +4,7 @@
 // scrolls as before: every panel is shown, one under the other, without tabs.
 import { useEffect, useState } from "react";
 
+import { MisconceptionNote, misconceptionsAt } from "@/components/learning/misconception.tsx";
 import { PagedList, Pager, usePager, type PagedItem } from "@/components/learning/pager.tsx";
 import { recapItems } from "@/components/learning/recap.tsx";
 import { SidePanel } from "@/components/shell/console.tsx";
@@ -16,6 +17,7 @@ import { Index, Label, Muted, Text, Title } from "@/components/ui/typography.tsx
 import { cn } from "@/lib/cn.ts";
 import {
   LABELS,
+  type Misconception,
   type Progress,
   type ProgressSummary,
   type RecallChoice,
@@ -33,6 +35,14 @@ import { RowTh } from "./records.tsx";
 export type SideTab = "now" | "scenes" | "change" | "scope";
 
 export const CONSOLE_QUERY = "(min-width: 1100px) and (min-height: 700px)";
+
+/** A misconception with its --flags and quotes kept on one line. */
+const flagged = (m: Misconception): Misconception => ({
+  ...m,
+  wrong: keepFlags(m.wrong),
+  right: keepFlags(m.right),
+  check: keepFlags(m.check),
+});
 
 /** A fit column body: fills the panel, its paged list takes the rest. */
 const bodyClass = cn(
@@ -81,7 +91,7 @@ export function GitSide({
   const scenePager = usePager();
   const scopePager = usePager();
   const { run, index, busy, choice } = snap;
-  const { last, step, text, ended, prediction, pendingAt } = stepView(lesson, snap);
+  const { last, step, text, ended, prediction, pendingAt, pending } = stepView(lesson, snap);
   const gate = playback.gate;
 
   /* ----- the gate: show the resolution choices (tab, page, focus) ----- */
@@ -265,6 +275,20 @@ export function GitSide({
         </Note>
       ),
     });
+  // 오개념 바로잡기 at the 핵심 장면 where this run shows it (never while a
+  // prediction asked here is open: it could answer it).
+  const sceneNumber = lesson.milestones(choice).findIndex((m) => m.index === index) + 1;
+  if (!busy && !ended && !pending && sceneNumber > 0)
+    for (const m of misconceptionsAt(
+      lesson.misconceptions.filter(
+        (x) => !x.variant || x.variant === (choice ?? lesson.defaultVariant),
+      ),
+      sceneNumber,
+    ))
+      items.push({
+        key: `misconception-${m.id}`,
+        node: <MisconceptionNote item={flagged(m)} />,
+      });
   if (!busy && prediction)
     items.push({
       key: "predict",
@@ -287,6 +311,7 @@ export function GitSide({
         explorer: "git",
         points: lesson.recap.points,
         recall: lesson.recap.recall,
+        misconceptions: lesson.misconceptions.map(flagged),
         answers: answers.picked,
         onAnswer: (question: RecallQuestion, picked: RecallChoice, i: number) => {
           progress.markRecall(question.id, Boolean(picked.correct));

@@ -53,17 +53,21 @@ interface Footprint {
   w: number;
   d: number;
 }
+// One scale for every device, as in life: a server is wider and deeper than
+// the laptop (a 19-inch box against a 13-inch laptop), the home router is
+// smaller than the laptop. Servers keep the face their cable plugs into where
+// it was and grow away from it, so routes and lanes do not move.
 const DEVICES: Record<string, Footprint> = {
   client: { x: -9.5, y: 9.3, w: 5, d: 3.4 },
   router: { x: -4.1, y: 5.2, w: 3.2, d: 2.6 },
   internet: { x: 0, y: 0, w: 4, d: 4 },
-  dns: { x: -7.5, y: -4.6, w: 3, d: 3 },
+  dns: { x: -8.1, y: -5.8, w: 4.2, d: 4.2 },
   // Nodes that never share a lesson share a spot: web/tld, root/mx.
-  web: { x: 0.3, y: -7.9, w: 3.4, d: 3.4 },
-  tld: { x: 0.5, y: -7.7, w: 3, d: 3 },
-  root: { x: 8, y: 0.5, w: 3, d: 3 },
-  mx: { x: 8, y: 0.5, w: 3, d: 3 },
-  auth: { x: 2, y: 8, w: 3, d: 3 },
+  web: { x: -0.2, y: -9.1, w: 4.4, d: 4.6 },
+  tld: { x: -0.1, y: -8.9, w: 4.2, d: 4.2 },
+  root: { x: 8, y: -0.1, w: 4.2, d: 4.2 },
+  mx: { x: 8, y: -0.1, w: 4.2, d: 4.2 },
+  auth: { x: 1.4, y: 8, w: 4.2, d: 4.2 },
 };
 const LAPTOP_SCREEN_HEIGHT = 2.6;
 const SERVER_UNIT = 0.75;
@@ -282,13 +286,13 @@ interface Callout {
 const CALLOUTS: Record<string, Callout> = {
   client: { dx: -64, dy: -18, anchor: "end", z: LAPTOP_SCREEN_HEIGHT + 0.2 },
   router: { dx: -40, dy: -80, anchor: "middle", z: ROUTER_HEIGHT + ANTENNA_HEIGHT * 0.5 },
-  internet: { dx: 34, dy: 52, anchor: "start", z: PLINTH_HEIGHT, front: true },
+  internet: { dx: 35, dy: 56, anchor: "middle", z: PLINTH_HEIGHT, front: true },
   dns: { dx: -56, dy: -44, anchor: "end" },
   web: { dx: -6, dy: -62, anchor: "middle" },
   tld: { dx: -6, dy: -62, anchor: "middle" },
   root: { dx: 52, dy: -30, anchor: "start" },
   mx: { dx: 52, dy: -30, anchor: "start" },
-  auth: { dx: 44, dy: 34, anchor: "start", front: true, z: 0.8 },
+  auth: { dx: -36, dy: 44, anchor: "end", front: true, z: 0.8 },
 };
 // A short, wide stage (e.g. 1280 × 720) has no height to spare: the labels
 // move beside their devices instead of above or below them.

@@ -25,6 +25,7 @@ import {
   describeDeadlockStep,
 } from "./deadlock-lesson.ts";
 import { createDeadlockScene } from "./deadlock-scene.ts";
+import { deadlockMisconceptions } from "./misconceptions.ts";
 import type { RecordProps, TxPage, TxStep } from "./page.ts";
 import {
   alertText,
@@ -44,6 +45,10 @@ import type { ClientId } from "./types.ts";
 const runs: Record<Order, DeadlockRun> = {
   opposite: simulateDeadlock({ order: "opposite" }),
   same: simulateDeadlock({ order: "same" }),
+};
+const MISCONCEPTIONS = {
+  opposite: deadlockMisconceptions(runs.opposite),
+  same: deadlockMisconceptions(runs.same),
 };
 const ACTIONS: Record<DeadlockStep["action"], string> = {
   initial: "시작 전",
@@ -328,6 +333,7 @@ export const deadlockPage: TxPage = {
     legend: [...DEADLOCK_LEGEND],
   },
   recap: { points: [...DEADLOCK_RECAP.points], recall: [...DEADLOCK_RECAP.recall] },
+  misconceptions: (mode) => MISCONCEPTIONS[mode as Order],
   sources: [...DEADLOCK_SOURCES],
   resultsTab: "재고 결과",
   Timeline,

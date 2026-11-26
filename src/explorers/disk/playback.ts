@@ -6,16 +6,17 @@
 import { useSyncExternalStore } from "react";
 
 import type { Progress } from "@/lib/lesson-kit.ts";
-import { REQUESTS, routePoints } from "./engine.ts";
+import { routePoints } from "./engine.ts";
 import type { Lesson } from "./lessons.ts";
 import type { DiskScene } from "./scene.ts";
 import type { Algorithm, Phase, Run, Step } from "./types.ts";
 
-export const N = REQUESTS.length;
 const SPEEDS: Record<number, number> = { 1: 2, 2: 0.5, 0.5: 1 };
 
 export interface PlaybackSnapshot {
   algorithm: Algorithm;
+  /** Number of requests (the last step's index). */
+  n: number;
   run: Run;
   /** The request on screen or travelling (0 = start). */
   index: number;
@@ -39,6 +40,8 @@ export interface PlaybackSnapshot {
 
 export class Playback {
   readonly lesson: Lesson;
+  /** Number of requests (the last step's index). */
+  readonly n: number;
   private progress: Progress;
   private scene: DiskScene | null = null;
 
@@ -70,6 +73,7 @@ export class Playback {
 
   constructor(lesson: Lesson, progress: Progress, search = globalThis.location?.search ?? "") {
     this.lesson = lesson;
+    this.n = lesson.input.requests.length;
     this.progress = progress;
     // Deep link: ?algo=sstf&step=3 opens that moment.
     const q = new URLSearchParams(search);
@@ -78,7 +82,7 @@ export class Playback {
       algo && (lesson.algorithms as string[]).includes(algo)
         ? (algo as Algorithm)
         : lesson.algorithms[0];
-    this.index = this.committed = Math.max(0, Math.min(N, Number(q.get("step")) || 0));
+    this.index = this.committed = Math.max(0, Math.min(this.n, Number(q.get("step")) || 0));
     this.phaseStep = this.current();
     this.head = this.phaseStep.state.head;
     this.shownTotal = this.phaseStep.state.total;
@@ -93,6 +97,7 @@ export class Playback {
   snapshot = (): PlaybackSnapshot => {
     this.cached ??= {
       algorithm: this.algorithm,
+      n: this.n,
       run: this.run(),
       index: this.index,
       committed: this.committed,
@@ -119,6 +124,14 @@ export class Playback {
     return () => this.headListeners.delete(fn);
   };
   headSnapshot = () => this.head;
+  /** 누적 이동 while the head travels; null when the readout shows the snapshot's total. */
+  private live: number | null = null;
+  liveSnapshot = () => this.live;
+  onTravel = (total: number | null) => {
+    if (total === this.live) return;
+    this.live = total;
+    for (const fn of this.headListeners) fn();
+  };
 
   /* ---------- scene ---------- */
 
@@ -182,14 +195,14 @@ export class Playback {
 
   private schedule() {
     clearTimeout(this.timer);
-    if (this.playing && !this.busy && this.index < N)
+    if (this.playing && !this.busy && this.index < this.n)
       this.timer = setTimeout(() => void this.move(this.index + 1, true), 480 / this.speed);
   }
 
   private async move(next: number, motion = false) {
     const token = ++this.revision;
     clearTimeout(this.timer);
-    this.index = Math.max(0, Math.min(N, next));
+    this.index = Math.max(0, Math.min(this.n, next));
     this.busy = motion;
     this.paused = false;
     this.resumeAutomatically = this.playing;
@@ -204,7 +217,7 @@ export class Playback {
     this.busy = false;
     this.paused = false;
     if (
-      this.index === N ||
+      this.index === this.n ||
       (this.guided && this.playing && this.lesson.stops[this.algorithm].includes(this.index))
     )
       this.playing = false;
@@ -252,7 +265,7 @@ export class Playback {
       this.emit();
       return;
     }
-    if (this.committed === N && !this.busy) {
+    if (this.committed === this.n && !this.busy) {
       this.committed = this.index = 0;
       void this.scene?.update(this.current(), { route: this.route(0) });
       this.render();
@@ -295,6 +308,11 @@ export class Playback {
 /** The playback snapshot, re-rendering on every change. */
 export function usePlayback(playback: Playback): PlaybackSnapshot {
   return useSyncExternalStore(playback.subscribe, playback.snapshot, playback.snapshot);
+}
+
+/** 누적 이동 counting up during a seek (null otherwise). */
+export function useLiveTotal(playback: Playback): number | null {
+  return useSyncExternalStore(playback.subscribeHead, playback.liveSnapshot, playback.liveSnapshot);
 }
 
 /** The head cylinder (re-renders only the readout during a seek). */

@@ -4,7 +4,7 @@
 // each build one.
 import type { ReactNode } from "react";
 
-import type { RecallQuestion } from "@/lib/lesson-kit.ts";
+import type { Misconception, RecallQuestion } from "@/lib/lesson-kit.ts";
 import type { LessonId } from "./lessons.ts";
 import type { PlayerSnapshot } from "./player.ts";
 import type { PhaseReport, TxScene } from "./stage.ts";
@@ -87,6 +87,8 @@ export interface TxPage {
     legend: string[];
   };
   recap: { points: string[]; recall: RecallQuestion[] };
+  /** 오개념 바로잡기 of a mode's run: shown at their 핵심 장면 and listed in 정리. */
+  misconceptions: (mode: string) => Misconception[];
   sources: Source[];
   resultsTab: string;
   Timeline: (props: RecordProps) => ReactNode;

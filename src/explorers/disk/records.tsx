@@ -11,9 +11,10 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs.tsx";
 import { Label, Text } from "@/components/ui/typography.tsx";
 import { cn } from "@/lib/cn.ts";
 import { useRowWindow } from "@/lib/fit.ts";
-import { REQUESTS, routePoints } from "./engine.ts";
+import { josa } from "@/lib/josa.ts";
+import { routePoints, ticksFor } from "./engine.ts";
 import type { Lesson } from "./lessons.ts";
-import { N, type PlaybackSnapshot } from "./playback.ts";
+import type { PlaybackSnapshot } from "./playback.ts";
 import type { Step } from "./types.ts";
 
 export type RecordTab = "path" | "log" | "results";
@@ -87,9 +88,11 @@ export function DiskRecords({
   );
 }
 
-const px = (k: number) => ((k / N) * 100).toFixed(2);
-const py = (c: number) => ((c / 199) * 100).toFixed(2);
-const TICKS = [0, 50, 100, 150, 199];
+/** Chart coordinates (%) for n requests on cylinders 0–max. */
+const scaleOf = (n: number, max: number) => ({
+  px: (k: number) => ((k / n) * 100).toFixed(2),
+  py: (c: number) => ((c / max) * 100).toFixed(2),
+});
 
 // A stop's label sits in a free corner next to its dot: on the left, on the
 // vertical side away from the line arriving from the previous stop (the first
@@ -114,14 +117,17 @@ function RouteChart({
   seen: Step[];
   onSeek: (index: number) => void;
 }) {
-  const { committed, algorithm } = snap;
+  const { committed, algorithm, n: N } = snap;
+  const { max, head } = lesson.input;
+  const { px, py } = scaleOf(N, max);
+  const TICKS = ticksFor(max);
   const route = routePoints(snap.run.steps, committed);
   return (
     <div className={chartClass}>
       <div className={chartHeadClass}>
         <Label>
           <b>{lesson.names[algorithm]}</b>
-          {committed} / {N} 요청 · 실린더 0 위, 199 아래
+          {committed} / {N} 요청 · 실린더 0 위, {max} 아래
         </Label>
         <Label>
           {committed < N ? "처리한 요청만 표시" : `누적 ${seen[committed].state.total}칸`}
@@ -152,7 +158,7 @@ function RouteChart({
             points={route.map(([c, k]) => `${px(k)},${py(c)}`).join(" ")}
           />
         </svg>
-        {[0, 100, 199].map((c) => (
+        {[0, TICKS[Math.floor(TICKS.length / 2)], max].map((c) => (
           <span
             key={c}
             className="absolute top-[var(--y)] right-[calc(100%+10px)] -translate-y-1/2 text-caption leading-none whitespace-nowrap text-label-2"
@@ -170,7 +176,7 @@ function RouteChart({
               type="button"
               data-seek={s.index}
               aria-current={current ? "true" : undefined}
-              aria-label={`${s.index ? `${s.index}번째 요청, 헤드 ${s.state.head}` : "시작, 헤드 53"}으로 이동`}
+              aria-label={`${josa(s.index ? `${s.index}번째 요청, 헤드 ${s.state.head}` : `시작, 헤드 ${head}`, "으로/로")} 이동`}
               onClick={() => onSeek(s.index)}
               style={
                 { "--x": `${px(s.index)}%`, "--y": `${py(s.state.head)}%` } as React.CSSProperties
@@ -226,7 +232,14 @@ function RouteChart({
       >
         {Array.from({ length: N + 1 }, (_, k) => (
           <span key={k} style={{ "--x": `${px(k)}%` } as React.CSSProperties}>
-            {k ? `${k}번째` : "시작"}
+            {k ? (
+              <>
+                {k}
+                {N <= 8 && <span className="phone:hidden">번째</span>}
+              </>
+            ) : (
+              "시작"
+            )}
           </span>
         ))}
       </div>
@@ -304,7 +317,7 @@ function RequestLog({
 
 /** Lesson 01: requests served, the average move and the longest single move. */
 function Metrics({ snap, seen }: { snap: PlaybackSnapshot; seen: Step[] }) {
-  const { committed } = snap;
+  const { committed, n: N } = snap;
   const s = seen[committed].state;
   const longest = Math.max(0, ...seen.slice(1).map((x) => x.distance));
   const metrics: [string, string, string][] = [
@@ -334,6 +347,15 @@ function Metrics({ snap, seen }: { snap: PlaybackSnapshot; seen: Step[] }) {
   );
 }
 
+/** Request cylinders for the wait chart's axis, leaving out ones that would overlap. */
+function axisLabels(requests: number[], max: number) {
+  const sorted = requests.toSorted((a, b) => a - b);
+  if (sorted.length <= 8) return sorted;
+  const out: number[] = [];
+  for (const c of sorted) if (!out.length || c - out.at(-1)! >= max * 0.07) out.push(c);
+  return out;
+}
+
 // Sweep lessons: wait per request (head travel until it is served), drawn at
 // its cylinder. Lesson 03 adds, at the end, the worst wait under a steady
 // stream of requests (SCAN depends on the position, C-SCAN does not).
@@ -346,26 +368,27 @@ function WaitChart({
   snap: PlaybackSnapshot;
   seen: Step[];
 }) {
-  const { committed, algorithm } = snap;
+  const { committed, algorithm, n: N } = snap;
+  const { requests, max } = lesson.input;
   const runs = lesson.runs;
   const served = seen
     .slice(1)
     .map((s) => ({ c: s.request!.cylinder, wait: s.state.total, now: s.index === committed }));
   const end = committed === N;
   const worstWait = lesson.worstWait;
-  const worst = end && worstWait ? REQUESTS.map((c) => ({ c, w: worstWait(algorithm, c) })) : [];
+  const worst = end && worstWait ? requests.map((c) => ({ c, w: worstWait(algorithm, c) })) : [];
   const top = Math.max(
     ...lesson.algorithms.map((a) => runs[a].total),
-    ...(worstWait ? REQUESTS.flatMap((c) => lesson.algorithms.map((a) => worstWait(a, c))) : []),
+    ...(worstWait ? requests.flatMap((c) => lesson.algorithms.map((a) => worstWait(a, c))) : []),
   );
-  const cx = (c: number) => ((c / 199) * 100).toFixed(2);
+  const cx = (c: number) => ((c / max) * 100).toFixed(2);
   const wy = (w: number) => (100 - (w / (top * 1.1)) * 100).toFixed(2);
   // A worst wait that is the same everywhere (C-SCAN) is one line, one label.
   const flat = worst.length > 0 && worst.every((x) => x.w === worst[0].w);
   const waits = served.map((x) => x.wait);
   // 65/67 and 122/124 sit close together: print their labels to either side.
   const side = (c: number) => {
-    const near = REQUESTS.find((o) => o !== c && Math.abs(o - c) < 8);
+    const near = requests.find((o) => o !== c && Math.abs(o - c) < max * 0.04);
     return near === undefined ? null : c < near ? "l" : "r";
   };
   const labelShift = (c: number | null, edge = false) => {
@@ -461,7 +484,7 @@ function WaitChart({
         ))}
       </div>
       <div aria-hidden="true" className={axisClass}>
-        {REQUESTS.toSorted((a, b) => a - b).map((c, i, all) => (
+        {axisLabels(requests, max).map((c, i, all) => (
           <span
             key={c}
             className={

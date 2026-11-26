@@ -33,6 +33,34 @@ for (const path of PAGES) {
   });
 }
 
+test("protocol: the start screen shows the lesson's network at rest, and reset returns to it", async ({
+  page,
+}) => {
+  await page.goto("/protocol/");
+  const shown = () =>
+    page.evaluate(() =>
+      [...document.querySelectorAll<SVGGElement>("svg.network .node")]
+        .filter((node) => getComputedStyle(node).opacity === "1")
+        .map((node) => node.dataset.node)
+        .sort(),
+    );
+  const cables = () =>
+    page.evaluate(
+      () =>
+        [...document.querySelectorAll<SVGGElement>("svg.network .link")].filter(
+          (link) => link.style.visibility !== "hidden",
+        ).length,
+    );
+  const lesson = ["client", "dns", "internet", "router", "web"];
+  await expect.poll(shown).toEqual(lesson);
+  await expect.poll(cables).toBeGreaterThanOrEqual(4);
+  await page.locator('[data-action="toggle"]').click();
+  await page.waitForTimeout(600);
+  await page.locator('[data-action="reset"]').click();
+  await expect.poll(shown, { timeout: 5_000 }).toEqual(lesson);
+  await expect.poll(cables).toBeGreaterThanOrEqual(4);
+});
+
 test.describe("CPU lesson", () => {
   test("steps, plays a move and pauses at a guided stop", async ({ page }) => {
     const errors = watchErrors(page);

@@ -10,9 +10,13 @@
 // Sources: OSTEP ch. 22 (22.2 three Cs, 22.4 OPT, 22.6 workloads, 22.8 clock),
 // Silberschatz, Operating System Concepts 10.4 (FIFO, Belady's anomaly,
 // OPT, LRU and stack algorithms, second-chance).
+import { LABELS } from "@/lib/lesson-kit.ts";
 import { eul, eun, ga, josa } from "@/lib/josa.ts";
+import { DEFAULT_CUSTOM, pagesOf, type CustomConfig } from "./custom.ts";
 import { REFERENCE_STRING, replacementOrder, simulate } from "./engine.ts";
 import { buildMilestones, describeStep, predictionFor, recapFor } from "./lesson.ts";
+import { belady, clockLru, customMisconceptions, fifoLru, optLru } from "./misconceptions.ts";
+import type { Misconception } from "@/lib/lesson-kit.ts";
 import type {
   Algorithm,
   Extras,
@@ -49,6 +53,8 @@ export const CRITERION: Record<Algorithm, string> = {
   clock: "바늘이 만난 참조 비트 0인 페이지부터",
 };
 
+/** The pages the built-in lessons keep on the SSD. */
+const PAGES_AE: readonly string[] = Object.freeze(["A", "B", "C", "D", "E"]);
 const pageName = (page: string) => `페이지 ${page}`;
 const frameName = (slot: number | null, pair?: string) =>
   pair ? josa(`프레임 ${slot}`, pair) : `프레임 ${slot}`;
@@ -278,13 +284,16 @@ interface ScriptedData {
   forkText: (runs: Runs, extras: Extras) => string;
   compareNote: (runs: Runs, extras: Extras) => string;
   recap: (runs: Runs, extras: Extras) => Recap;
+  misconceptions: (runs: Runs, extras: Extras) => Misconception[];
   rules: [string, string][];
+  pages?: readonly string[];
 }
 
 /** Builds the lesson API for lessons 02–04 from their data. */
 function scripted(data: ScriptedData): Lesson {
   const lesson: Lesson = {
     ...data,
+    pages: data.pages ?? PAGES_AE,
     milestones: () => data.scenes,
     describe(step, run, mode) {
       const scenes = data.scenes;
@@ -329,6 +338,7 @@ const FIFO_LRU: Lesson = {
   name: "FIFO와 LRU",
   sub: "같은 접근, 다른 교체",
   references: REFERENCE_STRING,
+  pages: PAGES_AE,
   modeLabel: "교체 방식",
   modes: [
     { id: "fifo", algorithm: "fifo", frameCount: 3, label: "FIFO" },
@@ -339,6 +349,7 @@ const FIFO_LRU: Lesson = {
   describe: (step, run) => describeStep(step, run),
   predict: (step, run) => predictionFor(step, run),
   recap: (runs) => recapFor(runs),
+  misconceptions: (runs) => fifoLru(runs),
   forkText: () =>
     "<b>갈림길은 4번째 A 적중입니다.</b> FIFO는 A의 적재 순서를 그대로 두고, LRU는 A의 마지막 접근을 4번째로 기록합니다. 그래서 5번째 D를 넣을 때 FIFO는 A, LRU는 B를 내보내고, 6번째 A가 각각 부재와 적중으로 갈립니다.",
   compareNote: (runs, { opt }) =>
@@ -547,6 +558,7 @@ const OPT_LRU = scripted({
       },
     ],
   }),
+  misconceptions: (runs) => optLru(runs),
   rules: [
     ["시작", "RAM 프레임 3개는 처음에 모두 비어 있습니다."],
     ["접근", "A B C D를 세 번 반복하는 12번의 읽기를 두 방식에 똑같이 적용합니다."],
@@ -744,6 +756,7 @@ const BELADY = scripted({
       },
     ],
   }),
+  misconceptions: (runs, extras) => belady(runs, extras),
   rules: [
     ["시작", "두 조건 모두 RAM 프레임이 처음에 비어 있습니다."],
     [
@@ -909,6 +922,7 @@ const CLOCK = scripted({
       },
     ],
   }),
+  misconceptions: (runs) => clockLru(runs),
   rules: [
     ["시작", "RAM 프레임 3개는 처음에 비어 있고, 바늘은 프레임 0을 가리킵니다."],
     ["접근", "A B C D B A B C D, 정해진 9번의 읽기를 두 방식에 똑같이 적용합니다."],
@@ -919,7 +933,178 @@ const CLOCK = scripted({
   ],
 });
 
-export const LESSONS: Lesson[] = [FIFO_LRU, OPT_LRU, BELADY, CLOCK];
+/* ---------- 05 직접 실험 ---------- */
+
+/**
+ * The learner's own input (custom.ts) run through the same scene, records,
+ * comparison and generic text as lessons 02–04. Every sentence is built from
+ * the two runs, so it stays true for any reference string, frame count and
+ * pair of policies. Scenes: the start, the first access, the access before
+ * the first replacement (a victim prediction follows it), the first access at
+ * which the two policies evict different pages, and the end.
+ */
+export function customLesson(config: CustomConfig = DEFAULT_CUSTOM): Lesson {
+  const { refs, frames, policies } = config;
+  const [a, b] = policies;
+  const modes: Mode[] = policies.map((algorithm) => ({
+    id: algorithm,
+    algorithm,
+    frameCount: frames,
+    label: POLICY[algorithm],
+  }));
+  const total = refs.length;
+  const runs = runsFor({ modes, references: refs });
+  const ra = runs[a];
+  const rb = runs[b];
+  // Before the first replacement both policies fill the same empty frames, so
+  // the first replacement is at the same access in both runs.
+  const first = ra.steps.find((step) => step.victim !== null)?.index ?? null;
+  const fork =
+    ra.steps.find((step) => step.victim !== null && rb.steps[step.index].victim !== step.victim)
+      ?.index ?? null;
+  const scenes: Milestone[] = [
+    {
+      index: 0,
+      title: "내가 고른 접근 순서",
+      heading: "내가 고른 접근 순서에서는 어느 정책이 부재가 적을까?",
+    },
+  ];
+  const add = (m: Milestone) => {
+    if (m.index > 0 && m.index < total && !scenes.some((s) => s.index === m.index)) scenes.push(m);
+  };
+  add({ index: 1, title: "첫 접근은 부재", heading: "첫 접근은 언제나 부재입니다" });
+  if (first !== null)
+    add({ index: first - 1, title: "RAM이 가득 찼을 때", heading: "프레임이 모두 찼습니다" });
+  if (fork !== null)
+    add({
+      index: fork,
+      title: "두 정책이 갈리는 접근",
+      heading: "두 정책이 다른 페이지를 내보냅니다",
+    });
+  scenes.sort((x, y) => x.index - y.index);
+  scenes.push({ index: total, title: "결과 비교와 정리", heading: "같은 입력, 두 정책의 결과" });
+  const names = `${josa(POLICY[a], "와/과")} ${POLICY[b]}`;
+  const optFaults = simulate({ algorithm: "opt", frameCount: frames, references: refs }).stats
+    .faults;
+  const coldCount = compulsory(ra);
+  const victimAt = (run: Run, i: number) => run.steps[i].victim!;
+  const better =
+    ra.stats.faults === rb.stats.faults ? null : ra.stats.faults < rb.stats.faults ? ra : rb;
+  const otherOf = (run: Run) => (run.algorithm === a ? rb : ra);
+
+  return scripted({
+    id: "custom",
+    name: LABELS.custom,
+    sub: "내 접근 순서로 비교",
+    references: refs,
+    pages: pagesOf(refs),
+    modeLabel: "교체 정책",
+    modes,
+    question: "내가 고른 접근 순서에서는 어느 정책이 부재가 적을까?",
+    intro: `페이지 ${pagesOf(refs).join("·")} 중에서 고른 ${total}번의 접근을 RAM 프레임 ${frames}개로 처리합니다. 같은 입력을 ${names}에 똑같이 적용해 나란히 봅니다.`,
+    goal: "학습 목표: 직접 고른 접근 순서로 두 교체 정책을 돌려 보고, 부재 횟수가 정책·접근 순서·프레임 수에 따라 어떻게 달라지는지 설명할 수 있다.",
+    endTitle: "같은 입력, 두 정책의 결과",
+    scenes,
+    quizzes: Object.fromEntries(
+      modes.map((m) => [m.id, first !== null ? [{ at: first, kind: "victim" as const }] : []]),
+    ),
+    keys: {
+      all: {
+        0: "직접 고른 입력에도 규칙은 같습니다. 빈 프레임이 없을 때만 교체하고, 처음 참조하는 페이지는 강제 부재입니다.",
+        1: "첫 접근은 RAM이 비어 있어 어떤 정책에서도 부재입니다. 처음 참조할 때의 부재를 강제 부재라고 합니다.",
+      },
+    },
+    fallbackKey(step, run) {
+      if (step.hit)
+        return `${eun(step.page)} RAM에 남아 있어 저장장치를 읽지 않았습니다. 지금까지 적중 ${step.hits}회, 부재 ${step.faults}회입니다.`;
+      if (step.victim === null)
+        return `빈 프레임이 있어 교체 없이 적재했습니다. 지금까지 부재 ${step.faults}회, 교체 ${step.replacements}회입니다.`;
+      const other = otherOf(run);
+      const theirs = other.steps[step.index].victim;
+      const same =
+        theirs === null
+          ? ""
+          : theirs === step.victim
+            ? ` 같은 접근에서 ${POLICY[other.algorithm]}도 ${eul(theirs)} 내보냈습니다.`
+            : ` 같은 접근에서 ${topic(other.algorithm)} ${eul(theirs)} 내보냈습니다.`;
+      return `${topic(run.algorithm)} ${CRITERION[run.algorithm]} 내보내는 정책이라 ${eul(step.victim!)} 골랐습니다.${same}`;
+    },
+    fork: fork !== null ? fork - 1 : first !== null ? first - 1 : 0,
+    forkText: () =>
+      fork !== null
+        ? `<b>갈림길은 ${fork}번째 ${refs[fork - 1]}입니다.</b> ${topic(a)} ${eul(victimAt(ra, fork))}, ${topic(b)} ${eul(victimAt(rb, fork))} 내보냅니다. 그 뒤로는 RAM에 남은 페이지가 달라 적중과 부재가 갈릴 수 있습니다.`
+        : first !== null
+          ? `<b>두 정책의 선택이 끝까지 같습니다.</b> 이 입력에서는 ${josa(names, "이/가")} 교체할 때마다 같은 페이지를 내보냈습니다.`
+          : `<b>교체가 한 번도 없습니다.</b> 사용한 페이지 ${pagesOf(refs).length}개가 프레임 ${frames}개에 모두 담겨, 두 정책 모두 빈 프레임만 썼습니다.`,
+    compareNote: () =>
+      `${POLICY[a]} 부재 ${ra.stats.faults}회, ${POLICY[b]} 부재 ${rb.stats.faults}회이고, 같은 입력에서 OPT(MIN)는 ${optFaults}회입니다. 접근 순서나 프레임 수를 바꾸면 차이도 달라집니다.`,
+    recap: () => ({
+      points: [
+        `${topic(a)} 부재 ${ra.stats.faults}회·적중 ${ra.stats.hits}회, ${topic(b)} 부재 ${rb.stats.faults}회·적중 ${rb.stats.hits}회입니다. 같은 입력의 OPT(MIN)는 ${optFaults}회로, 어떤 정책도 이보다 적을 수 없습니다.`,
+        `부재 중 ${coldCount}회는 처음 참조한 강제 부재라 어떤 정책도 피할 수 없습니다.`,
+        fork !== null
+          ? `두 정책은 ${fork}번째 접근에서 처음 다른 페이지를 내보냈습니다. 내보낸 페이지가 다르면 그 뒤의 적중과 부재가 달라집니다.`
+          : "두 정책이 내보낸 페이지가 끝까지 같아 결과도 같습니다. 정책의 차이는 입력에 따라 드러나기도 하고 숨기도 합니다.",
+      ],
+      recall: [
+        {
+          id: "custom-better",
+          question: `이 입력(프레임 ${frames}개)에서 부재가 더 적었던 정책은?`,
+          answer: better ? POLICY[better.algorithm] : "두 정책이 같다",
+          choices: [
+            ...[ra, rb].map((run) => ({
+              label: POLICY[run.algorithm],
+              correct: better === run,
+              why:
+                better === run
+                  ? `${POLICY[run.algorithm]} ${run.stats.faults}회, ${POLICY[otherOf(run).algorithm]} ${otherOf(run).stats.faults}회였습니다.`
+                  : `${POLICY[run.algorithm]}의 부재는 ${run.stats.faults}회로 ${better ? `${POLICY[better.algorithm]}(${better.stats.faults}회)보다 많습니다.` : "다른 정책과 같습니다."}`,
+            })),
+            {
+              label: "두 정책이 같다",
+              correct: better === null,
+              why:
+                better === null
+                  ? `두 정책 모두 부재 ${ra.stats.faults}회였습니다.`
+                  : `부재는 ${POLICY[a]} ${ra.stats.faults}회, ${POLICY[b]} ${rb.stats.faults}회로 다릅니다.`,
+            },
+          ],
+        },
+        {
+          id: "custom-cold",
+          question: "처음 참조할 때의 강제 부재는 정책을 바꾸면 줄일 수 있을까?",
+          answer: "줄일 수 없다",
+          choices: [
+            {
+              label: "줄일 수 없다",
+              correct: true,
+              why: `처음 참조하는 페이지는 RAM에 있을 수 없습니다. 이 입력에서는 어느 정책이든 강제 부재가 ${coldCount}회입니다.`,
+            },
+            {
+              label: "OPT로 바꾸면 줄일 수 있다",
+              why: "OPT는 미래를 알 뿐 처음 쓰는 페이지를 미리 가지고 있지 않습니다. 강제 부재는 그대로입니다.",
+            },
+            {
+              label: "프레임을 늘리면 줄일 수 있다",
+              why: "프레임을 늘려 줄일 수 있는 것은 내보냈다가 다시 읽는 부재입니다. 처음 참조는 그대로 부재입니다.",
+            },
+          ],
+        },
+      ],
+    }),
+    misconceptions: () => customMisconceptions(runs, [a, b], scenes.length),
+    rules: [
+      ["시작", `RAM 프레임 ${frames}개는 처음에 모두 비어 있습니다.`],
+      ["접근", `${refs.join(" ")}, ${total}번의 읽기를 두 정책에 똑같이 적용합니다.`],
+      ["입력", "조건 바꾸기에서 접근 순서(A~H, 16번까지)·프레임 수·정책을 바꿀 수 있습니다."],
+    ],
+  });
+}
+
+/** The rail's entry for 직접 실험 (the page builds the real one from the URL). */
+const CUSTOM = customLesson();
+
+export const LESSONS: Lesson[] = [FIFO_LRU, OPT_LRU, BELADY, CLOCK, CUSTOM];
 
 /**
  * Yardsticks a lesson quotes but does not animate: OPT on the same input,

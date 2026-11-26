@@ -148,11 +148,14 @@ test("lessons: rail data, two methods each, the RR lesson first so /cpu/ still o
       assert.ok(lesson[key], `${lesson.id}.${key}`);
     assert.equal(lesson.methods.length, 2);
     for (const m of lesson.methods) assert.ok(ALGORITHMS.includes(m) && METHODS[m]);
-    assert.equal(lesson.processes.length, 3);
-    assert.deepEqual(
-      lesson.processes.map((p) => p.id),
-      ["P1", "P2", "P3"],
-    );
+    // 직접 실험 runs the learner's jobs (1–5); the lessons have three.
+    if (lesson.id !== "custom") {
+      assert.equal(lesson.processes.length, 3);
+      assert.deepEqual(
+        lesson.processes.map((p) => p.id),
+        ["P1", "P2", "P3"],
+      );
+    }
     assert.equal(lesson.quantum != null, lesson.methods.includes("rr"));
     for (const fn of [
       "intro",
@@ -174,6 +177,7 @@ test("lessons: rail data, two methods each, the RR lesson first so /cpu/ still o
   assert.equal(progressIdFor("cpu", LESSONS, "sjf"), "cpu:sjf");
   assert.deepEqual(nextLesson(LESSONS, "rr"), { href: "./?lesson=sjf", title: "SJF와 FCFS" });
   assert.deepEqual(nextLesson(LESSONS, "sjf"), { href: "./?lesson=srtf", title: "SRTF와 SJF" });
+  assert.deepEqual(nextLesson(LESSONS, "srtf"), { href: "./?lesson=custom", title: "직접 실험" });
   assert.equal(nextLesson(LESSONS, LESSONS.at(-1)!.id), null);
 });
 

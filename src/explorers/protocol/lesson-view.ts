@@ -11,7 +11,8 @@ import { translate } from "./i18n.ts";
 import { getLessonPackets } from "./packets/encode.ts";
 import { getKeySteps } from "./quiz.ts";
 import { learning, type LearningInfo } from "./lessons/learning.ts";
-import type { RecallQuestion } from "@/lib/lesson-kit.ts";
+import { misconceptions as MISCONCEPTIONS } from "./lessons/misconceptions.ts";
+import type { Misconception, RecallQuestion } from "@/lib/lesson-kit.ts";
 
 export interface OverviewState {
   lesson: Lesson;
@@ -37,12 +38,15 @@ export interface OverviewState {
     text: string;
     facts: [string, string][];
     hold: boolean;
+    /** 오개념 바로잡기 that this step shows (none while it is held). */
+    misconceptions: Misconception[];
   } | null;
   recap: {
     label: string;
     title: string;
     desc: string;
     points: string[];
+    misconceptions: Misconception[];
     recall: RecallQuestion[];
   } | null;
   packet: {
@@ -78,6 +82,26 @@ const factsWithout = (facts: [string, string][], pending: Quiz | null) =>
 /** Is this step's text hidden by a pending prediction? */
 const isStepHeld = (pending: Quiz | null, stepIndex: number) =>
   Boolean(pending) && pending!.step === stepIndex;
+
+/** The 오개념 바로잡기 of a step (0-based), minus any that would give a pending answer away. */
+function misconceptionsAtStep(lesson: Lesson, stepIndex: number, pending: Quiz | null) {
+  const right = pending?.choices.find((choice) => choice.correct)?.text;
+  // What earlier packets already showed is observation, not the answer.
+  const seen = pending
+    ? getLessonPackets(lesson)
+        .slice(0, pending.packet)
+        .flatMap((p) => [p.row?.info ?? "", ...(p.payload ?? []).map((line) => translate(line))])
+        .join(" ")
+    : "";
+  const needles = [pending?.answer, right].filter((s): s is string =>
+    Boolean(s && s.length >= 2 && !seen.includes(s)),
+  );
+  return (MISCONCEPTIONS[lesson.id] ?? []).filter(
+    (item) =>
+      item.scene === stepIndex + 1 &&
+      !needles.some((needle) => `${item.wrong} ${item.right} ${item.check}`.includes(needle)),
+  );
+}
 
 /** "핵심 장면 2/5" for a step with a prediction, else null. */
 function keySceneOf(lesson: Lesson, stepIndex: number) {
@@ -146,6 +170,7 @@ function buildOverviewState(
       title: lesson.outro.title,
       desc: lesson.outro.desc,
       points: info.points ?? [],
+      misconceptions: MISCONCEPTIONS[lesson.id] ?? [],
       recall: info.recall ?? [],
     };
     return state;
@@ -160,7 +185,16 @@ function buildOverviewState(
       .filter(Boolean)
       .join(" · ");
     state.content = held
-      ? { label, key, title: HOLD_TITLE, desc: "", text: HOLD_TEXT, facts: [], hold: true }
+      ? {
+          label,
+          key,
+          title: HOLD_TITLE,
+          desc: "",
+          text: HOLD_TEXT,
+          facts: [],
+          hold: true,
+          misconceptions: [],
+        }
       : {
           label,
           key,
@@ -169,6 +203,7 @@ function buildOverviewState(
           text: step.detail,
           facts: step.facts ?? [],
           hold: false,
+          misconceptions: misconceptionsAtStep(lesson, playback.activeStep, pending),
         };
   }
   if (showPacket && displayedPacket) {
@@ -194,6 +229,7 @@ function visibleLessonText(state: OverviewState) {
     const c = state.content!;
     parts.push(c.label, translate(c.title), translate(c.desc), translate(c.text));
     for (const [label, value] of c.facts) parts.push(translate(label), translate(value));
+    for (const item of c.misconceptions) parts.push(item.wrong, item.right, item.check);
     if (state.packet)
       parts.push(
         translate(state.packet.event.label),

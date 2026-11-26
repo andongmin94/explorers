@@ -117,7 +117,7 @@ function History({ playback, snap }: { playback: Playback; snap: PlaybackSnapsho
     </tr>
   );
   return (
-    <Table className="mem-history">
+    <Table className="mem-history" data-frames={snap.run.frameCount}>
       <thead>
         <tr>
           <Th className="text-left">접근</Th>

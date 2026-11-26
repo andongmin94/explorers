@@ -8,6 +8,7 @@
 import { ChevronLeftIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { MisconceptionNote } from "@/components/learning/misconception.tsx";
 import { PagedList, Pager, usePager, type PagedItem } from "@/components/learning/pager.tsx";
 import { RecallQuestionBlock, RecallWhy } from "@/components/learning/recap.tsx";
 import { SidePanel } from "@/components/shell/console.tsx";
@@ -191,6 +192,12 @@ function lessonItems(
       });
     }
     if (c.facts.length) items.push({ key: "s-facts", node: <Facts facts={c.facts} /> });
+    for (const item of c.misconceptions)
+      items.push({
+        key: `s-misconception-${item.id}`,
+        note: true,
+        node: <MisconceptionNote item={item} />,
+      });
     return items;
   }
   const r = state.recap!;
@@ -225,6 +232,12 @@ function lessonItems(
       ),
     },
   ];
+  for (const item of r.misconceptions)
+    items.push({
+      key: `r-misconception-${item.id}`,
+      note: true,
+      node: <MisconceptionNote item={item} />,
+    });
   for (const question of r.recall) {
     const picked = answers[question.id];
     items.push({

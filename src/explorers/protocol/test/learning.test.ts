@@ -11,6 +11,7 @@ import type {
 import test from "node:test";
 import { lessonsById, protocolCatalog } from "../lessons/index.ts";
 import { learning } from "../lessons/learning.ts";
+import { misconceptions } from "../lessons/misconceptions.ts";
 import { getLessonPackets } from "../packets/encode.ts";
 import {
   getGuidedStops,
@@ -301,4 +302,44 @@ test("핵심 장면 are the steps with a prediction, 1–6 per lesson", () => {
     for (const quiz of getLessonQuizzes(lesson)) assert.ok(keys.includes(quiz.step));
   }
   assert.equal(translate("STEP {n} OF {total}", { n: 1, total: 5 }), "단계 1/5");
+});
+
+test("every lesson sets 2–4 misconceptions right at a step that exists, with evidence from its own data", () => {
+  for (const lesson of Object.values(lessonsById)) {
+    const items = misconceptions[lesson.id];
+    assert.ok(items && items.length >= 2 && items.length <= 4, `${lesson.id}: ${items?.length}`);
+    assert.equal(new Set(items.map((m) => m.id)).size, items.length, `${lesson.id}: unique ids`);
+    const data = JSON.stringify(lesson);
+    for (const item of items) {
+      assert.ok(
+        Number.isInteger(item.scene) && item.scene >= 1 && item.scene <= lesson.steps.length,
+        `${lesson.id}/${item.id}: step ${item.scene} of ${lesson.steps.length}`,
+      );
+      for (const text of [item.wrong, item.right, item.check]) assert.ok(text.length > 10);
+      assert.ok(item.evidence.length > 0, `${lesson.id}/${item.id}: evidence`);
+      for (const needle of item.evidence)
+        assert.ok(data.includes(needle), `${lesson.id}/${item.id}: "${needle}" not in the lesson`);
+    }
+  }
+});
+
+test("a misconception shows in the 해설 at its step once nothing is pending, and in 정리", () => {
+  for (const lesson of Object.values(lessonsById)) {
+    for (const item of misconceptions[lesson.id]) {
+      const playback = snapshotBefore(lesson, getLessonPackets(lesson).length, {
+        activeStep: item.scene - 1,
+      });
+      const state = buildOverviewState(playback, lesson, 0, { pending: null });
+      assert.deepEqual(
+        state.content!.misconceptions.map((m) => m.id),
+        misconceptions[lesson.id].filter((m) => m.scene === item.scene).map((m) => m.id),
+      );
+      assert.ok(visibleLessonText(state).includes(item.check), `${lesson.id}/${item.id}: shown`);
+    }
+    const done = buildOverviewState(
+      { ...snapshotBefore(lesson, 0, { activeStep: lesson.steps.length - 1 }), done: true },
+      lesson,
+    );
+    assert.equal(done.recap!.misconceptions.length, misconceptions[lesson.id].length);
+  }
 });

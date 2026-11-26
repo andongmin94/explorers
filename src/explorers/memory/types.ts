@@ -1,5 +1,6 @@
 // Types of the memory explorer: the page replacement engine, its steps and
 // the lesson data (port of memory/src/*.js; behaviour unchanged).
+import type { Misconception } from "@/lib/lesson-kit.ts";
 
 export type Algorithm = "fifo" | "lru" | "opt" | "clock";
 /** Why a frame was picked: an empty frame or the policy. */
@@ -158,6 +159,8 @@ export interface Lesson {
   name: string;
   sub: string;
   references: readonly string[];
+  /** The pages the scene keeps on the SSD and in the page table (A–E, or the custom input's). */
+  pages: readonly string[];
   modeLabel: string;
   modes: Mode[];
   fork: number;
@@ -166,6 +169,8 @@ export interface Lesson {
   describe(step: Step, run: Run, mode: Mode): StepDescription;
   predict(step: Step | undefined, run: Run, mode: Mode): Quiz | null;
   recap(runs: Runs, extras: Extras): Recap;
+  /** 오개념 바로잡기: 2–4 beliefs this lesson's run sets right, each at its 핵심 장면. */
+  misconceptions(runs: Runs, extras: Extras): Misconception[];
   forkText(runs: Runs, extras: Extras): string;
   compareNote(runs: Runs, extras: Extras): string;
 }

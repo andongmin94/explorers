@@ -17,6 +17,7 @@ import {
   type ScenarioId,
 } from "./isolation-engine.ts";
 import { ISOLATION_LESSONS } from "./isolation-lesson.ts";
+import { isolationMisconceptions } from "./misconceptions.ts";
 import { createIsolationScene } from "./isolation-scene.ts";
 import type { RecordProps, TxPage, TxStep } from "./page.ts";
 import {
@@ -56,6 +57,9 @@ export function isolationPage(lessonId: ScenarioId): TxPage {
   const runs = Object.fromEntries(
     modes.map((m) => [m, simulateIsolation({ scenario: L.scenario, mode: m })]),
   ) as Record<string, IsoRun>;
+  const misconceptions = Object.fromEntries(
+    modes.map((m) => [m, isolationMisconceptions(runs[m])]),
+  ) as Record<string, ReturnType<typeof isolationMisconceptions>>;
   const rowIds = L.rows.map((r) => r.id);
   const single = rowIds.length === 1;
   const text = L.valueText;
@@ -315,6 +319,7 @@ export function isolationPage(lessonId: ScenarioId): TxPage {
       legend: L.legend,
     },
     recap: L.recap,
+    misconceptions: (mode) => misconceptions[mode],
     sources: L.sources,
     resultsTab: "결과",
     Timeline,

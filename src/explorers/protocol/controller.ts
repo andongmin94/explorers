@@ -180,6 +180,9 @@ export class ProtocolController {
       this.resetLesson();
       return;
     }
+    // The start screen shows the lesson's network at once; the lesson starts
+    // (and lays the labels out again) when the fonts are in.
+    scene.overview(this.lesson.nodes, this.lesson.labels);
     const begin = () => {
       if (this.network && !this.player) this.selectLesson(this.lesson.id, true);
     };

@@ -1,10 +1,8 @@
-// The control palette: the two rules, the transport, the seek bar and the
-// guided switch. On the desktop console it is one column:
-//   rule A | rule B
-//   reset  back  play ────────
-//   replay speed next request
-//   0 ── seek ── 8
-//   guided switch
+// The control palette, in two tiers:
+//   primary   — which rule (segmented control) and the transport
+//               [처음] [이전] [▶ 학습 시작 ────] [다음 요청 ›]
+//   secondary — quieter, below a hairline: the seek bar with its own
+//               "진행 3 / 8" line, then [다시 보기 · 속도 1×] and the guided switch.
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -22,41 +20,36 @@ import { Switch } from "@/components/ui/switch.tsx";
 import { Label, Muted } from "@/components/ui/typography.tsx";
 import { LABELS } from "@/lib/lesson-kit.ts";
 import { fix } from "./format.ts";
-import { N, type Playback, type PlaybackSnapshot } from "./playback.ts";
+import type { Playback, PlaybackSnapshot } from "./playback.ts";
 import type { Algorithm } from "./types.ts";
 
 export function DiskDeck({ playback, snap }: { playback: Playback; snap: PlaybackSnapshot }) {
   const lesson = playback.lesson;
-  const { index, committed, busy } = snap;
+  const { index, committed, busy, n: N } = snap;
   const moving = snap.playing || (busy && !snap.paused);
   const playLabel = moving
-    ? "일시정지"
+    ? LABELS.pause
     : committed === N && !busy
-      ? "다시 재생"
+      ? LABELS.replay
       : index
-        ? "이어서 재생"
-        : "학습 시작";
+        ? LABELS.resume
+        : LABELS.start;
 
   return (
     <Deck
       aria-label="실험 조작"
       className="console:grid console:grid-cols-[minmax(0,1fr)] console:gap-3 console-short:gap-2.5"
     >
-      <Field className="phone:w-full console:w-full">
+      <Field className="w-full">
         <Label id="algorithm-label">다음 요청을 고르는 기준</Label>
         <SegmentedControl<Algorithm>
-          aria-label="스케줄링 알고리즘"
+          aria-labelledby="algorithm-label"
           value={snap.algorithm}
           onValueChange={(alg) => playback.setAlgorithm(alg)}
-          className="phone:grid phone:w-full console:grid console:w-full console:grid-cols-2"
+          className="grid w-full grid-cols-2"
         >
           {lesson.algorithms.map((alg) => (
-            <Segment
-              key={alg}
-              value={alg}
-              data-algorithm={alg}
-              className="group/seg console:px-2.5"
-            >
+            <Segment key={alg} value={alg} data-algorithm={alg} className="group/seg px-2.5">
               {fix(lesson.names[alg]!)}{" "}
               <Muted className="font-medium">{lesson.ruleShort[alg]}</Muted>
             </Segment>
@@ -88,7 +81,7 @@ export function DiskDeck({ playback, snap }: { playback: Playback; snap: Playbac
           variant="plain"
           data-action="play"
           aria-label={moving ? "일시정지" : "재생"}
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-1 font-semibold"
           onClick={() => playback.togglePlay()}
         >
           {moving ? <PauseIcon aria-hidden="true" /> : <PlayIcon aria-hidden="true" />}
@@ -104,30 +97,20 @@ export function DiskDeck({ playback, snap }: { playback: Playback; snap: Playbac
         </Button>
       </ButtonGroup>
 
-      <div className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 phone:w-full">
-        <ButtonGroup>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="replay"
-            aria-label={`${LABELS.now} 요청 다시 보기`}
-            disabled={index === 0 || busy}
-            onClick={() => void playback.replay()}
+      <div
+        data-deck="secondary"
+        className="grid w-full min-w-0 gap-2 border-t border-separator-soft pt-2.5 console-short:gap-1.5 console-short:pt-2"
+      >
+        <div className="flex min-w-0 items-center gap-3">
+          <Label id="seek-label">진행</Label>
+          <span
+            id="seek-value"
+            aria-hidden="true"
+            className="ms-auto text-caption font-medium text-vlabel-2 tabular-nums"
           >
-            <RotateCcwIcon aria-hidden="true" />
-          </Button>
-          <Button
-            variant="plain"
-            size="icon"
-            data-action="speed"
-            aria-label={`재생 속도 ${snap.speed}배, 바꾸기`}
-            className="tabular-nums"
-            onClick={() => playback.cycleSpeed()}
-          >
-            {snap.speed}×
-          </Button>
-        </ButtonGroup>
-        <Label>0</Label>
+            {index} / {N} 요청
+          </span>
+        </div>
         <Slider
           id="seek"
           min={0}
@@ -138,16 +121,40 @@ export function DiskDeck({ playback, snap }: { playback: Playback; snap: Playbac
           thumbProps={{ "aria-valuetext": `${index} / ${N} 요청${busy ? " 처리 중" : " 완료"}` }}
           onValueChange={(value) => playback.jump(value as number)}
         />
-        <Label>{N}</Label>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+          <ButtonGroup aria-label="보기 설정">
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="replay"
+              aria-label={`${LABELS.now} 요청 다시 보기`}
+              disabled={index === 0 || busy}
+              onClick={() => void playback.replay()}
+            >
+              <RotateCcwIcon aria-hidden="true" />
+              <span className="phone:sr-only">다시 보기</span>
+            </Button>
+            <Button
+              variant="plain"
+              size="sm"
+              data-action="speed"
+              aria-label={`재생 속도 ${snap.speed}배, 바꾸기`}
+              className="tabular-nums"
+              onClick={() => playback.cycleSpeed()}
+            >
+              <span className="text-vlabel-2">속도</span> {snap.speed}×
+            </Button>
+          </ButtonGroup>
+          <Switch
+            data-action="guided"
+            className="ms-auto text-caption"
+            checked={snap.guided}
+            onCheckedChange={(on) => playback.setGuided(on)}
+          >
+            {LABELS.guided}
+          </Switch>
+        </div>
       </div>
-
-      <Switch
-        data-action="guided"
-        checked={snap.guided}
-        onCheckedChange={(on) => playback.setGuided(on)}
-      >
-        {LABELS.guided}
-      </Switch>
     </Deck>
   );
 }

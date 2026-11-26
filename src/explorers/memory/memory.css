@@ -3,13 +3,17 @@
  * is built with. Everything else is Tailwind in the components.
  */
 
-/* Page colours A–E: semantic colours for tokens, chips and their LEDs. */
+/* Page colours A–H: semantic colours for tokens, chips and their LEDs. */
 :root {
   --page-a: #3971d9;
   --page-b: #168264;
   --page-c: #8055c6;
   --page-d: #b07213;
   --page-e: #c24f4f;
+  /* F–H only appear in 직접 실험. */
+  --page-f: #1f7f97;
+  --page-g: #a2457e;
+  --page-h: #5f6b2a;
   --mem-fault: #c56a1c;
   /* Ink printed on the frame tray face (the kit metal ink is too dark in dark mode). */
   --mem-face-ink: #36383b;
@@ -21,6 +25,9 @@
   --page-c: #9a74e0;
   --page-d: #c98a26;
   --page-e: #d96565;
+  --page-f: #3aa3bd;
+  --page-g: #cf6aa8;
+  --page-h: #93a14a;
   --mem-fault: #e08a3c;
   --mem-face-ink: #f1f0ea;
   --mem-face-engrave: rgb(0 0 0 / 0.55);
@@ -142,5 +149,21 @@
   .mem-history [data-slot="page-chip"] {
     width: 22px;
     height: 22px;
+  }
+}
+
+/* 직접 실험 with five or six frames: tighter rows so the record still fits. */
+@media (min-width: 1100px) and (min-height: 700px) {
+  .mem-history:is([data-frames="5"], [data-frames="6"]) thead th {
+    padding-block: 2px;
+  }
+  .mem-history:is([data-frames="5"], [data-frames="6"]) tbody :is(th, td) {
+    height: 19px;
+    padding-block: 0;
+  }
+  .mem-history:is([data-frames="5"], [data-frames="6"]) [data-slot="page-chip"] {
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
   }
 }

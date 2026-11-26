@@ -1,7 +1,7 @@
-// CPU 스케줄링 탐색기: one lesson per page (?lesson=rr|sjf|srtf). The shell
+// CPU 스케줄링 탐색기: one lesson per page (?lesson=rr|sjf|srtf|custom). The shell
 // (toolbar, rail, console, footer) comes from src/components/shell; this file
 // wires the lesson's playback, panels and sheets together.
-import { ChartColumnIcon } from "lucide-react";
+import { ChartColumnIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { Console, Footer, Kbd, Stage } from "@/components/shell/console.tsx";
@@ -13,12 +13,14 @@ import { createProgress, LABELS, type Progress } from "@/lib/lesson-kit.ts";
 import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
 import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { CpuComparison } from "./comparison.tsx";
+import { customQuery, parseCustom, type CustomConfig } from "./custom.ts";
+import { CpuCustomSheet } from "./custom-sheet.tsx";
 import { CpuDeck } from "./deck.tsx";
 import { simulate } from "./engine.ts";
 import { colorOf } from "./format.ts";
 import { josa } from "./josa.ts";
 import { eventLabel } from "./lesson.ts";
-import { LESSONS, METHODS, lessonRuns, type Lesson } from "./lessons.ts";
+import { LESSONS, METHODS, customLesson, lessonRuns, type Lesson } from "./lessons.ts";
 import { Playback, usePlayback, type PlaybackSnapshot } from "./playback.ts";
 import { CpuPrediction, type Quiz } from "./prediction.tsx";
 import { CpuRecords, type RecordTab } from "./records.tsx";
@@ -54,9 +56,40 @@ function useProgressSummary(progress: Progress) {
 const isPhone = () => window.matchMedia("(max-width: 759px)").matches;
 const isStacked = () => window.matchMedia("(max-width: 1099px)").matches;
 
+/**
+ * The page: the lesson named in the URL. 직접 실험 (?lesson=custom) builds its
+ * lesson from the query (custom.ts); running new jobs rewrites the query and
+ * mounts a fresh lesson view, so playback and progress start over.
+ */
 export function App() {
-  const lesson = useMemo(() => currentLesson(LESSONS), []);
-  const lessonNumber = String(LESSONS.indexOf(lesson) + 1).padStart(2, "0");
+  const base = useMemo(() => currentLesson(LESSONS), []);
+  const [custom, setCustom] = useState(() => parseCustom(globalThis.location?.search ?? ""));
+  const isCustom = base.id === "custom";
+  const lesson = useMemo(
+    () => (isCustom ? customLesson(custom.config) : base),
+    [base, custom, isCustom],
+  );
+  const run = (config: CustomConfig) => {
+    history.replaceState(null, "", `?${customQuery(config)}`);
+    setCustom({ config, errors: [] });
+  };
+  return (
+    <LessonView
+      key={isCustom ? customQuery(custom.config) : base.id}
+      lesson={lesson}
+      custom={isCustom ? { ...custom, run } : null}
+    />
+  );
+}
+
+interface CustomState {
+  config: CustomConfig;
+  errors: string[];
+  run: (config: CustomConfig) => void;
+}
+
+function LessonView({ lesson, custom }: { lesson: Lesson; custom: CustomState | null }) {
+  const lessonNumber = String(LESSONS.findIndex((l) => l.id === lesson.id) + 1).padStart(2, "0");
   const [progress] = useState(() => lessonProgress(lesson));
   const [playback] = useState(() => new Playback(lesson, progress));
   const snap = usePlayback(playback);
@@ -67,6 +100,12 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  // 직접 실험: the form opens by itself when a shared link could not be used.
+  const [customOpen, setCustomOpen] = useState(() => Boolean(custom?.errors.length));
+  const openCustom = () => {
+    playback.pause();
+    setCustomOpen(true);
+  };
 
   useEffect(() => playback.select(selected), [playback, selected, snap.algorithm]);
 
@@ -117,7 +156,7 @@ export function App() {
   };
 
   // Keyboard: Space play/pause, ←/→ 1 ms, R back to the start (not while a sheet is open or a control has focus).
-  const sheetOpen = quiz !== null || compareOpen;
+  const sheetOpen = quiz !== null || compareOpen || customOpen;
   useExplorerShortcuts(
     [
       { keys: "space", run: () => playback.togglePlay(), description: "재생·정지" },
@@ -141,10 +180,18 @@ export function App() {
         lessonNumber={lessonNumber}
         lessonTitle={lesson.title}
         actions={
-          <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
-            <ChartColumnIcon aria-hidden="true" />
-            <span>{LABELS.compare}</span>
-          </ToolbarKey>
+          <>
+            {custom && (
+              <ToolbarKey data-action="custom" className="glass-lens-sm" onClick={openCustom}>
+                <SlidersHorizontalIcon aria-hidden="true" />
+                <span>작업 바꾸기</span>
+              </ToolbarKey>
+            )}
+            <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
+              <ChartColumnIcon aria-hidden="true" />
+              <span>{LABELS.compare}</span>
+            </ToolbarKey>
+          </>
         }
       />
       <Console sideWidth="clamp(410px, 28vw, 440px)">
@@ -189,6 +236,7 @@ export function App() {
           summary={summary}
           onPredict={openPrediction}
           onCompare={openComparison}
+          onCustom={custom ? openCustom : undefined}
         />
         <CpuRecords
           lesson={lesson}
@@ -235,6 +283,18 @@ export function App() {
         onReveal={reveal}
         progress={progress}
       />
+      {custom && (
+        <CpuCustomSheet
+          open={customOpen}
+          onOpenChange={setCustomOpen}
+          config={custom.config}
+          problems={custom.errors}
+          onRun={(config) => {
+            setCustomOpen(false);
+            custom.run(config);
+          }}
+        />
+      )}
       <CpuComparison
         lesson={lesson}
         open={compareOpen}
@@ -275,7 +335,7 @@ function StatusLine({ lesson, snap }: { lesson: Lesson; snap: PlaybackSnapshot }
     text = `${frame.running} 실행 중 · ${until}`;
   } else {
     text = snap.finished
-      ? "세 작업을 모두 처리했습니다"
+      ? "모든 작업을 처리했습니다"
       : snap.time < 0
         ? "시작 전 · 아직 도착한 작업이 없습니다"
         : "CPU 유휴 · 준비된 작업이 없습니다";

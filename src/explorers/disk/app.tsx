@@ -1,7 +1,7 @@
 // 디스크 스케줄링 탐색기: one lesson per page (?lesson=scan-look|cscan). The
 // shell (toolbar, rail, console, footer) comes from src/components/shell;
 // this file wires the lesson's playback, panels and sheets together.
-import { ChartColumnIcon } from "lucide-react";
+import { ChartColumnIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { Console, Footer, Kbd, Stage } from "@/components/shell/console.tsx";
@@ -15,10 +15,11 @@ import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
 import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { DiskComparison } from "./comparison.tsx";
 import { DiskDeck } from "./deck.tsx";
+import { InputSheet } from "./input-sheet.tsx";
 import { DiskScene } from "./disk-scene.tsx";
 import { fix } from "./format.ts";
 import { buildLesson, LESSONS, type Lesson } from "./lessons.ts";
-import { Playback, useHead, usePlayback, type PlaybackSnapshot } from "./playback.ts";
+import { Playback, useHead, useLiveTotal, usePlayback, type PlaybackSnapshot } from "./playback.ts";
 import { DiskPrediction, type Quiz } from "./prediction.tsx";
 import { DiskRecords, type RecordTab } from "./records.tsx";
 import { DiskSide, type SideTab } from "./side.tsx";
@@ -56,6 +57,11 @@ export function App() {
   });
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [inputOpen, setInputOpen] = useState(false);
+  const openInput = () => {
+    playback.pause();
+    setInputOpen(true);
+  };
 
   // After a method switch or a revealed prediction the scene takes focus
   // (and on a phone comes into view).
@@ -91,12 +97,13 @@ export function App() {
     if (query.get("play") === "next") playback.next();
     if (query.get("dialog") === "compare") openComparison();
     if (query.get("dialog") === "predict") openPrediction();
+    if (query.get("dialog") === "input" && lesson.custom) openInput();
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- once, on load
   }, []);
 
   // Keyboard: Space play/pause, ←/→ one request, R back to the start (not
   // while a sheet is open or a control has focus). Hidden tab: pause.
-  const sheetOpen = quiz !== null || compareOpen;
+  const sheetOpen = quiz !== null || compareOpen || inputOpen;
   useExplorerShortcuts(
     [
       { keys: "space", run: () => playback.togglePlay(), description: "재생·정지" },
@@ -125,10 +132,18 @@ export function App() {
         lessonNumber={lesson.number}
         lessonTitle={fix(lesson.name)}
         actions={
-          <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
-            <ChartColumnIcon aria-hidden="true" />
-            <span>{LABELS.compare}</span>
-          </ToolbarKey>
+          <>
+            {lesson.custom && (
+              <ToolbarKey data-action="edit-input" className="glass-lens-sm" onClick={openInput}>
+                <SlidersHorizontalIcon aria-hidden="true" />
+                <span>입력 바꾸기</span>
+              </ToolbarKey>
+            )}
+            <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
+              <ChartColumnIcon aria-hidden="true" />
+              <span>{LABELS.compare}</span>
+            </ToolbarKey>
+          </>
         }
       />
       <Console>
@@ -164,6 +179,7 @@ export function App() {
           summary={summary}
           onPredict={openPrediction}
           onCompare={openComparison}
+          onEditInput={lesson.custom ? openInput : undefined}
         />
         <DiskRecords
           lesson={lesson}
@@ -203,6 +219,9 @@ export function App() {
         }}
         progress={progress}
       />
+      {lesson.custom && (
+        <InputSheet open={inputOpen} onOpenChange={setInputOpen} input={lesson.custom} />
+      )}
       <DiskComparison
         lesson={lesson}
         open={compareOpen}
@@ -218,8 +237,9 @@ export function App() {
 }
 
 /** 헤드 and 누적 이동 over the scene; the head follows the arm every frame. */
-function Readouts({ playback, total }: { playback: Playback; total: number }) {
+function Readouts({ playback, total: shown }: { playback: Playback; total: number }) {
   const head = useHead(playback);
+  const total = useLiveTotal(playback) ?? shown;
   return (
     <div className="ms-auto flex items-center gap-2.5 phone:ms-0 phone:basis-full phone:gap-1.5">
       <Label>헤드</Label>

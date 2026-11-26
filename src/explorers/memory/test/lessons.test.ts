@@ -160,10 +160,10 @@ test("the engine agrees with the independent counter in policies.js", () => {
 
 /* ---------- Lesson data ---------- */
 
-test("four lessons with rail data; the first stays FIFO vs LRU on the original input", () => {
+test("five lessons with rail data; the first stays FIFO vs LRU on the original input", () => {
   assert.deepEqual(
     LESSONS.map((l) => l.id),
-    ["fifo-lru", "opt", "belady", "clock"],
+    ["fifo-lru", "opt", "belady", "clock", "custom"],
   );
   for (const lesson of LESSONS) {
     assert.ok(lesson.name && lesson.sub, lesson.id);

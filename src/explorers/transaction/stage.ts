@@ -48,21 +48,29 @@ const WAIT = tray({
   mat: MAT.metal,
   cls: "tx-wait-tray",
 });
+// The laptops stand well forward of the database (FORWARD moves both along
+// x + y, i.e. down the screen), so the three devices fill a wide stage in
+// height too and the cables are long enough to watch a request travel.
+const FORWARD = 5.5;
 export const LAPTOPS: Record<ClientId, { x: number; y: number; w: number; d: number }> = {
-  T1: { x: -1.2, y: 11, w: 4.6, d: 3 },
-  T2: { x: 11, y: -1.2, w: 4.6, d: 3 },
+  T1: { x: -1.2 + FORWARD, y: 11 + FORWARD, w: 4.6, d: 3 },
+  T2: { x: 11 + FORWARD, y: -1.2 + FORWARD, w: 4.6, d: 3 },
 };
-// Request routes run laptop → database face (the cables). Responses run them backwards.
+// Request routes run laptop → database face (the cables): each laptop
+// stands square in front of one database face, so its cable leaves the
+// laptop's back (0.4 short of that hidden face, the plug tucked under) and
+// runs straight along one world axis to the face. The two cables never
+// cross and stay clear of the callouts. Responses run them backwards.
+const T1_X = LAPTOPS.T1.x + LAPTOPS.T1.w / 2;
+const T2_Y = LAPTOPS.T2.y + LAPTOPS.T2.d / 2;
 export const ROUTES: Record<ClientId, Point[]> = {
   T1: [
-    [3.4, 12.5],
-    [5.4, 12.5],
-    [5.4, DB.y + DB.d],
+    [T1_X, LAPTOPS.T1.y - 0.4],
+    [T1_X, DB.y + DB.d],
   ],
   T2: [
-    [12.5, 1.8],
-    [12.5, 3.6],
-    [DB.x + DB.w, 3.6],
+    [LAPTOPS.T2.x - 0.4, T2_Y],
+    [DB.x + DB.w, T2_Y],
   ],
 };
 // A blocked request waits in its own pocket of the WAIT tray (T1 left, T2 right).
@@ -372,9 +380,13 @@ export function sceneSvg({
 export function mountScene(host: HTMLElement, { svg, frame }: SceneSource) {
   host.innerHTML = svg;
   const el = host.querySelector("svg")!;
+  // Only the desktop console gives the stage a height of its own; stacked
+  // (and on phones) the scene's height follows its viewBox, so framing to the
+  // host's aspect would feed back into itself and shrink the scene.
   const mobile = matchMedia("(max-width: 759px)");
+  const desk = matchMedia("(min-width: 1100px) and (min-height: 700px)");
   const fit = () => {
-    const stageAspect = mobile.matches || !host.clientHeight ? 1.75 : host;
+    const stageAspect = mobile.matches ? 1.35 : !desk.matches || !host.clientHeight ? 1.6 : host;
     el.setAttribute(
       "viewBox",
       fitScene(frame.points, { stageAspect, fill: 0.9, labels: frame.labels }),
@@ -384,12 +396,14 @@ export function mountScene(host: HTMLElement, { svg, frame }: SceneSource) {
   const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(fit) : null;
   observer?.observe(host);
   mobile.addEventListener?.("change", fit);
+  desk.addEventListener?.("change", fit);
   const stopLabels = labelScale(el);
   return {
     svg: el,
     destroy() {
       observer?.disconnect();
       mobile.removeEventListener?.("change", fit);
+      desk.removeEventListener?.("change", fit);
       stopLabels();
       host.innerHTML = "";
     },

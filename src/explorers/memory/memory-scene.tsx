@@ -23,6 +23,7 @@ export function MemoryScene({
   useLayoutEffect(() => {
     const scene = createMemoryScene(host.current!, {
       frameCount: playback.frameCount,
+      pages: playback.lesson.pages,
       onPhase: playback.onPhase,
     });
     playback.attachScene(scene);

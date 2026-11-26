@@ -1,7 +1,7 @@
-// 메모리 탐색기: one lesson per page (?lesson=opt|belady|clock). The shell
+// 메모리 탐색기: one lesson per page (?lesson=opt|belady|clock|custom). The shell
 // (toolbar, rail, console, footer) comes from src/components/shell; this file
 // wires the lesson's playback, panels and sheets together.
-import { ChartColumnIcon } from "lucide-react";
+import { ChartColumnIcon, SlidersHorizontalIcon } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { Console, Footer, Kbd, Stage } from "@/components/shell/console.tsx";
@@ -15,9 +15,11 @@ import { createProgress, LABELS, type Progress } from "@/lib/lesson-kit.ts";
 import { currentLesson, progressIdFor } from "@/lib/lesson-rail.ts";
 import { useExplorerShortcuts } from "@/lib/shortcuts.ts";
 import { MemoryComparison } from "./comparison.tsx";
+import { customQuery, parseCustom, type CustomConfig } from "./custom.ts";
+import { MemoryCustomSheet } from "./custom-sheet.tsx";
 import { MemoryDeck } from "./deck.tsx";
 import { victimHintsVisible } from "./lesson.ts";
-import { extrasFor, LESSONS, runsFor } from "./lessons.ts";
+import { customLesson, extrasFor, LESSONS, runsFor } from "./lessons.ts";
 import { MemoryScene } from "./memory-scene.tsx";
 import { Playback, usePlayback, type PlaybackSnapshot } from "./playback.ts";
 import { MemoryPrediction } from "./prediction.tsx";
@@ -49,9 +51,39 @@ function useProgressSummary(progress: Progress) {
   );
 }
 
+/**
+ * The page: the lesson named in the URL. 직접 실험 (?lesson=custom) builds its
+ * lesson from the query (custom.ts); running a new input rewrites the query
+ * and mounts a fresh lesson view, so playback and progress start over.
+ */
 export function App() {
-  const lesson = useMemo(() => currentLesson(LESSONS), []);
-  const lessonNumber = String(LESSONS.indexOf(lesson) + 1).padStart(2, "0");
+  const base = useMemo(() => currentLesson(LESSONS), []);
+  const [custom, setCustom] = useState(() => parseCustom(globalThis.location?.search ?? ""));
+  const lesson = useMemo(
+    () => (base.id === "custom" ? customLesson(custom.config) : base),
+    [base, custom],
+  );
+  const run = (config: CustomConfig) => {
+    history.replaceState(null, "", `?${customQuery(config)}`);
+    setCustom({ config, errors: [] });
+  };
+  return (
+    <LessonView
+      key={base.id === "custom" ? customQuery(custom.config) : base.id}
+      lesson={lesson}
+      custom={base.id === "custom" ? { ...custom, run } : null}
+    />
+  );
+}
+
+interface CustomState {
+  config: CustomConfig;
+  errors: string[];
+  run: (config: CustomConfig) => void;
+}
+
+function LessonView({ lesson, custom }: { lesson: Lesson; custom: CustomState | null }) {
+  const lessonNumber = String(LESSONS.findIndex((l) => l.id === lesson.id) + 1).padStart(2, "0");
   const [progress] = useState(() => lessonProgress(lesson));
   const [playback] = useState(() => new Playback(lesson, progress));
   const snap = usePlayback(playback);
@@ -61,6 +93,8 @@ export function App() {
   const [recordTab, setRecordTab] = useState<RecordTab>("history");
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [compareOpen, setCompareOpen] = useState(false);
+  // 직접 실험: the form opens by itself when a shared link could not be used.
+  const [customOpen, setCustomOpen] = useState(() => Boolean(custom?.errors.length));
   // Predictions answered in this visit, by quiz id ("fifo-5"): their hints may show.
   const [answered, setAnswered] = useState<ReadonlySet<string>>(() => new Set());
 
@@ -104,7 +138,11 @@ export function App() {
   };
 
   // Keyboard: Space play/pause, ←/→ one access, R back to the start (not while a sheet is open or a control has focus).
-  const sheetOpen = quiz !== null || compareOpen;
+  const sheetOpen = quiz !== null || compareOpen || customOpen;
+  const openCustom = () => {
+    playback.pause();
+    setCustomOpen(true);
+  };
   useExplorerShortcuts(
     [
       { keys: "space", run: () => void playback.togglePlay(), description: "재생·정지" },
@@ -134,10 +172,18 @@ export function App() {
         lessonNumber={lessonNumber}
         lessonTitle={lesson.name}
         actions={
-          <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
-            <ChartColumnIcon aria-hidden="true" />
-            <span>{LABELS.compare}</span>
-          </ToolbarKey>
+          <>
+            {custom && (
+              <ToolbarKey data-action="custom" className="glass-lens-sm" onClick={openCustom}>
+                <SlidersHorizontalIcon aria-hidden="true" />
+                <span>조건 바꾸기</span>
+              </ToolbarKey>
+            )}
+            <ToolbarKey data-action="compare" className="glass-lens-sm" onClick={openComparison}>
+              <ChartColumnIcon aria-hidden="true" />
+              <span>{LABELS.compare}</span>
+            </ToolbarKey>
+          </>
         }
       />
       <Console>
@@ -198,6 +244,7 @@ export function App() {
           masked={masked}
           onPredict={openPrediction}
           onCompare={openComparison}
+          onCustom={custom ? openCustom : undefined}
         />
         <MemoryRecords
           playback={playback}
@@ -244,6 +291,18 @@ export function App() {
         onClose={() => setQuiz(null)}
         onReveal={reveal}
       />
+      {custom && (
+        <MemoryCustomSheet
+          open={customOpen}
+          onOpenChange={setCustomOpen}
+          config={custom.config}
+          problems={custom.errors}
+          onRun={(config) => {
+            setCustomOpen(false);
+            custom.run(config);
+          }}
+        />
+      )}
       <MemoryComparison
         playback={playback}
         open={compareOpen}

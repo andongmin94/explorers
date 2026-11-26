@@ -4,8 +4,9 @@
 import { Button } from "@/components/ui/button.tsx";
 import { Led, List, Note } from "@/components/ui/content.tsx";
 import { Index, Label, Text, Title } from "@/components/ui/typography.tsx";
+import { MisconceptionNote, misconceptionsAt } from "@/components/learning/misconception.tsx";
 import type { PagedItem } from "@/components/learning/pager.tsx";
-import { LABELS } from "@/lib/lesson-kit.ts";
+import { LABELS, type Misconception } from "@/lib/lesson-kit.ts";
 import { colorOf, keepUnits, moveText } from "./format.ts";
 import { josa } from "./josa.ts";
 import { eventLabel } from "./lesson.ts";
@@ -47,11 +48,14 @@ export function explanationItems({
   lessonNumber,
   snap,
   onReplay,
+  misconceptions = [],
 }: {
   lesson: Lesson;
   lessonNumber: string;
   snap: PlaybackSnapshot;
   onReplay: () => void;
+  /** 오개념 바로잡기 of this run: each shows beside the 핵심 note at its 핵심 장면. */
+  misconceptions?: readonly Misconception[];
 }): PagedItem[] {
   const { result, frame, move, time, algorithm } = snap;
   const content = lesson.content;
@@ -108,6 +112,14 @@ export function explanationItems({
   }
   const visibleEvents = move ? [...frame.events, move] : frame.events;
   const canReplay = !move && time >= 0 && result.frames[time].events.length > 0;
+  // At a 핵심 장면 (not mid-move; 정리 lists them all once the run is over).
+  const scene =
+    move || snap.finished ? 0 : content.milestones(result).findIndex((m) => m.time === time) + 1;
+  const corrections: PagedItem[] = misconceptionsAt(misconceptions, scene).map((item) => ({
+    key: `misconception-${item.id}`,
+    note: true,
+    node: <MisconceptionNote item={{ ...item, check: keepUnits(item.check) }} />,
+  }));
   return [
     {
       key: "explanation",
@@ -172,5 +184,6 @@ export function explanationItems({
         </Note>
       ),
     },
+    ...corrections,
   ];
 }
