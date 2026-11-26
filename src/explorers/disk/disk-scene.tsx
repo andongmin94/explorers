@@ -33,7 +33,7 @@ export function DiskScene({ playback, busy }: { playback: Playback; busy: boolea
       aria-busy={busy}
       className={cn(
         sceneBoxClass,
-        "disk-scene min-h-0 px-3 pt-2 pb-1 outline-none stacked:overflow-hidden [@media(max-height:699px)]:overflow-hidden phone:p-1",
+        "disk-scene px-3 pt-2 pb-1 outline-none stacked:overflow-hidden [@media(max-height:699px)]:overflow-hidden phone:p-1",
       )}
     />
   );

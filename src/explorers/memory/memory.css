@@ -167,3 +167,13 @@
     border-radius: 5px;
   }
 }
+
+/* 직접 실험 with more than 12 accesses: narrower columns, so the last access
+   still fits the record's width. */
+.mem-history[data-many] :is(thead th:not(:first-child), tbody td) {
+  padding-inline: 1px;
+}
+.mem-history[data-many] thead button {
+  min-width: 22px;
+  padding-inline: 3px;
+}

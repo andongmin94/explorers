@@ -46,7 +46,7 @@ export function SchedulerScene({
       aria-busy={busy}
       className={cn(
         sceneBoxClass,
-        "cpu-scene grid min-h-0 place-items-center px-3 pt-2 pb-1 outline-none stacked:overflow-hidden [@media(max-height:699px)]:overflow-hidden console:p-0 phone:p-0",
+        "cpu-scene grid place-items-center px-3 pt-2 pb-1 outline-none stacked:overflow-hidden [@media(max-height:699px)]:overflow-hidden console:p-0 phone:p-0",
       )}
       onClick={(event) => {
         const id = tokenOf(event.target);
